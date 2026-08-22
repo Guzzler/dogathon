@@ -8,7 +8,7 @@ import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
 import { ENERGY_WORD, normalizeDog, type RichDog } from "../../lib/dog";
 import { prefs, scoreDog, useMyLocation } from "../../lib/matching";
-import { Wordmark } from "../../components/Logo";
+import { PawMark, Wordmark } from "../../components/Logo";
 
 const sizeWord = (v: number) => (v < 33 ? "Small" : v < 67 ? "Medium" : "Large");
 
@@ -62,7 +62,8 @@ export function DiscoveryView() {
   return (
     <div className="screen">
       <div className="topbar" style={{ paddingBottom: 10 }}>
-        <Wordmark size={21} />
+        <PawMark size={26} />
+        <Wordmark size={20} />
         <span className="sp" />
         <span className="chip sage" style={{ fontWeight: 800 }}>{matches.length} matches</span>
       </div>

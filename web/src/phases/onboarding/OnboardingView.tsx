@@ -74,7 +74,7 @@ export function OnboardingView() {
         pref_experience: experience ?? undefined,
         pref_tags: tags,
       };
-      await patchFoster({ name: "Annie", intake, phase: "discovery" });
+      await patchFoster({ intake, phase: "discovery" });
       navigate("/discovery");
     } finally {
       setSaving(false);

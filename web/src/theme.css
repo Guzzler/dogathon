@@ -266,3 +266,28 @@ input,textarea,select{font-family:inherit}
 .phone-body .agent-panel__composer{flex-shrink:0;flex-wrap:wrap}
 .phone-body .agent-panel__composer .btn{flex-shrink:0}
 .phone-body .agent-panel__quick-actions{display:flex;flex-direction:column;gap:8px}
+
+/* boot splash while the foster record loads, so the gate doesn't flash the Hub */
+.boot{flex:1;display:grid;place-items:center;background:var(--cream)}
+.boot__paw{font-size:34px;animation:float 1.8s ease-in-out infinite}
+
+.namefield{
+  width:100%;margin-top:9px;padding:16px 18px;border-radius:var(--r-md);
+  border:2px solid transparent;background:#fff;box-shadow:var(--shadow);
+  font-size:16.5px;font-weight:700;color:var(--ink);outline:none;
+  transition:border-color .15s;
+}
+.namefield::placeholder{color:var(--ink-3);font-weight:600}
+.namefield:focus{border-color:var(--coral)}
+
+.looking-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+.looking-note{margin-top:10px;font-size:13px}
+.looking-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.looking-actions .btn{flex:1;min-width:130px;justify-content:center}
+
+/* .btn--ghost was designed against a dark panel; on the light phone surfaces it was
+   near-invisible (the Post Foster composer's Send button, Hub's "Change answers"). */
+.phone-body .btn--ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.phone-body .btn--ghost:disabled{color:var(--ink-3)}
+/* .btn is used on <Link>s, which carry an underline by default */
+.phone-body a.btn{text-decoration:none}
