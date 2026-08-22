@@ -1,8 +1,26 @@
 import type { TriggerContext, TriggerRule } from "./types";
 
-function anyNoteMatches(ctx: TriggerContext, patterns: RegExp[]): boolean {
+/**
+ * How far back a keyword still counts as "the foster is dealing with this".
+ *
+ * Without a window, one note about nipping on day 3 keeps the biting card pinned to the hub
+ * for the rest of the foster — long after it stopped being true, and crowding out whatever is
+ * actually happening this week. A trigger describes a live situation, so it expires.
+ */
+const DEFAULT_WINDOW_DAYS = 7;
+
+function anyNoteMatches(
+  ctx: TriggerContext,
+  patterns: RegExp[],
+  windowDays = DEFAULT_WINDOW_DAYS,
+): boolean {
+  const since = ctx.dayInFoster - windowDays;
   return ctx.entries.some(
-    (e) => e.text && patterns.some((p) => p.test(e.text!)),
+    (e) =>
+      e.text &&
+      e.dayInFoster > since &&
+      e.dayInFoster <= ctx.dayInFoster &&
+      patterns.some((p) => p.test(e.text!)),
   );
 }
 
@@ -34,12 +52,11 @@ export const triggerRules: TriggerRule[] = [
     urgency: "warn",
     cta: "Warm the food, then call vet if 24h+",
     match: (ctx) =>
-      anyNoteMatches(ctx, [
-        /\bnot eating\b/i,
-        /\bwon'?t eat\b/i,
-        /\bskipped (a )?meal/i,
-        /\brefused (the )?food/i,
-      ]),
+      anyNoteMatches(
+        ctx,
+        [/\bnot eating\b/i, /\bwon'?t eat\b/i, /\bskipped (a )?meal/i, /\brefused (the )?food/i],
+        3,
+      ),
   },
   {
     id: "rule-crate-refusal",

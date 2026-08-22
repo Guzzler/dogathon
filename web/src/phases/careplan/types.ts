@@ -90,6 +90,7 @@ export interface TriggerContext {
 
 export interface TriggerRule {
   id: string;
+  /** Rules read the journal within a recency window — see `anyNoteMatches` in triggers.ts. */
   label: string;
   tipId: string;
   urgency: TipUrgency;
