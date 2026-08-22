@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getHealth, getTools, resetChat, sendApproval, streamChat } from "./api";
 import { sidekickTheme, themeVars } from "./brand";
+import { CarePlan } from "./carePlan/CarePlan";
 import { ApprovalModal } from "./components/ApprovalModal";
 import { Sidebar } from "./components/Sidebar";
 import { TurnView } from "./components/TurnView";
@@ -9,7 +10,10 @@ import "./App.css";
 
 let nextCallId = 0;
 
+type AppMode = "chat" | "carePlan";
+
 export default function App() {
+  const [mode, setMode] = useState<AppMode>("chat");
   const [tools, setTools] = useState<ToolInfo[]>([]);
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -131,6 +135,14 @@ export default function App() {
     health === null ? "status-pill--muted" : health.anthropic_key_set ? "status-pill--ok" : "status-pill--warn";
   const arcadeStatusClass = health?.arcade_available ? "status-pill--ok" : "status-pill--muted";
 
+  if (mode === "carePlan") {
+    return (
+      <div style={themeVars(sidekickTheme)}>
+        <CarePlan onExit={() => setMode("chat")} />
+      </div>
+    );
+  }
+
   return (
     <div className="app" style={themeVars(sidekickTheme)}>
       <Sidebar brand={sidekickTheme} tools={tools} health={health} onReset={handleReset} />
@@ -145,6 +157,13 @@ export default function App() {
             </div>
           </div>
           <div className="chat-header__status" aria-label="System status">
+            <button
+              className="status-pill status-pill--ok"
+              onClick={() => setMode("carePlan")}
+              style={{ cursor: "pointer" }}
+            >
+              Foster Care Plan →
+            </button>
             <span className={`status-pill ${claudeStatusClass}`}>
               Claude {claudeStatus}
             </span>
