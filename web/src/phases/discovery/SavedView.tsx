@@ -97,7 +97,10 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
   const remove = () => patchFoster({ likedDogIds: (foster?.likedDogIds ?? []).filter(x => x !== d.id) });
   // Applying is what commits the foster to a dog — it sets matchedDogId and advances the
   // phase, which is exactly what the Match view (Sharang's) reads.
-  const apply = () => patchFoster({ matchedDogId: d.id, phase: "match" });
+  const apply = async () => {
+    await patchFoster({ matchedDogId: d.id, phase: "match" });
+    navigate("/match");
+  };
 
   return (
     <motion.div layout initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: i * .05 }}

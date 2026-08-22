@@ -88,3 +88,34 @@ export function fosterWindow(
 
   return { total: totalLabel, started: true, daysLeft, leftLabel, progress, endDate: end };
 }
+
+/* ---------- journey navigation ---------- */
+
+export interface JourneyTab { to: string; label: string; icon: string; end?: boolean }
+
+const TAB = {
+  discover: { to: "/discovery", label: "Discover", icon: "paw" },
+  saved: { to: "/saved", label: "Saved", icon: "♥" },
+  match: { to: "/match", label: "Match", icon: "📋" },
+  care: { to: "/care-plan", label: "Care", icon: "🩺" },
+  adopt: { to: "/post-foster", label: "Adopt", icon: "🎉" },
+} satisfies Record<string, JourneyTab>;
+
+/**
+ * Pawthway is a journey, not an app with a fixed menu — you only see the steps you're
+ * actually on. Each phase keeps a second tab so no step is a dead end.
+ */
+export function journeyTabs(phase: Foster["phase"] | undefined): JourneyTab[] {
+  switch (phase) {
+    case "discovery": return [TAB.discover, TAB.saved];
+    case "match": return [TAB.match, TAB.saved];
+    case "care_plan": return [TAB.care, TAB.adopt];
+    case "complete": return [TAB.adopt, TAB.discover];
+    default: return [];          // onboarding — the questionnaire owns the screen
+  }
+}
+
+/** Where "home" is for the phase they're on. */
+export function journeyHome(phase: Foster["phase"] | undefined): string {
+  return journeyTabs(phase)[0]?.to ?? "/discovery";
+}

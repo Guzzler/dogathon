@@ -42,7 +42,7 @@ export function DogDetailView() {
       phase: "match",
     });
     setContact(false);
-    navigate("/saved?tab=applied");
+    navigate("/match");
   };
 
   return (

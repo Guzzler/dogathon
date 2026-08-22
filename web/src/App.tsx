@@ -11,7 +11,7 @@ import { CarePlanView } from "./phases/careplan/CarePlanView";
 import { PostFosterView } from "./phases/postfoster/PostFosterView";
 import { PublicAdoptionView } from "./phases/postfoster/PublicAdoptionView";
 import { useFoster } from "./hooks/useFoster";
-import { hasOnboarded } from "./lib/foster";
+import { hasOnboarded, journeyHome } from "./lib/foster";
 import "./App.css";
 import "./pawthway.css";
 import "./theme.css";
@@ -37,7 +37,8 @@ export default function App() {
         {/* A shared adoption link must open for someone with no Pawthway account. */}
         <Route path="adoption/:id" element={<PublicAdoptionView />} />
         <Route element={<GateOutlet />}>
-          <Route index element={<HubView />} />
+          <Route index element={<JourneyHome />} />
+          <Route path="hub" element={<HubView />} />
           <Route path="welcome" element={<WelcomeView />} />
           <Route path="onboarding" element={<OnboardingView />} />
           <Route path="discovery" element={<DiscoveryView />} />
@@ -50,6 +51,13 @@ export default function App() {
       </Route>
     </Routes>
   );
+}
+
+/** The journey's entry point sends you to whichever step you're actually on. */
+function JourneyHome() {
+  const { foster, loading } = useFoster();
+  if (loading) return <div className="boot"><span className="boot__paw">🐾</span></div>;
+  return <Navigate to={journeyHome(foster?.phase)} replace />;
 }
 
 // Split out so the gate can sit inside Layout and still wrap every child route.
