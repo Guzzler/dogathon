@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getHealth, getTools, resetChat, sendApproval, streamChat } from "./api";
+import { sidekickTheme, themeVars } from "./brand";
 import { ApprovalModal } from "./components/ApprovalModal";
 import { Sidebar } from "./components/Sidebar";
 import { TurnView } from "./components/TurnView";
@@ -21,11 +22,15 @@ export default function App() {
   const scrollAnchor = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    getTools().then((list) => {
-      setTools(list);
-      dangerousNames.current = new Set(list.filter((t) => t.dangerous).map((t) => t.name));
-    });
-    getHealth().then(setHealth);
+    document.title = `${sidekickTheme.name} · rescue ops`;
+    document.querySelector<HTMLLinkElement>("link[rel='icon']")?.setAttribute("href", sidekickTheme.logo.favicon);
+    getTools()
+      .then((list) => {
+        setTools(list);
+        dangerousNames.current = new Set(list.filter((t) => t.dangerous).map((t) => t.name));
+      })
+      .catch(() => setTools([]));
+    getHealth().then(setHealth).catch(() => setHealth(null));
   }, []);
 
   useEffect(() => {
@@ -120,17 +125,49 @@ export default function App() {
     setTurns([]);
   }
 
+  const claudeStatus = health === null ? "check" : health.anthropic_key_set ? "ready" : "offline";
+  const arcadeStatus = health === null ? "check" : health.arcade_available ? "loaded" : "optional";
+  const claudeStatusClass =
+    health === null ? "status-pill--muted" : health.anthropic_key_set ? "status-pill--ok" : "status-pill--warn";
+  const arcadeStatusClass = health?.arcade_available ? "status-pill--ok" : "status-pill--muted";
+
   return (
-    <div className="app">
-      <Sidebar tools={tools} health={health} onReset={handleReset} />
+    <div className="app" style={themeVars(sidekickTheme)}>
+      <Sidebar brand={sidekickTheme} tools={tools} health={health} onReset={handleReset} />
 
       <main className="chat">
+        <header className="chat-header">
+          <div className="chat-header__identity">
+            <img className="chat-header__mark" src={sidekickTheme.logo.mark} alt="" aria-hidden="true" />
+            <div>
+              <p className="chat-header__eyebrow">Rescue operations</p>
+              <h1 className="chat-header__title">{sidekickTheme.name}</h1>
+            </div>
+          </div>
+          <div className="chat-header__status" aria-label="System status">
+            <span className={`status-pill ${claudeStatusClass}`}>
+              Claude {claudeStatus}
+            </span>
+            <span className={`status-pill ${arcadeStatusClass}`}>
+              Arcade {arcadeStatus}
+            </span>
+            <span className="status-pill status-pill--muted">{health?.tool_count ?? tools.length} tools</span>
+          </div>
+        </header>
+
         <div className="chat__scroll">
           {turns.length === 0 && (
             <div className="empty-state">
-              Ask it to list available dogs, look one up, fetch a URL, or do
-              some arithmetic — try "which dogs under 40 lbs are good with
-              kids?"
+              <img
+                className="empty-state__mark"
+                src={sidekickTheme.logo.mark}
+                alt=""
+                aria-hidden="true"
+              />
+              <p>
+                Intake, kennel changes, roster lookups, and approved follow-ups
+                stay in one calm workspace.
+              </p>
             </div>
           )}
           {turns.map((turn, i) => (

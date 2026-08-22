@@ -1,15 +1,19 @@
+import type { AppTheme } from "../brand";
 import type { HealthInfo, ToolInfo } from "../types";
 
 interface Props {
+  brand: AppTheme;
   tools: ToolInfo[];
   health: HealthInfo | null;
   onReset: () => void;
 }
 
-export function Sidebar({ tools, health, onReset }: Props) {
+export function Sidebar({ brand, tools, health, onReset }: Props) {
   return (
     <aside className="sidebar">
-      <h1 className="sidebar__title">dogathon agent</h1>
+      <div className="brand-lockup">
+        <img className="brand-lockup__logo" src={brand.logo.horizontal} alt={brand.name} />
+      </div>
 
       {health && !health.anthropic_key_set && (
         <div className="banner banner--warn">
