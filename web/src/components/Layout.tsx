@@ -1,44 +1,48 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { pawthwayTheme, themeVars } from "../brand";
+import { useFoster } from "../hooks/useFoster";
+import { LOCAL_MODE } from "../lib/localMode";
 
-const PHASES: { to: string; label: string; end?: boolean }[] = [
-  { to: "/", label: "Hub", end: true },
-  { to: "/onboarding", label: "Onboarding" },
-  { to: "/discovery", label: "Discovery" },
-  { to: "/match", label: "Match" },
-  { to: "/care-plan", label: "Care Plan" },
-  { to: "/post-foster", label: "Post Foster" },
+const TABS = [
+  { to: "/",           label: "Hub",     icon: "🏠", end: true },
+  { to: "/discovery",  label: "Discover",icon: "🐾" },
+  { to: "/saved",      label: "Saved",   icon: "♥" },
+  { to: "/match",      label: "Match",   icon: "📋" },
+  { to: "/care-plan",  label: "Care",    icon: "🩺" },
+  { to: "/post-foster",label: "Adopt",   icon: "🎉" },
 ];
 
+/** Full-bleed screens own their own chrome, so the tab bar steps out of the way. */
+const FULL_BLEED = [/^\/onboarding/, /^\/dog\//];
+
 export function Layout() {
+  const { pathname } = useLocation();
+  const { foster } = useFoster();
+  const hideTabs = FULL_BLEED.some(re => re.test(pathname));
+  const savedCount = foster?.likedDogIds?.length ?? 0;
+
   return (
-    <div className="pw-app" style={themeVars(pawthwayTheme)}>
-      <header className="pw-nav">
-        <div className="pw-nav__brand">
-          <span className="pw-nav__mark" aria-hidden="true">
-            🐾
-          </span>
-          <div>
-            <p className="pw-nav__name">{pawthwayTheme.name}</p>
-            <p className="pw-nav__tagline">{pawthwayTheme.tagline}</p>
-          </div>
+    <div className="shell" style={themeVars(pawthwayTheme)}>
+      <div className="phone pw-app">
+        {LOCAL_MODE && <div className="local-banner">Local demo data — no Firebase config found</div>}
+        <div className="phone-body">
+          <Outlet />
         </div>
-        <nav className="pw-nav__links">
-          {PHASES.map((p) => (
-            <NavLink
-              key={p.to}
-              to={p.to}
-              end={p.end}
-              className={({ isActive }) => `pw-nav__link ${isActive ? "pw-nav__link--active" : ""}`}
-            >
-              {p.label}
-            </NavLink>
-          ))}
-        </nav>
-      </header>
-      <main className="pw-main">
-        <Outlet />
-      </main>
+        {!hideTabs && (
+          <nav className="tabbar">
+            {TABS.map(t => (
+              <NavLink key={t.to} to={t.to} end={t.end}
+                className={({ isActive }) => `tabbar__link ${isActive ? "is-active" : ""}`}>
+                <span className="tabbar__icon">
+                  {t.icon}
+                  {t.to === "/saved" && savedCount > 0 && <span className="tabbar__badge">{savedCount}</span>}
+                </span>
+                <span className="tabbar__label">{t.label}</span>
+              </NavLink>
+            ))}
+          </nav>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { LOCAL_MODE } from "./lib/localMode";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -10,5 +11,6 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-export const firebaseApp = initializeApp(firebaseConfig);
-export const firestore = getFirestore(firebaseApp);
+// Without web/.env there is nothing to connect to; callers branch on LOCAL_MODE instead.
+export const firebaseApp = LOCAL_MODE ? null : initializeApp(firebaseConfig);
+export const firestore: Firestore = firebaseApp ? getFirestore(firebaseApp) : (null as unknown as Firestore);

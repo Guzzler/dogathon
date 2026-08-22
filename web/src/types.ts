@@ -45,6 +45,8 @@ export interface HealthInfo {
 
 export type DogStatus = "available" | "foster" | "medical_hold" | "adopted" | "ready_for_adoption";
 
+export type DogSize = "small" | "medium" | "large";
+
 export interface Dog {
   id: string;
   name: string;
@@ -57,6 +59,18 @@ export interface Dog {
   good_with_dogs: boolean;
   notes: string;
   adoption_profile?: string;
+
+  // Added for Discovery. All optional — dogs seeded before these existed still
+  // render, because `normalizeDog()` derives sensible values from the fields above.
+  shelter_id?: string;
+  good_with_cats?: boolean;
+  energy_level?: number;          // 0 (couch potato) – 4 (zoomies)
+  grooming?: "low" | "high";
+  coat?: "short" | "long";
+  traits?: string[];
+  needs?: string[];
+  foster_length?: string;
+  photo?: number;
 }
 
 export interface ChecklistItem {
@@ -65,6 +79,11 @@ export interface ChecklistItem {
   done: boolean;
 }
 
+/**
+ * The six string fields are what the agent reads (`src/agent/builtin/foster.py`), so
+ * onboarding keeps writing them. The `pref_*` fields below carry the same answers in the
+ * structured form the matching function needs; both are written together.
+ */
 export interface FosterIntake {
   living_arrangement?: string;
   experience_level?: string;
@@ -72,6 +91,12 @@ export interface FosterIntake {
   size_preference?: string;
   energy_preference?: string;
   restrictions?: string;
+
+  pref_size?: number;      // 0 (small) – 100 (large)
+  pref_energy?: number;    // 0 – 4, matches Dog.energy_level
+  pref_home?: "apartment" | "townhouse" | "houseYard";
+  pref_experience?: "first" | "experienced";
+  pref_tags?: string[];
 }
 
 export type FosterPhase = "onboarding" | "discovery" | "match" | "care_plan" | "complete";
