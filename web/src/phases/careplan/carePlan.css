@@ -1,4 +1,5 @@
-/* Stage — desktop layout with a device chrome on the right and demo panel on the left */
+/* Stage — mobile-first: fills the phone frame (Layout `.phone-body`) edge-to-edge.
+   Demo panel and desktop grid activate only via .cp-stage:not(--solo) on wider screens. */
 
 .cp-stage {
   --cp-radius: 14px;
@@ -7,20 +8,31 @@
   --cp-shadow-lg: 0 30px 60px rgba(23, 53, 38, 0.22);
   --cp-shadow-md: 0 8px 22px rgba(23, 53, 38, 0.09);
   --cp-shadow-sm: 0 2px 6px rgba(23, 53, 38, 0.06);
-  --cp-bg:
-    radial-gradient(1200px 600px at 20% 0%, rgba(196, 149, 90, 0.14), transparent 60%),
-    radial-gradient(900px 500px at 100% 100%, rgba(45, 90, 61, 0.14), transparent 60%),
-    linear-gradient(180deg, #f8f3ea 0%, #ece4d3 100%);
 
-  background: var(--cp-bg);
   color: var(--color-ink);
-  display: grid;
-  grid-template-columns: minmax(240px, 320px) 1fr;
-  gap: 32px;
-  padding: 24px 32px;
-  align-items: start;
-  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: transparent;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
+}
+
+/* Widescreen with demo panel visible (only when SHOW_DEMO_CONTROLS = true). */
+@media (min-width: 900px) {
+  .cp-stage:not(.cp-stage--solo):not(.cp-stage--empty) {
+    display: grid;
+    grid-template-columns: minmax(240px, 320px) 1fr;
+    gap: 32px;
+    padding: 24px 32px;
+    align-items: start;
+    background:
+      radial-gradient(1200px 600px at 20% 0%, rgba(196, 149, 90, 0.14), transparent 60%),
+      radial-gradient(900px 500px at 100% 100%, rgba(45, 90, 61, 0.14), transparent 60%),
+      linear-gradient(180deg, #f8f3ea 0%, #ece4d3 100%);
+    height: auto;
+    border-radius: 20px;
+  }
 }
 
 /* Demo panel */
@@ -61,10 +73,14 @@
   font-weight: 700;
 }
 
-.cp-stage--solo {
-  grid-template-columns: 1fr;
-  max-width: 780px;
-  margin: 0 auto;
+/* --solo: no demo panel; on wide screens, center a max-width column. */
+@media (min-width: 900px) {
+  .cp-stage--solo {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 24px 0;
+    height: auto;
+  }
 }
 
 .cp-stage--empty {
@@ -100,28 +116,20 @@
   margin-top: 10px;
 }
 
-/* Demo container (desktop) */
-
-.cp-demo {
-  width: 100%;
-  background: #ffffff;
-  border-radius: 20px;
-  box-shadow: var(--cp-shadow-lg);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--color-border);
-}
-
 /* Topbar */
 
 .cp-topbar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 20px 26px;
+  gap: 12px;
+  padding: 14px 16px;
   background: linear-gradient(180deg, #fffdf7 0%, #f9f4ea 100%);
   border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+@media (min-width: 900px) {
+  .cp-topbar { padding: 20px 26px; }
 }
 
 .cp-avatar {
@@ -137,12 +145,30 @@
   box-shadow: 0 4px 10px rgba(45, 90, 61, 0.25);
 }
 
+.cp-topbar > div {
+  min-width: 0;
+  flex: 1;
+}
+
 .cp-topbar__title {
   margin: 2px 0 0;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--color-ink);
   letter-spacing: -0.01em;
+  line-height: 1.25;
+  overflow-wrap: break-word;
+}
+
+.cp-avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+}
+
+@media (min-width: 900px) {
+  .cp-topbar__title { font-size: 20px; }
+  .cp-avatar { width: 42px; height: 42px; font-size: 20px; }
 }
 
 /* Tabs */
@@ -150,10 +176,36 @@
 .cp-tabs {
   display: flex;
   gap: 4px;
-  padding: 10px 20px;
+  padding: 4px 10px;
   background: var(--color-cream);
   border-bottom: 1px solid var(--color-border);
   overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+
+.cp-tabs::-webkit-scrollbar { display: none; }
+
+/* The sub-nav lives at the bottom of the frame, just above the app tab bar. Kept slim and
+   pill-shaped so it doesn't read as a second copy of the app's navigation. */
+.cp-tabs--bottom {
+  border-bottom: none;
+  border-top: 1px solid var(--color-border);
+  padding: 7px 8px;
+  gap: 6px;
+  background: rgba(255, 253, 248, 0.96);
+  backdrop-filter: blur(10px);
+}
+
+.cp-tabs--bottom .cp-tab {
+  flex: 1;
+  text-align: center;
+  padding: 9px 8px;
+  font-size: 12px;
+}
+
+@media (min-width: 900px) {
+  .cp-tabs { padding: 10px 20px; }
 }
 
 .cp-tab {
@@ -203,26 +255,31 @@
 
 .cp-main {
   flex: 1;
-  padding: 24px 28px 36px;
+  min-height: 0;
+  padding: 12px 14px 24px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   background: #fffdf8;
-  max-height: min(85vh, 900px);
 }
 
-/* Two-column layout on wide screens: schedule main + side widgets */
+@media (min-width: 900px) {
+  .cp-main {
+    padding: 24px 28px 36px;
+    gap: 16px;
+    max-height: min(85vh, 900px);
+  }
+}
+
 .cp-hub__row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
-@media (max-width: 720px) {
-  .cp-hub__row {
-    grid-template-columns: 1fr;
-  }
+@media (min-width: 720px) {
+  .cp-hub__row { grid-template-columns: 1fr 1fr; }
 }
 
 /* Shared */
@@ -426,10 +483,14 @@
 
 .cp-schedule-block {
   display: grid;
-  grid-template-columns: 78px 1fr;
+  grid-template-columns: 64px 1fr;
   gap: 8px;
   padding: 10px 0;
   position: relative;
+}
+
+@media (min-width: 720px) {
+  .cp-schedule-block { grid-template-columns: 78px 1fr; }
 }
 
 .cp-schedule-block + .cp-schedule-block {
@@ -530,6 +591,281 @@
 .cp-schedule-item__chip--medication { background: rgba(168, 64, 52, 0.12); color: var(--color-danger); }
 .cp-schedule-item__chip--training { background: rgba(47, 122, 75, 0.14); color: var(--color-success); }
 .cp-schedule-item__chip--checkup { background: rgba(23, 53, 38, 0.1); color: var(--color-ink); }
+
+/* New unified plan timeline (week header + task chips + milestone events) */
+
+.cp-plan {
+  padding: 2px 0 0;
+}
+
+.cp-plan__head {
+  padding: 0 2px 6px;
+  margin-bottom: 2px;
+}
+
+.cp-plan__head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+}
+
+.cp-plan__weeks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.cp-week {
+  padding: 12px 0 10px;
+  border-top: 1px dashed rgba(196, 149, 90, 0.28);
+}
+
+.cp-week:first-child { border-top: none; }
+
+.cp-week__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.cp-week__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid var(--color-border);
+  flex: 0 0 auto;
+}
+
+.cp-week--passed .cp-week__dot {
+  background: var(--color-copper);
+  border-color: var(--color-copper);
+}
+
+.cp-week--current .cp-week__dot {
+  background: var(--color-evergreen);
+  border-color: var(--color-evergreen);
+  box-shadow: 0 0 0 4px rgba(45, 90, 61, 0.14);
+}
+
+.cp-week__label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cp-week__name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-ink);
+  letter-spacing: -0.005em;
+}
+
+.cp-week--current .cp-week__name {
+  color: var(--color-evergreen);
+}
+
+/* Compact chips = what's on the plan this week */
+
+.cp-plan-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.cp-plan-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 252, 246, 0.7);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--color-ink);
+  transition: background 120ms ease;
+}
+
+.cp-plan-chip:hover { background: rgba(255, 252, 246, 1); }
+
+.cp-plan-chip--done {
+  background: rgba(47, 122, 75, 0.08);
+  border-color: rgba(47, 122, 75, 0.28);
+}
+
+.cp-plan-chip--done .cp-plan-chip__label {
+  text-decoration: line-through;
+  color: var(--color-muted);
+}
+
+.cp-plan-chip__box {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-evergreen);
+  color: var(--color-evergreen);
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  line-height: 1;
+}
+
+.cp-plan-chip--done .cp-plan-chip__box {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #fff;
+}
+
+.cp-plan-chip__label {
+  font-weight: 700;
+}
+
+.cp-plan-chip__kind {
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(114, 106, 94, 0.1);
+  color: var(--color-muted);
+}
+
+.cp-plan-chip__kind--vaccine { background: rgba(127, 95, 191, 0.14); color: #5a3fa0; }
+.cp-plan-chip__kind--wellness { background: rgba(45, 90, 61, 0.12); color: var(--color-evergreen); }
+.cp-plan-chip__kind--grooming { background: rgba(196, 149, 90, 0.16); color: #8a662f; }
+.cp-plan-chip__kind--medication { background: rgba(168, 64, 52, 0.12); color: var(--color-danger); }
+.cp-plan-chip__kind--training { background: rgba(47, 122, 75, 0.14); color: var(--color-success); }
+.cp-plan-chip__kind--checkup { background: rgba(23, 53, 38, 0.1); color: var(--color-ink); }
+
+/* Actual milestone events (what actually happened / what's coming up) */
+
+.cp-events {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cp-event {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(246, 241, 233, 0.4);
+  border-left: 3px solid var(--color-copper);
+}
+
+.cp-event--upcoming {
+  opacity: 0.72;
+  background: transparent;
+  border-left-style: dashed;
+}
+
+.cp-event--vet    { border-left-color: var(--color-evergreen); }
+.cp-event--vaccine { border-left-color: #7f5fbf; }
+.cp-event--weigh   { border-left-color: var(--color-copper); }
+.cp-event--training{ border-left-color: var(--color-success); }
+.cp-event--behavior{ border-left-color: var(--color-ink); }
+
+.cp-event__day {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  padding-top: 3px;
+  min-width: 44px;
+}
+
+.cp-event__body { flex: 1; min-width: 0; }
+
+.cp-event__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cp-event__title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-ink);
+}
+
+.cp-event__note {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
+/* Legacy .cp-log-item (previous merge attempt) — kept for backwards compat */
+
+.cp-log-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px 12px 8px 10px;
+  border-radius: 10px;
+  background: transparent;
+  border-left: 2px solid rgba(196, 149, 90, 0.35);
+  margin-left: 6px;
+  font-size: 13px;
+}
+
+.cp-log-item--upcoming {
+  opacity: 0.72;
+  border-left-style: dashed;
+}
+
+.cp-log-item__day {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  padding-top: 2px;
+  min-width: 44px;
+}
+
+.cp-log-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.cp-log-item__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cp-log-item__title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-ink);
+}
+
+.cp-log-item__note {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
 
 .cp-schedule-item--done {
   background: rgba(47, 122, 75, 0.06);
@@ -742,7 +1078,137 @@
   letter-spacing: 0.06em;
 }
 
-/* Journal */
+/* Journal & Tips (merged view) */
+
+.cp-journal-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cp-composer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--cp-radius);
+  padding: 12px;
+  box-shadow: var(--cp-shadow-sm);
+}
+
+.cp-composer-modes {
+  display: flex;
+  gap: 4px;
+  background: rgba(246, 241, 233, 0.6);
+  padding: 3px;
+  border-radius: 999px;
+}
+
+.cp-composer-mode {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 7px 8px;
+  border-radius: 999px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cp-composer-mode--active {
+  background: var(--color-evergreen);
+  color: var(--color-cream);
+  box-shadow: 0 3px 8px rgba(45, 90, 61, 0.2);
+}
+
+.cp-composer-card .cp-btn {
+  align-self: flex-end;
+}
+
+.cp-feed-item {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--cp-radius);
+  padding: 12px 14px;
+  box-shadow: var(--cp-shadow-sm);
+}
+
+.cp-feed-item--ask {
+  background: linear-gradient(180deg, #f6f1e9 0%, #fffdf6 100%);
+  border-color: rgba(196, 149, 90, 0.4);
+}
+
+.cp-feed-item__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.cp-feed-item__tag {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-copper);
+  color: #fff;
+}
+
+.cp-feed-item__question {
+  margin: 8px 0 10px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--color-ink);
+  line-height: 1.4;
+}
+
+.cp-feed-item__answer {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.cp-feed-item__answer p {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+
+.cp-feed-item__answer p:first-child {
+  margin: 0;
+}
+
+.cp-tip-library {
+  margin-top: 8px;
+  border-top: 1px dashed var(--color-border);
+  padding-top: 12px;
+}
+
+.cp-tip-library__toggle {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 8px 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-evergreen);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cp-tip-library__body {
+  margin-top: 8px;
+}
+
+/* Legacy Journal (kept for reference — no longer routed to) */
 
 .cp-composer {
   display: flex;
@@ -844,6 +1310,7 @@
   width: 80px;
   height: 80px;
   border-radius: var(--cp-radius-sm);
+  object-fit: cover;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1150,30 +1617,162 @@
   cursor: pointer;
 }
 
-/* Responsive */
-
-@media (max-width: 900px) {
-  .cp-stage {
-    grid-template-columns: 1fr;
-    padding: 20px 16px;
-    gap: 20px;
-  }
-  .cp-demo-panel {
-    position: static;
-  }
-  .cp-topbar {
-    padding: 16px 18px 12px;
-  }
-  .cp-main {
-    max-height: none;
-  }
-}
-
+/* Emergency actions stack on narrow widths; grid at ≥520px handled at base rule */
 @media (max-width: 520px) {
-  .cp-schedule-block {
-    grid-template-columns: 64px 1fr;
-  }
-  .cp-emergency-actions {
-    grid-template-columns: 1fr;
-  }
+  .cp-emergency-actions { grid-template-columns: 1fr; }
 }
+
+
+/* One merged row per real care event — the plan and the record are the same list now. */
+
+.cp-rows {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cp-row {
+  width: 100%;
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 252, 246, 0.72);
+  font-family: inherit;
+  color: var(--color-ink);
+}
+
+.cp-row--tappable { cursor: pointer; transition: background 120ms ease; }
+.cp-row--tappable:hover { background: #fffdf7; }
+
+.cp-row--logged,
+.cp-row--done {
+  background: rgba(47, 122, 75, 0.07);
+  border-color: rgba(47, 122, 75, 0.26);
+}
+
+.cp-row--planned,
+.cp-row--upcoming {
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.78;
+}
+
+.cp-row__mark {
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  color: transparent;
+}
+
+.cp-row--todo .cp-row__mark { border-color: var(--color-evergreen); }
+
+.cp-row--logged .cp-row__mark,
+.cp-row--done .cp-row__mark {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #fff;
+}
+
+.cp-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cp-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cp-row__title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+
+.cp-row--done .cp-row__title {
+  text-decoration: line-through;
+  color: var(--color-muted);
+}
+
+.cp-row__meta {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.cp-row__note {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* Weeks already behind you fold into one line — the current week stays at the top. */
+
+.cp-earlier {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  background: transparent;
+  font-family: inherit;
+  color: var(--color-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.cp-earlier:hover { background: rgba(196, 149, 90, 0.06); }
+
+.cp-earlier__caret { font-size: 10px; flex: 0 0 auto; }
+
+.cp-earlier__label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.cp-earlier__meta {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Expanded, past weeks stay visibly secondary to the one you're in. */
+.cp-week--dim { opacity: 0.62; }
+
+/* Streaming cursor while the agent is still writing. */
+.cp-caret {
+  display: inline-block;
+  width: 7px;
+  height: 13px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--color-evergreen);
+  animation: cp-blink 1s steps(2, start) infinite;
+}
+
+@keyframes cp-blink { to { visibility: hidden; } }

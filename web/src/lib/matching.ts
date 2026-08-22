@@ -35,6 +35,9 @@ export function scoreDog(d: RichDog, intake: FosterIntake | undefined): number {
   if (p.experience === "experienced" && d.energyLevel >= 3) s += 6;
 
   const t = p.tags;
+  const isPuppy = d.age_years < 1;
+  if (t.includes("puppy"))     s += isPuppy ? 18 : -20;
+  if (t.includes("adult"))     s += isPuppy ? -14 : 6;
   if (t.includes("groomLow"))  s += d.groomingLevel === "low" ? 10 : -12;
   if (t.includes("groomHigh")) s += d.groomingLevel === "high" ? 4 : 0;
   if (t.includes("coatShort")) s += d.coatLength === "short" ? 8 : -8;
@@ -57,6 +60,9 @@ export function matchReasons(d: RichDog, intake: FosterIntake | undefined): stri
   if (p.home === "apartment" && d.size !== "large" && d.energyLevel <= 2) out.push("Settles well in an apartment");
   if (p.home === "houseYard" && d.energyLevel >= 3) out.push("Would make full use of your yard");
   if (p.experience === "first" && d.energyLevel <= 2) out.push("An easy first foster");
+  const isPuppy = d.age_years < 1;
+  if (p.tags.includes("puppy") && isPuppy) out.push("A puppy — matches what you asked for");
+  if (p.tags.includes("adult") && !isPuppy) out.push("Grown adult — past the puppy chaos");
   if (p.tags.includes("groomLow") && d.groomingLevel === "low") out.push("Low-maintenance coat");
   if (p.tags.includes("kidsGood") && d.good_with_kids) out.push("Great with kids");
   if (p.tags.includes("withDogs") && d.good_with_dogs) out.push("Gets on with other dogs");

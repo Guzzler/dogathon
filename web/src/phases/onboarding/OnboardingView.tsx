@@ -11,7 +11,7 @@ const ENERGY_FACE = ["😴", "🙂", "🐕", "⚡", "🌪️"];
 const SIZE_HINT = ["Under 25 lb", "25–45 lb", "45 lb and up"];
 const sizeWord = (v: number) => (v < 33 ? "Small" : v < 67 ? "Medium" : "Large");
 
-type Tag = "groomLow" | "groomHigh" | "kidsGood" | "adultsOnly" | "coatShort" | "coatLong" | "withDogs" | "withCats";
+type Tag = "groomLow" | "groomHigh" | "kidsGood" | "adultsOnly" | "coatShort" | "coatLong" | "withDogs" | "withCats" | "puppy" | "adult";
 type Home = "apartment" | "townhouse" | "houseYard";
 
 const HOMES: { v: Home; l: string; s: string }[] = [
@@ -21,6 +21,7 @@ const HOMES: { v: Home; l: string; s: string }[] = [
 ];
 
 const GROUPS: { label: string; a: [Tag, string]; b: [Tag, string] }[] = [
+  { label: "Life stage", a: ["puppy", "Puppy (under 1 yr)"], b: ["adult", "Adult"] },
   { label: "Grooming",   a: ["groomLow", "Low maintenance"], b: ["groomHigh", "Happy to groom"] },
   { label: "Kids",       a: ["kidsGood", "Good with kids"],  b: ["adultsOnly", "Adults only"] },
   { label: "Coat",       a: ["coatShort", "Short coat"],     b: ["coatLong", "Long coat"] },
@@ -28,6 +29,7 @@ const GROUPS: { label: string; a: [Tag, string]; b: [Tag, string] }[] = [
 ];
 
 const TAG_LABEL: Record<Tag, string> = {
+  puppy: "Puppy", adult: "Adult",
   groomLow: "Low grooming", groomHigh: "Happy to groom", kidsGood: "Good with kids",
   adultsOnly: "Adults only", coatShort: "Short coat", coatLong: "Long coat",
   withDogs: "Dog-friendly", withCats: "Cat-friendly",

@@ -14,7 +14,7 @@ const KIND_LABEL: Record<Milestone["kind"], string> = {
   behavior: "Behavior",
 };
 
-function WeightChart({ points }: { points: { day: number; lbs: number }[] }) {
+export function WeightChart({ points }: { points: { day: number; lbs: number }[] }) {
   if (points.length < 2) return null;
   const width = 280;
   const height = 60;
@@ -51,41 +51,51 @@ function WeightChart({ points }: { points: { day: number; lbs: number }[] }) {
 
 export function Timeline({ milestones, dayInFoster, dogName }: TimelineProps) {
   const sorted = [...milestones].sort((a, b) => b.dayInFoster - a.dayInFoster);
+  // Only weigh-ins that have happened as of today are on the chart.
   const weightPoints = milestones
-    .filter((m) => m.weightLbs != null)
+    .filter((m) => m.weightLbs != null && m.dayInFoster <= dayInFoster)
     .map((m) => ({ day: m.dayInFoster, lbs: m.weightLbs! }))
     .sort((a, b) => a.day - b.day);
+
+  const pastCount = milestones.filter((m) => m.dayInFoster <= dayInFoster).length;
+  const upcomingCount = milestones.length - pastCount;
 
   return (
     <div className="cp-timeline">
       <header className="cp-view-header">
         <h2>Timeline</h2>
         <p className="cp-mini-meta">
-          Vet visits, milestones, and weigh-ins. Day {dayInFoster} of {dogName}'s foster.
+          Day {dayInFoster} of {dogName}'s foster · {pastCount} logged · {upcomingCount} upcoming.
         </p>
       </header>
 
       {weightPoints.length >= 2 && <WeightChart points={weightPoints} />}
 
       <ol className="cp-timeline-list">
-        {sorted.map((m) => (
-          <li
-            key={m.id}
-            className={`cp-milestone cp-milestone--${m.kind} ${m.upcoming ? "cp-milestone--upcoming" : ""}`}
-          >
-            <div className="cp-milestone__dot" />
-            <div className="cp-milestone__body">
-              <div className="cp-milestone__row">
-                <p className="cp-milestone__title">{m.title}</p>
-                <span className="cp-kind-chip">
-                  {KIND_LABEL[m.kind]}{m.upcoming ? " · upcoming" : ""}
-                </span>
+        {sorted.map((m) => {
+          const upcoming = m.dayInFoster > dayInFoster;
+          return (
+            <li
+              key={m.id}
+              className={`cp-milestone cp-milestone--${m.kind} ${upcoming ? "cp-milestone--upcoming" : ""}`}
+            >
+              <div className="cp-milestone__dot" />
+              <div className="cp-milestone__body">
+                <div className="cp-milestone__row">
+                  <p className="cp-milestone__title">{m.title}</p>
+                  <span className="cp-kind-chip">
+                    {KIND_LABEL[m.kind]}{upcoming ? " · upcoming" : ""}
+                  </span>
+                </div>
+                <p className="cp-mini-meta">
+                  Day {m.dayInFoster}
+                  {upcoming ? ` · in ${m.dayInFoster - dayInFoster} day${m.dayInFoster - dayInFoster === 1 ? "" : "s"}` : ""}
+                </p>
+                {m.note && !upcoming && <p className="cp-milestone__note">{m.note}</p>}
               </div>
-              <p className="cp-mini-meta">Day {m.dayInFoster}</p>
-              {m.note && <p className="cp-milestone__note">{m.note}</p>}
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ol>
     </div>
   );

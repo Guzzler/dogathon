@@ -97,7 +97,9 @@ const TAB = {
   discover: { to: "/discovery", label: "Discover", icon: "paw" },
   saved: { to: "/saved", label: "Saved", icon: "♥" },
   match: { to: "/match", label: "Match", icon: "📋" },
-  care: { to: "/care-plan", label: "Care", icon: "🩺" },
+  care: { to: "/care-plan", label: "Care", icon: "🩺", end: true },
+  journal: { to: "/care-plan/journal", label: "Journal", icon: "📓" },
+  emergency: { to: "/care-plan/emergency", label: "Emergency", icon: "🚨" },
   adopt: { to: "/post-foster", label: "Adopt", icon: "🎉" },
 } satisfies Record<string, JourneyTab>;
 
@@ -109,7 +111,9 @@ export function journeyTabs(phase: Foster["phase"] | undefined): JourneyTab[] {
   switch (phase) {
     case "discovery": return [TAB.discover, TAB.saved];
     case "match": return [TAB.match, TAB.saved];
-    case "care_plan": return [TAB.care, TAB.adopt];
+    // Care Plan is the one phase you live in daily, so its own sections ride in the same bar
+    // rather than a second row of tabs inside the screen.
+    case "care_plan": return [TAB.care, TAB.journal, TAB.emergency, TAB.adopt];
     case "complete": return [TAB.adopt, TAB.discover];
     default: return [];          // onboarding — the questionnaire owns the screen
   }
