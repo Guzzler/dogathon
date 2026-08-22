@@ -19,7 +19,7 @@ export function DemoShelterPanel({ items, onToggle, onSetAll }: Props) {
   const allDone = items.length > 0 && items.every((i) => i.done);
 
   return (
-    <div style={{ position: "fixed", right: 16, bottom: 16, zIndex: 9999, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
+    <div style={{ position: "fixed", right: 16, bottom: "var(--demo-panel-bottom, 16px)", zIndex: 9999, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
       <AnimatePresence>
         {open && (
           <motion.div
