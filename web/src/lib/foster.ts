@@ -100,7 +100,7 @@ const TAB = {
   care: { to: "/care-plan", label: "Care", icon: "🩺", end: true },
   journal: { to: "/care-plan/journal", label: "Journal", icon: "📓" },
   emergency: { to: "/care-plan/emergency", label: "Emergency", icon: "🚨" },
-  adopt: { to: "/post-foster", label: "Adopt", icon: "🎉" },
+  adopt: { to: "/post-foster", label: "Profile", icon: "🎉" },
 } satisfies Record<string, JourneyTab>;
 
 /**

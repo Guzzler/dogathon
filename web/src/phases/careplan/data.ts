@@ -412,7 +412,7 @@ export const tips: Tip[] = [
     title: "Biting — puppy playbook",
     category: "Biting & teething",
     urgency: "warn",
-    body: "For puppies under 6 months, biting is almost always teething or over-arousal. Yelp softly and disengage for 20 seconds — hands stop being fun when they leave. Redirect to a frozen wet towel or rubber chew. Never scold physically; that teaches fear, not manners.",
+    body: "For puppies under a year, biting is almost always teething or over-arousal. Yelp softly and disengage for 20 seconds — hands stop being fun when they leave. Redirect to a frozen wet towel or rubber chew. Never scold physically; that teaches fear, not manners.",
   },
   {
     id: "tip-biting-adult",

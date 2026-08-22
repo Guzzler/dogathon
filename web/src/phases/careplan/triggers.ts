@@ -32,7 +32,7 @@ export const triggerRules: TriggerRule[] = [
     urgency: "warn",
     cta: "Try the wet towel trick",
     match: (ctx) =>
-      ctx.profile.ageMonths < 6 &&
+      ctx.profile.ageMonths < 12 &&
       anyNoteMatches(ctx, [/\bbit(e|ing|ten)?\b/i, /\bnipp/i, /\bmouth[yi]/i]),
   },
   {
@@ -42,7 +42,7 @@ export const triggerRules: TriggerRule[] = [
     urgency: "escalate",
     cta: "Contact shelter behavior team",
     match: (ctx) =>
-      ctx.profile.ageMonths >= 6 &&
+      ctx.profile.ageMonths >= 12 &&
       anyNoteMatches(ctx, [/\bbit(e|ing|ten)?\b/i, /\bnipp/i, /\bmouth[yi]/i]),
   },
   {

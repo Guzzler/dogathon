@@ -128,6 +128,14 @@ export function Emergency({ dog, summary, contacts }: EmergencyProps) {
 
   return (
     <div className="cp-emergency">
+      <header className="cp-phase-banner cp-phase-banner--danger">
+        <p className="cp-eyebrow">{dog.name} · {dog.weightLbs} lbs</p>
+        <h2 className="cp-phase-name">Emergency</h2>
+        <p className="cp-banner-meta">
+          24-hour vet, poison control, and {dog.name}'s medical summary — ready to read out.
+        </p>
+      </header>
+
       <section className="cp-emergency-map-card">
         <VetMap nearest={nearest} />
         <div className="cp-emergency-nearest">

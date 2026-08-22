@@ -1833,3 +1833,18 @@
 }
 
 .cp-photo-pick__error { margin: 0; font-size: 12px; color: var(--color-danger); }
+
+/* Journal and Emergency get the same banner as the hub — without the in-screen tabs, a view
+   that opens straight onto a composer or a map doesn't say where you are. */
+
+.cp-phase-banner--danger {
+  background: linear-gradient(135deg, #a84034 0%, #8c3129 100%);
+  box-shadow: 0 8px 20px rgba(168, 64, 52, 0.26);
+}
+
+.cp-banner-meta {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(246, 241, 233, 0.78);
+}

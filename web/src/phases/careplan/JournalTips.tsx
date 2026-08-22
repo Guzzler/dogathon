@@ -220,8 +220,22 @@ export function JournalTips({
   const setComposerValue = useText ? setText : setCaption;
   const canSubmit = mode === "photo" ? pickedPhoto !== null : composerValue.trim().length > 0;
 
+  const noteCount = entries.filter((e) => e.kind === "note").length;
+  const photoCount = entries.filter((e) => e.kind === "photo").length;
+  const starred = entries.filter((e) => e.starred).length;
+
   return (
     <div className="cp-journal-tips">
+      <header className="cp-phase-banner">
+        <p className="cp-eyebrow">Day {dayInFoster} with {dogName}</p>
+        <h2 className="cp-phase-name">Journal &amp; Tips</h2>
+        <p className="cp-banner-meta">
+          {noteCount} note{noteCount === 1 ? "" : "s"} · {photoCount} photo
+          {photoCount === 1 ? "" : "s"}
+          {starred > 0 && ` · ${starred} starred for adoption`}
+        </p>
+      </header>
+
       <section className="cp-composer-card">
         <div className="cp-composer-modes" role="tablist">
           {(["note", "ask", "photo"] as Mode[]).map((m) => (

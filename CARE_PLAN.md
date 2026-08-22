@@ -106,15 +106,15 @@ Tips also fire based on *what the foster logs* — not just what week it is.
 
 | Trigger (observed via checklist / journal / note) | Response |
 |---|---|
-| Note mentions "bit", "nipping", "mouthy" — **dog < 6 months** | **Teething playbook:** wet-towel-in-freezer, chew rotation, redirect not scold. "This peaks around 12–16 weeks — normal." |
-| Note mentions "bit", "nipping", "mouthy" — **dog ≥ 6 months** | **Behavioral playbook:** identify trigger (resource, fear, play), avoid punishment, escalate to trainer + shelter behavior contact if breaking skin. |
+| Note mentions "bit", "nipping", "mouthy" — **dog < 12 months** | **Teething playbook:** wet-towel-in-freezer, chew rotation, redirect not scold. "This peaks around 12–16 weeks — normal." |
+| Note mentions "bit", "nipping", "mouthy" — **dog ≥ 12 months** | **Behavioral playbook:** identify trigger (resource, fear, play), avoid punishment, escalate to trainer + shelter behavior contact if breaking skin. |
 | Skipped 2+ meals or note mentions "not eating" | Escalate: "Try warming food / adding water. If 24h+, call the vet — one-tap to shelter contact." |
 | Note mentions "crate", "won't go in", "whines" | Surface **food-in-crate trick** + gradual crate schedule |
 | Weight drops >5% week-over-week | Alert card + prompt to log stools + vet contact CTA |
 | Note mentions "scared of", "hides from" | Reassure ("normal in week 1–2") + desensitization ladder |
 | No journal entries in 3 days | Gentle nudge (foster wellbeing check — burnout is real) |
 
-Triggers are **rules over structured signals + keyword matches on free-text notes**. The LLM behind "Ask anything" gets the same rule outputs as context so its answers stay consistent with what the UI is already surfacing.
+Triggers are **rules over structured signals + keyword matches on free-text notes**, and they read the journal within a **recency window** (7 days; 3 for skipped meals) — a trigger describes a live situation, so one note about nipping on day 3 shouldn't pin the card to the hub for the rest of the foster. The LLM behind "Ask anything" gets the same rule outputs as context so its answers stay consistent with what the UI is already surfacing.
 
 **Opinionated by design.** We know the dog's age, breed, and medical flags from day one (shelter intake feeds `DogProfile`), so rules branch on those attributes rather than asking the foster follow-up questions. A puppy biting and an adult biting get different playbooks — no disambiguation prompt.
 
