@@ -9,7 +9,23 @@
     "intake_date": "2026-06-14",
     "good_with_kids": true,
     "good_with_dogs": true,
-    "notes": "Loud but gentle. Needs a fenced yard; escapes gaps under 4 inches."
+    "notes": "Loud but gentle. Needs a fenced yard; escapes gaps under 4 inches.",
+    "shelter_id": "coppers",
+    "energy_level": 3,
+    "grooming": "low",
+    "coat": "short",
+    "good_with_cats": false,
+    "traits": [
+      "Loud but gentle",
+      "Needs a fenced yard",
+      "Food motivated"
+    ],
+    "foster_length": "4\u20136 weeks",
+    "needs": [
+      "Secure fence",
+      "Slow-feed bowl"
+    ],
+    "photo": 1
   },
   {
     "id": "d-002",
@@ -21,7 +37,23 @@
     "intake_date": "2026-03-02",
     "good_with_kids": true,
     "good_with_dogs": false,
-    "notes": "Senior. Longest resident in the shelter. Resource guards food bowls."
+    "notes": "Senior. Longest resident in the shelter. Resource guards food bowls.",
+    "shelter_id": "muttville",
+    "energy_level": 1,
+    "grooming": "high",
+    "coat": "long",
+    "good_with_cats": false,
+    "traits": [
+      "Senior",
+      "Longest resident",
+      "Resource guards food"
+    ],
+    "foster_length": "8 weeks",
+    "needs": [
+      "Separate feeding space",
+      "Big bed"
+    ],
+    "photo": 7
   },
   {
     "id": "d-003",
@@ -33,7 +65,23 @@
     "intake_date": "2026-07-29",
     "good_with_kids": false,
     "good_with_dogs": true,
-    "notes": "Nips at ankles when startled. In foster with the Nguyen family."
+    "notes": "Nips at ankles when startled. In foster with the Nguyen family.",
+    "shelter_id": "acc",
+    "energy_level": 3,
+    "grooming": "low",
+    "coat": "short",
+    "good_with_cats": true,
+    "traits": [
+      "Pocket sized",
+      "Startles easily",
+      "Travel ready"
+    ],
+    "foster_length": "3 weeks",
+    "needs": [
+      "Sweater",
+      "Small harness"
+    ],
+    "photo": 8
   },
   {
     "id": "d-004",
@@ -45,7 +93,23 @@
     "intake_date": "2026-08-05",
     "good_with_kids": true,
     "good_with_dogs": true,
-    "notes": "Heartworm treatment through 2026-09-20. No strenuous exercise."
+    "notes": "Heartworm treatment through 2026-09-20. No strenuous exercise.",
+    "shelter_id": "sfspca",
+    "energy_level": 2,
+    "grooming": "low",
+    "coat": "short",
+    "good_with_cats": false,
+    "traits": [
+      "Gentle giant",
+      "On medical hold",
+      "Couch potato"
+    ],
+    "foster_length": "6 weeks",
+    "needs": [
+      "Quiet space",
+      "Medication schedule"
+    ],
+    "photo": 4
   },
   {
     "id": "d-005",
@@ -57,7 +121,23 @@
     "intake_date": "2026-08-11",
     "good_with_kids": true,
     "good_with_dogs": true,
-    "notes": "Extremely high energy. Needs a running or agility home, not an apartment."
+    "notes": "Extremely high energy. Needs a running or agility home, not an apartment.",
+    "shelter_id": "wonder",
+    "energy_level": 4,
+    "grooming": "high",
+    "coat": "long",
+    "good_with_cats": true,
+    "traits": [
+      "Whip smart",
+      "Loves fetch",
+      "Needs a job"
+    ],
+    "foster_length": "3\u20134 weeks",
+    "needs": [
+      "Puzzle toy",
+      "Long lead"
+    ],
+    "photo": 2
   },
   {
     "id": "d-006",
@@ -69,6 +149,298 @@
     "intake_date": "2026-01-19",
     "good_with_kids": true,
     "good_with_dogs": true,
-    "notes": "Adopted 2026-08-02. Back issues; adopter briefed on ramp use."
+    "notes": "Adopted 2026-08-02. Back issues; adopter briefed on ramp use.",
+    "shelter_id": "familydog",
+    "energy_level": 0,
+    "grooming": "low",
+    "coat": "short",
+    "good_with_cats": true,
+    "traits": [
+      "Golden years",
+      "Low maintenance",
+      "Very gentle"
+    ],
+    "foster_length": "8 weeks",
+    "needs": [
+      "Ramp or steps",
+      "Joint supplement"
+    ],
+    "photo": 3
+  },
+  {
+    "id": "d-007",
+    "name": "Marty",
+    "breed": "Beagle mix",
+    "age_years": 3,
+    "weight_lbs": 24,
+    "status": "available",
+    "intake_date": "2026-07-02",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "good_with_cats": false,
+    "notes": "A champion napper who moonlights as a sock thief. Walks beautifully on leash and leans his whole body against your shins the moment you sit down.",
+    "shelter_id": "coppers",
+    "energy_level": 2,
+    "grooming": "low",
+    "coat": "short",
+    "traits": [
+      "Leash pro",
+      "Cuddler",
+      "Food motivated"
+    ],
+    "foster_length": "4\u20136 weeks",
+    "needs": [
+      "Crate",
+      "Slow-feed bowl"
+    ],
+    "photo": 1
+  },
+  {
+    "id": "d-008",
+    "name": "Olive",
+    "breed": "Dachshund",
+    "age_years": 7,
+    "weight_lbs": 14,
+    "status": "available",
+    "intake_date": "2026-05-19",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "good_with_cats": true,
+    "notes": "Two speeds: sunbeam and blanket. A perfect apartment companion who asks only for a warm lap and a short stroll around the block.",
+    "shelter_id": "muttville",
+    "energy_level": 0,
+    "grooming": "low",
+    "coat": "short",
+    "traits": [
+      "Apartment ready",
+      "Senior sweetheart",
+      "Quiet"
+    ],
+    "foster_length": "6\u20138 weeks",
+    "needs": [
+      "Ramp or steps",
+      "Soft bed"
+    ],
+    "photo": 3
+  },
+  {
+    "id": "d-009",
+    "name": "Nori",
+    "breed": "Shiba Inu mix",
+    "age_years": 4,
+    "weight_lbs": 19,
+    "status": "available",
+    "intake_date": "2026-06-30",
+    "good_with_kids": false,
+    "good_with_dogs": true,
+    "good_with_cats": true,
+    "notes": "Dignified, tidy, and a little judgmental in the best way. She'll pick one spot in your home and declare it hers within an hour.",
+    "shelter_id": "acc",
+    "energy_level": 2,
+    "grooming": "high",
+    "coat": "short",
+    "traits": [
+      "Tidy",
+      "Independent",
+      "Very clean"
+    ],
+    "foster_length": "5 weeks",
+    "needs": [
+      "Sturdy harness"
+    ],
+    "photo": 5
+  },
+  {
+    "id": "d-010",
+    "name": "Waffles",
+    "breed": "Corgi mix",
+    "age_years": 5,
+    "weight_lbs": 27,
+    "status": "available",
+    "intake_date": "2026-07-15",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "good_with_cats": false,
+    "notes": "Short legs, enormous opinions. Waffles will supervise your cooking, your laundry, and any deliveries that dare approach the door.",
+    "shelter_id": "familydog",
+    "energy_level": 2,
+    "grooming": "high",
+    "coat": "short",
+    "traits": [
+      "Supervisor",
+      "Chatty",
+      "Great with kids"
+    ],
+    "foster_length": "4\u20136 weeks",
+    "needs": [
+      "Grooming brush"
+    ],
+    "photo": 6
+  },
+  {
+    "id": "d-011",
+    "name": "Mochi",
+    "breed": "Poodle mix",
+    "age_years": 6,
+    "weight_lbs": 31,
+    "status": "available",
+    "intake_date": "2026-04-08",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "good_with_cats": true,
+    "notes": "Hypoallergenic, house-trained, and remarkably well-adjusted. She came in with her person's belongings and is looking for a soft landing.",
+    "shelter_id": "petsun",
+    "energy_level": 1,
+    "grooming": "high",
+    "coat": "long",
+    "traits": [
+      "Hypoallergenic",
+      "House-trained",
+      "Calm"
+    ],
+    "foster_length": "5\u20137 weeks",
+    "needs": [
+      "Grooming appointment"
+    ],
+    "photo": 9
+  },
+  {
+    "id": "d-012",
+    "name": "Scout",
+    "breed": "Hound mix",
+    "age_years": 4,
+    "weight_lbs": 61,
+    "status": "available",
+    "intake_date": "2026-06-01",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "good_with_cats": false,
+    "notes": "Follows his nose everywhere it leads, which is usually the kitchen. Loves a hike, loves a nap after the hike even more.",
+    "shelter_id": "coppers",
+    "energy_level": 2,
+    "grooming": "low",
+    "coat": "short",
+    "traits": [
+      "Hiking buddy",
+      "Nose driven",
+      "Mellow indoors"
+    ],
+    "foster_length": "4\u20135 weeks",
+    "needs": [
+      "Front-clip harness"
+    ],
+    "photo": 10
+  },
+  {
+    "id": "d-013",
+    "name": "Bandit",
+    "breed": "Husky mix",
+    "age_years": 2,
+    "weight_lbs": 55,
+    "status": "available",
+    "intake_date": "2026-07-21",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "good_with_cats": false,
+    "notes": "Needs a job and a yard. Give him both and he's the most joyful dog you've ever met. He will also tell you about his day. Loudly.",
+    "shelter_id": "rocket",
+    "energy_level": 4,
+    "grooming": "high",
+    "coat": "long",
+    "traits": [
+      "Needs a yard",
+      "Vocal",
+      "Athletic"
+    ],
+    "foster_length": "4 weeks",
+    "needs": [
+      "Secure fence",
+      "Cooling mat"
+    ],
+    "photo": 12
+  },
+  {
+    "id": "d-014",
+    "name": "Gus",
+    "breed": "Basset mix",
+    "age_years": 6,
+    "weight_lbs": 44,
+    "status": "available",
+    "intake_date": "2026-05-05",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "good_with_cats": true,
+    "notes": "Moves through the world at exactly one speed. Snores like a chainsaw and has never once been in a hurry. A joy.",
+    "shelter_id": "familydog",
+    "energy_level": 0,
+    "grooming": "low",
+    "coat": "long",
+    "traits": [
+      "Slow living",
+      "World-class snorer",
+      "Unbothered"
+    ],
+    "foster_length": "6 weeks",
+    "needs": [
+      "Ear cleaner",
+      "Ramp"
+    ],
+    "photo": 14
+  },
+  {
+    "id": "d-015",
+    "name": "Willow",
+    "breed": "Lab mix",
+    "age_years": 1,
+    "weight_lbs": 49,
+    "status": "available",
+    "intake_date": "2026-07-28",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "good_with_cats": true,
+    "notes": "All soft eyes and wagging optimism. She's mastered 'sit' and is currently negotiating the terms of 'stay'.",
+    "shelter_id": "sfspca",
+    "energy_level": 2,
+    "grooming": "low",
+    "coat": "short",
+    "traits": [
+      "Sweet natured",
+      "In training",
+      "Loves people"
+    ],
+    "foster_length": "4 weeks",
+    "needs": [
+      "Training treats",
+      "Crate"
+    ],
+    "photo": 15
+  },
+  {
+    "id": "d-016",
+    "name": "Pippin",
+    "breed": "Jack Russell mix",
+    "age_years": 5,
+    "weight_lbs": 17,
+    "status": "available",
+    "intake_date": "2026-06-18",
+    "good_with_kids": true,
+    "good_with_dogs": false,
+    "good_with_cats": false,
+    "notes": "Springs for legs and zero concept of personal space. A delight if you like your mornings to start with enthusiasm.",
+    "shelter_id": "petsun",
+    "energy_level": 4,
+    "grooming": "low",
+    "coat": "short",
+    "traits": [
+      "Bouncy",
+      "Morning person",
+      "Ball obsessed"
+    ],
+    "foster_length": "3\u20134 weeks",
+    "needs": [
+      "Tennis balls",
+      "Secure yard"
+    ],
+    "photo": 16
   }
 ]

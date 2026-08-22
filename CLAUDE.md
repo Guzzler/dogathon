@@ -10,13 +10,29 @@ dog back adoption-ready.
 The app is 5 phases, each a self-contained route/view so people can build in parallel against
 a shared Firestore schema (`web/src/types.ts`) without stepping on each other:
 
-- **Onboarding** (`web/src/phases/onboarding/`) — swipeable intake questions
-- **Discovery** (`web/src/phases/discovery/`) — swipe feed of dogs — **Eesha**
+- **Onboarding** (`web/src/phases/onboarding/`) — the app's front door: a landing screen that
+  takes the foster's name, then the intake questions
+- **Discovery** (`web/src/phases/discovery/`) — map + swipe feed, dog detail, saved list — **Eesha**
 - **Match** (`web/src/phases/match/`) — approval checklist, home prep, pickup scheduling — **Sharang**
 - **Care Plan** (`web/src/phases/careplan/`) — checklist, care log timeline, AI tips chat — **Ritu**
 - **Post Foster** (`web/src/phases/postfoster/`) — AI-drafted adoption profile, send to shelter
 
 Plus a **Hub** (`web/src/phases/hub/`) landing page showing current phase + reminders.
+
+## Mobile shell and design system
+
+The app is a **mobile-first phone frame**, not a desktop layout. `web/src/components/Layout.tsx`
+renders `.shell > .phone` with a bottom tab bar; every phase renders inside it. On desktop the
+frame is centred and capped at 430px.
+
+- `web/src/theme.css` holds the design tokens (cream/coral palette, Fraunces + Nunito) and the
+  Discovery component classes. It loads *after* `App.css`/`pawthway.css`, so its tokens win.
+- **`.btn` exists in both design systems.** Ours is scoped to `.screen .btn` so their
+  `.btn--primary` etc. are untouched. If you add a shared class name, scope it the same way.
+- Phases still using the older markup render as `.pw-page` inside `.phone-body`, which gives
+  them scrolling and padding. They pick up the new fonts and colours automatically.
+- Screens that own their full height (onboarding, dog detail) hide the tab bar — see
+  `FULL_BLEED` in `Layout.tsx`.
 
 ## Architecture
 
@@ -39,6 +55,11 @@ login and no cross-account glue:
   handles gathering data and writing results). The agent reads/writes the *same* Firestore data
   via the Firebase Admin SDK (`src/agent/firestore_client.py`), so the AI and the UI never
   disagree about state.
+- **Local demo mode.** `web/.env` is gitignored, so a fresh clone has no Firebase config. Rather
+  than crash on the first Firestore call, `web/src/lib/localMode.ts` exports `LOCAL_MODE` and the
+  three hooks (`useFoster`, `useDogs`, `useCareLog`) fall back to `data/dogs.json` plus a
+  localStorage-backed foster. A banner at the top of the app says when this is active. Add
+  `web/.env` and it silently switches back to real Firestore — no code changes.
 - **No auth.** One seeded demo foster (`fosters/annie`), publicly viewable. Firestore rules
   (`firestore.rules`) are scoped narrowly to `/dogs/**` (read-only) and `/fosters/annie/**`
   (read+write) rather than wide open, so the public URL isn't a fully open database.
@@ -61,6 +82,49 @@ login and no cross-account glue:
 
 Tool convention (unchanged from the base scaffold): plain `@tool` for reads, `@tool(dangerous=True)`
 for anything that writes or has external effects — gated by the existing `ApprovalModal` UI.
+
+## Schema additions for Discovery
+
+Both additions are **optional fields on the existing shapes**, so nothing the agent reads changed.
+
+- **`Dog`** gains `shelter_id`, `good_with_cats`, `energy_level` (0–4), `grooming`, `coat`,
+  `traits`, `needs`, `foster_length`, `photo`. `web/src/lib/dog.ts` exports `normalizeDog()`,
+  which fills any missing field by deriving it (size from `weight_lbs`, energy from age/breed,
+  shelter by hashing the id) — so dogs seeded before these fields existed still render.
+- **`FosterIntake`** gains `pref_size`, `pref_energy`, `pref_home`, `pref_experience`,
+  `pref_tags`. Onboarding writes these *alongside* the six original strings, which are what
+  `src/agent/builtin/foster.py` reads. **If you change onboarding, keep writing both.**
+- Shelters are frontend-only (`web/src/lib/shelters.ts`) — real SF rescues with coordinates.
+  There is no `shelters` Firestore collection; dogs reference them by `shelter_id`.
+
+Matching lives in `web/src/lib/matching.ts`: `scoreDog()` returns 0–99 from size/energy distance
+plus home, experience and tag rules, and `matchReasons()` renders the same inputs as the
+"Why you match" copy.
+
+## Onboarding is a gate, not a phase you navigate to
+
+A foster with no intake can't reach anything else. `OnboardingGate` in `web/src/App.tsx`
+redirects to `/welcome` until `hasOnboarded()` passes (`web/src/lib/foster.ts` — any intake
+keys, or a phase past `onboarding`). `/welcome` takes their name, then hands off to the
+questionnaire; the tab bar stays hidden throughout. Afterwards the Hub shows a
+"What you're looking for" card summarising the answers, with **Change answers** to clear
+intake and send them back through the front door.
+
+## One foster at a time
+
+`activeApplication()` (`web/src/lib/foster.ts`) returns non-null while `matchedDogId` is set
+and the phase is `match` or `care_plan`. While it is, applying for a different dog is blocked
+in both places you can apply — the Saved list (disabled buttons plus a notice) and a dog's
+profile (the Contact-shelter sheet explains instead of offering Apply). A `complete` journey
+clears the block, so the foster can start again.
+
+## Where liking becomes matching
+
+Discovery's like/pass only writes `likedDogIds` / `passedDogIds`. Committing to a dog is a
+separate, explicit step — **Saved → Apply to foster** (or Contact shelter → Apply on a dog's
+profile), which sets `matchedDogId` and flips `phase` to `match`. That's the handoff into the
+Match phase. The Applications tab reads `approvalChecklist` and `pickup` back out to draw its
+status timeline, so it never disagrees with the Match view.
 
 ## Env / secrets
 
