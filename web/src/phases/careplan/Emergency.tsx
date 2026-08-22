@@ -128,11 +128,6 @@ export function Emergency({ dog, summary, contacts }: EmergencyProps) {
 
   return (
     <div className="cp-emergency">
-      <div className="cp-emergency-banner">
-        <span className="cp-emergency-banner__pulse" aria-hidden="true" />
-        <span>EMERGENCY MODE</span>
-      </div>
-
       <section className="cp-emergency-map-card">
         <VetMap nearest={nearest} />
         <div className="cp-emergency-nearest">

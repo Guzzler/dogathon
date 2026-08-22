@@ -290,22 +290,28 @@ export const medicalSummary: MedicalSummary = {
 
 export const emergencyContacts: EmergencyContact[] = [
   {
-    name: "Bay Area 24h Vet",
+    name: "VCA SF Veterinary Specialists",
     role: "Nearest 24h emergency",
-    phone: "(415) 555-0142",
+    phone: "(415) 401-9200",
     distanceMi: 1.2,
     hours: "Open now · 24 hrs",
   },
   {
     name: "Copper's Dream Rescue",
     role: "Foster coordinator",
-    phone: "(415) 555-0180",
+    phone: "(415) 554-3030",
     hours: "On-call today",
   },
   {
     name: "Pet Poison Helpline",
     role: "Toxin ingestion",
     phone: "(855) 764-7661",
+    hours: "24 hrs",
+  },
+  {
+    name: "ASPCA Animal Poison Control",
+    role: "Toxin ingestion",
+    phone: "(888) 426-4435",
     hours: "24 hrs",
   },
 ];

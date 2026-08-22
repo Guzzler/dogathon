@@ -48,7 +48,7 @@ function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
   };
 }
 
-type View = "hub" | "timeline" | "journal" | "tips" | "emergency";
+type View = "hub" | "timeline" | "journal" | "emergency";
 
 const SHOW_DEMO_CONTROLS = false;
 
@@ -211,8 +211,7 @@ export function CarePlanView() {
           {[
             { id: "hub", label: "Home" },
             { id: "timeline", label: "Timeline" },
-            { id: "journal", label: "Journal" },
-            { id: "tips", label: "Tips" },
+            { id: "journal", label: "Journal & Tips" },
             { id: "emergency", label: "Emergency" },
           ].map((t) => (
             <button
@@ -249,16 +248,16 @@ export function CarePlanView() {
             <Timeline milestones={seedMilestones} dayInFoster={dayInFoster} dogName={dog.name} />
           )}
           {view === "journal" && (
-            <Journal
-              entries={journal}
-              dayInFoster={dayInFoster}
-              dogName={dog.name}
-              onAdd={addJournalEntry}
-              onToggleStar={toggleStar}
-            />
-          )}
-          {view === "tips" && (
-            <Tips tips={tips} pinnedTipId={phase.pinnedTipId} dogName={dog.name} />
+            <>
+              <Journal
+                entries={journal}
+                dayInFoster={dayInFoster}
+                dogName={dog.name}
+                onAdd={addJournalEntry}
+                onToggleStar={toggleStar}
+              />
+              <Tips tips={tips} pinnedTipId={phase.pinnedTipId} dogName={dog.name} />
+            </>
           )}
           {view === "emergency" && (
             <Emergency dog={dog} summary={medicalSummary} contacts={emergencyContacts} />

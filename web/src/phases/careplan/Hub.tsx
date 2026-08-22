@@ -17,7 +17,7 @@ interface HubProps {
   firedRules: TriggerRule[];
   tipsById: Record<string, Tip>;
   experience: ExperienceLevel;
-  onOpen: (view: "timeline" | "journal" | "tips" | "emergency") => void;
+  onOpen: (view: "timeline" | "journal" | "emergency") => void;
 }
 
 const KIND_LABEL: Record<ScheduleBlock["items"][number]["kind"], string> = {
@@ -112,7 +112,7 @@ export function Hub({
         <p className="cp-eyebrow">This week · {pinnedTip.category}</p>
         <h3 className="cp-pinned-title">{pinnedTip.title}</h3>
         {showTipBody && <p className="cp-pinned-body">{pinnedTip.body}</p>}
-        <button className="cp-link" onClick={() => onOpen("tips")}>
+        <button className="cp-link" onClick={() => onOpen("journal")}>
           {showTipBody ? "More tips →" : "Show body →"}
         </button>
       </section>
