@@ -2,14 +2,13 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDogs } from "../../hooks/useDogs";
 import { useFoster } from "../../hooks/useFoster";
-import { useJournal } from "../../hooks/useJournal";
+import { useCareSchedule, useJournal } from "../../hooks/useJournal";
 import { normalizeDog } from "../../lib/dog";
 import type { Dog } from "../../types";
 import {
   daysSincePickup,
   emergencyContacts,
   medicalSummary,
-  scheduleBlocks as seedSchedule,
   seedMilestones,
   tips,
   weekPhases,
@@ -24,7 +23,6 @@ import type {
   DogProfile,
   ExperienceLevel,
   JournalEntry,
-  ScheduleBlock,
   Tip,
 } from "./types";
 import "./carePlan.css";
@@ -91,7 +89,7 @@ export function CarePlanView() {
   const [dayInFoster, setDayInFoster] = useState(() => daysSincePickup(pickupIso));
   const [experience, setExperience] = useState<ExperienceLevel>("beginner");
   const [journal, setJournal] = useJournal();   // persisted, so the adoption page sees it too
-  const [schedule, setSchedule] = useState<ScheduleBlock[]>(seedSchedule);
+  const [schedule, setSchedule] = useCareSchedule();   // persisted, so Adopt sees ticks live
 
   const phase = phaseForDay(dayInFoster);
 

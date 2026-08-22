@@ -118,20 +118,56 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
         )}
       </Section>
 
-      <Section title="Health record" src={profile.weighIns.length ? "Logged during foster" : "No weigh-ins logged yet"}>
-        {profile.weighIns.length || profile.vetVisits.length ? (
-          <div className="card" style={{ padding: "4px 17px" }}>
-            {profile.weighIns.map((w, i) => (
-              <KV key={"w" + i} k={`Weigh-in · ${w.date}`} v={w.value}
-                last={i === profile.weighIns.length - 1 && !profile.vetVisits.length} />
-            ))}
-            {profile.vetVisits.map((v, i) => (
-              <KV key={"v" + i} k={`Vet · ${v.date}`} v={v.note} last={i === profile.vetVisits.length - 1} />
-            ))}
-          </div>
+      <Section
+        title="Health &amp; care record"
+        src={profile.careDone.length
+          ? `${profile.careDone.length} of ${profile.careDone.length + profile.careOutstanding} care items completed`
+          : "Nothing ticked off in the Care Plan yet"}
+      >
+        {profile.careDone.length || profile.milestones.length ? (
+          <>
+            {profile.careDone.length > 0 && (
+              <div className="card" style={{ padding: "13px 17px" }}>
+                {profile.careDone.map((c) => (
+                  <div key={c.label} className="row" style={{ gap: 10, padding: "5px 0", alignItems: "flex-start" }}>
+                    <span className="ap-tick" data-good="true">✓</span>
+                    <div>
+                      <span style={{ fontSize: 14, fontWeight: 700 }}>{c.label}</span>
+                      <span className="ap-src"> · {c.block}</span>
+                    </div>
+                  </div>
+                ))}
+                {profile.careOutstanding > 0 && (
+                  <p className="muted" style={{ marginTop: 9, paddingTop: 9, borderTop: "1px solid var(--line)" }}>
+                    {profile.careOutstanding} still outstanding
+                  </p>
+                )}
+              </div>
+            )}
+
+            {profile.milestones.length > 0 && (
+              <>
+                <p className="ap-note-hint" style={{ marginTop: 16, marginBottom: 10 }}>Timeline</p>
+                <div className="card" style={{ padding: "4px 17px" }}>
+                  {profile.milestones.map((m, i) => (
+                    <KV key={m.title + i} k={`Day ${m.day} · ${m.title}`}
+                      v={m.weight ? `${m.weight} lb` : m.note ?? "—"}
+                      last={i === profile.milestones.length - 1} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            <p className="ap-note-hint" style={{ marginTop: 16, marginBottom: 10 }}>Medical</p>
+            <div className="card" style={{ padding: "4px 17px" }}>
+              <KV k="Vaccines" v={profile.medical.vaccines.join(", ")} />
+              <KV k="Allergies" v={profile.medical.allergies.join(", ")} />
+              <KV k="Medications" v={profile.medical.medications.join(", ")} last />
+            </div>
+          </>
         ) : (
           <EmptyBlock icon="⚖️" title="No health entries yet"
-            body="Weigh-ins and vet visits logged in the Care Plan show up here." />
+            body="Care items you tick off in the Care Plan show up here as you go." />
         )}
       </Section>
 

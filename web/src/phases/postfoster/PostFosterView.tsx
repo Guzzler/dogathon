@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
 import { useCareLog } from "../../hooks/useCareLog";
-import { useJournalEntries } from "../../hooks/useJournal";
+import { useCareScheduleBlocks, useJournalEntries } from "../../hooks/useJournal";
+import { daysSincePickup } from "../../phases/careplan/data";
 import { useAdoptionHighlights } from "../../lib/highlights";
 import { AgentChatPanel } from "../../components/AgentChatPanel";
 import { buildAdoptionProfile, noteTextsFor } from "../../lib/adoption";
@@ -16,14 +17,18 @@ export function PostFosterView() {
   const { dogs } = useDogs();
   const { entries } = useCareLog();
   const journal = useJournalEntries();
+  const schedule = useCareScheduleBlocks();
   const [sharing, setSharing] = useState(false);
   const [drafting, setDrafting] = useState(false);
 
   const raw = dogs.find((d) => d.id === foster?.matchedDogId);
   const dog = useMemo(() => (raw ? normalizeDog(raw) : null), [raw]);
   const profile = useMemo(
-    () => (dog ? buildAdoptionProfile(dog, foster, entries, journal) : null),
-    [dog, foster, entries, journal],
+    () => (dog
+      ? buildAdoptionProfile(dog, foster, entries, journal, schedule,
+          daysSincePickup(foster?.pickup?.date ?? ""))
+      : null),
+    [dog, foster, entries, journal, schedule],
   );
   const { tags, summary, pending: tagsPending } = useAdoptionHighlights(foster, profile ? noteTextsFor(profile) : []);
 

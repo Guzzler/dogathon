@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useDogs } from "../../hooks/useDogs";
 import { useFoster } from "../../hooks/useFoster";
-import { useJournalEntries } from "../../hooks/useJournal";
+import { useCareScheduleBlocks, useJournalEntries } from "../../hooks/useJournal";
+import { daysSincePickup } from "../careplan/data";
 import { buildAdoptionProfile } from "../../lib/adoption";
 import { normalizeDog } from "../../lib/dog";
 import { PawMark, Wordmark } from "../../components/Logo";
@@ -17,6 +18,7 @@ export function PublicAdoptionView() {
   const { dogs, loading } = useDogs();
   const { foster } = useFoster();
   const journal = useJournalEntries();
+  const schedule = useCareScheduleBlocks();
 
   // A shared link should show what the foster logged, not empty states — but only when this
   // dog is actually the one they fostered.
@@ -25,8 +27,12 @@ export function PublicAdoptionView() {
   const raw = dogs.find((d) => d.id === id);
   const dog = useMemo(() => (raw ? normalizeDog(raw) : null), [raw]);
   const profile = useMemo(
-    () => (dog ? buildAdoptionProfile(dog, isTheirFoster ? foster : null, [], isTheirFoster ? journal : []) : null),
-    [dog, foster, journal, isTheirFoster],
+    () => (dog
+      ? buildAdoptionProfile(dog, isTheirFoster ? foster : null, [],
+          isTheirFoster ? journal : [], isTheirFoster ? schedule : [],
+          daysSincePickup(foster?.pickup?.date ?? ""))
+      : null),
+    [dog, foster, journal, schedule, isTheirFoster],
   );
 
   if (loading) return <p className="pw-loading">Loading…</p>;

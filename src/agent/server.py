@@ -131,13 +131,15 @@ HIGHLIGHTS_SYSTEM = (
     "You summarise a foster carer's journal about a dog into notes for an adoption profile."
 )
 HIGHLIGHTS_PROMPT = (
-    "Journal entries written by the foster:\n{notes}\n\n"
+    "Notes written by the foster over the whole foster period:\n{notes}\n\n"
     "Reply with exactly two lines.\n"
     "TAGS: 3-6 comma-separated tags, 1-2 words, lowercase "
     "(e.g. potty-trained, energetic, good-with-kids)\n"
     "SUMMARY: 2-4 sentences an adopter needs — house-training, temperament with people and "
     "other animals, energy level, anxieties, medical needs, and progress made.\n\n"
-    "Only describe what the entries actually say. Do not invent details."
+    "Write the summary as one overall picture of the dog. Do not go entry by entry or "
+    "day by day, and do not mention dates. Only describe what the notes actually say — "
+    "do not invent details."
 )
 
 

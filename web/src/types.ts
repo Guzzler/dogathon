@@ -1,4 +1,4 @@
-import type { JournalEntry } from "./phases/careplan/types";
+import type { JournalEntry, ScheduleBlock } from "./phases/careplan/types";
 
 export type EventKind =
   | "text"
@@ -126,6 +126,8 @@ export interface Foster {
 
   /** Care Plan journal, persisted so the adoption page can read the same entries. */
   journal?: JournalEntry[];
+  /** Care Plan schedule, persisted so ticking an item updates the adoption page. */
+  careSchedule?: ScheduleBlock[];
   /** The foster's own note for the adoption page. Never generated. */
   adoptionNote?: string;
   /** Cached tags extracted from journal notes — see web/src/lib/highlights.ts. */
