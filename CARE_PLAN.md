@@ -4,6 +4,60 @@ Owner: Ritu · Branch: `ritu/care_plan`
 
 The Care Plan is the "while the dog is with you" surface. It's what the foster opens every day — a calm home screen that answers *"what do I need to do today, and how is Marty actually doing?"* and quietly builds the story that becomes the adoption profile in Phase 5.
 
+## Built so far
+
+Everything below lives in `web/src/phases/careplan/` and renders inside the shared `.phone-body` shell. Three tabs total.
+
+### Data wiring
+- Reads the matched dog from `useFoster()` + `useDogs()` (`foster.matchedDogId`). If there's no match, the Care Plan shows a "Finish the Match phase first" fallback that links to `/match`.
+- Pickup date comes from `foster.pickup?.date`, falling back to today. `daysSincePickup()` derives the live day-in-foster count.
+- Journal entries and the schedule-block completion state use the persisted `useJournal()` / `useCareSchedule()` hooks so the Post-Foster adoption page can read the same state.
+- Puppy support: two puppies (Marty, 4mo shepherd; Willow, 6mo lab) added to `data/dogs.json`. Age renders as "N mo" for under-1-year dogs (`lib/dog.ts` `ageLabel`). Onboarding has a new "Life stage — Puppy vs Adult" tag group; `matching.ts` scores it ±18/20.
+
+### Home tab (`Hub.tsx`)
+- **Phase banner** — green header showing current phase name ("Week 1 · Decompression") derived from days-in-foster.
+- **Triggered tip cards** — fire from keyword rules over journal notes + `DogProfile` (age-branched biting playbook, skipped-meal warm-food warning, crate-refusal food-in-crate tip, scared/fear reassurance). Show above the plan when active.
+- **Weight chart** — SVG sparkline of past weigh-ins (clipped to `dayInFoster`), only renders when there are 2+ points.
+- **Care plan timeline** — one spine per week/month bucket:
+  - Week header with a filled/hollow dot (past / current / upcoming) and day range
+  - Compact wrap of scheduled-task chips (Wellness, Vaccine, Nail trim, etc.) — checkbox pills the foster can tick off
+  - Milestone events below with day tag + kind chip + note (or "in N days" if upcoming). Milestones are bucketed into their week by day range.
+- **Pinned "This week" tip** — collapses body in Experienced view.
+- **Quick actions** — Journal & Tips + Emergency.
+
+### Journal & Tips tab (`JournalTips.tsx`)
+One unified composer with three modes:
+- **Log note** — free text
+- **Ask about {dog}** — keyword-matched stub answer, cites the relevant seed tip. Real LLM wiring is the drop-in next step.
+- **Photo** — placeholder swatch + caption
+
+All three land in a single chronological feed (notes, photos, Q&A pairs interleaved). Star any entry to earmark it for the adoption profile. The full seed tip library sits behind a "Browse care library" accordion at the bottom.
+
+### Emergency tab (`Emergency.tsx`)
+- Google-Maps-style SVG mock: street grid, park polygon, water body, blue user dot with accuracy ring, red teardrop marker for the nearest 24h vet, dashed route with distance/time chip, scale bar.
+- Real phone numbers: VCA SF Veterinary Specialists `(415) 401-9200`, Pet Poison Helpline `(855) 764-7661`, ASPCA Animal Poison Control `(888) 426-4435`.
+- `{dog}`'s medical summary (vaccines, allergies, medications, weight).
+- Poison Control + "What to do now" quick tiles.
+
+### Demo controls (`components/DemoCarePanel.tsx`)
+Fixed bottom-right floating panel (mirrors Match's `DemoShelterPanel` visual pattern). Lets the demo driver:
+- Jump to Day 1 / Week 2 / Week 3 / Week 4 / Week 6+ — the whole page (phase banner, schedule, chart, milestones, triggered cards) re-renders as if you were on that day.
+- Swap the foster's experience level (beginner / experienced) — affects the pinned tip's body verbosity.
+Each day option surfaces the actual calendar date next to it.
+
+### Layout / responsiveness
+- No topbar chrome — the app-level nav already labels the phase.
+- Mobile-first: fills the 430px phone frame edge-to-edge; the desktop card look kicks in above 900px (unused now the app is phone-shell-only).
+- Tabs scroll horizontally on narrow widths; long dog names wrap in headers instead of overflowing.
+
+### Not built (spec items still deferred)
+- Push notifications for missed tasks
+- Real LLM in "Ask about {dog}" (stub returns keyword-matched canned answers with seed-tip citations)
+- Templatize seeded content — several tip bodies still hardcode "Marty" instead of `{dogName}`
+- Weight unit toggle in settings (imperial only right now)
+- Realtime shelter visibility / daily digest
+
+
 ## Goals
 
 1. **Reduce day-one panic.** A first-time foster should never wonder "what am I supposed to be doing?"
