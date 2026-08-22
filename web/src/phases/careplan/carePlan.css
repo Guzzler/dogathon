@@ -116,27 +116,6 @@
   margin-top: 10px;
 }
 
-/* Demo container: fills phone body on mobile; card look on desktop */
-
-.cp-demo {
-  width: 100%;
-  background: #ffffff;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-@media (min-width: 900px) {
-  .cp-demo {
-    border-radius: 20px;
-    box-shadow: var(--cp-shadow-lg);
-    border: 1px solid var(--color-border);
-    flex: none;
-  }
-}
-
 /* Topbar */
 
 .cp-topbar {
@@ -206,6 +185,24 @@
 }
 
 .cp-tabs::-webkit-scrollbar { display: none; }
+
+/* The sub-nav lives at the bottom of the frame, just above the app tab bar. Kept slim and
+   pill-shaped so it doesn't read as a second copy of the app's navigation. */
+.cp-tabs--bottom {
+  border-bottom: none;
+  border-top: 1px solid var(--color-border);
+  padding: 7px 8px;
+  gap: 6px;
+  background: rgba(255, 253, 248, 0.96);
+  backdrop-filter: blur(10px);
+}
+
+.cp-tabs--bottom .cp-tab {
+  flex: 1;
+  text-align: center;
+  padding: 9px 8px;
+  font-size: 12px;
+}
 
 @media (min-width: 900px) {
   .cp-tabs { padding: 10px 20px; }
@@ -598,17 +595,12 @@
 /* New unified plan timeline (week header + task chips + milestone events) */
 
 .cp-plan {
-  background: var(--color-panel);
-  border: 1px solid var(--color-border);
-  border-radius: var(--cp-radius);
-  padding: 14px 14px 6px;
-  box-shadow: var(--cp-shadow-sm);
+  padding: 2px 0 0;
 }
 
 .cp-plan__head {
-  padding: 0 2px 8px;
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: 4px;
+  padding: 0 2px 6px;
+  margin-bottom: 2px;
 }
 
 .cp-plan__head h3 {
@@ -1318,6 +1310,7 @@
   width: 80px;
   height: 80px;
   border-radius: var(--cp-radius-sm);
+  object-fit: cover;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1628,3 +1621,158 @@
 @media (max-width: 520px) {
   .cp-emergency-actions { grid-template-columns: 1fr; }
 }
+
+
+/* One merged row per real care event — the plan and the record are the same list now. */
+
+.cp-rows {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cp-row {
+  width: 100%;
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 252, 246, 0.72);
+  font-family: inherit;
+  color: var(--color-ink);
+}
+
+.cp-row--tappable { cursor: pointer; transition: background 120ms ease; }
+.cp-row--tappable:hover { background: #fffdf7; }
+
+.cp-row--logged,
+.cp-row--done {
+  background: rgba(47, 122, 75, 0.07);
+  border-color: rgba(47, 122, 75, 0.26);
+}
+
+.cp-row--planned,
+.cp-row--upcoming {
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.78;
+}
+
+.cp-row__mark {
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  color: transparent;
+}
+
+.cp-row--todo .cp-row__mark { border-color: var(--color-evergreen); }
+
+.cp-row--logged .cp-row__mark,
+.cp-row--done .cp-row__mark {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #fff;
+}
+
+.cp-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cp-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cp-row__title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+
+.cp-row--done .cp-row__title {
+  text-decoration: line-through;
+  color: var(--color-muted);
+}
+
+.cp-row__meta {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.cp-row__note {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-muted);
+}
+
+/* Weeks already behind you fold into one line — the current week stays at the top. */
+
+.cp-earlier {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  background: transparent;
+  font-family: inherit;
+  color: var(--color-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.cp-earlier:hover { background: rgba(196, 149, 90, 0.06); }
+
+.cp-earlier__caret { font-size: 10px; flex: 0 0 auto; }
+
+.cp-earlier__label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-ink);
+}
+
+.cp-earlier__meta {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Expanded, past weeks stay visibly secondary to the one you're in. */
+.cp-week--dim { opacity: 0.62; }
+
+/* Streaming cursor while the agent is still writing. */
+.cp-caret {
+  display: inline-block;
+  width: 7px;
+  height: 13px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--color-evergreen);
+  animation: cp-blink 1s steps(2, start) infinite;
+}
+
+@keyframes cp-blink { to { visibility: hidden; } }

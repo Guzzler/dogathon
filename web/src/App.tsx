@@ -46,6 +46,8 @@ export default function App() {
           <Route path="saved" element={<SavedView />} />
           <Route path="match" element={<MatchView />} />
           <Route path="care-plan" element={<CarePlanView />} />
+          {/* Journal & Emergency are routes, not local state, so the app tab bar can carry them. */}
+          <Route path="care-plan/:tab" element={<CarePlanView />} />
           <Route path="post-foster" element={<PostFosterView />} />
         </Route>
       </Route>

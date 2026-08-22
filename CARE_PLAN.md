@@ -6,7 +6,7 @@ The Care Plan is the "while the dog is with you" surface. It's what the foster o
 
 ## Built so far
 
-Everything below lives in `web/src/phases/careplan/` and renders inside the shared `.phone-body` shell. Three tabs total.
+Everything below lives in `web/src/phases/careplan/` and renders inside the shared `.phone-body` shell. Three tabs total — the sub-nav (Home / Journal & Tips / Emergency) sits at the **bottom** of the frame, just above the app tab bar, styled slim so it doesn't read as a second copy of the app's navigation.
 
 ### Data wiring
 - Reads the matched dog from `useFoster()` + `useDogs()` (`foster.matchedDogId`). If there's no match, the Care Plan shows a "Finish the Match phase first" fallback that links to `/match`.
@@ -18,10 +18,16 @@ Everything below lives in `web/src/phases/careplan/` and renders inside the shar
 - **Phase banner** — green header showing current phase name ("Week 1 · Decompression") derived from days-in-foster.
 - **Triggered tip cards** — fire from keyword rules over journal notes + `DogProfile` (age-branched biting playbook, skipped-meal warm-food warning, crate-refusal food-in-crate tip, scared/fear reassurance). Show above the plan when active.
 - **Weight chart** — SVG sparkline of past weigh-ins (clipped to `dayInFoster`), only renders when there are 2+ points.
-- **Care plan timeline** — one spine per week/month bucket:
+- **Care plan timeline** — one spine per week/month bucket, one row per real event:
   - Week header with a filled/hollow dot (past / current / upcoming) and day range
-  - Compact wrap of scheduled-task chips (Wellness, Vaccine, Nail trim, etc.) — checkbox pills the foster can tick off
-  - Milestone events below with day tag + kind chip + note (or "in N days" if upcoming). Milestones are bucketed into their week by day range.
+  - **Plan and record are merged** (`plan.ts` `buildPlanTimeline`). A scheduled item ("DHPP booster",
+    "Weight check") and the milestone that records it collapse into a single row, matched on a care
+    *topic* (dhpp / bordetella / weight / nails / cue-training …) rather than string equality. The
+    milestone's day wins over the planned week, so Bordetella shows once on Day 30 instead of under
+    both Week 3 and Month 2, and the merged title keeps the logged value ("Weigh-in — 22 lbs").
+  - Row status is `logged` / `done` / `todo` / `planned` / `upcoming`. Rows backed by a schedule item
+    stay tappable checkboxes; pure milestones render as records. Dated rows sort by day, undated plan
+    items trail behind them.
 - **Pinned "This week" tip** — collapses body in Experienced view.
 - **Quick actions** — Journal & Tips + Emergency.
 

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { buildPlanTimeline } from "./plan";
 import { WeightChart } from "./Timeline";
 import type {
   DogProfile,
@@ -23,31 +25,6 @@ interface HubProps {
   onOpen: (view: "journal" | "emergency") => void;
 }
 
-const SCHED_KIND_LABEL: Record<ScheduleBlock["items"][number]["kind"], string> = {
-  vaccine: "Vaccine",
-  wellness: "Wellness",
-  grooming: "Grooming",
-  medication: "Med",
-  training: "Training",
-  checkup: "Check",
-};
-
-const MILE_KIND_LABEL: Record<Milestone["kind"], string> = {
-  vet: "Vet",
-  vaccine: "Vaccine",
-  weigh: "Weigh-in",
-  training: "Training",
-  behavior: "Behavior",
-};
-
-function chipKind(k: Milestone["kind"]): ScheduleBlock["items"][number]["kind"] {
-  if (k === "vaccine") return "vaccine";
-  if (k === "training") return "training";
-  if (k === "weigh") return "checkup";
-  if (k === "vet") return "checkup";
-  return "wellness";
-}
-
 export function Hub({
   dog,
   dayInFoster,
@@ -63,14 +40,24 @@ export function Hub({
 }: HubProps) {
   const showTipBody = experience === "beginner";
 
-  const sortedBlocks = [...blocks].sort((a, b) => a.startDay - b.startDay);
-  const bucketed = sortedBlocks.map((block, i) => {
-    const nextStart = sortedBlocks[i + 1]?.startDay ?? Infinity;
-    const ms = milestones
-      .filter((m) => m.dayInFoster >= block.startDay && m.dayInFoster < nextStart)
-      .sort((a, b) => a.dayInFoster - b.dayInFoster);
-    return { block, nextStart, milestones: ms };
-  });
+  const weeks = buildPlanTimeline(blocks, milestones, dayInFoster);
+
+  // The week you're in should be the first thing you see. Weeks already behind you fold into a
+  // single line — still reachable, but not something to scroll past every time you open the app.
+  const currentIdx = weeks.findIndex((w) => w.current);
+  const earlier = currentIdx > 0 ? weeks.slice(0, currentIdx) : [];
+  const fromNow = currentIdx > 0 ? weeks.slice(currentIdx) : weeks;
+
+  const [showEarlier, setShowEarlier] = useState(false);
+  // Jumping the demo to another week re-folds them.
+  useEffect(() => setShowEarlier(false), [currentIdx]);
+
+  const earlierRows = earlier.flatMap((w) => w.rows);
+  const earlierOpen = earlierRows.filter(
+    (r) => r.status === "todo" || r.status === "planned",
+  ).length;
+  const earlierLabel =
+    earlier.length === 1 ? earlier[0].label : `${earlier[0]?.label} – ${earlier[earlier.length - 1]?.label}`;
 
   const weightPoints = milestones
     .filter((m) => m.weightLbs != null && m.dayInFoster <= dayInFoster)
@@ -111,77 +98,82 @@ export function Hub({
           <p className="cp-mini-meta">Composed for {dog.name} — {dog.breed}, {dog.ageMonths} mo.</p>
         </div>
 
+        {earlier.length > 0 && (
+          <button
+            type="button"
+            className={`cp-earlier ${showEarlier ? "cp-earlier--open" : ""}`}
+            onClick={() => setShowEarlier((v) => !v)}
+            aria-expanded={showEarlier}
+          >
+            <span className="cp-earlier__caret" aria-hidden="true">{showEarlier ? "▾" : "▸"}</span>
+            <span className="cp-earlier__label">{earlierLabel}</span>
+            <span className="cp-earlier__meta">
+              {earlierRows.length - earlierOpen} done
+              {earlierOpen > 0 && ` · ${earlierOpen} still open`}
+            </span>
+          </button>
+        )}
+
         <ol className="cp-plan__weeks">
-          {bucketed.map(({ block, nextStart, milestones: blockMilestones }) => {
-            const passed = dayInFoster >= block.startDay;
-            const current = dayInFoster >= block.startDay && dayInFoster < nextStart;
-            const dayRange = Number.isFinite(nextStart)
-              ? `Day ${block.startDay}–${nextStart - 1}`
-              : `Day ${block.startDay}+`;
-
-            return (
-              <li
-                key={block.id}
-                className={`cp-week ${passed ? "cp-week--passed" : ""} ${current ? "cp-week--current" : ""}`}
-              >
-                <div className="cp-week__head">
-                  <span className="cp-week__dot" />
-                  <div className="cp-week__label">
-                    <span className="cp-week__name">{block.label}</span>
-                    <span className="cp-mini-meta">{dayRange}{current ? " · you are here" : ""}</span>
-                  </div>
+          {(showEarlier ? weeks : fromNow).map((week) => (
+            <li
+              key={week.id}
+              className={`cp-week ${week.passed ? "cp-week--passed" : ""} ${week.current ? "cp-week--current" : ""} ${
+                showEarlier && !week.current && week.passed ? "cp-week--dim" : ""
+              }`}
+            >
+              <div className="cp-week__head">
+                <span className="cp-week__dot" />
+                <div className="cp-week__label">
+                  <span className="cp-week__name">{week.label}</span>
+                  <span className="cp-mini-meta">
+                    {week.dayRange}{week.current ? " · you are here" : ""}
+                  </span>
                 </div>
+              </div>
 
-                {block.items.length > 0 && (
-                  <div className="cp-plan-chips" aria-label="Scheduled care for this week">
-                    {block.items.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={`cp-plan-chip cp-plan-chip--${item.kind} ${item.done ? "cp-plan-chip--done" : ""}`}
-                        onClick={() => onToggleScheduled(block.id, item.id)}
-                        aria-pressed={item.done}
-                      >
-                        <span className="cp-plan-chip__box">{item.done ? "✓" : ""}</span>
-                        <span className="cp-plan-chip__label">{item.label}</span>
-                        <span className="cp-plan-chip__kind">{SCHED_KIND_LABEL[item.kind]}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {blockMilestones.length > 0 && (
-                  <ol className="cp-events">
-                    {blockMilestones.map((m) => {
-                      const upcoming = m.dayInFoster > dayInFoster;
-                      return (
-                        <li
-                          key={m.id}
-                          className={`cp-event cp-event--${m.kind} ${upcoming ? "cp-event--upcoming" : ""}`}
+              {week.rows.length > 0 && (
+                <ol className="cp-rows">
+                  {week.rows.map((row) => {
+                    const Tag = row.toggle ? "button" : "div";
+                    return (
+                      <li key={row.key}>
+                        <Tag
+                          {...(row.toggle
+                            ? {
+                                type: "button" as const,
+                                onClick: () => onToggleScheduled(row.toggle!.blockId, row.toggle!.itemId),
+                                "aria-pressed": row.status === "done",
+                              }
+                            : {})}
+                          className={`cp-row cp-row--${row.status} ${row.toggle ? "cp-row--tappable" : ""}`}
                         >
-                          <span className="cp-event__day">Day {m.dayInFoster}</span>
-                          <div className="cp-event__body">
-                            <div className="cp-event__row">
-                              <p className="cp-event__title">{m.title}</p>
-                              <span className={`cp-plan-chip__kind cp-plan-chip__kind--${chipKind(m.kind)}`}>
-                                {MILE_KIND_LABEL[m.kind]}
+                          <span className="cp-row__mark" aria-hidden="true">
+                            {row.status === "done" || row.status === "logged" ? "✓" : ""}
+                          </span>
+                          <span className="cp-row__body">
+                            <span className="cp-row__top">
+                              <span className="cp-row__title">{row.title}</span>
+                              <span className={`cp-plan-chip__kind cp-plan-chip__kind--${row.kind}`}>
+                                {row.kindLabel}
                               </span>
-                            </div>
-                            {m.note && !upcoming && <p className="cp-event__note">{m.note}</p>}
-                            {upcoming && (
-                              <p className="cp-event__note">
-                                in {m.dayInFoster - dayInFoster} day{m.dayInFoster - dayInFoster === 1 ? "" : "s"}
-                              </p>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                )}
-              </li>
-            );
-          })}
+                            </span>
+                            <span className="cp-row__meta">
+                              {row.day != null ? `Day ${row.day}` : "Scheduled this week"}
+                              {row.recordedDay != null && " · logged"}
+                              {row.status === "upcoming" &&
+                                ` · in ${row.day! - dayInFoster} day${row.day! - dayInFoster === 1 ? "" : "s"}`}
+                            </span>
+                            {row.note && <span className="cp-row__note">{row.note}</span>}
+                          </span>
+                        </Tag>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </li>
+          ))}
         </ol>
       </section>
 

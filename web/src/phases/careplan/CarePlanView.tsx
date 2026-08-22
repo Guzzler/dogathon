@@ -1,19 +1,21 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { DemoCarePanel } from "../../components/DemoCarePanel";
 import { useDogs } from "../../hooks/useDogs";
 import { useFoster } from "../../hooks/useFoster";
 import { useCareSchedule, useJournal } from "../../hooks/useJournal";
-import { normalizeDog } from "../../lib/dog";
+import { normalizeDog, photoUrl } from "../../lib/dog";
 import type { Dog } from "../../types";
 import {
   daysSincePickup,
   emergencyContacts,
   medicalSummary,
-  seedMilestones,
-  tips,
+  seedMilestones as rawMilestones,
+  tips as rawTips,
   weekPhases,
 } from "./data";
+import { buildAgentBrief } from "./brief";
+import { buildPlanTimeline } from "./plan";
 import { Emergency } from "./Emergency";
 import { Hub } from "./Hub";
 import { JournalTips } from "./JournalTips";
@@ -42,10 +44,16 @@ function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
     pickupDate,
     medicalFlags: d.needs ?? [],
     backstory: d.notes,
+    photoUrl: photoUrl(d.photoId, 600, 600),
   };
 }
 
 type View = "hub" | "journal" | "emergency";
+
+/** `/care-plan` is Home; `/care-plan/journal` and `/care-plan/emergency` are the other two. */
+function viewFromParam(tab: string | undefined): View {
+  return tab === "journal" || tab === "emergency" ? tab : "hub";
+}
 
 function dateLabelForDay(day: number, pickupIso: string): string {
   const [y, m, d] = pickupIso.split("-").map(Number);
@@ -82,7 +90,9 @@ export function CarePlanView() {
   const pickupIso = foster?.pickup?.date || todayIso();
   const dog: DogProfile | null = matchedDog ? toDogProfile(matchedDog, pickupIso) : null;
 
-  const [view, setView] = useState<View>("hub");
+  const { tab } = useParams();
+  const view = viewFromParam(tab);
+  const openView = (v: View) => navigate(v === "hub" ? "/care-plan" : `/care-plan/${v}`);
   const [dayInFoster, setDayInFoster] = useState(() => daysSincePickup(pickupIso));
   const [experience, setExperience] = useState<ExperienceLevel>("beginner");
   const [journal, setJournal] = useJournal();   // persisted, so the adoption page sees it too
@@ -90,21 +100,47 @@ export function CarePlanView() {
 
   const phase = phaseForDay(dayInFoster);
 
+  // Everything the foster had logged as of the day we're showing. Writes still go to the full
+  // list — this only governs what's on screen and what the trigger rules can see.
+  const journalToDate = useMemo(
+    () => journal.filter((e) => e.dayInFoster <= dayInFoster),
+    [journal, dayInFoster],
+  );
+
+  // Seed copy is written with a `{dog}` placeholder so it reads for whoever is actually
+  // matched — and so the model's context doesn't talk about a dog the foster doesn't have.
+  const dogName = dog?.name ?? "your dog";
+  const fill = (t: string) => t.replaceAll("{dog}", dogName);
+
+  const tips = useMemo(
+    () => rawTips.map((t) => ({ ...t, title: fill(t.title), body: fill(t.body) })),
+    [dogName],
+  );
+  const seedMilestones = useMemo(
+    () =>
+      rawMilestones.map((m) => ({
+        ...m,
+        title: fill(m.title),
+        note: m.note ? fill(m.note) : m.note,
+      })),
+    [dogName],
+  );
+
   const tipsById = useMemo(() => {
     const m: Record<string, Tip> = {};
     tips.forEach((t) => (m[t.id] = t));
     return m;
-  }, []);
+  }, [tips]);
 
   const fired = useMemo(
     () =>
       firedRules({
-        entries: journal,
+        entries: journalToDate,
         tasks: [],
         profile: dog ?? { id: "", name: "", breed: "", ageMonths: 0, weightLbs: 0, pickupDate: pickupIso, medicalFlags: [], backstory: "" },
         dayInFoster,
       }),
-    [journal, dayInFoster],
+    [journalToDate, dayInFoster],
   );
 
   function toggleScheduled(blockId: string, itemId: string) {
@@ -179,60 +215,48 @@ export function CarePlanView() {
         onSetExperience={setExperience}
       />
 
-      <div className="cp-demo" role="application">
-        <nav className="cp-tabs" role="tablist">
-          {[
-            { id: "hub", label: "Home" },
-            { id: "journal", label: "Journal & Tips" },
-            { id: "emergency", label: "Emergency" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              role="tab"
-              aria-selected={view === t.id}
-              className={`cp-tab ${view === t.id ? "cp-tab--active" : ""} ${t.id === "emergency" ? "cp-tab--danger" : ""}`}
-              onClick={() => setView(t.id as View)}
-            >
-              {t.label}
-              {t.id === "hub" && fired.length > 0 && (
-                <span className="cp-tab__badge">{fired.length}</span>
-              )}
-            </button>
-          ))}
-        </nav>
-
-        <main className="cp-main">
-          {view === "hub" && (
-            <Hub
-              dog={dog}
-              dayInFoster={dayInFoster}
-              phase={phase}
-              blocks={schedule}
-              milestones={seedMilestones}
-              onToggleScheduled={toggleScheduled}
-              pinnedTip={tipsById[phase.pinnedTipId]}
-              firedRules={fired}
-              tipsById={tipsById}
-              experience={experience}
-              onOpen={(v) => setView(v)}
-            />
-          )}
-          {view === "journal" && (
-            <JournalTips
-              entries={journal}
-              dayInFoster={dayInFoster}
-              dogName={dog.name}
-              onAdd={addJournalEntry}
-              onToggleStar={toggleStar}
-              tips={tips}
-              pinnedTipId={phase.pinnedTipId}
-            />
-          )}
-          {view === "emergency" && (
-            <Emergency dog={dog} summary={medicalSummary} contacts={emergencyContacts} />
-          )}
-        </main>
-      </div>
+      <main className="cp-main" role="application">
+        {view === "hub" && (
+          <Hub
+            dog={dog}
+            dayInFoster={dayInFoster}
+            phase={phase}
+            blocks={schedule}
+            milestones={seedMilestones}
+            onToggleScheduled={toggleScheduled}
+            pinnedTip={tipsById[phase.pinnedTipId]}
+            firedRules={fired}
+            tipsById={tipsById}
+            experience={experience}
+            onOpen={openView}
+          />
+        )}
+        {view === "journal" && (
+          <JournalTips
+            entries={journalToDate}
+            dayInFoster={dayInFoster}
+            dogName={dog.name}
+            dogPhotoUrl={dog.photoUrl}
+            dogContext={buildAgentBrief({
+              dog,
+              dayInFoster,
+              phase,
+              weeks: buildPlanTimeline(schedule, seedMilestones, dayInFoster),
+              milestones: seedMilestones,
+              pinnedTip: tipsById[phase.pinnedTipId],
+              firedRules: fired,
+              tipsById,
+            })}
+            onAdd={addJournalEntry}
+            onToggleStar={toggleStar}
+            tips={tips}
+            pinnedTipId={phase.pinnedTipId}
+          />
+        )}
+        {view === "emergency" && (
+          <Emergency dog={dog} summary={medicalSummary} contacts={emergencyContacts} />
+        )}
+      </main>
     </div>
   );
 }

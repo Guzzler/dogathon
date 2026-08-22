@@ -1,10 +1,15 @@
 import { useState } from "react";
+import { streamChat } from "../../api";
 import type { JournalEntry, Tip } from "./types";
 
 interface JournalTipsProps {
   entries: JournalEntry[];
   dayInFoster: number;
   dogName: string;
+  /** Falls back behind an entry's own photo — seeded entries have no upload of their own. */
+  dogPhotoUrl?: string;
+  /** One line of who this dog is + where they are in the foster, prepended to every ask. */
+  dogContext: string;
   onAdd: (entry: Omit<JournalEntry, "id" | "createdAt" | "dayInFoster">) => void;
   onToggleStar: (id: string) => void;
   tips: Tip[];
@@ -17,9 +22,14 @@ interface AskEntry {
   kind: "ask";
   id: string;
   createdAt: string;
+  /** Blank for the coaching reply on a logged note — `label` says what it's about instead. */
   question: string;
+  label?: string;
   answer: string;
   citedTip?: Tip;
+  pending?: boolean;
+  /** True when the agent was unreachable and the seeded keyword answer stood in. */
+  offline?: boolean;
 }
 
 const SWATCH_COLORS = ["#C4955A", "#2D5A3D", "#726A5E", "#A84034", "#2F7A4B"];
@@ -68,6 +78,8 @@ export function JournalTips({
   entries,
   dayInFoster,
   dogName,
+  dogPhotoUrl,
+  dogContext,
   onAdd,
   onToggleStar,
   tips,
@@ -79,13 +91,54 @@ export function JournalTips({
   const [asks, setAsks] = useState<AskEntry[]>([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
 
+  /**
+   * Streams a real answer from the agent (which holds ANTHROPIC_API_KEY — the browser never
+   * sees it) into an ask entry. If the agent isn't running, the seeded keyword answer stands
+   * in and the entry says so, so the demo never dead-ends on a blank reply.
+   */
+  async function runAgent(id: string, prompt: string, fallbackQuestion: string) {
+    const patch = (fn: (a: AskEntry) => AskEntry) =>
+      setAsks((prev) => prev.map((a) => (a.id === id ? fn(a) : a)));
+    try {
+      await streamChat(prompt, (event) => {
+        if (event.kind === "text") patch((a) => ({ ...a, answer: a.answer + event.text }));
+      });
+      patch((a) => ({ ...a, pending: false }));
+    } catch {
+      const { text: canned, citedTip } = askAbout(dogName, fallbackQuestion, tips);
+      patch((a) => ({ ...a, answer: canned, citedTip, pending: false, offline: true }));
+    }
+  }
+
   function submit() {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     if (mode === "note") {
       if (!text.trim()) return;
-      onAdd({ kind: "note", text: text.trim(), starred: false });
+      const note = text.trim();
+      onAdd({ kind: "note", text: note, starred: false });
       setText("");
+      // A logged note is also a question the foster didn't think to ask.
+      const id = `q-${Date.now()}`;
+      setAsks((prev) => [
+        {
+          kind: "ask",
+          id,
+          createdAt: `Day ${dayInFoster} · ${time}`,
+          question: "",
+          label: "On your note",
+          answer: "",
+          pending: true,
+        },
+        ...prev,
+      ]);
+      void runAgent(
+        id,
+        `${dogContext}\n\nTheir foster just logged this note: "${note}"\n\n` +
+          "Reply in 2-3 sentences with the single most useful thing to know or do about it. " +
+          "If nothing needs action, say so warmly and briefly. No preamble, no bullet list.",
+        note,
+      );
     } else if (mode === "photo") {
       const color = SWATCH_COLORS[Math.floor(Math.random() * SWATCH_COLORS.length)];
       onAdd({
@@ -97,19 +150,27 @@ export function JournalTips({
       setCaption("");
     } else {
       if (!text.trim()) return;
-      const { text: answer, citedTip } = askAbout(dogName, text.trim(), tips);
+      const question = text.trim();
+      const id = `q-${Date.now()}`;
       setAsks((prev) => [
         {
           kind: "ask",
-          id: `q-${Date.now()}`,
+          id,
           createdAt: `Day ${dayInFoster} · ${time}`,
-          question: text.trim(),
-          answer,
-          citedTip,
+          question,
+          answer: "",
+          pending: true,
         },
         ...prev,
       ]);
       setText("");
+      void runAgent(
+        id,
+        `${dogContext}\n\nTheir foster asks: "${question}"\n\n` +
+          "Answer in 3-4 sentences, practical and specific to this dog's age and week in foster. " +
+          "If it sounds like a medical emergency, say to call the vet first. No preamble.",
+        question,
+      );
     }
   }
 
@@ -179,13 +240,25 @@ export function JournalTips({
             return (
               <li key={item.id} className="cp-feed-item cp-feed-item--ask">
                 <div className="cp-feed-item__row">
-                  <span className="cp-feed-item__tag cp-feed-item__tag--ask">You asked</span>
+                  <span className="cp-feed-item__tag cp-feed-item__tag--ask">
+                    {item.label ?? "You asked"}
+                  </span>
                   <span className="cp-mini-meta">{item.createdAt}</span>
                 </div>
-                <p className="cp-feed-item__question">{item.question}</p>
+                {item.question && <p className="cp-feed-item__question">{item.question}</p>}
                 <div className="cp-feed-item__answer">
-                  <p className="cp-eyebrow">Suggested</p>
-                  <p>{item.answer}</p>
+                  <p className="cp-eyebrow">
+                    {item.pending && !item.answer ? "Thinking…" : item.offline ? "Seeded answer" : "Claude"}
+                  </p>
+                  <p>
+                    {item.answer}
+                    {item.pending && <span className="cp-caret" aria-hidden="true" />}
+                  </p>
+                  {item.offline && (
+                    <p className="cp-mini-meta">
+                      Agent unreachable — start it with <code>uv run agent-server</code>.
+                    </p>
+                  )}
                   {item.citedTip && (
                     <p className="cp-mini-meta">Cited: <strong>{item.citedTip.title}</strong></p>
                   )}
@@ -196,15 +269,25 @@ export function JournalTips({
           const e = item;
           return (
             <li key={e.id} className={`cp-journal-entry cp-journal-entry--${e.kind}`}>
-              {e.kind === "photo" && (
-                <div
-                  className="cp-journal-photo"
-                  style={{ background: e.imageColor ?? "#C4955A" }}
-                  aria-label="Photo placeholder"
-                >
-                  <span>{e.dayInFoster}</span>
-                </div>
-              )}
+              {e.kind === "photo" && (() => {
+                const src = e.photoUrl ?? dogPhotoUrl;
+                return src ? (
+                  <img
+                    className="cp-journal-photo"
+                    src={src}
+                    alt={`${dogName}, day ${e.dayInFoster}`}
+                    loading="lazy"
+                  />
+                ) : (
+                  <div
+                    className="cp-journal-photo"
+                    style={{ background: e.imageColor ?? "#C4955A" }}
+                    aria-label="Photo placeholder"
+                  >
+                    <span>{e.dayInFoster}</span>
+                  </div>
+                );
+              })()}
               <div className="cp-journal-entry__body">
                 <div className="cp-journal-entry__row">
                   <p className="cp-mini-meta">{e.createdAt}</p>
