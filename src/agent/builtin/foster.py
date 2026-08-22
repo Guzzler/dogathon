@@ -117,7 +117,7 @@ def record_swipe(foster_id: str = "annie", dog_id: str = "", liked: bool = False
     return get_foster(foster_id=foster_id)
 
 
-@tool(dangerous=True)
+@tool
 def update_checklist(foster_id: str = "annie", checklist: str = "prep", item_id: str = "", done: bool = True) -> dict:
     """Tick or untick one item on one of a foster's checklists.
 

@@ -267,6 +267,30 @@ input,textarea,select{font-family:inherit}
 .phone-body .agent-panel__composer .btn{flex-shrink:0}
 .phone-body .agent-panel__quick-actions{display:flex;flex-direction:column;gap:8px}
 
+/* Match's pickup chat sits inline in a scrolling page, not in a fixed-height
+   drawer, so the panel has to size to its own content -- otherwise min-height
+   pushes it past its container and it overlaps the button below. Its buttons
+   also inherit .screen .btn, which is a full-width CTA; scale them back down. */
+.screen .match-chat .agent-panel{
+  height:auto;min-height:0;max-height:none;
+  border:none;border-radius:var(--r-lg);box-shadow:var(--shadow);background:#fff;
+}
+.screen .match-chat .agent-panel__scroll{max-height:260px;min-height:0;padding:14px;gap:10px}
+.screen .match-chat .agent-panel__empty{font-size:12.5px;margin:0;max-width:none}
+.screen .match-chat .agent-panel__quick-actions{padding:0 14px 10px}
+.screen .match-chat .agent-panel__composer{padding:10px 14px;border-top:1px solid var(--line);flex-wrap:nowrap}
+.screen .match-chat .btn{
+  width:auto;padding:9px 15px;font-size:13px;border-radius:100px;
+  box-shadow:none;flex-shrink:0;
+}
+.screen .match-chat .agent-panel__input{border-color:var(--line);background:var(--cream)}
+/* This chat is framed as messaging the shelter's coordinator, so keep the proof
+   that the agent looked something up but drop the raw JSON payloads. Care Plan
+   and Post Foster still show them in full -- there, the work *is* the demo. */
+.screen .match-chat .tool-card__args,
+.screen .match-chat .tool-card__result{display:none}
+.screen .match-chat .tool-card__head{margin:0}
+
 /* boot splash while the foster record loads, so the gate doesn't flash the Hub */
 .boot{flex:1;display:grid;place-items:center;background:var(--cream)}
 .boot__paw{font-size:34px;animation:float 1.8s ease-in-out infinite}
