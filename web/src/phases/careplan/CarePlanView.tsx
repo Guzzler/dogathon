@@ -16,8 +16,7 @@ import {
 } from "./data";
 import { Emergency } from "./Emergency";
 import { Hub } from "./Hub";
-import { Journal } from "./Journal";
-import { Tips } from "./Tips";
+import { JournalTips } from "./JournalTips";
 import { firedRules } from "./triggers";
 import type {
   DogProfile,
@@ -219,16 +218,15 @@ export function CarePlanView() {
             />
           )}
           {view === "journal" && (
-            <>
-              <Journal
-                entries={journal}
-                dayInFoster={dayInFoster}
-                dogName={dog.name}
-                onAdd={addJournalEntry}
-                onToggleStar={toggleStar}
-              />
-              <Tips tips={tips} pinnedTipId={phase.pinnedTipId} dogName={dog.name} />
-            </>
+            <JournalTips
+              entries={journal}
+              dayInFoster={dayInFoster}
+              dogName={dog.name}
+              onAdd={addJournalEntry}
+              onToggleStar={toggleStar}
+              tips={tips}
+              pinnedTipId={phase.pinnedTipId}
+            />
           )}
           {view === "emergency" && (
             <Emergency dog={dog} summary={medicalSummary} contacts={emergencyContacts} />

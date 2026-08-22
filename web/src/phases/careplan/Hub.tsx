@@ -40,6 +40,14 @@ const MILE_KIND_LABEL: Record<Milestone["kind"], string> = {
   behavior: "Behavior",
 };
 
+function chipKind(k: Milestone["kind"]): ScheduleBlock["items"][number]["kind"] {
+  if (k === "vaccine") return "vaccine";
+  if (k === "training") return "training";
+  if (k === "weigh") return "checkup";
+  if (k === "vet") return "checkup";
+  return "wellness";
+}
+
 export function Hub({
   dog,
   dayInFoster,
@@ -61,7 +69,7 @@ export function Hub({
     const ms = milestones
       .filter((m) => m.dayInFoster >= block.startDay && m.dayInFoster < nextStart)
       .sort((a, b) => a.dayInFoster - b.dayInFoster);
-    return { block, milestones: ms };
+    return { block, nextStart, milestones: ms };
   });
 
   const weightPoints = milestones
@@ -97,65 +105,80 @@ export function Hub({
 
       {weightPoints.length >= 2 && <WeightChart points={weightPoints} />}
 
-      <section className="cp-schedule">
-        <div className="cp-schedule__head">
+      <section className="cp-plan">
+        <div className="cp-plan__head">
           <h3>Care plan timeline</h3>
           <p className="cp-mini-meta">Composed for {dog.name} — {dog.breed}, {dog.ageMonths} mo.</p>
         </div>
 
-        <ol className="cp-schedule-list">
-          {bucketed.map(({ block, milestones: blockMilestones }) => {
+        <ol className="cp-plan__weeks">
+          {bucketed.map(({ block, nextStart, milestones: blockMilestones }) => {
             const passed = dayInFoster >= block.startDay;
-            const current = phase.eyebrow.includes(block.label);
+            const current = dayInFoster >= block.startDay && dayInFoster < nextStart;
+            const dayRange = Number.isFinite(nextStart)
+              ? `Day ${block.startDay}–${nextStart - 1}`
+              : `Day ${block.startDay}+`;
+
             return (
               <li
                 key={block.id}
-                className={`cp-schedule-block ${passed ? "cp-schedule-block--passed" : ""} ${current ? "cp-schedule-block--current" : ""}`}
+                className={`cp-week ${passed ? "cp-week--passed" : ""} ${current ? "cp-week--current" : ""}`}
               >
-                <div className="cp-schedule-block__marker">
-                  <span className="cp-schedule-block__dot" />
-                  <span className="cp-schedule-block__label">{block.label}</span>
+                <div className="cp-week__head">
+                  <span className="cp-week__dot" />
+                  <div className="cp-week__label">
+                    <span className="cp-week__name">{block.label}</span>
+                    <span className="cp-mini-meta">{dayRange}{current ? " · you are here" : ""}</span>
+                  </div>
                 </div>
-                <ul className="cp-schedule-items">
-                  {block.items.map((item) => (
-                    <li key={item.id} className={`cp-schedule-item ${item.done ? "cp-schedule-item--done" : ""}`}>
+
+                {block.items.length > 0 && (
+                  <div className="cp-plan-chips" aria-label="Scheduled care for this week">
+                    {block.items.map((item) => (
                       <button
-                        className="cp-check cp-check--sm"
-                        aria-pressed={item.done}
+                        key={item.id}
+                        type="button"
+                        className={`cp-plan-chip cp-plan-chip--${item.kind} ${item.done ? "cp-plan-chip--done" : ""}`}
                         onClick={() => onToggleScheduled(block.id, item.id)}
+                        aria-pressed={item.done}
                       >
-                        {item.done ? "✓" : ""}
+                        <span className="cp-plan-chip__box">{item.done ? "✓" : ""}</span>
+                        <span className="cp-plan-chip__label">{item.label}</span>
+                        <span className="cp-plan-chip__kind">{SCHED_KIND_LABEL[item.kind]}</span>
                       </button>
-                      <span className="cp-schedule-item__label">{item.label}</span>
-                      <span className={`cp-schedule-item__chip cp-schedule-item__chip--${item.kind}`}>{SCHED_KIND_LABEL[item.kind]}</span>
-                    </li>
-                  ))}
-                  {blockMilestones.map((m) => {
-                    const upcoming = m.dayInFoster > dayInFoster;
-                    return (
-                      <li
-                        key={m.id}
-                        className={`cp-log-item cp-log-item--${m.kind} ${upcoming ? "cp-log-item--upcoming" : ""}`}
-                      >
-                        <span className="cp-log-item__day">Day {m.dayInFoster}</span>
-                        <div className="cp-log-item__body">
-                          <div className="cp-log-item__row">
-                            <p className="cp-log-item__title">{m.title}</p>
-                            <span className={`cp-schedule-item__chip cp-schedule-item__chip--${chipKind(m.kind)}`}>
-                              {MILE_KIND_LABEL[m.kind]}{upcoming ? " · upcoming" : ""}
-                            </span>
+                    ))}
+                  </div>
+                )}
+
+                {blockMilestones.length > 0 && (
+                  <ol className="cp-events">
+                    {blockMilestones.map((m) => {
+                      const upcoming = m.dayInFoster > dayInFoster;
+                      return (
+                        <li
+                          key={m.id}
+                          className={`cp-event cp-event--${m.kind} ${upcoming ? "cp-event--upcoming" : ""}`}
+                        >
+                          <span className="cp-event__day">Day {m.dayInFoster}</span>
+                          <div className="cp-event__body">
+                            <div className="cp-event__row">
+                              <p className="cp-event__title">{m.title}</p>
+                              <span className={`cp-plan-chip__kind cp-plan-chip__kind--${chipKind(m.kind)}`}>
+                                {MILE_KIND_LABEL[m.kind]}
+                              </span>
+                            </div>
+                            {m.note && !upcoming && <p className="cp-event__note">{m.note}</p>}
+                            {upcoming && (
+                              <p className="cp-event__note">
+                                in {m.dayInFoster - dayInFoster} day{m.dayInFoster - dayInFoster === 1 ? "" : "s"}
+                              </p>
+                            )}
                           </div>
-                          {m.note && !upcoming && <p className="cp-log-item__note">{m.note}</p>}
-                          {upcoming && (
-                            <p className="cp-log-item__note">
-                              in {m.dayInFoster - dayInFoster} day{m.dayInFoster - dayInFoster === 1 ? "" : "s"}
-                            </p>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
               </li>
             );
           })}
@@ -183,13 +206,4 @@ export function Hub({
       </div>
     </div>
   );
-}
-
-// Map milestone kind → schedule-item chip color slot (reuse existing palette).
-function chipKind(k: Milestone["kind"]): ScheduleBlock["items"][number]["kind"] {
-  if (k === "vet") return "checkup";
-  if (k === "vaccine") return "vaccine";
-  if (k === "weigh") return "checkup";
-  if (k === "training") return "training";
-  return "wellness"; // behavior
 }
