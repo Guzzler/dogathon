@@ -28,7 +28,7 @@ def get_care_log(foster_id: str = "annie") -> list[dict]:
     return [{"id": d.id, **d.to_dict()} for d in docs]
 
 
-@tool(dangerous=True)
+@tool
 def log_care_entry(
     foster_id: str = "annie",
     entry_type: str = "note",
