@@ -12,14 +12,14 @@
     radial-gradient(900px 500px at 100% 100%, rgba(45, 90, 61, 0.14), transparent 60%),
     linear-gradient(180deg, #f8f3ea 0%, #ece4d3 100%);
 
-  min-height: 100dvh;
   background: var(--cp-bg);
   color: var(--color-ink);
   display: grid;
   grid-template-columns: minmax(240px, 320px) 1fr;
   gap: 32px;
-  padding: 36px 48px;
+  padding: 24px 32px;
   align-items: start;
+  border-radius: 20px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
 }
 

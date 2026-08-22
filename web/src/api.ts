@@ -1,7 +1,12 @@
 import type { AgentEvent, EventKind, HealthInfo, ToolInfo } from "./types";
 
+// Local dev goes through the Vite proxy (/api -> 127.0.0.1:8000). A
+// production build points straight at the deployed Cloud Run agent, since
+// Firebase Hosting doesn't run the Python backend.
+const AGENT_BASE = import.meta.env.VITE_AGENT_URL || "/api";
+
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${AGENT_BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
@@ -24,7 +29,7 @@ export async function streamChat(
   onEvent: (event: AgentEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const res = await fetch("/api/chat", {
+  const res = await fetch(`${AGENT_BASE}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message }),

@@ -1,69 +1,112 @@
-# Pawthway — Product Spec
+# Pawthway — project context
 
-A foster-first journey app that takes someone from "I think I want to foster" all the way through caring for the dog and handing it back ready for adoption.
+Shared context for the team (Ritu, Sharang, Eesha) and for Claude sessions working in this
+repo. This is the Dogathon hackathon project: **Pawthway**, a guided, Tinder-style journey
+app that takes a foster from onboarding through discovery, matching, care, and handing the
+dog back adoption-ready.
 
-**Team:** Ritu · Sharang · Eesha
+## Phase ownership
 
-## The Problem
+The app is 5 phases, each a self-contained route/view so people can build in parallel against
+a shared Firestore schema (`web/src/types.ts`) without stepping on each other:
 
-Fostering is the backbone of rescues like Copper's Dream, but the foster experience is fragmented and intimidating. First-time fosters don't know how to get matched, what to buy, how to care for the dog, or what happens at the end. Rescues lose fosters to confusion and burnout. Pawthway makes the entire foster journey guided, Tinder-simple, and supported end-to-end.
+- **Onboarding** (`web/src/phases/onboarding/`) — swipeable intake questions
+- **Discovery** (`web/src/phases/discovery/`) — swipe feed of dogs — **Eesha**
+- **Match** (`web/src/phases/match/`) — approval checklist, home prep, pickup scheduling — **Sharang**
+- **Care Plan** (`web/src/phases/careplan/`) — checklist, care log timeline, AI tips chat — **Ritu**
+- **Post Foster** (`web/src/phases/postfoster/`) — AI-drafted adoption profile, send to shelter
 
-## User Story — Annie
+Plus a **Hub** (`web/src/phases/hub/`) landing page showing current phase + reminders.
 
-Annie wants to foster a dog. She logs on to Pawthway and answers a few questions about her living arrangement and the type of dog she's looking for. Based on her answers, she's recommended nearby shelters with matching dogs. She likes a dog called Marty, chats with the shelter, and schedules a pickup. Pawthway then walks her through a checklist of what to buy, a care plan while she has Marty, and finally helps generate Marty's adoption profile to send back to the shelter.
+## Architecture
 
-## The Journey (5 Phases)
+Everything lives inside one GCP project (`pawthway-hackathon`, Blaze plan) so there's a single
+login and no cross-account glue:
 
-### 1. Onboarding
-*First-time users start here.*
+- **Frontend** → Firebase Hosting. Static Vite build (`web/dist`).
+- **Data** → Firestore. Collections: `dogs` (seeded roster) and `fosters/annie` (the one demo
+  foster — intake answers, liked/passed dog ids, matched dog id, checklist state, `careLog`
+  subcollection for weigh-ins/notes/photos).
+- **The frontend talks to Firestore directly** via the Firebase Web SDK (`web/src/firebase.ts`,
+  `web/src/hooks/{useFoster,useDogs,useCareLog}.ts`) for all plain CRUD — onboarding answers,
+  swipe like/pass, checklist ticks, care-log entries. No REST CRUD layer.
+- **Agent backend** → the existing Python FastAPI agent (`src/agent/server.py`), containerized
+  and deployed to **Cloud Run**, same GCP project. It's reserved for exactly the two moments
+  that need the LLM: **Care Plan "ask anything about your dog"** and **Post Foster generate +
+  send adoption profile** — both reuse the existing `/chat` SSE endpoint (no dedicated
+  `/adoption/generate` or `/adoption/send` REST routes; the frontend just sends a purpose-worded
+  chat message via `AgentChatPanel`'s `quickActions` prop, and the agent's own tool-calling
+  handles gathering data and writing results). The agent reads/writes the *same* Firestore data
+  via the Firebase Admin SDK (`src/agent/firestore_client.py`), so the AI and the UI never
+  disagree about state.
+- **No auth.** One seeded demo foster (`fosters/annie`), publicly viewable. Firestore rules
+  (`firestore.rules`) are scoped narrowly to `/dogs/**` (read-only) and `/fosters/annie/**`
+  (read+write) rather than wide open, so the public URL isn't a fully open database.
 
-- **Onboarding Intake** — quick, Tinder-style swipe-easy questions: living arrangement (apartment/house, yard), experience level, time availability, dog size/energy/type preferences, any restrictions.
-- **Goal:** lowest-friction possible. Returning users skip straight to Discovery.
+## New agent tool modules
 
-### 2. Discovery
+- `src/agent/builtin/shelter.py` — Firestore-backed `list_dogs()`, `get_dog()`, `update_dog()`
+  (dangerous).
+- `src/agent/builtin/foster.py` — `get_foster()`, `save_intake()`, `record_swipe()`,
+  `update_checklist()` (all dangerous except the getter); also holds the default checklist
+  constants (`DEFAULT_APPROVAL_CHECKLIST`, `DEFAULT_PREP_CHECKLIST`, `DEFAULT_CARE_CHECKLIST`).
+  **These are duplicated in `web/src/checklists.ts` for the frontend's own seeding — keep both
+  in sync if you change the default checklist items.**
+- `src/agent/builtin/care.py` — `get_care_log()`, `log_care_entry()` (dangerous),
+  `get_care_checklist()`.
+- `src/agent/builtin/adoption.py` — `generate_adoption_profile()` (safe, gathers dog + intake +
+  care-log data; the agent writes the narrative itself from this), `send_adoption_profile_to_shelter()`
+  (dangerous — goes through the existing approval-modal flow; uses Arcade Gmail/Slack if
+  `ARCADE_API_KEY` is set, else just flips the dog's Firestore `status` to `ready_for_adoption`).
 
-- **Different dog options from different shelters** — a swipeable feed of adoptable/fosterable dogs matched to the questionnaire, each showing shelter, distance, and key traits.
-- **Like/pass interaction** (the "Tinder style").
+Tool convention (unchanged from the base scaffold): plain `@tool` for reads, `@tool(dangerous=True)`
+for anything that writes or has external effects — gated by the existing `ApprovalModal` UI.
 
-### 3. Match
-*Once a dog is liked.*
+## Env / secrets
 
-- **Approval / screening process checklist** — the shelter's foster approval steps, tracked in-app.
-- **Schedule a pickup time** — chat with the shelter + calendar to lock a meet & greet / pickup.
-- **General checklist of what to get to prepare for the dog** (before getting dog) — crate, food, bowls, leash, etc., personalized to the dog.
+Two `.env` files, both gitignored, both templated by a `.env.example`:
 
-### 4. Care Plan
-*After getting the dog.*
+- **Root `.env`** (`ANTHROPIC_API_KEY`, `FIREBASE_PROJECT_ID=pawthway-hackathon`) — used by the
+  Python agent locally. On Cloud Run, `FIREBASE_PROJECT_ID` is picked up from the runtime
+  environment automatically; only `ANTHROPIC_API_KEY` needs to be set as a Cloud Run env var.
+- **`web/.env`** (`VITE_FIREBASE_*` — all public/client-safe config from
+  `firebase apps:sdkconfig WEB <app-id> --project=pawthway-hackathon`, plus `VITE_AGENT_URL`
+  pointing at the deployed Cloud Run URL). Local dev leaves `VITE_AGENT_URL` unset — Vite
+  proxies `/api` to `127.0.0.1:8000` (see `web/vite.config.ts`).
 
-- **General care plan checklist** — weigh-ins, vet/doctor visit reminders, feeding, training milestones.
-- **Add pictures + info** — the foster logs photos and notes over time (feeds Phase 5).
-- **Should surface guidance** for the real pain points fosters hit (see below).
+If you're a teammate pulling this repo fresh: copy both `.env.example` files, ask for the
+`ANTHROPIC_API_KEY` and the Firebase web config values (or run the `firebase apps:sdkconfig`
+command above yourself if you have access to the `pawthway-hackathon` Firebase project), then
+`gcloud auth application-default login` once so the Admin SDK can reach Firestore locally.
 
-### 5. Post-Foster Plan
+## Local dev
 
-- **Auto-generate adoption profile → send to shelter** — Pawthway compiles the photos, personality notes, and care history the foster gathered into a polished adoption profile.
-- **Shelter sends "ready to be adopted" notification** — closes the loop; the dog's foster-gathered story helps it get adopted faster.
+```bash
+uv sync
+cp .env.example .env        # fill in ANTHROPIC_API_KEY
+cd web && npm install && cp .env.example .env   # fill in Firebase web config
+```
 
-## Foster Pain Points to Design For
+```bash
+uv run agent-server                     # backend: SSE bridge on :8000
+cd web && npm run dev                   # frontend: :5173
+uv run python scripts/seed_firestore.py # one-time: seed dogs + fosters/annie
+```
 
-*From real user input — these are Care Plan content opportunities.*
+## Deploy
 
-- **Crate training is hard** — e.g. the trick of putting food in the crate.
-- **Food indiscretion** — what dogs can/can't eat.
-- **Behavior issues** — biting (e.g. the towel trick), temperament strategies.
+```bash
+firebase deploy --only hosting,firestore:rules --project=pawthway-hackathon
+gcloud run deploy pawthway-agent --source . --project=pawthway-hackathon \
+  --region=us-central1 --allow-unauthenticated \
+  --set-env-vars=ANTHROPIC_API_KEY=<key>
+```
 
-→ **Opportunity:** a contextual tips / "ask anything about your dog" layer inside the Care Plan, seeded with real foster wisdom.
+After the Cloud Run deploy, put its URL in `web/.env` as `VITE_AGENT_URL` and redeploy hosting
+so the production build points at it.
 
-## Screens Already Sketched
+## Explicitly out of scope
 
-- Hub ("Your Hub" reminders)
-- Dog dating profile (Shiba)
-- Care Plan Timeline
-- Nearby-shelters list
-- Emergency Mode (24h vet map)
-- Chat-to-schedule meet & greet
-- Shelter dashboard
-
-## Feedback & Open Questions
-
-See chat — captured separately so we can decide together before locking scope.
+Emergency Mode (24h vet map) and a shelter-side dashboard are in the original product spec but
+not in this scaffold — full happy path across the 5 phases, shallow depth per phase, was the
+call for hackathon time constraints. Easy to bolt on later if time allows.

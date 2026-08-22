@@ -23,7 +23,7 @@ from .loop import Agent
 
 load_dotenv()
 
-app = FastAPI(title="dogathon agent")
+app = FastAPI(title="pawthway agent")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,9 +31,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+PAWTHWAY_SYSTEM = (
+    "You are the Pawthway foster assistant, embedded in a foster's journey app. "
+    "You're used in exactly two moments: (1) answering a foster's questions about "
+    "caring for their matched dog during the Care Plan phase, and (2) drafting and "
+    "sending the dog's adoption profile back to the shelter at the end of the "
+    "foster window (Post Foster Plan).\n\n"
+    "For care questions: look up the foster and their matched dog with get_foster "
+    "and get_dog before answering, so advice is grounded in that specific dog's "
+    "notes (temperament, medical needs, etc). Draw on real foster wisdom for "
+    "common pain points -- crate training (e.g. feeding meals in the crate to "
+    "build a positive association), food indiscretion (what dogs can't safely "
+    "eat), and behavior issues like nipping/biting (e.g. redirecting to a towel "
+    "or chew toy instead of hands). Keep answers short, practical, and warm.\n\n"
+    "For adoption profiles: call generate_adoption_profile to gather the dog's "
+    "record, the foster's notes, and the full care log, then write a warm, "
+    "specific, one-paragraph adoption profile in your text reply (don't just "
+    "repeat the raw data). Once the foster approves it, call "
+    "send_adoption_profile_to_shelter with that exact text to close out the "
+    "journey. If a Gmail or Slack tool is available, also use it to notify the "
+    "shelter's contact.\n\n"
+    "Prefer taking action with your tools over describing what the foster could "
+    "do themselves, but never call a dangerous (writing) tool without it being "
+    "clearly what was asked for."
+)
+
 _registry = registry()
 _approval_box: "queue.Queue[bool]" = queue.Queue()
-_agent = Agent(_registry, approve=lambda name, args: _approval_box.get(timeout=300))
+_agent = Agent(
+    _registry,
+    system=PAWTHWAY_SYSTEM,
+    approve=lambda name, args: _approval_box.get(timeout=300),
+)
 
 
 class ChatRequest(BaseModel):
@@ -106,7 +135,11 @@ def reset() -> dict[str, bool]:
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("agent.server:app", host="127.0.0.1", port=8000, reload=True)
+    # Cloud Run sets PORT and expects the app to bind 0.0.0.0; local dev
+    # keeps the old 127.0.0.1:8000 with reload for a fast edit loop.
+    port = int(os.environ.get("PORT", 8000))
+    host = "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"
+    uvicorn.run("agent.server:app", host=host, port=port, reload="PORT" not in os.environ)
 
 
 if __name__ == "__main__":

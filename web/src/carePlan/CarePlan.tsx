@@ -26,7 +26,7 @@ import "./carePlan.css";
 type View = "hub" | "timeline" | "journal" | "tips" | "emergency";
 
 interface CarePlanProps {
-  onExit: () => void;
+  onExit?: () => void;
 }
 
 const DAY_OPTIONS = [
@@ -125,9 +125,11 @@ export function CarePlan({ onExit }: CarePlanProps) {
             <option value="experienced">Experienced</option>
           </select>
         </label>
-        <button className="cp-btn cp-btn--ghost cp-btn--full" onClick={onExit}>
-          ← Back to Sidekick
-        </button>
+        {onExit && (
+          <button className="cp-btn cp-btn--ghost cp-btn--full" onClick={onExit}>
+            ← Back
+          </button>
+        )}
         <p className="cp-demo-hint">
           Try typing <em>"Marty was nipping"</em> in the Journal tab, then swing back to Hub — a triggered card appears.
         </p>
