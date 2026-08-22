@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  daysSincePickup,
   emergencyContacts,
   marty,
   medicalSummary,
@@ -29,12 +30,18 @@ interface CarePlanProps {
   onExit?: () => void;
 }
 
+function dateLabelForDay(day: number, pickupIso: string): string {
+  const [y, m, d] = pickupIso.split("-").map(Number);
+  const target = new Date(y, m - 1, d + (day - 1));
+  return target.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
 const DAY_OPTIONS = [
-  { day: 3, label: "Week 1 (Day 3)" },
-  { day: 10, label: "Week 2 (Day 10)" },
-  { day: 17, label: "Week 3 (Day 17)" },
-  { day: 24, label: "Week 4 (Day 24)" },
-  { day: 42, label: "Week 6 (Day 42)" },
+  { day: 1, label: "Week 1 · Day 1 (today)" },
+  { day: 8, label: "Week 2 · Day 8" },
+  { day: 15, label: "Week 3 · Day 15" },
+  { day: 22, label: "Week 4 · Day 22" },
+  { day: 42, label: "Week 6 · Day 42" },
 ];
 
 function phaseForDay(day: number) {
@@ -47,7 +54,7 @@ function phaseForDay(day: number) {
 
 export function CarePlan({ onExit }: CarePlanProps) {
   const [view, setView] = useState<View>("hub");
-  const [dayInFoster, setDayInFoster] = useState(17);
+  const [dayInFoster, setDayInFoster] = useState(() => daysSincePickup(marty.pickupDate));
   const [experience, setExperience] = useState<ExperienceLevel>("beginner");
   const [journal, setJournal] = useState<JournalEntry[]>(seedJournal);
   const [schedule, setSchedule] = useState<ScheduleBlock[]>(seedSchedule);
@@ -111,7 +118,7 @@ export function CarePlan({ onExit }: CarePlanProps) {
       <aside className="cp-demo-panel" aria-label="Demo controls">
         <p className="cp-eyebrow">Demo controls</p>
         <label className="cp-select">
-          <span className="cp-mini-meta">Day in foster</span>
+          <span className="cp-mini-meta">Day in foster · {dateLabelForDay(dayInFoster, marty.pickupDate)}</span>
           <select value={dayInFoster} onChange={(e) => setDayInFoster(Number(e.target.value))}>
             {DAY_OPTIONS.map((o) => (
               <option key={o.day} value={o.day}>{o.label}</option>
@@ -135,13 +142,12 @@ export function CarePlan({ onExit }: CarePlanProps) {
         </p>
       </aside>
 
-      <div className="cp-phone" role="application">
-        <div className="cp-phone__notch" aria-hidden="true" />
+      <div className="cp-demo" role="application">
         <header className="cp-topbar">
           <div className="cp-avatar" aria-hidden="true">🐾</div>
           <div>
             <p className="cp-eyebrow">Pawthway · Care Plan</p>
-            <h1 className="cp-topbar__title">{marty.name}</h1>
+            <h1 className="cp-topbar__title">{marty.name} · {marty.breed} · {marty.ageMonths} mo</h1>
           </div>
         </header>
 

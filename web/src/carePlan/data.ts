@@ -10,16 +10,31 @@ import type {
   WeekPhase,
 } from "./types";
 
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export const marty: DogProfile = {
   id: "marty",
   name: "Marty",
   breed: "Shepherd mix",
   ageMonths: 4,
   weightLbs: 22,
-  pickupDate: "2026-08-01",
+  pickupDate: todayIso(),
   medicalFlags: [],
   backstory: "Surrendered with two littermates. Shy at first, warms up with food.",
 };
+
+export function daysSincePickup(pickupIso: string): number {
+  const [y, m, d] = pickupIso.split("-").map(Number);
+  const pickup = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  pickup.setHours(0, 0, 0, 0);
+  const diff = Math.round((today.getTime() - pickup.getTime()) / 86400000);
+  return Math.max(1, diff + 1);
+}
 
 export const taskTemplates: TaskTemplate[] = [
   {
@@ -93,7 +108,7 @@ export const taskTemplates: TaskTemplate[] = [
 export const seedMilestones: Milestone[] = [
   {
     id: "m-intake",
-    dayInFoster: 0,
+    dayInFoster: 1,
     title: "Intake with Copper's Dream",
     kind: "vet",
     note: "Cleared for foster. Deworming complete.",
@@ -101,7 +116,7 @@ export const seedMilestones: Milestone[] = [
   },
   {
     id: "m-pickup",
-    dayInFoster: 0,
+    dayInFoster: 1,
     title: "Marty came home",
     kind: "behavior",
     note: "Hid under the coffee table for the first two hours.",

@@ -20,13 +20,13 @@ interface HubProps {
   onOpen: (view: "timeline" | "journal" | "tips" | "emergency") => void;
 }
 
-const KIND_ICON: Record<ScheduleBlock["items"][number]["kind"], string> = {
-  vaccine: "💉",
-  wellness: "🩺",
-  grooming: "✂️",
-  medication: "💊",
-  training: "🎾",
-  checkup: "📋",
+const KIND_LABEL: Record<ScheduleBlock["items"][number]["kind"], string> = {
+  vaccine: "Vaccine",
+  wellness: "Wellness",
+  grooming: "Grooming",
+  medication: "Med",
+  training: "Training",
+  checkup: "Check",
 };
 
 export function Hub({
@@ -97,8 +97,8 @@ export function Hub({
                       >
                         {item.done ? "✓" : ""}
                       </button>
-                      <span className="cp-schedule-item__icon" aria-hidden="true">{KIND_ICON[item.kind]}</span>
                       <span className="cp-schedule-item__label">{item.label}</span>
+                      <span className={`cp-schedule-item__chip cp-schedule-item__chip--${item.kind}`}>{KIND_LABEL[item.kind]}</span>
                     </li>
                   ))}
                 </ul>
@@ -119,16 +119,16 @@ export function Hub({
 
       <div className="cp-quick-row">
         <button className="cp-quick" onClick={() => onOpen("timeline")}>
-          <span className="cp-quick__icon">📈</span>
-          <span>Timeline</span>
+          <span className="cp-quick__label">Timeline</span>
+          <span className="cp-quick__meta">Milestones & weight</span>
         </button>
         <button className="cp-quick" onClick={() => onOpen("journal")}>
-          <span className="cp-quick__icon">📓</span>
-          <span>Journal</span>
+          <span className="cp-quick__label">Journal</span>
+          <span className="cp-quick__meta">Photos & notes</span>
         </button>
         <button className="cp-quick cp-quick--danger" onClick={() => onOpen("emergency")}>
-          <span className="cp-quick__icon">🚨</span>
-          <span>Emergency</span>
+          <span className="cp-quick__label">Emergency</span>
+          <span className="cp-quick__meta">24h vet & poison</span>
         </button>
       </div>
     </div>

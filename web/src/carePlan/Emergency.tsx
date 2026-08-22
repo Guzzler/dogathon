@@ -8,34 +8,114 @@ interface EmergencyProps {
 
 function VetMap({ nearest }: { nearest?: EmergencyContact }) {
   return (
-    <svg className="cp-map" viewBox="0 0 320 160" role="img" aria-label="Nearest vet map">
-      <defs>
-        <pattern id="cp-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-          <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(45,90,61,0.08)" strokeWidth="1" />
-        </pattern>
-        <linearGradient id="cp-road" x1="0" x2="1">
-          <stop offset="0" stopColor="rgba(196,149,90,0.25)" />
-          <stop offset="1" stopColor="rgba(45,90,61,0.25)" />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="320" height="160" fill="#f4efe4" />
-      <rect x="0" y="0" width="320" height="160" fill="url(#cp-grid)" />
-      <path d="M 60 130 Q 160 60 260 40" stroke="url(#cp-road)" strokeWidth="6" fill="none" strokeLinecap="round" strokeDasharray="6 8" />
+    <svg className="cp-map" viewBox="0 0 400 240" role="img" aria-label="Nearest vet map">
+      {/* Base map background */}
+      <rect x="0" y="0" width="400" height="240" fill="#e6ecf0" />
 
-      <g transform="translate(60,130)">
-        <circle r="9" fill="var(--color-evergreen)" />
-        <circle r="4" fill="#fff" />
-        <text y="26" textAnchor="middle" fontSize="11" fontWeight="700" fill="var(--color-ink)">You</text>
+      {/* Park (green area) */}
+      <path
+        d="M 20 20 L 130 20 L 150 60 L 130 110 L 40 100 Z"
+        fill="#c8e6c9"
+        stroke="#a5d6a7"
+        strokeWidth="0.8"
+      />
+      <text x="75" y="65" fontSize="9" fill="#4a7c50" fontWeight="600" fontFamily="system-ui">Presidio Park</text>
+
+      {/* Water body */}
+      <path
+        d="M 0 200 Q 80 180 160 195 T 320 200 L 400 210 L 400 240 L 0 240 Z"
+        fill="#a9d3ec"
+      />
+      <text x="200" y="230" fontSize="9" fill="#3b6a8a" fontWeight="600" fontFamily="system-ui" textAnchor="middle">Bay</text>
+
+      {/* Streets (white ribbons with subtle outline) */}
+      {/* Horizontal streets */}
+      <line x1="0" y1="55" x2="400" y2="55" stroke="#c9d1d6" strokeWidth="6" />
+      <line x1="0" y1="55" x2="400" y2="55" stroke="#ffffff" strokeWidth="4" />
+
+      <line x1="0" y1="120" x2="400" y2="120" stroke="#c9d1d6" strokeWidth="8" />
+      <line x1="0" y1="120" x2="400" y2="120" stroke="#ffffff" strokeWidth="6" />
+
+      <line x1="0" y1="165" x2="400" y2="165" stroke="#c9d1d6" strokeWidth="5" />
+      <line x1="0" y1="165" x2="400" y2="165" stroke="#ffffff" strokeWidth="3" />
+
+      {/* Vertical streets */}
+      <line x1="70" y1="0" x2="70" y2="200" stroke="#c9d1d6" strokeWidth="5" />
+      <line x1="70" y1="0" x2="70" y2="200" stroke="#ffffff" strokeWidth="3" />
+
+      <line x1="170" y1="0" x2="170" y2="200" stroke="#c9d1d6" strokeWidth="6" />
+      <line x1="170" y1="0" x2="170" y2="200" stroke="#ffffff" strokeWidth="4" />
+
+      <line x1="260" y1="0" x2="260" y2="200" stroke="#c9d1d6" strokeWidth="5" />
+      <line x1="260" y1="0" x2="260" y2="200" stroke="#ffffff" strokeWidth="3" />
+
+      <line x1="330" y1="0" x2="330" y2="200" stroke="#c9d1d6" strokeWidth="6" />
+      <line x1="330" y1="0" x2="330" y2="200" stroke="#ffffff" strokeWidth="4" />
+
+      {/* Building blocks */}
+      <rect x="180" y="65" width="30" height="20" fill="#dee3e7" />
+      <rect x="215" y="65" width="20" height="20" fill="#dee3e7" />
+      <rect x="180" y="130" width="30" height="12" fill="#dee3e7" />
+      <rect x="215" y="130" width="25" height="12" fill="#dee3e7" />
+      <rect x="80" y="130" width="30" height="12" fill="#dee3e7" />
+      <rect x="270" y="65" width="45" height="20" fill="#dee3e7" />
+      <rect x="270" y="130" width="45" height="12" fill="#dee3e7" />
+      <rect x="340" y="65" width="30" height="20" fill="#dee3e7" />
+      <rect x="340" y="130" width="30" height="12" fill="#dee3e7" />
+
+      {/* Route from user to vet (blue dashed) */}
+      <path
+        d="M 100 175 L 100 120 L 260 120 L 260 70"
+        stroke="#4285f4"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d="M 100 175 L 100 120 L 260 120 L 260 70"
+        stroke="#ffffff"
+        strokeWidth="1"
+        strokeLinecap="round"
+        strokeDasharray="0 4"
+        fill="none"
+      />
+
+      {/* User location (Google-style blue dot with accuracy ring) */}
+      <g transform="translate(100,175)">
+        <circle r="18" fill="#4285f4" fillOpacity="0.15" />
+        <circle r="7" fill="#ffffff" />
+        <circle r="5" fill="#4285f4" />
+      </g>
+      <text x="100" y="200" textAnchor="middle" fontSize="10" fontWeight="700" fill="#202124" fontFamily="system-ui">You</text>
+
+      {/* Vet marker (Google-style red teardrop) */}
+      <g transform="translate(260,58)">
+        <path
+          d="M 0 12 C -10 12 -14 3 -14 -4 C -14 -13 -6 -20 0 -20 C 6 -20 14 -13 14 -4 C 14 3 10 12 0 12 Z"
+          fill="#ea4335"
+          stroke="#b31412"
+          strokeWidth="0.6"
+        />
+        <circle cy="-6" r="5" fill="#ffffff" />
+        <circle cy="-6" r="2.5" fill="#ea4335" />
       </g>
 
-      <g transform="translate(260,40)">
-        <path d="M 0 -14 C -8 -14 -12 -6 -12 0 C -12 8 0 18 0 18 C 0 18 12 8 12 0 C 12 -6 8 -14 0 -14 Z" fill="var(--color-danger)" />
-        <circle cy="-2" r="4" fill="#fff" />
-        {nearest && (
-          <text y="-22" textAnchor="middle" fontSize="11" fontWeight="700" fill="var(--color-ink)">
-            {nearest.distanceMi ? `${nearest.distanceMi} mi` : "Nearest 24h"}
+      {/* Distance chip on route */}
+      {nearest?.distanceMi != null && (
+        <g transform="translate(180,110)">
+          <rect x="-32" y="-11" width="64" height="20" rx="10" fill="#ffffff" stroke="#dadce0" strokeWidth="1" />
+          <text textAnchor="middle" y="3" fontSize="11" fontWeight="700" fill="#202124" fontFamily="system-ui">
+            {nearest.distanceMi} mi · 4 min
           </text>
-        )}
+        </g>
+      )}
+
+      {/* Scale bar */}
+      <g transform="translate(20,215)">
+        <line x1="0" y1="0" x2="40" y2="0" stroke="#5f6368" strokeWidth="2" />
+        <line x1="0" y1="-3" x2="0" y2="3" stroke="#5f6368" strokeWidth="2" />
+        <line x1="40" y1="-3" x2="40" y2="3" stroke="#5f6368" strokeWidth="2" />
+        <text x="20" y="-6" textAnchor="middle" fontSize="9" fill="#5f6368" fontFamily="system-ui">0.5 mi</text>
       </g>
     </svg>
   );
@@ -65,7 +145,7 @@ export function Emergency({ dog, summary, contacts }: EmergencyProps) {
           </div>
         </div>
         <a className="cp-btn cp-btn--danger cp-btn--full" href={`tel:${nearest.phone.replace(/\D/g, "")}`}>
-          📞 Call Vet Now — {nearest.phone}
+          Call Vet Now — {nearest.phone}
         </a>
       </section>
 
@@ -94,19 +174,13 @@ export function Emergency({ dog, summary, contacts }: EmergencyProps) {
       <section className="cp-emergency-actions">
         {poison && (
           <a className="cp-emergency-action" href={`tel:${poison.phone.replace(/\D/g, "")}`}>
-            <span className="cp-emergency-action__icon">☎️</span>
-            <span>
-              <strong>Poison Control</strong>
-              <span className="cp-mini-meta">{poison.phone}</span>
-            </span>
+            <strong>Poison Control</strong>
+            <span className="cp-mini-meta">{poison.phone}</span>
           </a>
         )}
         <button className="cp-emergency-action">
-          <span className="cp-emergency-action__icon">❓</span>
-          <span>
-            <strong>What to do now</strong>
-            <span className="cp-mini-meta">Triage guide</span>
-          </span>
+          <strong>What to do now</strong>
+          <span className="cp-mini-meta">Triage guide</span>
         </button>
       </section>
 

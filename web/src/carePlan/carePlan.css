@@ -61,36 +61,17 @@
   font-weight: 700;
 }
 
-/* Phone frame */
+/* Demo container (desktop) */
 
-.cp-phone {
+.cp-demo {
   width: 100%;
-  max-width: 440px;
-  margin: 0 auto;
   background: #ffffff;
-  border-radius: 42px;
-  box-shadow:
-    0 0 0 10px #1a1a1a,
-    0 0 0 12px #2b2b2b,
-    var(--cp-shadow-lg);
+  border-radius: 20px;
+  box-shadow: var(--cp-shadow-lg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 780px;
-  position: relative;
-}
-
-.cp-phone__notch {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 130px;
-  height: 22px;
-  background: #1a1a1a;
-  border-bottom-left-radius: 14px;
-  border-bottom-right-radius: 14px;
-  z-index: 3;
+  border: 1px solid var(--color-border);
 }
 
 /* Topbar */
@@ -98,8 +79,8 @@
 .cp-topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 34px 22px 14px;
+  gap: 14px;
+  padding: 20px 26px;
   background: linear-gradient(180deg, #fffdf7 0%, #f9f4ea 100%);
   border-bottom: 1px solid var(--color-border);
 }
@@ -129,8 +110,8 @@
 
 .cp-tabs {
   display: flex;
-  gap: 2px;
-  padding: 8px 10px;
+  gap: 4px;
+  padding: 10px 20px;
   background: var(--color-cream);
   border-bottom: 1px solid var(--color-border);
   overflow-x: auto;
@@ -183,12 +164,26 @@
 
 .cp-main {
   flex: 1;
-  padding: 18px 18px 32px;
+  padding: 24px 28px 36px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   background: #fffdf8;
+  max-height: min(85vh, 900px);
+}
+
+/* Two-column layout on wide screens: schedule main + side widgets */
+.cp-hub__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 720px) {
+  .cp-hub__row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Shared */
@@ -472,16 +467,30 @@
   background: rgba(246, 241, 233, 0.8);
 }
 
-.cp-schedule-item__icon {
-  font-size: 15px;
-  filter: saturate(0.85);
-}
-
 .cp-schedule-item__label {
   flex: 1;
   font-weight: 600;
   color: var(--color-ink);
 }
+
+.cp-schedule-item__chip {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(114, 106, 94, 0.1);
+  color: var(--color-muted);
+}
+
+.cp-schedule-item__chip--vaccine { background: rgba(127, 95, 191, 0.14); color: #5a3fa0; }
+.cp-schedule-item__chip--wellness { background: rgba(45, 90, 61, 0.12); color: var(--color-evergreen); }
+.cp-schedule-item__chip--grooming { background: rgba(196, 149, 90, 0.16); color: #8a662f; }
+.cp-schedule-item__chip--medication { background: rgba(168, 64, 52, 0.12); color: var(--color-danger); }
+.cp-schedule-item__chip--training { background: rgba(47, 122, 75, 0.14); color: var(--color-success); }
+.cp-schedule-item__chip--checkup { background: rgba(23, 53, 38, 0.1); color: var(--color-ink); }
 
 .cp-schedule-item--done {
   background: rgba(47, 122, 75, 0.06);
@@ -538,18 +547,17 @@
 .cp-quick {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 8px;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 14px 16px;
   border: 1px solid var(--color-border);
   border-radius: var(--cp-radius);
   background: var(--color-panel);
   color: var(--color-ink);
-  font-size: 12px;
-  font-weight: 700;
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease;
   box-shadow: var(--cp-shadow-sm);
+  text-align: left;
 }
 
 .cp-quick:hover {
@@ -557,8 +565,16 @@
   box-shadow: var(--cp-shadow-md);
 }
 
-.cp-quick__icon {
-  font-size: 20px;
+.cp-quick__label {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+}
+
+.cp-quick__meta {
+  font-size: 11.5px;
+  color: var(--color-muted);
+  font-weight: 600;
 }
 
 .cp-quick--danger {
@@ -1025,9 +1041,9 @@
 
 .cp-emergency-action {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
   border: 1px solid var(--color-border);
   border-radius: var(--cp-radius);
   background: var(--color-panel);
@@ -1036,6 +1052,7 @@
   color: var(--color-ink);
   box-shadow: var(--cp-shadow-sm);
   text-align: left;
+  font-family: inherit;
 }
 
 .cp-emergency-action:hover {
@@ -1045,12 +1062,8 @@
 
 .cp-emergency-action strong {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
-}
-
-.cp-emergency-action__icon {
-  font-size: 22px;
 }
 
 .cp-contact-list {
@@ -1109,17 +1122,11 @@
   .cp-demo-panel {
     position: static;
   }
-  .cp-phone {
-    max-width: 100%;
-    border-radius: 20px;
-    box-shadow: none;
-    min-height: auto;
-  }
-  .cp-phone__notch {
-    display: none;
-  }
   .cp-topbar {
     padding: 16px 18px 12px;
+  }
+  .cp-main {
+    max-height: none;
   }
 }
 
