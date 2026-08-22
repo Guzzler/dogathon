@@ -14,7 +14,7 @@ const KIND_LABEL: Record<Milestone["kind"], string> = {
   behavior: "Behavior",
 };
 
-function WeightChart({ points }: { points: { day: number; lbs: number }[] }) {
+export function WeightChart({ points }: { points: { day: number; lbs: number }[] }) {
   if (points.length < 2) return null;
   const width = 280;
   const height = 60;

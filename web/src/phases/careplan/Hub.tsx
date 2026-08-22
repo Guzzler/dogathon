@@ -1,4 +1,4 @@
-import { Timeline } from "./Timeline";
+import { WeightChart } from "./Timeline";
 import type {
   DogProfile,
   ExperienceLevel,
@@ -23,13 +23,21 @@ interface HubProps {
   onOpen: (view: "journal" | "emergency") => void;
 }
 
-const KIND_LABEL: Record<ScheduleBlock["items"][number]["kind"], string> = {
+const SCHED_KIND_LABEL: Record<ScheduleBlock["items"][number]["kind"], string> = {
   vaccine: "Vaccine",
   wellness: "Wellness",
   grooming: "Grooming",
   medication: "Med",
   training: "Training",
   checkup: "Check",
+};
+
+const MILE_KIND_LABEL: Record<Milestone["kind"], string> = {
+  vet: "Vet",
+  vaccine: "Vaccine",
+  weigh: "Weigh-in",
+  training: "Training",
+  behavior: "Behavior",
 };
 
 export function Hub({
@@ -46,6 +54,21 @@ export function Hub({
   onOpen,
 }: HubProps) {
   const showTipBody = experience === "beginner";
+
+  const sortedBlocks = [...blocks].sort((a, b) => a.startDay - b.startDay);
+  const bucketed = sortedBlocks.map((block, i) => {
+    const nextStart = sortedBlocks[i + 1]?.startDay ?? Infinity;
+    const ms = milestones
+      .filter((m) => m.dayInFoster >= block.startDay && m.dayInFoster < nextStart)
+      .sort((a, b) => a.dayInFoster - b.dayInFoster);
+    return { block, milestones: ms };
+  });
+
+  const weightPoints = milestones
+    .filter((m) => m.weightLbs != null && m.dayInFoster <= dayInFoster)
+    .map((m) => ({ day: m.dayInFoster, lbs: m.weightLbs! }))
+    .sort((a, b) => a.day - b.day);
+
   return (
     <div className="cp-hub">
       <section className="cp-phase-banner">
@@ -72,6 +95,8 @@ export function Hub({
         </section>
       )}
 
+      {weightPoints.length >= 2 && <WeightChart points={weightPoints} />}
+
       <section className="cp-schedule">
         <div className="cp-schedule__head">
           <h3>Care plan timeline</h3>
@@ -79,7 +104,7 @@ export function Hub({
         </div>
 
         <ol className="cp-schedule-list">
-          {blocks.map((block) => {
+          {bucketed.map(({ block, milestones: blockMilestones }) => {
             const passed = dayInFoster >= block.startDay;
             const current = phase.eyebrow.includes(block.label);
             return (
@@ -102,17 +127,40 @@ export function Hub({
                         {item.done ? "✓" : ""}
                       </button>
                       <span className="cp-schedule-item__label">{item.label}</span>
-                      <span className={`cp-schedule-item__chip cp-schedule-item__chip--${item.kind}`}>{KIND_LABEL[item.kind]}</span>
+                      <span className={`cp-schedule-item__chip cp-schedule-item__chip--${item.kind}`}>{SCHED_KIND_LABEL[item.kind]}</span>
                     </li>
                   ))}
+                  {blockMilestones.map((m) => {
+                    const upcoming = m.dayInFoster > dayInFoster;
+                    return (
+                      <li
+                        key={m.id}
+                        className={`cp-log-item cp-log-item--${m.kind} ${upcoming ? "cp-log-item--upcoming" : ""}`}
+                      >
+                        <span className="cp-log-item__day">Day {m.dayInFoster}</span>
+                        <div className="cp-log-item__body">
+                          <div className="cp-log-item__row">
+                            <p className="cp-log-item__title">{m.title}</p>
+                            <span className={`cp-schedule-item__chip cp-schedule-item__chip--${chipKind(m.kind)}`}>
+                              {MILE_KIND_LABEL[m.kind]}{upcoming ? " · upcoming" : ""}
+                            </span>
+                          </div>
+                          {m.note && !upcoming && <p className="cp-log-item__note">{m.note}</p>}
+                          {upcoming && (
+                            <p className="cp-log-item__note">
+                              in {m.dayInFoster - dayInFoster} day{m.dayInFoster - dayInFoster === 1 ? "" : "s"}
+                            </p>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </li>
             );
           })}
         </ol>
       </section>
-
-      <Timeline milestones={milestones} dayInFoster={dayInFoster} dogName={dog.name} />
 
       <section className="cp-card cp-card--pinned">
         <p className="cp-eyebrow">This week · {pinnedTip.category}</p>
@@ -135,4 +183,13 @@ export function Hub({
       </div>
     </div>
   );
+}
+
+// Map milestone kind → schedule-item chip color slot (reuse existing palette).
+function chipKind(k: Milestone["kind"]): ScheduleBlock["items"][number]["kind"] {
+  if (k === "vet") return "checkup";
+  if (k === "vaccine") return "vaccine";
+  if (k === "weigh") return "checkup";
+  if (k === "training") return "training";
+  return "wellness"; // behavior
 }
