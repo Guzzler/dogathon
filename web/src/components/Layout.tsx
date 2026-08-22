@@ -15,7 +15,7 @@ const TABS = [
 ];
 
 /** Full-bleed screens own their own chrome, so the tab bar steps out of the way. */
-const FULL_BLEED = [/^\/welcome/, /^\/onboarding/, /^\/dog\//];
+const FULL_BLEED = [/^\/welcome/, /^\/onboarding/, /^\/dog\//, /^\/adoption\//];
 
 export function Layout() {
   const { pathname } = useLocation();

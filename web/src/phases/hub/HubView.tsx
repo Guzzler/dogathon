@@ -4,7 +4,9 @@ import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
 import { ENERGY_WORD } from "../../lib/dog";
 import { prefs } from "../../lib/matching";
-import type { FosterIntake, FosterPhase } from "../../types";
+import { fosterWindow } from "../../lib/foster";
+import { normalizeDog } from "../../lib/dog";
+import type { Dog as DogRecord, FosterIntake, FosterPhase } from "../../types";
 
 const PHASE_COPY: Record<FosterPhase, { title: string; body: string; cta: string; to: string }> = {
   onboarding: {
@@ -66,14 +68,7 @@ export function HubView() {
       <LookingForCard intake={foster.intake} />
 
       {matchedDog && (
-        <div className="hub-card hub-card--dog">
-          <p className="hub-card__eyebrow">Your match</p>
-          <h2>{matchedDog.name}</h2>
-          <p>
-            {matchedDog.breed} · {matchedDog.age_years} yrs · {matchedDog.weight_lbs} lbs
-          </p>
-          <p className="pw-muted">{matchedDog.notes}</p>
-        </div>
+        <MatchedDogCard dog={matchedDog} pickupDate={foster.pickup?.date} />
       )}
 
       <div className="hub-steps">
@@ -83,6 +78,35 @@ export function HubView() {
           </Link>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** The matched dog, with how much of the foster window is left. */
+function MatchedDogCard({ dog, pickupDate }: { dog: DogRecord; pickupDate: string | undefined }) {
+  const d = normalizeDog(dog);
+  const win = fosterWindow(d.fosterWeeks, d.fosterLength, pickupDate);
+
+  return (
+    <div className="hub-card hub-card--dog">
+      <p className="hub-card__eyebrow">Your foster</p>
+      <h2>{d.name}</h2>
+      <p>{d.breed} · {d.ageLabel} · {d.weight_lbs} lbs</p>
+
+      <div className="row" style={{ gap: 7, marginTop: 10, flexWrap: "wrap" }}>
+        <span className="chip butter" style={{ fontWeight: 800 }}>🗓️ {win.total} foster</span>
+        <span className={`chip ${win.daysLeft < 14 ? "coral" : "sage"}`} style={{ fontWeight: 800 }}>
+          ⏳ {win.leftLabel}
+        </span>
+      </div>
+
+      {win.started && (
+        <div className="fosterbar" aria-label={win.leftLabel}>
+          <i style={{ width: `${Math.round(win.progress * 100)}%` }} />
+        </div>
+      )}
+
+      <p className="pw-muted" style={{ marginTop: 10 }}>{d.notes}</p>
     </div>
   );
 }

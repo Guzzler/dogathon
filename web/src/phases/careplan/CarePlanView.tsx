@@ -5,7 +5,9 @@ import { addCareLogEntry, useCareLog } from "../../hooks/useCareLog";
 import { Checklist } from "../../components/Checklist";
 import { AgentChatPanel } from "../../components/AgentChatPanel";
 import { DEFAULT_CARE_CHECKLIST } from "../../checklists";
-import type { CareLogEntry, ChecklistItem } from "../../types";
+import type { CareLogEntry, ChecklistItem, Dog as DogRecord } from "../../types";
+import { fosterWindow } from "../../lib/foster";
+import { normalizeDog } from "../../lib/dog";
 
 const ENTRY_LABELS: Record<CareLogEntry["type"], string> = {
   weigh_in: "⚖️ Weigh-in",
@@ -67,6 +69,8 @@ export function CarePlanView() {
       <h1>Caring for {dog?.name ?? "your foster"}</h1>
       <p className="pw-subtitle">Weigh-ins, vet visits, notes, and photos -- these build the adoption profile later.</p>
 
+      {dog && <FosterCountdown dog={dog} pickupDate={foster.pickup?.date} />}
+
       <div className="pw-grid">
         <Checklist title="Care plan checklist" items={foster.careChecklist ?? DEFAULT_CARE_CHECKLIST} onToggle={toggle} />
 
@@ -125,6 +129,34 @@ export function CarePlanView() {
             emptyState="Crate training, food safety, biting/behavior -- ask anything about caring for your foster."
           />
         </div>
+      )}
+    </div>
+  );
+}
+
+/** How much of the foster window is left, anchored to the pickup date. */
+function FosterCountdown({ dog, pickupDate }: { dog: DogRecord; pickupDate: string | undefined }) {
+  const d = normalizeDog(dog);
+  const win = fosterWindow(d.fosterWeeks, d.fosterLength, pickupDate);
+
+  return (
+    <div className="hub-card" style={{ marginBottom: 4 }}>
+      <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+        <span className="chip butter" style={{ fontWeight: 800 }}>🗓️ {win.total} foster</span>
+        <span className={`chip ${win.daysLeft < 14 ? "coral" : "sage"}`} style={{ fontWeight: 800 }}>
+          ⏳ {win.leftLabel}
+        </span>
+      </div>
+      {win.started && (
+        <>
+          <div className="fosterbar" aria-label={win.leftLabel}>
+            <i style={{ width: `${Math.round(win.progress * 100)}%` }} />
+          </div>
+          <p className="pw-muted" style={{ marginTop: 9, fontSize: 13 }}>
+            {win.endDate && `Heads home around ${win.endDate.toLocaleDateString(undefined, { month: "long", day: "numeric" })}.`}{" "}
+            Everything you log here becomes {d.name}'s adoption page.
+          </p>
+        </>
       )}
     </div>
   );

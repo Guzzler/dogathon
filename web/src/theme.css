@@ -291,3 +291,60 @@ input,textarea,select{font-family:inherit}
 .phone-body .btn--ghost:disabled{color:var(--ink-3)}
 /* .btn is used on <Link>s, which carry an underline by default */
 .phone-body a.btn{text-decoration:none}
+
+/* foster-window progress */
+.fosterbar{height:7px;border-radius:100px;background:var(--cream-2);overflow:hidden;margin-top:11px}
+.fosterbar > i{display:block;height:100%;border-radius:100px;background:var(--sage);transition:width .5s ease}
+
+/* ---------- adoption page ---------- */
+.ap-gallery{position:relative}
+.ap-hero{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r-lg);background:var(--cream-2);display:block}
+.ap-thumbs{display:flex;gap:8px;margin-top:9px;overflow-x:auto;scrollbar-width:none}
+.ap-thumb{
+  flex-shrink:0;width:56px;height:56px;border-radius:13px;background-size:cover;background-position:center;
+  border:2.5px solid transparent;opacity:.6;transition:opacity .15s,border-color .15s;
+}
+.ap-thumb[data-on="true"]{border-color:var(--coral);opacity:1}
+.ap-placeholder{
+  display:block;margin-top:8px;font-size:11.5px;font-weight:700;color:var(--ink-3);
+}
+.ap-note-hint{font-size:11.5px;font-weight:700;color:var(--ink-3);margin-bottom:10px}
+
+.ap-row + .ap-row{margin-top:14px}
+
+.ap-routine{padding:13px 0;border-bottom:1px solid var(--line)}
+.ap-routine[data-last="true"]{border-bottom:none}
+.ap-when{font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--coral);display:block;margin-bottom:5px}
+
+.ap-manner{display:flex;gap:11px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+.ap-manner[data-last="true"]{border-bottom:none}
+.ap-tick{
+  width:20px;height:20px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;
+  font-size:11px;font-weight:900;background:var(--cream-2);color:var(--ink-3);margin-top:1px;
+}
+.ap-tick[data-good="true"]{background:var(--sage-soft);color:var(--sage)}
+
+.ap-timeline{position:relative;padding-left:4px}
+.ap-tl-item{display:flex;gap:13px;padding-bottom:16px;position:relative}
+.ap-tl-item:not(:last-child)::before{content:"";position:absolute;left:5px;top:14px;bottom:0;width:2px;background:var(--line)}
+.ap-tl-dot{width:12px;height:12px;border-radius:50%;background:var(--coral);flex-shrink:0;margin-top:3px;z-index:1}
+.ap-tl-date{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+
+.ap-note{padding:17px;background:var(--butter-soft);box-shadow:none}
+.ap-shelter{margin-top:26px;padding:17px}
+
+.sharesheet{
+  /* motion animates `transform`, so centring can't use translateX — auto margins instead */
+  position:fixed;left:0;right:0;margin:0 auto;bottom:0;width:100%;max-width:430px;z-index:901;
+  background:#fff;border-radius:28px 28px 0 0;
+  padding:12px 22px max(22px,env(safe-area-inset-bottom));
+}
+.sharesheet__grip{width:40px;height:4px;border-radius:4px;background:var(--line);margin:0 auto 16px}
+.sharesheet__url{
+  margin-top:16px;padding:13px 15px;border-radius:var(--r-sm);background:var(--cream-2);
+  font-size:12.5px;font-weight:700;color:var(--ink-2);word-break:break-all;
+}
+.sharesheet .btn{width:100%;margin-top:8px}
+/* the share sheet is fixed, so it sits outside .phone-body — repeat the ghost fix */
+.sharesheet .btn--ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.sharesheet a.btn{text-decoration:none}

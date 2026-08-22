@@ -69,7 +69,8 @@ export interface Dog {
   coat?: "short" | "long";
   traits?: string[];
   needs?: string[];
-  foster_length?: string;
+  foster_weeks?: number;   // expected foster stay, 1–16
+  foster_length?: string;  // legacy free text; foster_weeks wins when both exist
   photo?: number;
 }
 

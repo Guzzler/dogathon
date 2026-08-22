@@ -4,7 +4,7 @@ import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
 import { normalizeDog, photoUrl, type RichDog } from "../../lib/dog";
 import { scoreDog } from "../../lib/matching";
-import { activeApplication, applicationStage } from "../../lib/foster";
+import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
 
 const STAGES = ["Applied", "Under review", "Approved", "Pickup"];
 
@@ -111,7 +111,7 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
             <span className="chip sage" style={{ fontSize: 11.5 }}>{scoreDog(d, foster?.intake)}%</span>
           </div>
           <div className="muted" style={{ marginTop: 2 }}>{d.breed} · {d.ageLabel}</div>
-          <div className="muted" style={{ marginTop: 3 }}>{d.shelter.short}</div>
+          <div className="muted" style={{ marginTop: 3 }}>{d.shelter.short} · 🗓️ {d.fosterLength}</div>
         </div>
       </button>
       <div className="row" style={{ gap: 9, marginTop: 12 }}>
@@ -130,6 +130,7 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
   const { foster } = useFoster();
 
   // Progress mirrors the Match phase's own checklist rather than inventing a second source.
+  const win = fosterWindow(d.fosterWeeks, d.fosterLength, foster?.pickup?.date);
   const approval = foster?.approvalChecklist ?? [];
   const approved = approval.length > 0 && approval.every(c => c.done);
   const activeIdx = foster?.pickup ? 3 : approved ? 2 : 1;
@@ -143,12 +144,15 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
         <div style={{ width: 58, height: 58, borderRadius: 16, flexShrink: 0, background: `var(--cream-2) url(${photoUrl(d.photoId, 300, 300)}) center/cover` }} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontWeight: 800, fontSize: 16 }}>{d.name}</div>
-          <div className="muted" style={{ marginTop: 2 }}>{d.shelter.short}</div>
+          <div className="muted" style={{ marginTop: 2 }}>{d.shelter.short} · 🗓️ {win.total}</div>
         </div>
       </button>
 
-      <div className={`chip ${approved ? "sage" : "butter"}`} style={{ marginTop: 12, fontWeight: 800 }}>
-        {approved ? "✓ Approved — schedule pickup" : "⏳ Waiting for approval"}
+      <div className="row" style={{ gap: 7, marginTop: 12, flexWrap: "wrap" }}>
+        <span className={`chip ${approved ? "sage" : "butter"}`} style={{ fontWeight: 800 }}>
+          {approved ? "✓ Approved — schedule pickup" : "⏳ Waiting for approval"}
+        </span>
+        {win.started && <span className="chip coral" style={{ fontWeight: 800 }}>⏳ {win.leftLabel}</span>}
       </div>
 
       <div className="tl">

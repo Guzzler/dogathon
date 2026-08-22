@@ -15,7 +15,7 @@ a shared Firestore schema (`web/src/types.ts`) without stepping on each other:
 - **Discovery** (`web/src/phases/discovery/`) — map + swipe feed, dog detail, saved list — **Eesha**
 - **Match** (`web/src/phases/match/`) — approval checklist, home prep, pickup scheduling — **Sharang**
 - **Care Plan** (`web/src/phases/careplan/`) — checklist, care log timeline, AI tips chat — **Ritu**
-- **Post Foster** (`web/src/phases/postfoster/`) — AI-drafted adoption profile, send to shelter
+- **Post Foster** (`web/src/phases/postfoster/`) — the dog's adoption page, share link, AI draft
 
 Plus a **Hub** (`web/src/phases/hub/`) landing page showing current phase + reminders.
 
@@ -117,6 +117,35 @@ and the phase is `match` or `care_plan`. While it is, applying for a different d
 in both places you can apply — the Saved list (disabled buttons plus a notice) and a dog's
 profile (the Contact-shelter sheet explains instead of offering Apply). A `complete` journey
 clears the block, so the foster can start again.
+
+## Foster duration and the countdown
+
+`Dog.foster_weeks` (1–16) is the expected stay; `formatWeeks()` renders it as "1 week",
+"6 weeks" or "3 months". Records without it fall back to parsing the old `foster_length`
+free text, then to 6 weeks.
+
+`fosterWindow()` (`web/src/lib/foster.ts`) turns that into a countdown, anchored to
+**`pickup.date` from the Match phase** — the only honest start, since that's when the dog
+actually arrives. Before pickup it shows the total commitment instead of a countdown. It's
+surfaced on the Discovery card and dog profile (total), and on the Hub, Care Plan,
+Saved list and Applications timeline (time left).
+
+## The adoption page
+
+`web/src/lib/adoption.ts` assembles the whole page via `buildAdoptionProfile(dog, foster,
+entries)`. **The Care Plan journal is the intended source**: `weigh_in` entries drive the
+health section, `photo` entries fill the gallery, `note` entries become the highlights
+timeline, `vet_visit` entries list out. Where the journal is empty it falls back to content
+derived from the dog's own record and sets `fromJournal.*` false, which the UI renders as a
+"sample content" hint. As the journal fills in, those sections switch over on their own —
+no further wiring needed.
+
+Two routes render it from `web/src/phases/postfoster/AdoptionProfile.tsx`:
+- `/post-foster` — the foster's own view, with sharing and the agent panel.
+- `/adoption/:dogId` — the shareable link. **Deliberately outside the onboarding gate** so
+  someone without a Pawthway account can open it.
+
+Sharing offers copy-link, a `mailto:` draft, and the Web Share API where supported.
 
 ## Where liking becomes matching
 

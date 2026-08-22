@@ -9,6 +9,7 @@ import { SavedView } from "./phases/discovery/SavedView";
 import { MatchView } from "./phases/match/MatchView";
 import { CarePlanView } from "./phases/careplan/CarePlanView";
 import { PostFosterView } from "./phases/postfoster/PostFosterView";
+import { PublicAdoptionView } from "./phases/postfoster/PublicAdoptionView";
 import { useFoster } from "./hooks/useFoster";
 import { hasOnboarded } from "./lib/foster";
 import "./App.css";
@@ -33,6 +34,8 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
+        {/* A shared adoption link must open for someone with no Pawthway account. */}
+        <Route path="adoption/:id" element={<PublicAdoptionView />} />
         <Route element={<GateOutlet />}>
           <Route index element={<HubView />} />
           <Route path="welcome" element={<WelcomeView />} />
