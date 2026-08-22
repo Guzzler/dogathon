@@ -4,6 +4,7 @@ import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
 import { normalizeDog, photoUrl, type RichDog } from "../../lib/dog";
 import { scoreDog } from "../../lib/matching";
+import { activeApplication, applicationStage } from "../../lib/foster";
 
 const STAGES = ["Applied", "Under review", "Approved", "Pickup"];
 
@@ -24,6 +25,8 @@ export function SavedView() {
   const liked = (foster?.likedDogIds ?? []).map(byId).filter(Boolean) as RichDog[];
   const matched = foster?.matchedDogId ? byId(foster.matchedDogId) : null;
   const saved = liked.filter(d => d.id !== foster?.matchedDogId);
+  const active = activeApplication(foster);
+  const activeDog = active ? byId(active.dogId) : null;
 
   return (
     <div className="screen">
@@ -45,7 +48,10 @@ export function SavedView() {
               ? <Empty emoji="🐾" title="Nothing saved yet"
                   body="Swipe right on a pup, or tap Save on their profile, and they'll wait for you here."
                   cta={{ label: "Find dogs", to: "/discovery" }} />
-              : saved.map((d, i) => <SavedCard key={d.id} d={d} i={i} />)
+              : (<>
+                  {active && activeDog && <BlockedNotice dogName={activeDog.name} phase={active.phase} />}
+                  {saved.map((d, i) => <SavedCard key={d.id} d={d} i={i} blocked={!!active} />)}
+                </>)
           ) : (
             !matched
               ? <Empty emoji="📋" title="No application yet"
@@ -59,7 +65,32 @@ export function SavedView() {
   );
 }
 
-function SavedCard({ d, i }: { d: RichDog; i: number }) {
+function BlockedNotice({ dogName, phase }: { dogName: string; phase: "match" | "care_plan" }) {
+  const navigate = useNavigate();
+  const stage = applicationStage({ dogId: "", phase });
+  return (
+    <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+      className="card" style={{ padding: 15, marginBottom: 14, borderRadius: 20, background: "var(--butter-soft)", boxShadow: "none" }}>
+      <div className="row" style={{ gap: 9, alignItems: "flex-start" }}>
+        <span style={{ fontSize: 17, lineHeight: 1.2 }}>{phase === "care_plan" ? "🏠" : "⏳"}</span>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 14.5, color: "#8A6516" }}>
+            {phase === "care_plan" ? `${dogName} is in your care` : `Your application for ${dogName} is open`}
+          </div>
+          <p className="muted" style={{ marginTop: 4, lineHeight: 1.5 }}>
+            Pawthway supports one foster at a time, so applying is paused. These stay saved for
+            when {dogName} heads home.
+          </p>
+          <button className="btn outline sm" style={{ marginTop: 11 }} onClick={() => navigate(stage.to)}>
+            {stage.cta}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean }) {
   const navigate = useNavigate();
   const { foster } = useFoster();
 
@@ -85,7 +116,10 @@ function SavedCard({ d, i }: { d: RichDog; i: number }) {
       </button>
       <div className="row" style={{ gap: 9, marginTop: 12 }}>
         <button className="btn outline sm" style={{ flex: 1 }} onClick={remove}>Remove</button>
-        <button className="btn sm" style={{ flex: 1.5 }} onClick={apply}>Apply to foster</button>
+        <button className="btn sm" style={{ flex: 1.5 }} onClick={apply} disabled={blocked}
+          title={blocked ? "You already have a foster in progress" : undefined}>
+          Apply to foster
+        </button>
       </div>
     </motion.div>
   );

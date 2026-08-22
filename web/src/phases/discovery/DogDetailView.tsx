@@ -5,6 +5,7 @@ import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
 import { ENERGY_WORD, normalizeDog, photoUrl, sizeLabel } from "../../lib/dog";
 import { distanceMi, matchReasons, scoreDog, useMyLocation } from "../../lib/matching";
+import { activeApplication, applicationStage } from "../../lib/foster";
 
 export function DogDetailView() {
   const { id = "" } = useParams();
@@ -23,6 +24,10 @@ export function DogDetailView() {
   const score = scoreDog(dog, foster?.intake);
   const reasons = matchReasons(dog, foster?.intake);
   const saved = (foster?.likedDogIds ?? []).includes(dog.id);
+  const active = activeApplication(foster);
+  const blocked = !!active && active.dogId !== dog.id;
+  const isThisOne = active?.dogId === dog.id;
+  const activeDogName = active ? dogs.find(d => d.id === active.dogId)?.name ?? "your foster dog" : "";
 
   const toggleSave = () => patchFoster(
     saved
@@ -128,7 +133,13 @@ export function DogDetailView() {
       <div className="pad safe-b" style={{ paddingTop: 14, background: "linear-gradient(to top, var(--cream) 62%, transparent)" }}>
         <div className="row" style={{ gap: 10 }}>
           <button className="btn outline" style={{ flex: 1 }} onClick={toggleSave}>{saved ? "♥ Saved" : "♡ Save"}</button>
-          <button className="btn" style={{ flex: 1.3 }} onClick={() => setContact(true)}>Contact shelter</button>
+          {isThisOne ? (
+            <button className="btn" style={{ flex: 1.3 }} onClick={() => navigate(applicationStage(active).to)}>
+              {applicationStage(active).cta}
+            </button>
+          ) : (
+            <button className="btn" style={{ flex: 1.3 }} onClick={() => setContact(true)}>Contact shelter</button>
+          )}
         </div>
       </div>
 
@@ -144,14 +155,33 @@ export function DogDetailView() {
                 borderRadius: "28px 28px 0 0", padding: "12px 22px max(22px,env(safe-area-inset-bottom))", textAlign: "center",
               }}>
               <div style={{ width: 40, height: 4, borderRadius: 4, background: "var(--line)", margin: "0 auto 18px" }} />
-              <div style={{ fontSize: 34 }}>💬</div>
-              <h3 style={{ marginTop: 12 }}>Chat with {dog.shelter.short}</h3>
-              <p className="sub" style={{ marginTop: 8, fontSize: 14 }}>
-                Direct shelter messaging isn't wired up yet. Applying starts your approval
-                checklist in the Match phase, which is where {dog.shelter.short} picks it up.
-              </p>
-              <button className="btn" style={{ marginTop: 20 }} onClick={apply}>Apply to foster {dog.name}</button>
-              <button className="btn ghost" style={{ marginTop: 4 }} onClick={() => setContact(false)}>Not yet</button>
+              <div style={{ fontSize: 34 }}>{blocked ? (active?.phase === "care_plan" ? "🏠" : "⏳") : "💬"}</div>
+              {blocked ? (
+                <>
+                  <h3 style={{ marginTop: 12 }}>One foster at a time</h3>
+                  <p className="sub" style={{ marginTop: 8, fontSize: 14 }}>
+                    {active?.phase === "care_plan"
+                      ? `${activeDogName} is in your care right now.`
+                      : `Your application for ${activeDogName} is still open.`}{" "}
+                    {dog.name} stays saved — you can apply once that wraps up.
+                  </p>
+                  <button className="btn" style={{ marginTop: 20 }}
+                    onClick={() => navigate(applicationStage(active!).to)}>
+                    {applicationStage(active!).cta}
+                  </button>
+                  <button className="btn ghost" style={{ marginTop: 4 }} onClick={() => setContact(false)}>Close</button>
+                </>
+              ) : (
+                <>
+                  <h3 style={{ marginTop: 12 }}>Chat with {dog.shelter.short}</h3>
+                  <p className="sub" style={{ marginTop: 8, fontSize: 14 }}>
+                    Direct shelter messaging isn't wired up yet. Applying starts your approval
+                    checklist in the Match phase, which is where {dog.shelter.short} picks it up.
+                  </p>
+                  <button className="btn" style={{ marginTop: 20 }} onClick={apply}>Apply to foster {dog.name}</button>
+                  <button className="btn ghost" style={{ marginTop: 4 }} onClick={() => setContact(false)}>Not yet</button>
+                </>
+              )}
             </motion.div>
           </>
         )}

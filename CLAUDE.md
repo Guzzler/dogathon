@@ -10,7 +10,8 @@ dog back adoption-ready.
 The app is 5 phases, each a self-contained route/view so people can build in parallel against
 a shared Firestore schema (`web/src/types.ts`) without stepping on each other:
 
-- **Onboarding** (`web/src/phases/onboarding/`) — slider/tap intake questions
+- **Onboarding** (`web/src/phases/onboarding/`) — the app's front door: a landing screen that
+  takes the foster's name, then the intake questions
 - **Discovery** (`web/src/phases/discovery/`) — map + swipe feed, dog detail, saved list — **Eesha**
 - **Match** (`web/src/phases/match/`) — approval checklist, home prep, pickup scheduling — **Sharang**
 - **Care Plan** (`web/src/phases/careplan/`) — checklist, care log timeline, AI tips chat — **Ritu**
@@ -99,6 +100,23 @@ Both additions are **optional fields on the existing shapes**, so nothing the ag
 Matching lives in `web/src/lib/matching.ts`: `scoreDog()` returns 0–99 from size/energy distance
 plus home, experience and tag rules, and `matchReasons()` renders the same inputs as the
 "Why you match" copy.
+
+## Onboarding is a gate, not a phase you navigate to
+
+A foster with no intake can't reach anything else. `OnboardingGate` in `web/src/App.tsx`
+redirects to `/welcome` until `hasOnboarded()` passes (`web/src/lib/foster.ts` — any intake
+keys, or a phase past `onboarding`). `/welcome` takes their name, then hands off to the
+questionnaire; the tab bar stays hidden throughout. Afterwards the Hub shows a
+"What you're looking for" card summarising the answers, with **Change answers** to clear
+intake and send them back through the front door.
+
+## One foster at a time
+
+`activeApplication()` (`web/src/lib/foster.ts`) returns non-null while `matchedDogId` is set
+and the phase is `match` or `care_plan`. While it is, applying for a different dog is blocked
+in both places you can apply — the Saved list (disabled buttons plus a notice) and a dog's
+profile (the Contact-shelter sheet explains instead of offering Apply). A `complete` journey
+clears the block, so the foster can start again.
 
 ## Where liking becomes matching
 
