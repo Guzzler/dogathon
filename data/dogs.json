@@ -1,0 +1,74 @@
+[
+  {
+    "id": "d-001",
+    "name": "Biscuit",
+    "breed": "Beagle mix",
+    "age_years": 3,
+    "weight_lbs": 24,
+    "status": "available",
+    "intake_date": "2026-06-14",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "notes": "Loud but gentle. Needs a fenced yard; escapes gaps under 4 inches."
+  },
+  {
+    "id": "d-002",
+    "name": "Marlow",
+    "breed": "Great Pyrenees",
+    "age_years": 7,
+    "weight_lbs": 96,
+    "status": "available",
+    "intake_date": "2026-03-02",
+    "good_with_kids": true,
+    "good_with_dogs": false,
+    "notes": "Senior. Longest resident in the shelter. Resource guards food bowls."
+  },
+  {
+    "id": "d-003",
+    "name": "Pepita",
+    "breed": "Chihuahua",
+    "age_years": 1,
+    "weight_lbs": 7,
+    "status": "foster",
+    "intake_date": "2026-07-29",
+    "good_with_kids": false,
+    "good_with_dogs": true,
+    "notes": "Nips at ankles when startled. In foster with the Nguyen family."
+  },
+  {
+    "id": "d-004",
+    "name": "Tuck",
+    "breed": "Pit bull terrier",
+    "age_years": 5,
+    "weight_lbs": 61,
+    "status": "medical_hold",
+    "intake_date": "2026-08-05",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "notes": "Heartworm treatment through 2026-09-20. No strenuous exercise."
+  },
+  {
+    "id": "d-005",
+    "name": "Juniper",
+    "breed": "Border Collie",
+    "age_years": 2,
+    "weight_lbs": 38,
+    "status": "available",
+    "intake_date": "2026-08-11",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "notes": "Extremely high energy. Needs a running or agility home, not an apartment."
+  },
+  {
+    "id": "d-006",
+    "name": "Ozzy",
+    "breed": "Dachshund",
+    "age_years": 9,
+    "weight_lbs": 16,
+    "status": "adopted",
+    "intake_date": "2026-01-19",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "notes": "Adopted 2026-08-02. Back issues; adopter briefed on ramp use."
+  }
+]

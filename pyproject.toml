@@ -1,0 +1,26 @@
+[project]
+name = "dogathon-agent"
+version = "0.1.0"
+description = "A general-purpose tool-calling agent scaffold built on Claude."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.40",
+    "pydantic>=2.7",
+    "python-dotenv>=1.0",
+    "rich>=13.7",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+arcade = ["arcadepy>=1.0"]
+
+[project.scripts]
+agent = "agent.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent"]
