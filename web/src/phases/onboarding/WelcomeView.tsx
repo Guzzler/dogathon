@@ -23,10 +23,6 @@ export function WelcomeView() {
 
   return (
     <div className="screen">
-      <div className="pad" style={{ paddingTop: 26 }}>
-        <span className="chip coral" style={{ fontWeight: 800 }}>Foster mode</span>
-      </div>
-
       <div className="scroll pad" style={{ display: "flex", flexDirection: "column", paddingTop: 26 }}>
         <motion.div initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
           <h1 style={{ fontSize: 40, lineHeight: 1.1 }}>Ready to find your new foster buddy?</h1>

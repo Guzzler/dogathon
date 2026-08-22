@@ -141,7 +141,7 @@ export function DogDetailView() {
               {applicationStage(active).cta}
             </button>
           ) : (
-            <button className="btn" style={{ flex: 1.3 }} onClick={() => setContact(true)}>Contact shelter</button>
+            <button className="btn" style={{ flex: 1.3 }} onClick={() => setContact(true)}>Apply to foster</button>
           )}
         </div>
       </div>
@@ -158,7 +158,7 @@ export function DogDetailView() {
                 borderRadius: "28px 28px 0 0", padding: "12px 22px max(22px,env(safe-area-inset-bottom))", textAlign: "center",
               }}>
               <div style={{ width: 40, height: 4, borderRadius: 4, background: "var(--line)", margin: "0 auto 18px" }} />
-              <div style={{ fontSize: 34 }}>{blocked ? (active?.phase === "care_plan" ? "🏠" : "⏳") : "💬"}</div>
+              <div style={{ fontSize: 34 }}>{blocked ? (active?.phase === "care_plan" ? "🏠" : "⏳") : "🐾"}</div>
               {blocked ? (
                 <>
                   <h3 style={{ marginTop: 12 }}>One foster at a time</h3>
@@ -176,12 +176,12 @@ export function DogDetailView() {
                 </>
               ) : (
                 <>
-                  <h3 style={{ marginTop: 12 }}>Chat with {dog.shelter.short}</h3>
+                  <h3 style={{ marginTop: 12 }}>Apply to foster {dog.name}?</h3>
                   <p className="sub" style={{ marginTop: 8, fontSize: 14 }}>
-                    Direct shelter messaging isn't wired up yet. Applying starts your approval
-                    checklist in the Match phase, which is where {dog.shelter.short} picks it up.
+                    This starts your approval checklist with {dog.shelter.short}. You can only
+                    have one application open at a time.
                   </p>
-                  <button className="btn" style={{ marginTop: 20 }} onClick={apply}>Apply to foster {dog.name}</button>
+                  <button className="btn" style={{ marginTop: 20 }} onClick={apply}>Yes, apply to foster</button>
                   <button className="btn ghost" style={{ marginTop: 4 }} onClick={() => setContact(false)}>Not yet</button>
                 </>
               )}

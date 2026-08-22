@@ -116,7 +116,7 @@ intake and send them back through the front door.
 `activeApplication()` (`web/src/lib/foster.ts`) returns non-null while `matchedDogId` is set
 and the phase is `match` or `care_plan`. While it is, applying for a different dog is blocked
 in both places you can apply — the Saved list (disabled buttons plus a notice) and a dog's
-profile (the Contact-shelter sheet explains instead of offering Apply). A `complete` journey
+profile (the Apply-to-foster sheet explains instead of confirming). A `complete` journey
 clears the block, so the foster can start again.
 
 ## Match: who owns which approval step
@@ -187,7 +187,7 @@ Sharing offers copy-link, a `mailto:` draft, and the Web Share API where support
 ## Where liking becomes matching
 
 Discovery's like/pass only writes `likedDogIds` / `passedDogIds`. Committing to a dog is a
-separate, explicit step — **Saved → Apply to foster** (or Contact shelter → Apply on a dog's
+separate, explicit step — **Saved → Apply to foster** (or Apply to foster → confirm on a dog's
 profile), which sets `matchedDogId` and flips `phase` to `match`. That's the handoff into the
 Match phase. The Applications tab reads `approvalChecklist` and `pickup` back out to draw its
 status timeline, so it never disagrees with the Match view.
