@@ -50,6 +50,8 @@ function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
 
 type View = "hub" | "timeline" | "journal" | "tips" | "emergency";
 
+const SHOW_DEMO_CONTROLS = false;
+
 function dateLabelForDay(day: number, pickupIso: string): string {
   const [y, m, d] = pickupIso.split("-").map(Number);
   const target = new Date(y, m - 1, d + (day - 1));
@@ -168,31 +170,33 @@ export function CarePlanView() {
   }
 
   return (
-    <div className="cp-stage">
-      <aside className="cp-demo-panel" aria-label="Demo controls">
-        <p className="cp-eyebrow">Demo controls</p>
-        <label className="cp-select">
-          <span className="cp-mini-meta">Day in foster · {dateLabelForDay(dayInFoster, pickupIso)}</span>
-          <select value={dayInFoster} onChange={(e) => setDayInFoster(Number(e.target.value))}>
-            {DAY_OPTIONS.map((o) => (
-              <option key={o.day} value={o.day}>{o.label}</option>
-            ))}
-          </select>
-        </label>
-        <label className="cp-select">
-          <span className="cp-mini-meta">Experience</span>
-          <select value={experience} onChange={(e) => setExperience(e.target.value as ExperienceLevel)}>
-            <option value="beginner">Beginner</option>
-            <option value="experienced">Experienced</option>
-          </select>
-        </label>
-        <button className="cp-btn cp-btn--ghost cp-btn--full" onClick={() => navigate("/")}>
-          ← Back to Hub
-        </button>
-        <p className="cp-demo-hint">
-          Try typing <em>"{dog.name} was nipping"</em> in the Journal tab, then swing back to Home — a triggered card appears.
-        </p>
-      </aside>
+    <div className={`cp-stage ${SHOW_DEMO_CONTROLS ? "" : "cp-stage--solo"}`}>
+      {SHOW_DEMO_CONTROLS && (
+        <aside className="cp-demo-panel" aria-label="Demo controls">
+          <p className="cp-eyebrow">Demo controls</p>
+          <label className="cp-select">
+            <span className="cp-mini-meta">Day in foster · {dateLabelForDay(dayInFoster, pickupIso)}</span>
+            <select value={dayInFoster} onChange={(e) => setDayInFoster(Number(e.target.value))}>
+              {DAY_OPTIONS.map((o) => (
+                <option key={o.day} value={o.day}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="cp-select">
+            <span className="cp-mini-meta">Experience</span>
+            <select value={experience} onChange={(e) => setExperience(e.target.value as ExperienceLevel)}>
+              <option value="beginner">Beginner</option>
+              <option value="experienced">Experienced</option>
+            </select>
+          </label>
+          <button className="cp-btn cp-btn--ghost cp-btn--full" onClick={() => navigate("/")}>
+            ← Back to Hub
+          </button>
+          <p className="cp-demo-hint">
+            Try typing <em>"{dog.name} was nipping"</em> in the Journal tab, then swing back to Home — a triggered card appears.
+          </p>
+        </aside>
+      )}
 
       <div className="cp-demo" role="application">
         <header className="cp-topbar">

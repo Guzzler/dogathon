@@ -61,6 +61,12 @@
   font-weight: 700;
 }
 
+.cp-stage--solo {
+  grid-template-columns: 1fr;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
 .cp-stage--empty {
   display: flex;
   align-items: center;
