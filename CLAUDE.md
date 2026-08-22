@@ -133,12 +133,34 @@ Saved list and Applications timeline (time left).
 ## The adoption page
 
 `web/src/lib/adoption.ts` assembles the whole page via `buildAdoptionProfile(dog, foster,
-entries)`. **The Care Plan journal is the intended source**: `weigh_in` entries drive the
-health section, `photo` entries fill the gallery, `note` entries become the highlights
-timeline, `vet_visit` entries list out. Where the journal is empty it falls back to content
-derived from the dog's own record and sets `fromJournal.*` false, which the UI renders as a
-"sample content" hint. As the journal fills in, those sections switch over on their own —
-no further wiring needed.
+entries, journal)`.
+
+**The Care Plan journal is the primary source.** `starred` is how a foster marks an entry for
+the adoption profile, so starred entries win; if nothing is starred, everything is used.
+Starred `photo` entries fill the gallery, starred `note` entries become the highlights
+timeline. The older `careLog` collection still feeds weigh-ins and vet visits, and backfills
+photos/notes where the journal has none. With neither, sections fall back to content derived
+from the dog's record and set `fromJournal.*` false, which the UI shows as a "sample content"
+hint.
+
+**The journal is persisted on the foster document** (`Foster.journal`) via
+`web/src/hooks/useJournal.ts`. That hook deliberately mirrors the `useState` tuple Care Plan
+already used, so wiring it in was a one-line change there — but it's what lets the adoption
+page read the same entries at all. Before it, the journal only existed in Care Plan's
+component state.
+
+Journal photos are colour swatches (`imageColor`) until real upload exists; `JournalEntry`
+has an optional `photoUrl` so uploads drop straight in, and the gallery already renders
+whichever is present.
+
+### Journal notes → tags
+
+`POST /highlights` (`src/agent/server.py`) condenses note text into 3–6 short tags
+("potty-trained", "energetic") shown as **At a glance** on the adoption page. It's a one-shot
+Haiku call — no tools, no agent loop — because the page waits on it. The result is cached on
+`Foster.adoptionHighlights` alongside the note count it came from, so the model only runs when
+the foster has actually written something new. Any failure is silent: no key, no agent, or a
+bad response all fall back to the page's derived content.
 
 Two routes render it from `web/src/phases/postfoster/AdoptionProfile.tsx`:
 - `/post-foster` — the foster's own view, with sharing and the agent panel.

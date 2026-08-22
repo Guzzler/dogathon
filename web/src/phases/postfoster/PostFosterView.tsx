@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
 import { useCareLog } from "../../hooks/useCareLog";
+import { useJournalEntries } from "../../hooks/useJournal";
+import { useAdoptionHighlights } from "../../lib/highlights";
 import { AgentChatPanel } from "../../components/AgentChatPanel";
 import { buildAdoptionProfile } from "../../lib/adoption";
 import { normalizeDog } from "../../lib/dog";
@@ -13,15 +15,17 @@ export function PostFosterView() {
   const { foster, loading } = useFoster();
   const { dogs } = useDogs();
   const { entries } = useCareLog();
+  const journal = useJournalEntries();
   const [sharing, setSharing] = useState(false);
   const [drafting, setDrafting] = useState(false);
 
   const raw = dogs.find((d) => d.id === foster?.matchedDogId);
   const dog = useMemo(() => (raw ? normalizeDog(raw) : null), [raw]);
   const profile = useMemo(
-    () => (dog ? buildAdoptionProfile(dog, foster, entries) : null),
-    [dog, foster, entries],
+    () => (dog ? buildAdoptionProfile(dog, foster, entries, journal) : null),
+    [dog, foster, entries, journal],
   );
+  const { tags, pending: tagsPending } = useAdoptionHighlights(foster, profile?.noteTexts ?? []);
 
   if (loading) return <p className="pw-loading">Loading…</p>;
   if (!foster?.matchedDogId || !dog || !profile) {
@@ -38,7 +42,7 @@ export function PostFosterView() {
 
   const win = fosterWindow(dog.fosterWeeks, dog.fosterLength, foster.pickup?.date);
   const shareUrl = `${window.location.origin}/adoption/${dog.id}`;
-  const journalCount = entries.length;
+  const journalCount = journal.length + entries.length;
 
   return (
     <div className="pw-page">
@@ -64,7 +68,7 @@ export function PostFosterView() {
         </div>
       )}
 
-      <AdoptionProfileBody dog={dog} profile={profile} />
+      <AdoptionProfileBody dog={dog} profile={profile} tags={tags} tagsPending={tagsPending} />
 
       <div style={{ marginTop: 28 }}>
         <button className="btn btn--primary" style={{ width: "100%" }} onClick={() => setSharing(true)}>

@@ -1,3 +1,5 @@
+import type { JournalEntry } from "./phases/careplan/types";
+
 export type EventKind =
   | "text"
   | "thinking"
@@ -121,6 +123,11 @@ export interface Foster {
   careChecklist: ChecklistItem[];
   pickup: Pickup | null;
   readyForAdoption: boolean;
+
+  /** Care Plan journal, persisted so the adoption page can read the same entries. */
+  journal?: JournalEntry[];
+  /** Cached tags extracted from journal notes — see web/src/lib/highlights.ts. */
+  adoptionHighlights?: { tags: string[]; fromNoteCount: number };
 }
 
 export interface CareLogEntry {

@@ -1,4 +1,5 @@
 import type { CareLogEntry, Foster } from "../types";
+import type { JournalEntry } from "../phases/careplan/types";
 import { photoUrl, type RichDog } from "./dog";
 
 /**
@@ -12,7 +13,8 @@ import { photoUrl, type RichDog } from "./dog";
 export interface AdoptionProfile {
   headline: string;
   summary: string;
-  photos: string[];
+  /** Either a real image URL, or a colour swatch until photo upload exists. */
+  photos: { url?: string; color?: string; caption?: string }[];
   personality: { label: string; text: string }[];
   routine: { when: string; text: string }[];
   manners: { label: string; value: string; good: boolean }[];
@@ -26,6 +28,8 @@ export interface AdoptionProfile {
   fosterNote: string;
   idealHome: string[];
   fromJournal: { photos: boolean; weight: boolean; notes: boolean; vet: boolean };
+  /** Raw note text, for the agent to condense into tags. */
+  noteTexts: string[];
 }
 
 const stamp = (e: CareLogEntry) =>
@@ -65,20 +69,35 @@ export function buildAdoptionProfile(
   dog: RichDog,
   foster: Foster | null,
   entries: CareLogEntry[],
+  journal: JournalEntry[] = [],
 ): AdoptionProfile {
   const fosterName = foster?.name?.trim() || "their foster";
 
-  const photoEntries = entries.filter((e) => e.type === "photo" && e.photo_url);
   const weighIns = entries.filter((e) => e.type === "weigh_in" && e.value);
   const vetVisits = entries.filter((e) => e.type === "vet_visit");
+
+  // The Care Plan journal is the primary source. `starred` is how the foster marks an entry
+  // for the adoption profile, so those come first; if nothing is starred we take everything.
+  const starred = journal.filter((e) => e.starred);
+  const chosen = starred.length ? starred : journal;
+  const journalPhotos = chosen.filter((e) => e.kind === "photo");
+  const journalNotes = chosen.filter((e) => e.kind === "note" && e.text?.trim());
+
+  // The older care-log collection still feeds photos and notes where it has them.
+  const photoEntries = entries.filter((e) => e.type === "photo" && e.photo_url);
   const notes = entries.filter((e) => e.type === "note" && e.note);
 
-  // Gallery: journal photos when they exist, otherwise a spread from the dog's own set.
-  const photos = photoEntries.length
-    ? photoEntries.map((e) => e.photo_url)
-    : [dog.photoId, dog.photoId + 3, dog.photoId + 7, dog.photoId + 11].map((n) =>
-        photoUrl(((n - 1) % 20) + 1, 700, 700),
-      );
+  // Gallery: journal photos first, then care-log photos, then a spread from the dog's own set.
+  let photos: AdoptionProfile["photos"];
+  if (journalPhotos.length) {
+    photos = journalPhotos.map((e) => ({ url: e.photoUrl, color: e.imageColor, caption: e.caption }));
+  } else if (photoEntries.length) {
+    photos = photoEntries.map((e) => ({ url: e.photo_url }));
+  } else {
+    photos = [dog.photoId, dog.photoId + 3, dog.photoId + 7, dog.photoId + 11].map((n) => ({
+      url: photoUrl(((n - 1) % 20) + 1, 700, 700),
+    }));
+  }
 
   const startWeight = weighIns.length ? weighIns[0].value : null;
   const currentWeight = weighIns.length ? weighIns[weighIns.length - 1].value : `${dog.weight_lbs} lb`;
@@ -123,7 +142,9 @@ export function buildAdoptionProfile(
       vetVisits: vetVisits.map((e) => ({ date: stamp(e), note: e.note || "Routine check-up" })),
     },
 
-    highlights: notes.length
+    highlights: journalNotes.length
+      ? journalNotes.slice(0, 5).map((e) => ({ date: e.createdAt, text: e.text ?? "" }))
+      : notes.length
       ? notes.slice(-5).map((e) => ({ date: stamp(e), text: e.note }))
       : [
           { date: "Week 1", text: `${dog.name} spent the first few days watching from a distance, then decided the couch was home.` },
@@ -144,11 +165,16 @@ export function buildAdoptionProfile(
     ],
 
     fromJournal: {
-      photos: photoEntries.length > 0,
+      photos: journalPhotos.length > 0 || photoEntries.length > 0,
       weight: weighIns.length > 0,
-      notes: notes.length > 0,
+      notes: journalNotes.length > 0 || notes.length > 0,
       vet: vetVisits.length > 0,
     },
+
+    noteTexts: [
+      ...journalNotes.map((e) => e.text ?? ""),
+      ...notes.map((e) => e.note),
+    ].filter(Boolean),
   };
 }
 

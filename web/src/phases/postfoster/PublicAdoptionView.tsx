@@ -17,7 +17,7 @@ export function PublicAdoptionView() {
   const raw = dogs.find((d) => d.id === id);
   const dog = useMemo(() => (raw ? normalizeDog(raw) : null), [raw]);
   // No foster context on a public link — the journal sections fall back to sample content.
-  const profile = useMemo(() => (dog ? buildAdoptionProfile(dog, null, []) : null), [dog]);
+  const profile = useMemo(() => (dog ? buildAdoptionProfile(dog, null, [], []) : null), [dog]);
 
   if (loading) return <p className="pw-loading">Loading…</p>;
   if (!dog || !profile) {

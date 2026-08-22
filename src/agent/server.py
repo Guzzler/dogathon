@@ -120,6 +120,62 @@ def chat(req: ChatRequest) -> StreamingResponse:
     )
 
 
+class HighlightsRequest(BaseModel):
+    notes: list[str]
+
+
+# Deliberately tiny: one short instruction, a handful of note lines, and a 64-token ceiling.
+# This runs on every adoption-page load where the note count changed, so latency matters more
+# than nuance — the job is only "compress these sentences into adoption-profile tags".
+HIGHLIGHTS_SYSTEM = (
+    "You turn a foster's notes about a dog into short tags for an adoption profile."
+)
+HIGHLIGHTS_PROMPT = (
+    "Notes from the foster:\n{notes}\n\n"
+    "Reply with 3-6 tags describing this dog, comma-separated. "
+    "Each tag is 1-2 words, lowercase (e.g. potty-trained, energetic, food-motivated). "
+    "Only the tags, nothing else."
+)
+
+
+@app.post("/highlights")
+def highlights(req: HighlightsRequest) -> dict[str, list[str]]:
+    """Compress journal notes into adoption-profile tags.
+
+    Uses Haiku rather than the agent loop: this is a one-shot extraction with no tools, and
+    the page waits on it. Returns an empty list rather than erroring when there's no key or
+    nothing to summarise, so the adoption page degrades to its own derived content.
+    """
+    notes = [n.strip() for n in req.notes if n and n.strip()]
+    if not notes or not os.environ.get("ANTHROPIC_API_KEY"):
+        return {"tags": []}
+
+    import anthropic
+
+    try:
+        resp = anthropic.Anthropic().messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=64,
+            system=HIGHLIGHTS_SYSTEM,
+            messages=[{
+                "role": "user",
+                "content": HIGHLIGHTS_PROMPT.format(
+                    notes="\n".join(f"- {n}" for n in notes[-25:])
+                ),
+            }],
+        )
+    except Exception:
+        return {"tags": []}
+
+    text = "".join(b.text for b in resp.content if b.type == "text")
+    seen: list[str] = []
+    for raw in text.replace("\n", ",").split(","):
+        tag = raw.strip().strip(".").lower()
+        if tag and len(tag) <= 24 and tag not in seen:
+            seen.append(tag)
+    return {"tags": seen[:6]}
+
+
 @app.post("/approve")
 def approve(req: ApprovalRequest) -> dict[str, bool]:
     _approval_box.put(req.approved)

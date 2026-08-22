@@ -4,19 +4,34 @@ import type { AdoptionProfile } from "../../lib/adoption";
 import { ENERGY_WORD, sizeLabel, type RichDog } from "../../lib/dog";
 
 /** The adoption page itself. Rendered for the foster and, read-only, for a shared link. */
-export function AdoptionProfileBody({ dog, profile }: { dog: RichDog; profile: AdoptionProfile }) {
+export function AdoptionProfileBody({ dog, profile, tags = [], tagsPending }: {
+  dog: RichDog; profile: AdoptionProfile; tags?: string[]; tagsPending?: boolean;
+}) {
   const [hero, setHero] = useState(0);
+  const shot = profile.photos[hero];
 
   return (
     <>
       <div className="ap-gallery">
-        <motion.img key={hero} src={profile.photos[hero]} alt={dog.name}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ap-hero" />
+        {/* Journal photos are colour swatches until real upload exists, so handle both. */}
+        {shot?.url ? (
+          <motion.img key={hero} src={shot.url} alt={shot.caption ?? dog.name}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ap-hero" />
+        ) : (
+          <motion.div key={hero} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="ap-hero ap-hero--swatch" style={{ background: shot?.color ?? "var(--cream-2)" }}>
+            <span>📷</span>
+          </motion.div>
+        )}
+        {shot?.caption && <p className="ap-caption">{shot.caption}</p>}
+
         {profile.photos.length > 1 && (
           <div className="ap-thumbs">
             {profile.photos.map((p, i) => (
-              <button key={p + i} onClick={() => setHero(i)} data-on={i === hero}
-                className="ap-thumb" style={{ backgroundImage: `url(${p})` }} aria-label={`Photo ${i + 1}`} />
+              <button key={(p.url ?? p.color ?? "") + i} onClick={() => setHero(i)} data-on={i === hero}
+                className="ap-thumb"
+                style={p.url ? { backgroundImage: `url(${p.url})` } : { background: p.color }}
+                aria-label={`Photo ${i + 1}`} />
             ))}
           </div>
         )}
@@ -28,6 +43,26 @@ export function AdoptionProfileBody({ dog, profile }: { dog: RichDog; profile: A
         {dog.ageLabel} · {dog.breed} · {sizeLabel(dog.size)} · {profile.health.currentWeight}
       </p>
       <p className="sub" style={{ marginTop: 14 }}>{profile.summary}</p>
+
+      {(tags.length > 0 || tagsPending) && (
+        <div style={{ marginTop: 16 }}>
+          <div className="eyebrow" style={{ marginBottom: 9 }}>At a glance</div>
+          {tagsPending ? (
+            <span className="muted">Reading the journal…</span>
+          ) : (
+            <div className="row" style={{ gap: 7, flexWrap: "wrap" }}>
+              {tags.map((t, i) => (
+                <span key={t} className={`chip ${["coral", "sage", "butter"][i % 3]}`} style={{ fontWeight: 800 }}>
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="ap-note-hint" style={{ marginTop: 9, marginBottom: 0 }}>
+            Pulled from your journal notes
+          </p>
+        </div>
+      )}
 
       <Section title="Personality">
         {profile.personality.map((p) => (
