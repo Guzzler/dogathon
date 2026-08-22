@@ -18,7 +18,6 @@ import {
 import { Emergency } from "./Emergency";
 import { Hub } from "./Hub";
 import { Journal } from "./Journal";
-import { Timeline } from "./Timeline";
 import { Tips } from "./Tips";
 import { firedRules } from "./triggers";
 import type {
@@ -49,7 +48,7 @@ function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
   };
 }
 
-type View = "hub" | "timeline" | "journal" | "emergency";
+type View = "hub" | "journal" | "emergency";
 
 function dateLabelForDay(day: number, pickupIso: string): string {
   const [y, m, d] = pickupIso.split("-").map(Number);
@@ -184,18 +183,9 @@ export function CarePlanView() {
       />
 
       <div className="cp-demo" role="application">
-        <header className="cp-topbar">
-          <div className="cp-avatar" aria-hidden="true">🐾</div>
-          <div>
-            <p className="cp-eyebrow">Pawthway · Care Plan</p>
-            <h1 className="cp-topbar__title">{dog.name} · {dog.breed} · {dog.ageMonths} mo</h1>
-          </div>
-        </header>
-
         <nav className="cp-tabs" role="tablist">
           {[
             { id: "hub", label: "Home" },
-            { id: "timeline", label: "Timeline" },
             { id: "journal", label: "Journal & Tips" },
             { id: "emergency", label: "Emergency" },
           ].map((t) => (
@@ -221,6 +211,7 @@ export function CarePlanView() {
               dayInFoster={dayInFoster}
               phase={phase}
               blocks={schedule}
+              milestones={seedMilestones}
               onToggleScheduled={toggleScheduled}
               pinnedTip={tipsById[phase.pinnedTipId]}
               firedRules={fired}
@@ -228,9 +219,6 @@ export function CarePlanView() {
               experience={experience}
               onOpen={(v) => setView(v)}
             />
-          )}
-          {view === "timeline" && (
-            <Timeline milestones={seedMilestones} dayInFoster={dayInFoster} dogName={dog.name} />
           )}
           {view === "journal" && (
             <>

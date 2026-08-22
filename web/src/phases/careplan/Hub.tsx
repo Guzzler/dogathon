@@ -1,6 +1,8 @@
+import { Timeline } from "./Timeline";
 import type {
   DogProfile,
   ExperienceLevel,
+  Milestone,
   ScheduleBlock,
   Tip,
   TriggerRule,
@@ -12,12 +14,13 @@ interface HubProps {
   dayInFoster: number;
   phase: WeekPhase;
   blocks: ScheduleBlock[];
+  milestones: Milestone[];
   onToggleScheduled: (blockId: string, itemId: string) => void;
   pinnedTip: Tip;
   firedRules: TriggerRule[];
   tipsById: Record<string, Tip>;
   experience: ExperienceLevel;
-  onOpen: (view: "timeline" | "journal" | "emergency") => void;
+  onOpen: (view: "journal" | "emergency") => void;
 }
 
 const KIND_LABEL: Record<ScheduleBlock["items"][number]["kind"], string> = {
@@ -34,6 +37,7 @@ export function Hub({
   dayInFoster,
   phase,
   blocks,
+  milestones,
   onToggleScheduled,
   pinnedTip,
   firedRules,
@@ -108,6 +112,8 @@ export function Hub({
         </ol>
       </section>
 
+      <Timeline milestones={milestones} dayInFoster={dayInFoster} dogName={dog.name} />
+
       <section className="cp-card cp-card--pinned">
         <p className="cp-eyebrow">This week · {pinnedTip.category}</p>
         <h3 className="cp-pinned-title">{pinnedTip.title}</h3>
@@ -118,13 +124,9 @@ export function Hub({
       </section>
 
       <div className="cp-quick-row">
-        <button className="cp-quick" onClick={() => onOpen("timeline")}>
-          <span className="cp-quick__label">Timeline</span>
-          <span className="cp-quick__meta">Milestones & weight</span>
-        </button>
         <button className="cp-quick" onClick={() => onOpen("journal")}>
-          <span className="cp-quick__label">Journal</span>
-          <span className="cp-quick__meta">Photos & notes</span>
+          <span className="cp-quick__label">Journal & Tips</span>
+          <span className="cp-quick__meta">Photos, notes, ask anything</span>
         </button>
         <button className="cp-quick cp-quick--danger" onClick={() => onOpen("emergency")}>
           <span className="cp-quick__label">Emergency</span>
