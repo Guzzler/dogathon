@@ -461,6 +461,11 @@
 /* Buttons */
 
 .btn {
+  /* Some .btn callers are <Link>s, which are inline — vertical padding on an inline box
+     overflows its line and collides with the text above it. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   border-radius: var(--radius-md);
   padding: 10px 16px;

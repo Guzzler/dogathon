@@ -3,12 +3,16 @@ import { addDoc, collection, onSnapshot, orderBy, query, serverTimestamp } from 
 import { firestore } from "../firebase";
 import { FOSTER_ID } from "./useFoster";
 import type { CareLogEntry } from "../types";
+import { appendLocalCareLog, LOCAL_MODE, subscribeLocalCareLog } from "../lib/localMode";
 
 export function useCareLog() {
   const [entries, setEntries] = useState<CareLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (LOCAL_MODE) {
+      return subscribeLocalCareLog((e) => { setEntries(e); setLoading(false); });
+    }
     const q = query(collection(firestore, "fosters", FOSTER_ID, "careLog"), orderBy("created_at"));
     const unsub = onSnapshot(q, (snap) => {
       setEntries(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CareLogEntry, "id">) })));
@@ -26,6 +30,12 @@ export async function addCareLogEntry(entry: {
   value?: string;
   photo_url?: string;
 }): Promise<void> {
+  if (LOCAL_MODE) {
+    appendLocalCareLog({
+      type: entry.type, note: entry.note ?? "", value: entry.value ?? "", photo_url: entry.photo_url ?? "",
+    });
+    return;
+  }
   await addDoc(collection(firestore, "fosters", FOSTER_ID, "careLog"), {
     type: entry.type,
     note: entry.note ?? "",
