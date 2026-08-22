@@ -1,29 +1,39 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import type { AdoptionProfile } from "../../lib/adoption";
-import { ENERGY_WORD, sizeLabel, type RichDog } from "../../lib/dog";
+import { sizeLabel, type RichDog } from "../../lib/dog";
 
-/** The adoption page itself. Rendered for the foster and, read-only, for a shared link. */
-export function AdoptionProfileBody({ dog, profile, tags = [], tagsPending }: {
-  dog: RichDog; profile: AdoptionProfile; tags?: string[]; tagsPending?: boolean;
+/**
+ * The adoption page. Every section states where its content came from — the foster's journal
+ * or the shelter's record — and shows an empty state rather than filler when there's nothing
+ * logged yet.
+ */
+export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tagsPending, noteEditor }: {
+  dog: RichDog; profile: AdoptionProfile; tags?: string[]; summary?: string;
+  tagsPending?: boolean;
+  /** The foster's own view passes an editor; the public link doesn't. */
+  noteEditor?: React.ReactNode;
 }) {
   const [hero, setHero] = useState(0);
-  const shot = profile.photos[hero];
+  const shot = profile.photos[Math.min(hero, profile.photos.length - 1)];
 
   return (
     <>
       <div className="ap-gallery">
-        {/* Journal photos are colour swatches until real upload exists, so handle both. */}
-        {shot?.url ? (
-          <motion.img key={hero} src={shot.url} alt={shot.caption ?? dog.name}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ap-hero" />
-        ) : (
-          <motion.div key={hero} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="ap-hero ap-hero--swatch" style={{ background: shot?.color ?? "var(--cream-2)" }}>
-            <span>📷</span>
-          </motion.div>
-        )}
-        {shot?.caption && <p className="ap-caption">{shot.caption}</p>}
+          {/* Journal photos are colour swatches until real upload exists — handle both. */}
+          {shot.url ? (
+            <motion.img key={hero} src={shot.url} alt={shot.caption ?? dog.name}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ap-hero" />
+          ) : (
+            <motion.div key={hero} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="ap-hero ap-hero--swatch" style={{ background: shot.color ?? "var(--cream-2)" }}>
+              <span>📷</span>
+            </motion.div>
+          )}
+        <div className="row" style={{ gap: 8, marginTop: 9 }}>
+          <span className="ap-src">{shot.source === "journal" ? "📔" : "🏠"} {shot.date}</span>
+          {shot.caption && <span className="ap-caption">{shot.caption}</span>}
+        </div>
 
         {profile.photos.length > 1 && (
           <div className="ap-thumbs">
@@ -35,112 +45,130 @@ export function AdoptionProfileBody({ dog, profile, tags = [], tagsPending }: {
             ))}
           </div>
         )}
-        {!profile.fromJournal.photos && <span className="ap-placeholder">Sample photos — journal photos will appear here</span>}
+        {!profile.hasJournalPhotos && (
+          <span className="ap-placeholder">Shelter photo only — photos added in the journal appear here too</span>
+        )}
       </div>
 
       <h1 style={{ fontSize: 32, marginTop: 20 }}>{dog.name}</h1>
       <p className="sub" style={{ marginTop: 5, fontWeight: 700, color: "var(--ink-2)" }}>
-        {dog.ageLabel} · {dog.breed} · {sizeLabel(dog.size)} · {profile.health.currentWeight}
+        {dog.ageLabel} · {dog.breed} · {sizeLabel(dog.size)} · {profile.weight.value}
+        {profile.weight.source === "shelter" && <span className="ap-src"> · intake weight</span>}
       </p>
-      <p className="sub" style={{ marginTop: 14 }}>{profile.summary}</p>
 
-      {(tags.length > 0 || tagsPending) && (
-        <div style={{ marginTop: 16 }}>
-          <div className="eyebrow" style={{ marginBottom: 9 }}>At a glance</div>
-          {tagsPending ? (
-            <span className="muted">Reading the journal…</span>
-          ) : (
-            <div className="row" style={{ gap: 7, flexWrap: "wrap" }}>
-              {tags.map((t, i) => (
-                <span key={t} className={`chip ${["coral", "sage", "butter"][i % 3]}`} style={{ fontWeight: 800 }}>
-                  {t}
-                </span>
-              ))}
-            </div>
-          )}
-          <p className="ap-note-hint" style={{ marginTop: 9, marginBottom: 0 }}>
-            Pulled from your journal notes
-          </p>
-        </div>
-      )}
+      <Section
+        title="Foster Parent Notes"
+        src={profile.journalNotes.length
+          ? `Summarised from all ${profile.journalNotes.length} journal entr${profile.journalNotes.length === 1 ? "y" : "ies"}, Day ${profile.journalNotes[0].day} to Day ${profile.journalNotes[profile.journalNotes.length - 1].day}`
+          : undefined}
+      >
+        {!profile.journalNotes.length && !profile.hasJournalPhotos ? (
+          <EmptyBlock icon="📔" title="Nothing logged yet"
+            body={`Notes and photos the foster stars in ${dog.name}'s journal are summarised here.`} />
+        ) : (
+          <>
+            {tagsPending && <span className="muted">Reading the journal…</span>}
 
-      <Section title="Personality">
-        {profile.personality.map((p) => (
-          <div key={p.label} className="ap-row">
-            <span className="chip coral" style={{ fontWeight: 800 }}>{p.label}</span>
-            <p className="sub" style={{ fontSize: 14, marginTop: 7 }}>{p.text}</p>
-          </div>
-        ))}
-      </Section>
-
-      <Section title={`A day with ${dog.name}`}>
-        <div className="card" style={{ padding: "4px 17px" }}>
-          {profile.routine.map((r, i) => (
-            <div key={r.when} className="ap-routine" data-last={i === profile.routine.length - 1}>
-              <span className="ap-when">{r.when}</span>
-              <p className="sub" style={{ fontSize: 14 }}>{r.text}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="House manners">
-        <div className="card" style={{ padding: "4px 17px" }}>
-          {profile.manners.map((m, i) => (
-            <div key={m.label} className="ap-manner" data-last={i === profile.manners.length - 1}>
-              <span className="ap-tick" data-good={m.good}>{m.good ? "✓" : "•"}</span>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: 14 }}>{m.label}</div>
-                <div className="muted" style={{ marginTop: 2 }}>{m.value}</div>
+            {tags.length > 0 && (
+              <div className="row" style={{ gap: 7, flexWrap: "wrap", marginBottom: summary ? 14 : 0 }}>
+                {tags.map((t, i) => (
+                  <span key={t} className={`chip ${["coral", "sage", "butter"][i % 3]}`} style={{ fontWeight: 800 }}>{t}</span>
+                ))}
               </div>
-            </div>
-          ))}
-        </div>
-      </Section>
+            )}
 
-      <Section title="Health &amp; care" note={!profile.fromJournal.weight ? "From the shelter record — weigh-ins will update this" : undefined}>
-        <div className="card" style={{ padding: "4px 17px" }}>
-          <KV k="Current weight" v={profile.health.currentWeight} />
-          {profile.health.startWeight && <KV k="At intake" v={profile.health.startWeight} />}
-          {profile.health.trend && <KV k="Trend" v={profile.health.trend} />}
-          <KV k="Energy level" v={ENERGY_WORD[dog.energyLevel]} />
-          <KV k="Grooming" v={`${dog.groomingLevel === "low" ? "Low" : "High"} · ${dog.coatLength} coat`} last={!profile.health.vetVisits.length} />
-          {profile.health.vetVisits.map((v, i) => (
-            <KV key={v.date + i} k={`Vet · ${v.date}`} v={v.note} last={i === profile.health.vetVisits.length - 1} />
-          ))}
-        </div>
-      </Section>
-
-      <Section title="What we've worked on" note={!profile.fromJournal.notes ? "Sample entries — your journal notes will appear here" : undefined}>
-        <div className="ap-timeline">
-          {profile.highlights.map((h, i) => (
-            <div key={h.date + i} className="ap-tl-item">
-              <span className="ap-tl-dot" />
-              <div>
-                <span className="ap-tl-date">{h.date}</span>
-                <p className="sub" style={{ fontSize: 14, marginTop: 3 }}>{h.text}</p>
+            {summary && (
+              <div className="card ap-summary">
+                <p className="sub" style={{ fontSize: 14.5 }}>{summary}</p>
               </div>
-            </div>
-          ))}
-        </div>
-      </Section>
+            )}
 
-      <Section title="The ideal home">
-        <div className="card" style={{ padding: "14px 17px" }}>
-          {profile.idealHome.map((h) => (
-            <div key={h} className="row" style={{ gap: 9, padding: "5px 0", alignItems: "flex-start" }}>
-              <span style={{ color: "var(--coral)", fontWeight: 900, fontSize: 13, lineHeight: 1.5 }}>›</span>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>{h}</span>
-            </div>
-          ))}
-        </div>
+            {profile.journalNotes.length > 0 && (
+              <>
+                <p className="ap-note-hint" style={{ marginTop: 18, marginBottom: 10 }}>
+                  In the foster's own words
+                </p>
+                <div className="ap-timeline">
+                  {profile.journalNotes.map((h, i) => (
+                    <div key={h.date + i} className="ap-tl-item">
+                      <span className="ap-tl-dot" />
+                      <div>
+                        <span className="ap-tl-date">{h.date}</span>
+                        <p className="sub" style={{ fontSize: 14, marginTop: 3 }}>{h.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
       </Section>
 
       <Section title="A note from the foster">
-        <div className="card ap-note">
-          <p className="sub" style={{ fontSize: 14.5, fontStyle: "italic" }}>{profile.fosterNote}</p>
+        {profile.fosterNote && (
+          <div className="card ap-note">
+            <p className="sub" style={{ fontSize: 14.5, fontStyle: "italic" }}>{profile.fosterNote}</p>
+          </div>
+        )}
+        {noteEditor}
+        {!profile.fosterNote && !noteEditor && (
+          <EmptyBlock icon="✍️" title="Not written yet"
+            body="The foster hasn't added their note. This is the part adopters read first, so it's worth writing." />
+        )}
+      </Section>
+
+      <Section title="Health record" src={profile.weighIns.length ? "Logged during foster" : "No weigh-ins logged yet"}>
+        {profile.weighIns.length || profile.vetVisits.length ? (
+          <div className="card" style={{ padding: "4px 17px" }}>
+            {profile.weighIns.map((w, i) => (
+              <KV key={"w" + i} k={`Weigh-in · ${w.date}`} v={w.value}
+                last={i === profile.weighIns.length - 1 && !profile.vetVisits.length} />
+            ))}
+            {profile.vetVisits.map((v, i) => (
+              <KV key={"v" + i} k={`Vet · ${v.date}`} v={v.note} last={i === profile.vetVisits.length - 1} />
+            ))}
+          </div>
+        ) : (
+          <EmptyBlock icon="⚖️" title="No health entries yet"
+            body="Weigh-ins and vet visits logged in the Care Plan show up here." />
+        )}
+      </Section>
+
+      <Section title={`${dog.shelter.short}'s record`} src="Recorded by the shelter, not observed in foster">
+        <div className="card" style={{ padding: "4px 17px" }}>
+          {profile.shelterFacts.map((f, i) => (
+            <KV key={f.label} k={f.label} v={f.value} last={i === profile.shelterFacts.length - 1} />
+          ))}
+        </div>
+        <p className="sub" style={{ marginTop: 13, fontSize: 14 }}>{profile.shelterNotes}</p>
+      </Section>
+
+      <Section title="Gets along with" src="From the shelter's record">
+        <div className="row" style={{ gap: 10 }}>
+          {profile.compatibility.map((c) => (
+            <div key={c.label} className="card" style={{ flex: 1, padding: "14px 8px", textAlign: "center", borderRadius: 18, opacity: c.known ? 1 : .6 }}>
+              <div style={{ fontWeight: 800, fontSize: 13.5 }}>{c.label}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4, color: c.value === "Yes" ? "var(--sage)" : "var(--ink-3)" }}>
+                {c.value}
+              </div>
+            </div>
+          ))}
         </div>
       </Section>
+
+      {profile.careNeeds.length > 0 && (
+        <Section title="Care needs" src="From the shelter's record">
+          <div className="card" style={{ padding: "14px 17px" }}>
+            {profile.careNeeds.map((h) => (
+              <div key={h} className="row" style={{ gap: 9, padding: "5px 0", alignItems: "flex-start" }}>
+                <span style={{ color: "var(--coral)", fontWeight: 900, fontSize: 13, lineHeight: 1.5 }}>›</span>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{h}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
 
       <div className="card ap-shelter">
         <div style={{ fontWeight: 800, fontSize: 14.5 }}>{dog.shelter.name}</div>
@@ -153,12 +181,22 @@ export function AdoptionProfileBody({ dog, profile, tags = [], tagsPending }: {
   );
 }
 
-function Section({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+function Section({ title, src, children }: { title: string; src?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginTop: 26 }}>
-      <div className="eyebrow" style={{ marginBottom: note ? 4 : 11 }} dangerouslySetInnerHTML={{ __html: title }} />
-      {note && <p className="ap-note-hint">{note}</p>}
+      <div className="eyebrow" style={{ marginBottom: src ? 3 : 11 }}>{title}</div>
+      {src && <p className="ap-note-hint">{src}</p>}
       {children}
+    </div>
+  );
+}
+
+function EmptyBlock({ icon, title, body, tall }: { icon: string; title: string; body: string; tall?: boolean }) {
+  return (
+    <div className="ap-empty" data-tall={tall}>
+      <div style={{ fontSize: 26 }}>{icon}</div>
+      <div style={{ fontWeight: 800, fontSize: 14.5, marginTop: 7 }}>{title}</div>
+      <p className="muted" style={{ marginTop: 5, lineHeight: 1.5, maxWidth: 280 }}>{body}</p>
     </div>
   );
 }

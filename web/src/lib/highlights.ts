@@ -27,9 +27,9 @@ export function useAdoptionHighlights(foster: Foster | null, notes: string[]) {
 
     let cancelled = false;
     getHighlights(key.split("\u0000"))
-      .then(({ tags }) => {
-        if (!cancelled && tags.length) {
-          patchFoster({ adoptionHighlights: { tags, fromNoteCount: notes.length } });
+      .then(({ tags, summary }) => {
+        if (!cancelled && (tags.length || summary)) {
+          patchFoster({ adoptionHighlights: { tags, summary, fromNoteCount: notes.length } });
         }
       })
       .catch(() => { /* agent unreachable — fall back to the page's own derived content */ })
@@ -39,5 +39,9 @@ export function useAdoptionHighlights(foster: Foster | null, notes: string[]) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stale, key]);
 
-  return { tags: cached?.tags ?? [], pending: pending && !cached?.tags?.length };
+  return {
+    tags: cached?.tags ?? [],
+    summary: cached?.summary ?? "",
+    pending: pending && !cached?.tags?.length,
+  };
 }

@@ -126,8 +126,10 @@ export interface Foster {
 
   /** Care Plan journal, persisted so the adoption page can read the same entries. */
   journal?: JournalEntry[];
+  /** The foster's own note for the adoption page. Never generated. */
+  adoptionNote?: string;
   /** Cached tags extracted from journal notes — see web/src/lib/highlights.ts. */
-  adoptionHighlights?: { tags: string[]; fromNoteCount: number };
+  adoptionHighlights?: { tags: string[]; summary: string; fromNoteCount: number };
 }
 
 export interface CareLogEntry {

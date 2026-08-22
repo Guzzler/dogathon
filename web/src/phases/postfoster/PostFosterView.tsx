@@ -6,7 +6,7 @@ import { useCareLog } from "../../hooks/useCareLog";
 import { useJournalEntries } from "../../hooks/useJournal";
 import { useAdoptionHighlights } from "../../lib/highlights";
 import { AgentChatPanel } from "../../components/AgentChatPanel";
-import { buildAdoptionProfile } from "../../lib/adoption";
+import { buildAdoptionProfile, noteTextsFor } from "../../lib/adoption";
 import { normalizeDog } from "../../lib/dog";
 import { fosterWindow } from "../../lib/foster";
 import { AdoptionProfileBody } from "./AdoptionProfile";
@@ -25,7 +25,7 @@ export function PostFosterView() {
     () => (dog ? buildAdoptionProfile(dog, foster, entries, journal) : null),
     [dog, foster, entries, journal],
   );
-  const { tags, pending: tagsPending } = useAdoptionHighlights(foster, profile?.noteTexts ?? []);
+  const { tags, summary, pending: tagsPending } = useAdoptionHighlights(foster, profile ? noteTextsFor(profile) : []);
 
   if (loading) return <p className="pw-loading">Loading…</p>;
   if (!foster?.matchedDogId || !dog || !profile) {
@@ -68,7 +68,18 @@ export function PostFosterView() {
         </div>
       )}
 
-      <AdoptionProfileBody dog={dog} profile={profile} tags={tags} tagsPending={tagsPending} />
+      {profile.missing.length > 0 && (
+        <div className="card ap-todo">
+          <div style={{ fontWeight: 800, fontSize: 14.5 }}>Still to add</div>
+          <p className="muted" style={{ marginTop: 5, lineHeight: 1.5 }}>
+            This page only shows what you've actually logged — nothing is filled in for you.
+            Missing: {profile.missing.join(", ")}.
+          </p>
+        </div>
+      )}
+
+      <AdoptionProfileBody dog={dog} profile={profile} tags={tags} summary={summary} tagsPending={tagsPending}
+        noteEditor={<FosterNoteEditor dogName={dog.name} initial={foster.adoptionNote ?? ""} />} />
 
       <div style={{ marginTop: 28 }}>
         <button className="btn btn--primary" style={{ width: "100%" }} onClick={() => setSharing(true)}>
@@ -107,8 +118,36 @@ export function PostFosterView() {
       )}
 
       <AnimatePresence>
-        {sharing && <ShareSheet dogName={dog.name} url={shareUrl} summary={profile.summary} onClose={() => setSharing(false)} />}
+        {sharing && <ShareSheet dogName={dog.name} url={shareUrl} summary={profile.shelterNotes} onClose={() => setSharing(false)} />}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** The foster's own words. Saved verbatim — nothing about this note is generated. */
+function FosterNoteEditor({ dogName, initial }: { dogName: string; initial: string }) {
+  const [text, setText] = useState(initial);
+  const [saved, setSaved] = useState(false);
+  const dirty = text.trim() !== initial.trim();
+
+  async function save() {
+    await patchFoster({ adoptionNote: text.trim() });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  return (
+    <div>
+      <p className="ap-note-hint" style={{ marginBottom: 10 }}>
+        Adopters read this first. Write it in your own words — {dogName} at home, what surprised
+        you, what the right family looks like.
+      </p>
+      <textarea className="pw-textarea" rows={5} value={text} onChange={(e) => setText(e.target.value)}
+        placeholder={`What should someone know about ${dogName}?`} />
+      <button className="btn btn--primary" style={{ width: "100%", marginTop: 8 }}
+        disabled={!dirty} onClick={save}>
+        {saved ? "✓ Saved" : dirty ? "Save note" : "Saved"}
+      </button>
     </div>
   );
 }

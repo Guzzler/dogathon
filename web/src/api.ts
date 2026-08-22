@@ -17,7 +17,10 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
 export const getHealth = () => json<HealthInfo>("/health");
 /** Compresses journal notes into short adoption-profile tags. */
 export const getHighlights = (notes: string[]) =>
-  json<{ tags: string[] }>("/highlights", { method: "POST", body: JSON.stringify({ notes }) });
+  json<{ tags: string[]; summary: string }>("/highlights", {
+    method: "POST",
+    body: JSON.stringify({ notes }),
+  });
 export const getTools = () => json<ToolInfo[]>("/tools");
 export const resetChat = () => json<{ ok: boolean }>("/reset", { method: "POST" });
 export const sendApproval = (approved: boolean) =>

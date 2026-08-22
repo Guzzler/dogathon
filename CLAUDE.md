@@ -135,32 +135,24 @@ Saved list and Applications timeline (time left).
 `web/src/lib/adoption.ts` assembles the whole page via `buildAdoptionProfile(dog, foster,
 entries, journal)`.
 
-**The Care Plan journal is the primary source.** `starred` is how a foster marks an entry for
-the adoption profile, so starred entries win; if nothing is starred, everything is used.
-Starred `photo` entries fill the gallery, starred `note` entries become the highlights
-timeline. The older `careLog` collection still feeds weigh-ins and vet visits, and backfills
-photos/notes where the journal has none. With neither, sections fall back to content derived
-from the dog's record and set `fromJournal.*` false, which the UI shows as a "sample content"
-hint.
+**Nothing on this page is invented.** An adoption profile is read by someone deciding whether
+to take on a real animal, so a plausible-sounding guess ("no accidents in foster") is worse
+than a blank — it can't be told apart from something the foster actually observed. Every field
+is either logged by the foster, recorded by the shelter, or absent, and each section says
+which. `AdoptionProfile.missing` lists what has no data so the page can ask for it.
 
-**The journal is persisted on the foster document** (`Foster.journal`) via
-`web/src/hooks/useJournal.ts`. That hook deliberately mirrors the `useState` tuple Care Plan
-already used, so wiring it in was a one-line change there — but it's what lets the adoption
-page read the same entries at all. Before it, the journal only existed in Care Plan's
-component state.
-
-Journal photos are colour swatches (`imageColor`) until real upload exists; `JournalEntry`
-has an optional `photoUrl` so uploads drop straight in, and the gallery already renders
-whichever is present.
-
-### Journal notes → tags
-
-`POST /highlights` (`src/agent/server.py`) condenses note text into 3–6 short tags
-("potty-trained", "energetic") shown as **At a glance** on the adoption page. It's a one-shot
-Haiku call — no tools, no agent loop — because the page waits on it. The result is cached on
-`Foster.adoptionHighlights` alongside the note count it came from, so the model only runs when
-the foster has actually written something new. Any failure is silent: no key, no agent, or a
-bad response all fall back to the page's derived content.
+Sources:
+- **Foster Parent Notes** — every journal entry across the whole foster period, oldest first,
+  plus a Claude-written summary and tags (below). `starred` is shown as a marker, not used as
+  a filter: a summary that only saw starred entries would miss most of what happened.
+- **Photo carousel** — the shelter's photo first, then every journal photo, oldest first.
+- **A note from the foster** — `Foster.adoptionNote`, typed by the foster. Never generated;
+  blank until they write one.
+- **Health record** — weigh-ins and vet visits from `careLog`. Weight falls back to the
+  shelter's intake figure and says so.
+- **Shelter's record / Gets along with / Care needs** — straight off the dog document,
+  labelled as shelter-recorded rather than foster-observed. `good_with_cats` being absent
+  renders as "Not tested", not "No".
 
 Two routes render it from `web/src/phases/postfoster/AdoptionProfile.tsx`:
 - `/post-foster` — the foster's own view, with sharing and the agent panel.

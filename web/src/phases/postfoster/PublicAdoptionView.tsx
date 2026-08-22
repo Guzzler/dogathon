@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useDogs } from "../../hooks/useDogs";
+import { useFoster } from "../../hooks/useFoster";
+import { useJournalEntries } from "../../hooks/useJournal";
 import { buildAdoptionProfile } from "../../lib/adoption";
 import { normalizeDog } from "../../lib/dog";
 import { PawMark, Wordmark } from "../../components/Logo";
@@ -13,11 +15,19 @@ import { AdoptionProfileBody as AdoptionBody } from "./AdoptionProfile";
 export function PublicAdoptionView() {
   const { id = "" } = useParams();
   const { dogs, loading } = useDogs();
+  const { foster } = useFoster();
+  const journal = useJournalEntries();
+
+  // A shared link should show what the foster logged, not empty states — but only when this
+  // dog is actually the one they fostered.
+  const isTheirFoster = foster?.matchedDogId === id;
 
   const raw = dogs.find((d) => d.id === id);
   const dog = useMemo(() => (raw ? normalizeDog(raw) : null), [raw]);
-  // No foster context on a public link — the journal sections fall back to sample content.
-  const profile = useMemo(() => (dog ? buildAdoptionProfile(dog, null, [], []) : null), [dog]);
+  const profile = useMemo(
+    () => (dog ? buildAdoptionProfile(dog, isTheirFoster ? foster : null, [], isTheirFoster ? journal : []) : null),
+    [dog, foster, journal, isTheirFoster],
+  );
 
   if (loading) return <p className="pw-loading">Loading…</p>;
   if (!dog || !profile) {
@@ -38,7 +48,9 @@ export function PublicAdoptionView() {
         <span className="chip" style={{ fontWeight: 800, fontSize: 11.5 }}>Adoption profile</span>
       </div>
 
-      <AdoptionBody dog={dog} profile={profile} />
+      <AdoptionBody dog={dog} profile={profile}
+        tags={isTheirFoster ? foster?.adoptionHighlights?.tags ?? [] : []}
+        summary={isTheirFoster ? foster?.adoptionHighlights?.summary ?? "" : ""} />
 
       <div className="card" style={{ marginTop: 22, padding: 17, textAlign: "center" }}>
         <p className="sub" style={{ fontSize: 14 }}>

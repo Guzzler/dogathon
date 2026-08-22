@@ -350,3 +350,14 @@ input,textarea,select{font-family:inherit}
 .sharesheet a.btn{text-decoration:none}
 .ap-hero--swatch{display:grid;place-items:center;font-size:34px;opacity:.9}
 .ap-caption{font-size:13px;font-weight:600;color:var(--ink-2);margin-top:9px;font-style:italic}
+
+.ap-src{font-size:11.5px;font-weight:700;color:var(--ink-3)}
+.ap-empty{
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding:26px 20px;border-radius:var(--r-lg);background:var(--cream-2);
+  border:1.5px dashed var(--line);
+}
+.ap-empty[data-tall="true"]{padding:44px 20px}
+.ap-todo{padding:15px 17px;margin-bottom:18px;background:var(--butter-soft);box-shadow:none}
+.phone-body .pw-textarea{width:100%;padding:13px 15px;border-radius:var(--r-sm);border:1px solid var(--line);background:#fff;font-size:14px;line-height:1.5;color:var(--ink);resize:vertical}
+.ap-summary{padding:15px 17px;background:var(--sage-soft);box-shadow:none}
