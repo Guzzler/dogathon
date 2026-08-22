@@ -80,6 +80,8 @@ export interface ChecklistItem {
   id: string;
   label: string;
   done: boolean;
+  /** Who actually completes this step in a real foster process. Missing = "foster". */
+  owner?: "foster" | "shelter";
 }
 
 /**

@@ -16,10 +16,10 @@ from ..tools import tool
 COLLECTION = "fosters"
 
 DEFAULT_APPROVAL_CHECKLIST = [
-    {"id": "application", "label": "Foster application submitted", "done": False},
-    {"id": "home-check", "label": "Home environment check", "done": False},
-    {"id": "reference-check", "label": "Reference check", "done": False},
-    {"id": "orientation", "label": "Foster orientation completed", "done": False},
+    {"id": "application", "label": "Foster application submitted", "done": False, "owner": "foster"},
+    {"id": "home-check", "label": "Home environment check", "done": False, "owner": "shelter"},
+    {"id": "reference-check", "label": "Reference check", "done": False, "owner": "shelter"},
+    {"id": "orientation", "label": "Foster orientation completed", "done": False, "owner": "foster"},
 ]
 
 DEFAULT_PREP_CHECKLIST = [

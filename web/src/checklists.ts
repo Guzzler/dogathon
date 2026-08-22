@@ -2,11 +2,16 @@ import type { ChecklistItem } from "./types";
 
 // Mirrors the defaults in src/agent/builtin/foster.py -- keep both in sync.
 export const DEFAULT_APPROVAL_CHECKLIST: ChecklistItem[] = [
-  { id: "application", label: "Foster application submitted", done: false },
-  { id: "home-check", label: "Home environment check", done: false },
-  { id: "reference-check", label: "Reference check", done: false },
-  { id: "orientation", label: "Foster orientation completed", done: false },
+  { id: "application", label: "Foster application submitted", done: false, owner: "foster" },
+  { id: "home-check", label: "Home environment check", done: false, owner: "shelter" },
+  { id: "reference-check", label: "Reference check", done: false, owner: "shelter" },
+  { id: "orientation", label: "Foster orientation completed", done: false, owner: "foster" },
 ];
+
+/** Older/local foster records may predate the owner field -- fall back to the default's. */
+export function checklistOwner(id: string): "foster" | "shelter" {
+  return DEFAULT_APPROVAL_CHECKLIST.find((i) => i.id === id)?.owner ?? "foster";
+}
 
 export const DEFAULT_PREP_CHECKLIST: ChecklistItem[] = [
   { id: "crate", label: "Crate", done: false },
