@@ -132,6 +132,76 @@ def chat(req: ChatRequest) -> StreamingResponse:
     )
 
 
+class HighlightsRequest(BaseModel):
+    notes: list[str]
+
+
+# Kept small on purpose: one instruction, the journal lines, a 300-token ceiling. The adoption
+# page waits on this, so it runs on Haiku with no tools — the job is only to compress what the
+# foster wrote into the things an adopter actually asks about.
+HIGHLIGHTS_SYSTEM = (
+    "You summarise a foster carer's journal about a dog into notes for an adoption profile."
+)
+HIGHLIGHTS_PROMPT = (
+    "Notes written by the foster over the whole foster period:\n{notes}\n\n"
+    "Reply with exactly two lines.\n"
+    "TAGS: 3-6 comma-separated tags, 1-2 words, lowercase "
+    "(e.g. potty-trained, energetic, good-with-kids)\n"
+    "SUMMARY: 2-4 sentences an adopter needs — house-training, temperament with people and "
+    "other animals, energy level, anxieties, medical needs, and progress made.\n\n"
+    "Write the summary as one overall picture of the dog. Do not go entry by entry or "
+    "day by day, and do not mention dates. Only describe what the notes actually say — "
+    "do not invent details."
+)
+
+
+@app.post("/highlights")
+def highlights(req: HighlightsRequest) -> dict[str, Any]:
+    """Summarise journal entries into adoption-profile tags and a short write-up.
+
+    Returns empty values rather than erroring when there's no key or nothing logged, so the
+    adoption page just shows its empty state instead of breaking.
+    """
+    notes = [n.strip() for n in req.notes if n and n.strip()]
+    if not notes or not os.environ.get("ANTHROPIC_API_KEY"):
+        return {"tags": [], "summary": ""}
+
+    import anthropic
+
+    try:
+        resp = anthropic.Anthropic().messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=300,
+            system=HIGHLIGHTS_SYSTEM,
+            messages=[{
+                "role": "user",
+                "content": HIGHLIGHTS_PROMPT.format(
+                    notes="\n".join(f"- {n}" for n in notes[-40:])
+                ),
+            }],
+        )
+    except Exception:
+        return {"tags": [], "summary": ""}
+
+    text = "".join(b.text for b in resp.content if b.type == "text")
+
+    tags: list[str] = []
+    summary = ""
+    for line in text.splitlines():
+        line = line.strip()
+        if line.upper().startswith("TAGS:"):
+            for raw in line.split(":", 1)[1].split(","):
+                tag = raw.strip().strip(".").lower()
+                if tag and len(tag) <= 24 and tag not in tags:
+                    tags.append(tag)
+        elif line.upper().startswith("SUMMARY:"):
+            summary = line.split(":", 1)[1].strip()
+        elif summary and line:  # a summary that wrapped onto the next line
+            summary += " " + line
+
+    return {"tags": tags[:6], "summary": summary}
+
+
 @app.post("/approve")
 def approve(req: ApprovalRequest) -> dict[str, bool]:
     _approval_box.put(req.approved)

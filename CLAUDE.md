@@ -15,7 +15,7 @@ a shared Firestore schema (`web/src/types.ts`) without stepping on each other:
 - **Discovery** (`web/src/phases/discovery/`) — map + swipe feed, dog detail, saved list — **Eesha**
 - **Match** (`web/src/phases/match/`) — approval checklist, home prep, pickup scheduling — **Sharang**
 - **Care Plan** (`web/src/phases/careplan/`) — checklist, care log timeline, AI tips chat — **Ritu**
-- **Post Foster** (`web/src/phases/postfoster/`) — AI-drafted adoption profile, send to shelter
+- **Post Foster** (`web/src/phases/postfoster/`) — the dog's adoption page, share link, AI draft
 
 Plus a **Hub** (`web/src/phases/hub/`) landing page showing current phase + reminders.
 
@@ -140,6 +140,49 @@ Pickup scheduling is `PickupScheduler` — a hand-built month calendar (no date 
 shelters are closed Sun/Mon, earliest pickup is 2 days out, bookable window is 28 days. Once
 a slot is confirmed, an `AgentChatPanel` appears for coordinating with the shelter — that's
 the third LLM moment, alongside Care Plan and Post Foster.
+
+## Foster duration and the countdown
+
+`Dog.foster_weeks` (1–16) is the expected stay; `formatWeeks()` renders it as "1 week",
+"6 weeks" or "3 months". Records without it fall back to parsing the old `foster_length`
+free text, then to 6 weeks.
+
+`fosterWindow()` (`web/src/lib/foster.ts`) turns that into a countdown, anchored to
+**`pickup.date` from the Match phase** — the only honest start, since that's when the dog
+actually arrives. Before pickup it shows the total commitment instead of a countdown. It's
+surfaced on the Discovery card and dog profile (total), and on the Hub, Care Plan,
+Saved list and Applications timeline (time left).
+
+## The adoption page
+
+`web/src/lib/adoption.ts` assembles the whole page via `buildAdoptionProfile(dog, foster,
+entries, journal)`.
+
+**Nothing on this page is invented.** An adoption profile is read by someone deciding whether
+to take on a real animal, so a plausible-sounding guess ("no accidents in foster") is worse
+than a blank — it can't be told apart from something the foster actually observed. Every field
+is either logged by the foster, recorded by the shelter, or absent, and each section says
+which. `AdoptionProfile.missing` lists what has no data so the page can ask for it.
+
+Sources:
+- **Foster Parent Notes** — every journal entry across the whole foster period, oldest first,
+  plus a Claude-written summary and tags (below). `starred` is shown as a marker, not used as
+  a filter: a summary that only saw starred entries would miss most of what happened.
+- **Photo carousel** — the shelter's photo first, then every journal photo, oldest first.
+- **A note from the foster** — `Foster.adoptionNote`, typed by the foster. Never generated;
+  blank until they write one.
+- **Health record** — weigh-ins and vet visits from `careLog`. Weight falls back to the
+  shelter's intake figure and says so.
+- **Shelter's record / Gets along with / Care needs** — straight off the dog document,
+  labelled as shelter-recorded rather than foster-observed. `good_with_cats` being absent
+  renders as "Not tested", not "No".
+
+Two routes render it from `web/src/phases/postfoster/AdoptionProfile.tsx`:
+- `/post-foster` — the foster's own view, with sharing and the agent panel.
+- `/adoption/:dogId` — the shareable link. **Deliberately outside the onboarding gate** so
+  someone without a Pawthway account can open it.
+
+Sharing offers copy-link, a `mailto:` draft, and the Web Share API where supported.
 
 ## Where liking becomes matching
 

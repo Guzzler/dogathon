@@ -152,6 +152,9 @@ export function CardShell({ dog, me, score, behind }: {
             <div style={{ fontSize: 14, opacity: .88, marginTop: 3, fontWeight: 600 }}>
               {dog.breed} · {dog.weight_lbs} lb · {miles.toFixed(1)} mi away
             </div>
+            <div style={{ fontSize: 13.5, opacity: .95, marginTop: 6, fontWeight: 800 }}>
+              🗓️ {dog.fosterLength} foster
+            </div>
             <div style={{ display: "flex", gap: 6, marginTop: 11, flexWrap: "wrap" }}>
               {dog.traitList.slice(0, 3).map(t => (
                 <span key={t} className="chip" style={{ background: "rgba(255,255,255,.2)", color: "#fff", backdropFilter: "blur(8px)", fontSize: 12 }}>{t}</span>

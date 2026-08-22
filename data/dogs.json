@@ -20,12 +20,12 @@
       "Needs a fenced yard",
       "Food motivated"
     ],
-    "foster_length": "4\u20136 weeks",
     "needs": [
       "Secure fence",
       "Slow-feed bowl"
     ],
-    "photo": 1
+    "photo": 1,
+    "foster_weeks": 6
   },
   {
     "id": "d-002",
@@ -48,12 +48,12 @@
       "Longest resident",
       "Resource guards food"
     ],
-    "foster_length": "8 weeks",
     "needs": [
       "Separate feeding space",
       "Big bed"
     ],
-    "photo": 7
+    "photo": 7,
+    "foster_weeks": 16
   },
   {
     "id": "d-003",
@@ -76,12 +76,12 @@
       "Startles easily",
       "Travel ready"
     ],
-    "foster_length": "3 weeks",
     "needs": [
       "Sweater",
       "Small harness"
     ],
-    "photo": 8
+    "photo": 8,
+    "foster_weeks": 3
   },
   {
     "id": "d-004",
@@ -104,12 +104,12 @@
       "On medical hold",
       "Couch potato"
     ],
-    "foster_length": "6 weeks",
     "needs": [
       "Quiet space",
       "Medication schedule"
     ],
-    "photo": 4
+    "photo": 4,
+    "foster_weeks": 12
   },
   {
     "id": "d-005",
@@ -132,12 +132,12 @@
       "Loves fetch",
       "Needs a job"
     ],
-    "foster_length": "3\u20134 weeks",
     "needs": [
       "Puzzle toy",
       "Long lead"
     ],
-    "photo": 2
+    "photo": 2,
+    "foster_weeks": 4
   },
   {
     "id": "d-006",
@@ -160,12 +160,12 @@
       "Low maintenance",
       "Very gentle"
     ],
-    "foster_length": "8 weeks",
     "needs": [
       "Ramp or steps",
       "Joint supplement"
     ],
-    "photo": 3
+    "photo": 3,
+    "foster_weeks": 10
   },
   {
     "id": "d-007",
@@ -188,12 +188,12 @@
       "Cuddler",
       "Food motivated"
     ],
-    "foster_length": "4\u20136 weeks",
     "needs": [
       "Crate",
       "Slow-feed bowl"
     ],
-    "photo": 1
+    "photo": 1,
+    "foster_weeks": 5
   },
   {
     "id": "d-008",
@@ -216,12 +216,12 @@
       "Senior sweetheart",
       "Quiet"
     ],
-    "foster_length": "6\u20138 weeks",
     "needs": [
       "Ramp or steps",
       "Soft bed"
     ],
-    "photo": 3
+    "photo": 3,
+    "foster_weeks": 8
   },
   {
     "id": "d-009",
@@ -244,11 +244,11 @@
       "Independent",
       "Very clean"
     ],
-    "foster_length": "5 weeks",
     "needs": [
       "Sturdy harness"
     ],
-    "photo": 5
+    "photo": 5,
+    "foster_weeks": 5
   },
   {
     "id": "d-010",
@@ -271,11 +271,11 @@
       "Chatty",
       "Great with kids"
     ],
-    "foster_length": "4\u20136 weeks",
     "needs": [
       "Grooming brush"
     ],
-    "photo": 6
+    "photo": 6,
+    "foster_weeks": 6
   },
   {
     "id": "d-011",
@@ -298,11 +298,11 @@
       "House-trained",
       "Calm"
     ],
-    "foster_length": "5\u20137 weeks",
     "needs": [
       "Grooming appointment"
     ],
-    "photo": 9
+    "photo": 9,
+    "foster_weeks": 2
   },
   {
     "id": "d-012",
@@ -325,11 +325,11 @@
       "Nose driven",
       "Mellow indoors"
     ],
-    "foster_length": "4\u20135 weeks",
     "needs": [
       "Front-clip harness"
     ],
-    "photo": 10
+    "photo": 10,
+    "foster_weeks": 4
   },
   {
     "id": "d-013",
@@ -352,12 +352,12 @@
       "Vocal",
       "Athletic"
     ],
-    "foster_length": "4 weeks",
     "needs": [
       "Secure fence",
       "Cooling mat"
     ],
-    "photo": 12
+    "photo": 12,
+    "foster_weeks": 9
   },
   {
     "id": "d-014",
@@ -380,12 +380,12 @@
       "World-class snorer",
       "Unbothered"
     ],
-    "foster_length": "6 weeks",
     "needs": [
       "Ear cleaner",
       "Ramp"
     ],
-    "photo": 14
+    "photo": 14,
+    "foster_weeks": 14
   },
   {
     "id": "d-015",
@@ -408,12 +408,12 @@
       "In training",
       "Loves people"
     ],
-    "foster_length": "4 weeks",
     "needs": [
       "Training treats",
       "Crate"
     ],
-    "photo": 15
+    "photo": 15,
+    "foster_weeks": 3
   },
   {
     "id": "d-016",
@@ -436,11 +436,11 @@
       "Morning person",
       "Ball obsessed"
     ],
-    "foster_length": "3\u20134 weeks",
     "needs": [
       "Tennis balls",
       "Secure yard"
     ],
-    "photo": 16
+    "photo": 16,
+    "foster_weeks": 1
   }
 ]

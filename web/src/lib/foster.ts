@@ -31,3 +31,91 @@ export function applicationStage(a: ActiveApplication): { verb: string; to: stri
     ? { verb: "currently fostering", to: "/care-plan", cta: "Open Care Plan" }
     : { verb: "already applied to foster", to: "/match", cta: "Open Match checklist" };
 }
+
+/* ---------- how long the foster runs, and how much is left ---------- */
+
+const DAY = 86_400_000;
+
+export interface FosterWindow {
+  /** Total commitment, e.g. "6 weeks" / "3 months". */
+  total: string;
+  /** Set once a pickup date exists — until then there's nothing to count down from. */
+  started: boolean;
+  daysLeft: number;
+  /** "5 weeks left", "3 days left", "Last day", "2 days over". */
+  leftLabel: string;
+  /** 0–1, for progress bars. */
+  progress: number;
+  endDate: Date | null;
+}
+
+/**
+ * The countdown is anchored to `pickup.date` from the Match phase — that's when the dog
+ * actually arrives, so it's the only honest start. Before pickup we only show the total.
+ */
+export function fosterWindow(
+  totalWeeks: number,
+  totalLabel: string,
+  pickupDate: string | null | undefined,
+): FosterWindow {
+  const base: FosterWindow = {
+    total: totalLabel, started: false, daysLeft: totalWeeks * 7,
+    leftLabel: `${totalLabel} commitment`, progress: 0, endDate: null,
+  };
+  if (!pickupDate) return base;
+
+  const start = new Date(`${pickupDate}T00:00:00`);
+  if (Number.isNaN(start.getTime())) return base;
+
+  const end = new Date(start.getTime() + totalWeeks * 7 * DAY);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  if (today < start) {
+    const until = Math.round((start.getTime() - today.getTime()) / DAY);
+    return { ...base, endDate: end, leftLabel: until === 1 ? "Pickup tomorrow" : `Pickup in ${until} days` };
+  }
+
+  const daysLeft = Math.round((end.getTime() - today.getTime()) / DAY);
+  const elapsed = totalWeeks * 7 - daysLeft;
+  const progress = Math.max(0, Math.min(1, elapsed / (totalWeeks * 7)));
+
+  let leftLabel: string;
+  if (daysLeft < 0) leftLabel = `${-daysLeft} day${daysLeft === -1 ? "" : "s"} over`;
+  else if (daysLeft === 0) leftLabel = "Last day";
+  else if (daysLeft < 14) leftLabel = `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
+  else if (daysLeft < 56) leftLabel = `${Math.round(daysLeft / 7)} weeks left`;
+  else leftLabel = `${Math.round(daysLeft / 30.4)} months left`;
+
+  return { total: totalLabel, started: true, daysLeft, leftLabel, progress, endDate: end };
+}
+
+/* ---------- journey navigation ---------- */
+
+export interface JourneyTab { to: string; label: string; icon: string; end?: boolean }
+
+const TAB = {
+  discover: { to: "/discovery", label: "Discover", icon: "paw" },
+  saved: { to: "/saved", label: "Saved", icon: "♥" },
+  match: { to: "/match", label: "Match", icon: "📋" },
+  care: { to: "/care-plan", label: "Care", icon: "🩺" },
+  adopt: { to: "/post-foster", label: "Adopt", icon: "🎉" },
+} satisfies Record<string, JourneyTab>;
+
+/**
+ * Pawthway is a journey, not an app with a fixed menu — you only see the steps you're
+ * actually on. Each phase keeps a second tab so no step is a dead end.
+ */
+export function journeyTabs(phase: Foster["phase"] | undefined): JourneyTab[] {
+  switch (phase) {
+    case "discovery": return [TAB.discover, TAB.saved];
+    case "match": return [TAB.match, TAB.saved];
+    case "care_plan": return [TAB.care, TAB.adopt];
+    case "complete": return [TAB.adopt, TAB.discover];
+    default: return [];          // onboarding — the questionnaire owns the screen
+  }
+}
+
+/** Where "home" is for the phase they're on. */
+export function journeyHome(phase: Foster["phase"] | undefined): string {
+  return journeyTabs(phase)[0]?.to ?? "/discovery";
+}

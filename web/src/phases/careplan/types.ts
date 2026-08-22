@@ -56,6 +56,8 @@ export interface JournalEntry {
   kind: JournalKind;
   text?: string;
   imageColor?: string;
+  /** Set once real photo upload exists; until then entries carry `imageColor` only. */
+  photoUrl?: string;
   caption?: string;
   starred: boolean;
 }
