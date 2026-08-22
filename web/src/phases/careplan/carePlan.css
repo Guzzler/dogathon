@@ -1,4 +1,5 @@
-/* Stage — desktop layout with a device chrome on the right and demo panel on the left */
+/* Stage — mobile-first: fills the phone frame (Layout `.phone-body`) edge-to-edge.
+   Demo panel and desktop grid activate only via .cp-stage:not(--solo) on wider screens. */
 
 .cp-stage {
   --cp-radius: 14px;
@@ -7,20 +8,31 @@
   --cp-shadow-lg: 0 30px 60px rgba(23, 53, 38, 0.22);
   --cp-shadow-md: 0 8px 22px rgba(23, 53, 38, 0.09);
   --cp-shadow-sm: 0 2px 6px rgba(23, 53, 38, 0.06);
-  --cp-bg:
-    radial-gradient(1200px 600px at 20% 0%, rgba(196, 149, 90, 0.14), transparent 60%),
-    radial-gradient(900px 500px at 100% 100%, rgba(45, 90, 61, 0.14), transparent 60%),
-    linear-gradient(180deg, #f8f3ea 0%, #ece4d3 100%);
 
-  background: var(--cp-bg);
   color: var(--color-ink);
-  display: grid;
-  grid-template-columns: minmax(240px, 320px) 1fr;
-  gap: 32px;
-  padding: 24px 32px;
-  align-items: start;
-  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: transparent;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
+}
+
+/* Widescreen with demo panel visible (only when SHOW_DEMO_CONTROLS = true). */
+@media (min-width: 900px) {
+  .cp-stage:not(.cp-stage--solo):not(.cp-stage--empty) {
+    display: grid;
+    grid-template-columns: minmax(240px, 320px) 1fr;
+    gap: 32px;
+    padding: 24px 32px;
+    align-items: start;
+    background:
+      radial-gradient(1200px 600px at 20% 0%, rgba(196, 149, 90, 0.14), transparent 60%),
+      radial-gradient(900px 500px at 100% 100%, rgba(45, 90, 61, 0.14), transparent 60%),
+      linear-gradient(180deg, #f8f3ea 0%, #ece4d3 100%);
+    height: auto;
+    border-radius: 20px;
+  }
 }
 
 /* Demo panel */
@@ -61,10 +73,14 @@
   font-weight: 700;
 }
 
-.cp-stage--solo {
-  grid-template-columns: 1fr;
-  max-width: 780px;
-  margin: 0 auto;
+/* --solo: no demo panel; on wide screens, center a max-width column. */
+@media (min-width: 900px) {
+  .cp-stage--solo {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 24px 0;
+    height: auto;
+  }
 }
 
 .cp-stage--empty {
@@ -100,17 +116,25 @@
   margin-top: 10px;
 }
 
-/* Demo container (desktop) */
+/* Demo container: fills phone body on mobile; card look on desktop */
 
 .cp-demo {
   width: 100%;
   background: #ffffff;
-  border-radius: 20px;
-  box-shadow: var(--cp-shadow-lg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--color-border);
+  flex: 1;
+  min-height: 0;
+}
+
+@media (min-width: 900px) {
+  .cp-demo {
+    border-radius: 20px;
+    box-shadow: var(--cp-shadow-lg);
+    border: 1px solid var(--color-border);
+    flex: none;
+  }
 }
 
 /* Topbar */
@@ -118,10 +142,15 @@
 .cp-topbar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 20px 26px;
+  gap: 12px;
+  padding: 14px 16px;
   background: linear-gradient(180deg, #fffdf7 0%, #f9f4ea 100%);
   border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+@media (min-width: 900px) {
+  .cp-topbar { padding: 20px 26px; }
 }
 
 .cp-avatar {
@@ -137,12 +166,30 @@
   box-shadow: 0 4px 10px rgba(45, 90, 61, 0.25);
 }
 
+.cp-topbar > div {
+  min-width: 0;
+  flex: 1;
+}
+
 .cp-topbar__title {
   margin: 2px 0 0;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--color-ink);
   letter-spacing: -0.01em;
+  line-height: 1.25;
+  overflow-wrap: break-word;
+}
+
+.cp-avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+}
+
+@media (min-width: 900px) {
+  .cp-topbar__title { font-size: 20px; }
+  .cp-avatar { width: 42px; height: 42px; font-size: 20px; }
 }
 
 /* Tabs */
@@ -150,10 +197,18 @@
 .cp-tabs {
   display: flex;
   gap: 4px;
-  padding: 10px 20px;
+  padding: 8px 12px;
   background: var(--color-cream);
   border-bottom: 1px solid var(--color-border);
   overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+
+.cp-tabs::-webkit-scrollbar { display: none; }
+
+@media (min-width: 900px) {
+  .cp-tabs { padding: 10px 20px; }
 }
 
 .cp-tab {
@@ -203,26 +258,31 @@
 
 .cp-main {
   flex: 1;
-  padding: 24px 28px 36px;
+  min-height: 0;
+  padding: 16px 14px 24px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   background: #fffdf8;
-  max-height: min(85vh, 900px);
 }
 
-/* Two-column layout on wide screens: schedule main + side widgets */
+@media (min-width: 900px) {
+  .cp-main {
+    padding: 24px 28px 36px;
+    gap: 16px;
+    max-height: min(85vh, 900px);
+  }
+}
+
 .cp-hub__row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
-@media (max-width: 720px) {
-  .cp-hub__row {
-    grid-template-columns: 1fr;
-  }
+@media (min-width: 720px) {
+  .cp-hub__row { grid-template-columns: 1fr 1fr; }
 }
 
 /* Shared */
@@ -426,10 +486,14 @@
 
 .cp-schedule-block {
   display: grid;
-  grid-template-columns: 78px 1fr;
+  grid-template-columns: 64px 1fr;
   gap: 8px;
   padding: 10px 0;
   position: relative;
+}
+
+@media (min-width: 720px) {
+  .cp-schedule-block { grid-template-columns: 78px 1fr; }
 }
 
 .cp-schedule-block + .cp-schedule-block {
@@ -1150,30 +1214,7 @@
   cursor: pointer;
 }
 
-/* Responsive */
-
-@media (max-width: 900px) {
-  .cp-stage {
-    grid-template-columns: 1fr;
-    padding: 20px 16px;
-    gap: 20px;
-  }
-  .cp-demo-panel {
-    position: static;
-  }
-  .cp-topbar {
-    padding: 16px 18px 12px;
-  }
-  .cp-main {
-    max-height: none;
-  }
-}
-
+/* Emergency actions stack on narrow widths; grid at ≥520px handled at base rule */
 @media (max-width: 520px) {
-  .cp-schedule-block {
-    grid-template-columns: 64px 1fr;
-  }
-  .cp-emergency-actions {
-    grid-template-columns: 1fr;
-  }
+  .cp-emergency-actions { grid-template-columns: 1fr; }
 }
