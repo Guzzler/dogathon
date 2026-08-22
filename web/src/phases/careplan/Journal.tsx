@@ -4,13 +4,14 @@ import type { JournalEntry } from "./types";
 interface JournalProps {
   entries: JournalEntry[];
   dayInFoster: number;
+  dogName: string;
   onAdd: (entry: Omit<JournalEntry, "id" | "createdAt" | "dayInFoster">) => void;
   onToggleStar: (id: string) => void;
 }
 
 const SWATCH_COLORS = ["#C4955A", "#2D5A3D", "#726A5E", "#A84034", "#2F7A4B"];
 
-export function Journal({ entries, dayInFoster, onAdd, onToggleStar }: JournalProps) {
+export function Journal({ entries, dayInFoster, dogName, onAdd, onToggleStar }: JournalProps) {
   const [text, setText] = useState("");
   const [caption, setCaption] = useState("");
 
@@ -38,14 +39,14 @@ export function Journal({ entries, dayInFoster, onAdd, onToggleStar }: JournalPr
       <header className="cp-view-header">
         <h2>Journal</h2>
         <p className="cp-mini-meta">
-          Photos and notes from Day {dayInFoster}. Starred entries become part of Marty's adoption profile.
+          Photos and notes from Day {dayInFoster}. Starred entries become part of {dogName}'s adoption profile.
         </p>
       </header>
 
       <section className="cp-composer">
         <textarea
           className="cp-composer__textarea"
-          placeholder="Something about Marty today…"
+          placeholder={`Something about ${dogName} today…`}
           value={text}
           rows={2}
           onChange={(e) => setText(e.target.value)}

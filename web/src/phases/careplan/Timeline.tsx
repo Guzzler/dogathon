@@ -3,6 +3,7 @@ import type { Milestone } from "./types";
 interface TimelineProps {
   milestones: Milestone[];
   dayInFoster: number;
+  dogName: string;
 }
 
 const KIND_LABEL: Record<Milestone["kind"], string> = {
@@ -48,7 +49,7 @@ function WeightChart({ points }: { points: { day: number; lbs: number }[] }) {
   );
 }
 
-export function Timeline({ milestones, dayInFoster }: TimelineProps) {
+export function Timeline({ milestones, dayInFoster, dogName }: TimelineProps) {
   const sorted = [...milestones].sort((a, b) => b.dayInFoster - a.dayInFoster);
   const weightPoints = milestones
     .filter((m) => m.weightLbs != null)
@@ -60,7 +61,7 @@ export function Timeline({ milestones, dayInFoster }: TimelineProps) {
       <header className="cp-view-header">
         <h2>Timeline</h2>
         <p className="cp-mini-meta">
-          Vet visits, milestones, and weigh-ins. Day {dayInFoster} of Marty's foster.
+          Vet visits, milestones, and weigh-ins. Day {dayInFoster} of {dogName}'s foster.
         </p>
       </header>
 

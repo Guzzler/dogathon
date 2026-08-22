@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDogs } from "../../hooks/useDogs";
+import { useFoster } from "../../hooks/useFoster";
+import { normalizeDog } from "../../lib/dog";
+import type { Dog } from "../../types";
 import {
   daysSincePickup,
   emergencyContacts,
-  marty,
   medicalSummary,
   scheduleBlocks as seedSchedule,
   seedJournal,
@@ -18,12 +21,32 @@ import { Timeline } from "./Timeline";
 import { Tips } from "./Tips";
 import { firedRules } from "./triggers";
 import type {
+  DogProfile,
   ExperienceLevel,
   JournalEntry,
   ScheduleBlock,
   Tip,
 } from "./types";
 import "./carePlan.css";
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
+  const d = normalizeDog(dog);
+  return {
+    id: d.id,
+    name: d.name,
+    breed: d.breed,
+    ageMonths: Math.max(1, Math.round(d.age_years * 12)),
+    weightLbs: d.weight_lbs,
+    pickupDate,
+    medicalFlags: d.needs ?? [],
+    backstory: d.notes,
+  };
+}
 
 type View = "hub" | "timeline" | "journal" | "tips" | "emergency";
 
@@ -51,8 +74,19 @@ function phaseForDay(day: number) {
 
 export function CarePlanView() {
   const navigate = useNavigate();
+  const { foster, loading } = useFoster();
+  const { dogs } = useDogs();
+
+  const matchedDog = useMemo(
+    () => (foster?.matchedDogId ? dogs.find((d) => d.id === foster.matchedDogId) : undefined),
+    [foster?.matchedDogId, dogs],
+  );
+
+  const pickupIso = foster?.pickup?.date || todayIso();
+  const dog: DogProfile | null = matchedDog ? toDogProfile(matchedDog, pickupIso) : null;
+
   const [view, setView] = useState<View>("hub");
-  const [dayInFoster, setDayInFoster] = useState(() => daysSincePickup(marty.pickupDate));
+  const [dayInFoster, setDayInFoster] = useState(() => daysSincePickup(pickupIso));
   const [experience, setExperience] = useState<ExperienceLevel>("beginner");
   const [journal, setJournal] = useState<JournalEntry[]>(seedJournal);
   const [schedule, setSchedule] = useState<ScheduleBlock[]>(seedSchedule);
@@ -70,7 +104,7 @@ export function CarePlanView() {
       firedRules({
         entries: journal,
         tasks: [],
-        profile: marty,
+        profile: dog ?? { id: "", name: "", breed: "", ageMonths: 0, weightLbs: 0, pickupDate: pickupIso, medicalFlags: [], backstory: "" },
         dayInFoster,
       }),
     [journal, dayInFoster],
@@ -111,12 +145,34 @@ export function CarePlanView() {
     setJournal((prev) => prev.map((e) => (e.id === id ? { ...e, starred: !e.starred } : e)));
   }
 
+  if (loading) {
+    return <div className="cp-stage cp-stage--empty"><p className="cp-mini-meta">Loading Care Plan…</p></div>;
+  }
+
+  if (!dog) {
+    return (
+      <div className="cp-stage cp-stage--empty">
+        <div className="cp-empty-card">
+          <p className="cp-eyebrow">No foster yet</p>
+          <h2>Finish the Match phase first</h2>
+          <p className="cp-mini-meta">
+            Your Care Plan unlocks once you've been matched with a dog. Head to Match to
+            confirm approval and schedule pickup.
+          </p>
+          <button className="cp-btn cp-btn--primary" onClick={() => navigate("/match")}>
+            Open Match →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="cp-stage">
       <aside className="cp-demo-panel" aria-label="Demo controls">
         <p className="cp-eyebrow">Demo controls</p>
         <label className="cp-select">
-          <span className="cp-mini-meta">Day in foster · {dateLabelForDay(dayInFoster, marty.pickupDate)}</span>
+          <span className="cp-mini-meta">Day in foster · {dateLabelForDay(dayInFoster, pickupIso)}</span>
           <select value={dayInFoster} onChange={(e) => setDayInFoster(Number(e.target.value))}>
             {DAY_OPTIONS.map((o) => (
               <option key={o.day} value={o.day}>{o.label}</option>
@@ -134,7 +190,7 @@ export function CarePlanView() {
           ← Back to Hub
         </button>
         <p className="cp-demo-hint">
-          Try typing <em>"Marty was nipping"</em> in the Journal tab, then swing back to Hub — a triggered card appears.
+          Try typing <em>"{dog.name} was nipping"</em> in the Journal tab, then swing back to Home — a triggered card appears.
         </p>
       </aside>
 
@@ -143,7 +199,7 @@ export function CarePlanView() {
           <div className="cp-avatar" aria-hidden="true">🐾</div>
           <div>
             <p className="cp-eyebrow">Pawthway · Care Plan</p>
-            <h1 className="cp-topbar__title">{marty.name} · {marty.breed} · {marty.ageMonths} mo</h1>
+            <h1 className="cp-topbar__title">{dog.name} · {dog.breed} · {dog.ageMonths} mo</h1>
           </div>
         </header>
 
@@ -173,7 +229,7 @@ export function CarePlanView() {
         <main className="cp-main">
           {view === "hub" && (
             <Hub
-              dog={marty}
+              dog={dog}
               dayInFoster={dayInFoster}
               phase={phase}
               blocks={schedule}
@@ -186,21 +242,22 @@ export function CarePlanView() {
             />
           )}
           {view === "timeline" && (
-            <Timeline milestones={seedMilestones} dayInFoster={dayInFoster} />
+            <Timeline milestones={seedMilestones} dayInFoster={dayInFoster} dogName={dog.name} />
           )}
           {view === "journal" && (
             <Journal
               entries={journal}
               dayInFoster={dayInFoster}
+              dogName={dog.name}
               onAdd={addJournalEntry}
               onToggleStar={toggleStar}
             />
           )}
           {view === "tips" && (
-            <Tips tips={tips} pinnedTipId={phase.pinnedTipId} dogName={marty.name} />
+            <Tips tips={tips} pinnedTipId={phase.pinnedTipId} dogName={dog.name} />
           )}
           {view === "emergency" && (
-            <Emergency dog={marty} summary={medicalSummary} contacts={emergencyContacts} />
+            <Emergency dog={dog} summary={medicalSummary} contacts={emergencyContacts} />
           )}
         </main>
       </div>

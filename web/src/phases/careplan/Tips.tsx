@@ -27,18 +27,18 @@ export function Tips({ tips, pinnedTipId, dogName }: TipsProps) {
     let text = `Great question — here's what we'd suggest for ${dogName}.`;
     if (/bit|nip|mouth/.test(q)) {
       cited = tips.find((t) => t.id === "tip-biting-teething");
-      text = `For a puppy Marty's age, biting is almost always teething. Try the wet-towel trick and disengage briefly when hands get mouthy — hands stop being fun when they leave.`;
+      text = `For a puppy ${dogName}'s age, biting is almost always teething. Try the wet-towel trick and disengage briefly when hands get mouthy — hands stop being fun when they leave.`;
     } else if (/eat|food|hungry|meal/.test(q)) {
       cited = tips.find((t) => t.id === "tip-not-eating");
-      text = `Warm the food, add a spoon of low-sodium broth, or top with a bit of wet food. If Marty skips more than 24 hours, call the vet or shelter.`;
+      text = `Warm the food, add a spoon of low-sodium broth, or top with a bit of wet food. If ${dogName} skips more than 24 hours, call the vet or shelter.`;
     } else if (/crate|kennel/.test(q)) {
       cited = tips.find((t) => t.id === "tip-crate");
-      text = `Feed every meal inside the crate with the door open — Marty walks in for the food and out on his own. Within a week, the crate becomes 'the good place.'`;
+      text = `Feed every meal inside the crate with the door open — ${dogName} walks in for the food and out on his own. Within a week, the crate becomes 'the good place.'`;
     } else if (/scare|afraid|hide|fear/.test(q)) {
       cited = tips.find((t) => t.id === "tip-scared");
-      text = `Fear in the first two weeks is normal. Don't force exposure — let Marty retreat, reward calm approaches with high-value treats, and go at his pace.`;
+      text = `Fear in the first two weeks is normal. Don't force exposure — let ${dogName} retreat, reward calm approaches with high-value treats, and go at his pace.`;
     } else {
-      text = `We don't have a canned answer for that yet. In the real app this would call an LLM with Marty's profile + week phase as context. For the prototype, browse the tips below or check with your shelter contact.`;
+      text = `We don't have a canned answer for that yet. In the real app this would call an LLM with ${dogName}'s profile + week phase as context. For the prototype, browse the tips below or check with your shelter contact.`;
     }
     setAnswer({ text, citedTip: cited });
   }
