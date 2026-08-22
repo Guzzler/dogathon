@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { DemoCarePanel } from "../../components/DemoCarePanel";
 import { useDogs } from "../../hooks/useDogs";
 import { useFoster } from "../../hooks/useFoster";
 import { normalizeDog } from "../../lib/dog";
@@ -50,8 +51,6 @@ function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
 
 type View = "hub" | "timeline" | "journal" | "emergency";
 
-const SHOW_DEMO_CONTROLS = false;
-
 function dateLabelForDay(day: number, pickupIso: string): string {
   const [y, m, d] = pickupIso.split("-").map(Number);
   const target = new Date(y, m - 1, d + (day - 1));
@@ -59,11 +58,11 @@ function dateLabelForDay(day: number, pickupIso: string): string {
 }
 
 const DAY_OPTIONS = [
-  { day: 1, label: "Week 1 · Day 1 (today)" },
-  { day: 8, label: "Week 2 · Day 8" },
-  { day: 15, label: "Week 3 · Day 15" },
-  { day: 22, label: "Week 4 · Day 22" },
-  { day: 42, label: "Week 6 · Day 42" },
+  { day: 1, label: "Day 1 · Decompression" },
+  { day: 8, label: "Day 8 · Week 2" },
+  { day: 15, label: "Day 15 · Week 3" },
+  { day: 22, label: "Day 22 · Week 4" },
+  { day: 42, label: "Day 42 · Week 6+" },
 ];
 
 function phaseForDay(day: number) {
@@ -169,34 +168,20 @@ export function CarePlanView() {
     );
   }
 
+  const dayOptionsWithDates = DAY_OPTIONS.map((o) => ({
+    ...o,
+    dateLabel: dateLabelForDay(o.day, pickupIso),
+  }));
+
   return (
-    <div className={`cp-stage ${SHOW_DEMO_CONTROLS ? "" : "cp-stage--solo"}`}>
-      {SHOW_DEMO_CONTROLS && (
-        <aside className="cp-demo-panel" aria-label="Demo controls">
-          <p className="cp-eyebrow">Demo controls</p>
-          <label className="cp-select">
-            <span className="cp-mini-meta">Day in foster · {dateLabelForDay(dayInFoster, pickupIso)}</span>
-            <select value={dayInFoster} onChange={(e) => setDayInFoster(Number(e.target.value))}>
-              {DAY_OPTIONS.map((o) => (
-                <option key={o.day} value={o.day}>{o.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="cp-select">
-            <span className="cp-mini-meta">Experience</span>
-            <select value={experience} onChange={(e) => setExperience(e.target.value as ExperienceLevel)}>
-              <option value="beginner">Beginner</option>
-              <option value="experienced">Experienced</option>
-            </select>
-          </label>
-          <button className="cp-btn cp-btn--ghost cp-btn--full" onClick={() => navigate("/")}>
-            ← Back to Hub
-          </button>
-          <p className="cp-demo-hint">
-            Try typing <em>"{dog.name} was nipping"</em> in the Journal tab, then swing back to Home — a triggered card appears.
-          </p>
-        </aside>
-      )}
+    <div className="cp-stage cp-stage--solo">
+      <DemoCarePanel
+        day={dayInFoster}
+        onSetDay={setDayInFoster}
+        dayOptions={dayOptionsWithDates}
+        experience={experience}
+        onSetExperience={setExperience}
+      />
 
       <div className="cp-demo" role="application">
         <header className="cp-topbar">
