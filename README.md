@@ -23,6 +23,40 @@ uv run agent "which dogs are adoptable?"  # one-shot
 
 In the REPL: `/tools` lists what's loaded, `/reset` clears history, `/quit` exits.
 
+## Web demo
+
+A React chat UI that's easier to demo than the terminal — it shows tool calls
+and their results live as cards, and pops a modal to approve or deny anything
+`dangerous`.
+
+```bash
+uv run agent-server        # backend: SSE bridge on :8000
+cd web && npm install && npm run dev   # frontend: :5173
+```
+
+Open http://localhost:5173. The Vite dev server proxies `/api/*` to the
+backend, so there's no CORS setup to think about. The backend is intentionally
+single-session (one `Agent`, one pending approval slot) — right for a live
+demo on a laptop, not for multiple concurrent users.
+
+```
+web/src/
+  api.ts               fetch + SSE-frame parsing for /chat, /tools, /approve
+  App.tsx              chat state machine: turns, streaming, approval flow
+  components/
+    TurnView.tsx        renders a user or assistant turn, with thinking toggle
+    ToolCallCard.tsx     one tool call: name, args, status, result
+    ApprovalModal.tsx    approve/deny UI for dangerous tool calls
+    Sidebar.tsx          tool list, health banner, new-conversation button
+```
+
+The event protocol mirrors `agent.loop.Event` over SSE (`text`, `thinking`,
+`tool_call`, `tool_result`, `turn_end`, `error`) — `src/agent/server.py` just
+serializes each `Event` as one `event: <kind>\ndata: <json>\n\n` frame. The
+frontend already knows which tools are `dangerous` from `GET /tools`, so it
+opens the approval modal itself on a `tool_call` event rather than needing a
+separate signal from the backend.
+
 ## Adding a tool
 
 ```python
@@ -93,9 +127,11 @@ src/agent/
   tools.py         @tool decorator, Registry, schema generation
   loop.py          Agent — streaming, tool dispatch, approval gate
   cli.py           REPL
+  server.py        FastAPI SSE bridge for the web demo
   arcade_tools.py  Arcade adapter (optional)
   builtin/         demo tools: shelter roster, fetch_url, calculate
 data/dogs.json     sample roster the demo tools read and write
+web/               React + Vite chat UI (see "Web demo" above)
 ```
 
 ## Notes
