@@ -101,10 +101,12 @@ export function buildAgentBrief({
   }
 
   lines.push(
-    "Answer as this foster's guide. Be specific to this dog's age, breed and week — generic " +
-      "advice is the thing we're replacing. Never invent anything about the dog that isn't " +
-      "above; if you don't know, say what to check. If it sounds medical or urgent, say to " +
-      "call the vet or shelter first.",
+    "Answer as this foster's guide. Be concise — a foster reads this one-handed with a puppy " +
+      "in the other arm, so lead with the thing to do and cut everything that isn't load- " +
+      "bearing. No preamble, no restating the question, no sign-off. Be specific to this " +
+      "dog's age, breed and week; generic advice is the thing we're replacing. Never invent " +
+      "anything about the dog that isn't above — if you don't know, say what to check. If it " +
+      "sounds medical or urgent, say to call the vet or shelter first.",
   );
 
   return lines.join("\n");

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { streamChat } from "../../api";
+import { fileToDataUrl } from "../../lib/image";
 import type { JournalEntry, Tip } from "./types";
 
 interface JournalTipsProps {
@@ -90,6 +91,19 @@ export function JournalTips({
   const [caption, setCaption] = useState("");
   const [asks, setAsks] = useState<AskEntry[]>([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [pickedPhoto, setPickedPhoto] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  async function pickPhoto(file: File | undefined) {
+    if (!file) return;
+    setPhotoError(null);
+    try {
+      setPickedPhoto(await fileToDataUrl(file));
+    } catch {
+      setPhotoError("Couldn't read that image — try a JPEG or PNG.");
+    }
+  }
 
   /**
    * Streams a real answer from the agent (which holds ANTHROPIC_API_KEY — the browser never
@@ -135,19 +149,23 @@ export function JournalTips({
       void runAgent(
         id,
         `${dogContext}\n\nTheir foster just logged this note: "${note}"\n\n` +
-          "Reply in 2-3 sentences with the single most useful thing to know or do about it. " +
-          "If nothing needs action, say so warmly and briefly. No preamble, no bullet list.",
+          "Reply in at most 2 short sentences with the single most useful thing to know or " +
+          "do about it. If nothing needs action, say so warmly in one line. No preamble.",
         note,
       );
     } else if (mode === "photo") {
-      const color = SWATCH_COLORS[Math.floor(Math.random() * SWATCH_COLORS.length)];
+      if (!pickedPhoto) return;
       onAdd({
         kind: "photo",
-        imageColor: color,
+        photoUrl: pickedPhoto,
+        // Kept as the backdrop while the image loads, and for entries with no photo at all.
+        imageColor: SWATCH_COLORS[Math.floor(Math.random() * SWATCH_COLORS.length)],
         caption: caption.trim() || undefined,
         starred: false,
       });
       setCaption("");
+      setPickedPhoto(null);
+      if (fileInput.current) fileInput.current.value = "";
     } else {
       if (!text.trim()) return;
       const question = text.trim();
@@ -167,8 +185,9 @@ export function JournalTips({
       void runAgent(
         id,
         `${dogContext}\n\nTheir foster asks: "${question}"\n\n` +
-          "Answer in 3-4 sentences, practical and specific to this dog's age and week in foster. " +
-          "If it sounds like a medical emergency, say to call the vet first. No preamble.",
+          "Answer in at most 3 short sentences, practical and specific to this dog's age and " +
+          "week in foster. If it sounds like a medical emergency, say to call the vet first. " +
+          "No preamble.",
         question,
       );
     }
@@ -199,7 +218,7 @@ export function JournalTips({
   const useText = mode !== "photo";
   const composerValue = useText ? text : caption;
   const setComposerValue = useText ? setText : setCaption;
-  const canSubmit = mode === "photo" ? true : composerValue.trim().length > 0;
+  const canSubmit = mode === "photo" ? pickedPhoto !== null : composerValue.trim().length > 0;
 
   return (
     <div className="cp-journal-tips">
@@ -218,6 +237,43 @@ export function JournalTips({
             </button>
           ))}
         </div>
+        {mode === "photo" && (
+          <div className="cp-photo-pick">
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*"
+              className="cp-photo-pick__input"
+              onChange={(e) => void pickPhoto(e.target.files?.[0])}
+            />
+            {pickedPhoto ? (
+              <div className="cp-photo-pick__preview">
+                <img src={pickedPhoto} alt="Selected photo" />
+                <button
+                  type="button"
+                  className="cp-photo-pick__clear"
+                  onClick={() => {
+                    setPickedPhoto(null);
+                    if (fileInput.current) fileInput.current.value = "";
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="cp-photo-pick__btn"
+                onClick={() => fileInput.current?.click()}
+              >
+                <span className="cp-photo-pick__icon" aria-hidden="true">📷</span>
+                Choose a photo of {dogName}
+              </button>
+            )}
+            {photoError && <p className="cp-photo-pick__error">{photoError}</p>}
+          </div>
+        )}
+
         <textarea
           className="cp-composer__textarea"
           placeholder={placeholder}
@@ -248,16 +304,14 @@ export function JournalTips({
                 {item.question && <p className="cp-feed-item__question">{item.question}</p>}
                 <div className="cp-feed-item__answer">
                   <p className="cp-eyebrow">
-                    {item.pending && !item.answer ? "Thinking…" : item.offline ? "Seeded answer" : "Claude"}
+                    {item.pending && !item.answer ? "Thinking…" : "Suggested"}
                   </p>
                   <p>
                     {item.answer}
                     {item.pending && <span className="cp-caret" aria-hidden="true" />}
                   </p>
                   {item.offline && (
-                    <p className="cp-mini-meta">
-                      Agent unreachable — start it with <code>uv run agent-server</code>.
-                    </p>
+                    <p className="cp-mini-meta">From your care library — live guidance is offline.</p>
                   )}
                   {item.citedTip && (
                     <p className="cp-mini-meta">Cited: <strong>{item.citedTip.title}</strong></p>
