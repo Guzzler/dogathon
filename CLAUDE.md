@@ -47,9 +47,10 @@ login and no cross-account glue:
   `web/src/hooks/{useFoster,useDogs,useCareLog}.ts`) for all plain CRUD — onboarding answers,
   swipe like/pass, checklist ticks, care-log entries. No REST CRUD layer.
 - **Agent backend** → the existing Python FastAPI agent (`src/agent/server.py`), containerized
-  and deployed to **Cloud Run**, same GCP project. It's reserved for exactly the two moments
-  that need the LLM: **Care Plan "ask anything about your dog"** and **Post Foster generate +
-  send adoption profile** — both reuse the existing `/chat` SSE endpoint (no dedicated
+  and deployed to **Cloud Run**, same GCP project. It's reserved for exactly the three moments
+  that need the LLM: **Match pickup coordination** (after a slot is confirmed), **Care Plan
+  "ask anything about your dog"**, and **Post Foster generate + send adoption profile** — all
+  reuse the existing `/chat` SSE endpoint (no dedicated
   `/adoption/generate` or `/adoption/send` REST routes; the frontend just sends a purpose-worded
   chat message via `AgentChatPanel`'s `quickActions` prop, and the agent's own tool-calling
   handles gathering data and writing results). The agent reads/writes the *same* Firestore data
@@ -117,6 +118,28 @@ and the phase is `match` or `care_plan`. While it is, applying for a different d
 in both places you can apply — the Saved list (disabled buttons plus a notice) and a dog's
 profile (the Contact-shelter sheet explains instead of offering Apply). A `complete` journey
 clears the block, so the foster can start again.
+
+## Match: who owns which approval step
+
+`ChecklistItem` has an optional `owner: "foster" | "shelter"`. The Match view splits the
+approval checklist on it — "Your steps" are tappable, "What {shelter} handles" render locked
+with an hourglass. Records seeded before the field existed fall back to `checklistOwner(id)`
+in `web/src/checklists.ts`, same spirit as `normalizeDog()`.
+
+Two different gates, don't conflate them:
+- **The badge** ("Shelter approved you as a foster") tracks *only* the shelter-owned steps.
+- **Pickup scheduling** unlocks when the whole checklist is done, both sides. `activeIdx` on
+  the timeline uses this one, so it agrees with the Applications tab in Saved.
+
+Because there's no shelter-side dashboard (out of scope), `DemoShelterPanel` fakes it: a
+fixed-position, dark, dashed-border widget pinned outside the phone frame that ticks the
+shelter's steps so you can drive the approval live in a demo. It's deliberately ugly-adjacent
+so nobody mistakes it for product. It renders only in the Match view.
+
+Pickup scheduling is `PickupScheduler` — a hand-built month calendar (no date library):
+shelters are closed Sun/Mon, earliest pickup is 2 days out, bookable window is 28 days. Once
+a slot is confirmed, an `AgentChatPanel` appears for coordinating with the shelter — that's
+the third LLM moment, alongside Care Plan and Post Foster.
 
 ## Where liking becomes matching
 
