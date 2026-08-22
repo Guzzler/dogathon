@@ -6,12 +6,14 @@ import type { AgentEvent, ToolCallState, Turn } from "../types";
 
 let nextCallId = 0;
 
+// Mirrors `dangerous=True` in src/agent/builtin/ -- keep the two in sync, or the UI
+// will prompt for a tool the server runs straight through (or worse, the reverse).
+// Only things the shelter or the outside world sees belong here; the agent writing
+// to the foster's own log or checklist is bookkeeping and shouldn't interrupt them.
 const DEFAULT_DANGEROUS = [
   "update_dog",
   "save_intake",
   "record_swipe",
-  "update_checklist",
-  "log_care_entry",
   "send_adoption_profile_to_shelter",
 ];
 

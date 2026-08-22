@@ -42,7 +42,7 @@ export function DogDetailView() {
       phase: "match",
     });
     setContact(false);
-    navigate("/saved?tab=applied");
+    navigate("/match");
   };
 
   return (
@@ -68,6 +68,9 @@ export function DogDetailView() {
             <p className="sub" style={{ marginTop: 4, fontWeight: 700, color: "var(--ink-2)" }}>
               {dog.ageLabel} · {dog.breed} · {sizeLabel(dog.size)}
             </p>
+            <span className="chip butter" style={{ marginTop: 10, fontWeight: 800 }}>
+              🗓️ {dog.fosterLength} foster
+            </span>
 
             {reasons.length > 0 && (
               <Section title="Why you match">
@@ -110,7 +113,7 @@ export function DogDetailView() {
                 <Row k="Good with dogs"><Yes ok={dog.good_with_dogs} /></Row>
                 <Row k="Good with cats"><Yes ok={dog.goodWithCats} /></Row>
                 <Row k="First-time friendly"><Yes ok={dog.energyLevel <= 2} /></Row>
-                <Row k="Estimated stay"><b>{dog.fosterLength}</b></Row>
+                <Row k="Foster length"><b>{dog.fosterLength}</b></Row>
                 {dog.needsList.length > 0 && <Row k="You'd need" last><b>{dog.needsList.join(", ")}</b></Row>}
               </div>
             </Section>

@@ -1,3 +1,5 @@
+import type { JournalEntry, ScheduleBlock } from "./phases/careplan/types";
+
 export type EventKind =
   | "text"
   | "thinking"
@@ -69,7 +71,8 @@ export interface Dog {
   coat?: "short" | "long";
   traits?: string[];
   needs?: string[];
-  foster_length?: string;
+  foster_weeks?: number;   // expected foster stay, 1–16
+  foster_length?: string;  // legacy free text; foster_weeks wins when both exist
   photo?: number;
 }
 
@@ -122,6 +125,15 @@ export interface Foster {
   careChecklist: ChecklistItem[];
   pickup: Pickup | null;
   readyForAdoption: boolean;
+
+  /** Care Plan journal, persisted so the adoption page can read the same entries. */
+  journal?: JournalEntry[];
+  /** Care Plan schedule, persisted so ticking an item updates the adoption page. */
+  careSchedule?: ScheduleBlock[];
+  /** The foster's own note for the adoption page. Never generated. */
+  adoptionNote?: string;
+  /** Cached tags extracted from journal notes — see web/src/lib/highlights.ts. */
+  adoptionHighlights?: { tags: string[]; summary: string; fromNoteCount: number };
 }
 
 export interface CareLogEntry {

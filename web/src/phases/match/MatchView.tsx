@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
@@ -81,18 +81,18 @@ export function MatchView() {
     <div className="screen">
       <div className="topbar"><h3>Match &amp; pickup</h3></div>
 
-      <div className="scroll pad" style={{ paddingTop: 6, paddingBottom: 40, display: "flex", flexDirection: "column", gap: 20 }}>
+      <div className="scroll pad" style={{ paddingTop: 6, paddingBottom: 34, display: "flex", flexDirection: "column", gap: 14 }}>
         {/* Dog header */}
         <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="row" style={{ gap: 13 }}>
-          <div style={{ width: 62, height: 62, borderRadius: 18, flexShrink: 0, background: `var(--cream-2) url(${photoUrl(dog.photoId, 300, 300)}) center/cover` }} />
+          <div style={{ width: 56, height: 56, borderRadius: 17, flexShrink: 0, background: `var(--cream-2) url(${photoUrl(dog.photoId, 300, 300)}) center/cover` }} />
           <div style={{ minWidth: 0 }}>
-            <h2 style={{ fontSize: 22 }}>You matched with {dog.name}!</h2>
+            <h2 style={{ fontSize: 20 }}>You matched with {dog.name}!</h2>
             <p className="muted" style={{ marginTop: 2 }}>{dog.shelter.name}</p>
           </div>
         </motion.div>
 
         {/* Approval badge + timeline */}
-        <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: .05 }} className="card" style={{ padding: 17 }}>
+        <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: .05 }} className="card" style={{ padding: 15 }}>
           <div className={`chip ${shelterApproved ? "sage" : "butter"}`} style={{ fontWeight: 800 }}>
             {shelterApproved ? "✓ Shelter approved you as a foster" : "⏳ Waiting on shelter review"}
           </div>
@@ -106,50 +106,28 @@ export function MatchView() {
           </div>
         </motion.div>
 
-        {/* Your steps */}
-        <Section title="Your steps">
-          <div className="card" style={{ padding: 6 }}>
-            {yourSteps.map((item, i) => (
-              <StepRow key={item.id} item={item} last={i === yourSteps.length - 1} onToggle={(done) => setApprovalItem(item.id, done)} />
-            ))}
-          </div>
-        </Section>
-
-        {/* Shelter review */}
-        <Section title={`What ${dog.shelter.short} handles`}>
-          <div className="card" style={{ padding: 6 }}>
-            {shelterSteps.map((item, i) => (
-              <StepRow key={item.id} item={item} last={i === shelterSteps.length - 1} locked />
-            ))}
-          </div>
-        </Section>
-
-        {/* Get ready at home */}
-        <Section title="Get ready at home">
-          <div className="card" style={{ padding: 6 }}>
-            {prep.map((item, i) => (
-              <StepRow key={item.id} item={item} last={i === prep.length - 1} onToggle={(done) => togglePrep(item.id, done)} />
-            ))}
-          </div>
-        </Section>
+        <ChecklistSection title="Your steps" items={yourSteps} onToggle={setApprovalItem} />
+        <ChecklistSection title={`What ${dog.shelter.short} handles`} items={shelterSteps} locked />
+        <ChecklistSection title="Get ready at home" items={prep} onToggle={togglePrep} />
 
         {/* Pickup */}
-        <Section title="Schedule pickup">
+        <div>
+          <div className="eyebrow" style={{ marginBottom: 9 }}>Schedule pickup</div>
           {!approved ? (
-            <div className="card" style={{ padding: 20, textAlign: "center", background: "var(--cream-2)", boxShadow: "none", border: "2px dashed var(--line)" }}>
-              <div style={{ fontSize: 26 }}>🔒</div>
-              <p className="sub" style={{ marginTop: 8, fontSize: 13.5 }}>
+            <>
+              <button className="btn" disabled>🔒 Schedule pickup</button>
+              <p className="muted" style={{ textAlign: "center", marginTop: 8, fontSize: 12 }}>
                 {shelterApproved
-                  ? "Finish your own steps above and pickup scheduling opens up."
-                  : `Pickup scheduling unlocks once ${dog.shelter.short} finishes their review.`}
+                  ? "Finish your own steps to unlock this."
+                  : `Unlocks once ${dog.shelter.short} finishes their review.`}
               </p>
-            </div>
+            </>
           ) : foster.pickup ? (
-            <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="card" style={{ padding: 18 }}>
+            <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="card" style={{ padding: 15 }}>
               <div className="row" style={{ gap: 12 }}>
-                <div style={{ width: 42, height: 42, borderRadius: 13, background: "var(--sage-soft)", display: "grid", placeItems: "center", flexShrink: 0, fontSize: 18 }}>🗓️</div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 15 }}>{pickupDateLabel}</div>
+                <div style={{ width: 40, height: 40, borderRadius: 13, background: "var(--sage-soft)", display: "grid", placeItems: "center", flexShrink: 0, fontSize: 17 }}>🗓️</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14.5 }}>{pickupDateLabel}</div>
                   <div className="muted" style={{ marginTop: 2 }}>{foster.pickup.time} · {foster.pickup.location}</div>
                 </div>
               </div>
@@ -157,25 +135,30 @@ export function MatchView() {
           ) : (
             <PickupScheduler shelter={dog.shelter} onConfirm={confirmPickup} />
           )}
-        </Section>
+        </div>
 
         {/* Chat once pickup is locked in */}
         {foster.pickup && (
-          <Section title={`Chat with ${dog.shelter.short}`}>
-            <div className="care-tips-drawer" style={{ height: 380 }}>
-              <AgentChatPanel
-                placeholder="Ask about parking, what to bring…"
-                emptyState={`Confirmed for ${pickupDateLabel} at ${foster.pickup.time}. Ask ${dog.shelter.short} anything before pickup.`}
-                quickActions={[{
-                  label: "Confirm pickup + ask what to bring",
-                  message: `I just scheduled pickup for ${dog.name} on ${pickupDateLabel} at ${foster.pickup.time}. Can you confirm that works and let me know what I should bring?`,
-                }]}
-              />
-            </div>
-          </Section>
+          <div className="match-chat">
+            <div className="eyebrow" style={{ marginBottom: 9 }}>Chat with {dog.shelter.short}</div>
+            <AgentChatPanel
+              placeholder="Ask about parking, what to bring…"
+              emptyState={`Confirmed for ${pickupDateLabel} at ${foster.pickup.time}.`}
+              quickActions={[{
+                label: "What should I bring?",
+                message: `I just scheduled pickup for ${dog.name} on ${pickupDateLabel} at ${foster.pickup.time}. Can you confirm that works and let me know what I should bring?`,
+              }]}
+            />
+          </div>
         )}
 
-        <button className="btn" disabled={!foster.pickup} title={!foster.pickup ? "Schedule pickup first" : undefined} onClick={goToCarePlan}>
+        <button
+          className="btn sm"
+          style={{ margin: "2px auto 0" }}
+          disabled={!foster.pickup}
+          title={!foster.pickup ? "Schedule pickup first" : undefined}
+          onClick={goToCarePlan}
+        >
           I've got {dog.name} → start Care Plan
         </button>
       </div>
@@ -185,11 +168,52 @@ export function MatchView() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * Collapses itself once every item is ticked, so a finished checklist stops eating
+ * the screen and the pickup section stays reachable without a long scroll. An
+ * explicit tap always wins over that default.
+ */
+function ChecklistSection({ title, items, onToggle, locked }: {
+  title: string;
+  items: ChecklistItem[];
+  onToggle?: (id: string, done: boolean) => void;
+  locked?: boolean;
+}) {
+  const [override, setOverride] = useState<boolean | null>(null);
+  if (!items.length) return null;
+
+  const doneCount = items.filter((i) => i.done).length;
+  const complete = doneCount === items.length;
+  const open = override ?? !complete;
+
   return (
     <div>
-      <div className="eyebrow" style={{ marginBottom: 9 }}>{title}</div>
-      {children}
+      <button
+        type="button"
+        onClick={() => setOverride(!open)}
+        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "0 2px 9px", textAlign: "left" }}
+      >
+        <span className="eyebrow">{title}</span>
+        <span className="sp" />
+        <span className="muted" style={{ fontSize: 11.5, fontWeight: 800, color: complete ? "var(--sage)" : undefined }}>
+          {complete ? "✓ all done" : `${doneCount}/${items.length}`}
+        </span>
+        <span style={{ fontSize: 13, lineHeight: 1, color: "var(--ink-3)", transform: open ? "rotate(180deg)" : "none", transition: "transform .15s ease" }}>⌄</span>
+      </button>
+
+      {open && (
+        <div className="card" style={{ padding: 6 }}>
+          {items.map((item, i) => (
+            <StepRow
+              key={item.id}
+              item={item}
+              last={i === items.length - 1}
+              locked={locked}
+              onToggle={onToggle ? (done) => onToggle(item.id, done) : undefined}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -203,19 +227,19 @@ function StepRow({ item, onToggle, locked, last }: { item: ChecklistItem; onTogg
       onClick={() => onToggle?.(!item.done)}
       style={{
         display: "flex", alignItems: "center", gap: 11, width: "100%", textAlign: "left",
-        padding: "11px 11px", borderRadius: 14, cursor: clickable ? "pointer" : "default",
+        padding: "10px 11px", borderRadius: 14, cursor: clickable ? "pointer" : "default",
         borderBottom: last ? "none" : "1px solid var(--line)",
       }}
     >
       <span style={{
-        width: 22, height: 22, borderRadius: 7, flexShrink: 0, display: "grid", placeItems: "center", fontSize: 12,
+        width: 21, height: 21, borderRadius: 7, flexShrink: 0, display: "grid", placeItems: "center", fontSize: 12,
         background: item.done ? "var(--sage)" : locked ? "var(--cream-2)" : "#fff",
         color: item.done ? "#fff" : "var(--ink-3)",
         border: item.done ? "none" : locked ? "none" : "2px solid var(--line)",
       }}>
         {item.done ? "✓" : locked ? "⏳" : ""}
       </span>
-      <span style={{ fontSize: 14, fontWeight: 700, opacity: item.done ? .55 : 1, textDecoration: item.done ? "line-through" : "none" }}>
+      <span style={{ fontSize: 13.5, fontWeight: 700, opacity: item.done ? .55 : 1, textDecoration: item.done ? "line-through" : "none" }}>
         {item.label}
       </span>
       <span className="sp" />

@@ -1,0 +1,27 @@
+# Cloud Build only needs what the Dockerfile COPYs: pyproject.toml, uv.lock, src/,
+# README.md. Without this file gcloud uploads the whole tree -- hundreds of MB of
+# .venv/node_modules/.git, and a stale timestamp in there fails the source zip.
+.git/
+.gitignore
+.venv/
+node_modules/
+web/
+data/
+scripts/
+.firebase/
+.claude/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+.DS_Store
+.env
+*.md
+!README.md
+firebase.json
+firestore.rules
+firestore.indexes.json
+.firebaserc
