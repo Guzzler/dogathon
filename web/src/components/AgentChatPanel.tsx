@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { sendApproval, streamChat } from "../api";
 import { TurnView } from "./TurnView";
 import { ApprovalModal } from "./ApprovalModal";
@@ -35,6 +35,21 @@ export function AgentChatPanel({ placeholder = "Ask a question…", emptyState, 
   const [pendingApproval, setPendingApproval] = useState<ToolCallState | null>(null);
   const [deciding, setDeciding] = useState(false);
   const dangerousNames = useRef<Set<string>>(new Set(DEFAULT_DANGEROUS));
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pinnedToBottom = useRef(true);
+
+  // Replies are much taller than the panel, so without this the answer streams in
+  // below the fold and you're left looking at the tool cards. Stop following once
+  // the reader scrolls up themselves.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el && pinnedToBottom.current) el.scrollTop = el.scrollHeight;
+  }, [turns]);
+
+  function trackScroll() {
+    const el = scrollRef.current;
+    if (el) pinnedToBottom.current = el.scrollHeight - el.clientHeight - el.scrollTop < 40;
+  }
 
   function updateLastTurn(fn: (turn: Turn) => Turn) {
     setTurns((prev) => {
@@ -112,7 +127,7 @@ export function AgentChatPanel({ placeholder = "Ask a question…", emptyState, 
 
   return (
     <div className="agent-panel">
-      <div className="agent-panel__scroll">
+      <div className="agent-panel__scroll" ref={scrollRef} onScroll={trackScroll}>
         {turns.length === 0 && <p className="agent-panel__empty">{emptyState ?? "Ask anything."}</p>}
         {turns.map((turn, i) => (
           <TurnView key={i} turn={turn} />
