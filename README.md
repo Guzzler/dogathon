@@ -1,17 +1,24 @@
-# dogathon agent
+# Pawthway
 
-A small, general tool-calling agent on Claude. Write a normal Python function,
-decorate it, and the agent can call it — the JSON schema comes from your type
-hints and docstring, so there's no schema to hand-maintain.
+A guided, Tinder-style foster journey app — Onboarding → Discovery → Match →
+Care Plan → Post Foster — built on a small, general tool-calling agent on
+Claude. Write a normal Python function, decorate it, and the agent can call
+it — the JSON schema comes from your type hints and docstring, so there's no
+schema to hand-maintain.
 
-Built for [Dogathon](https://luma.com/rklrsomo), but there's nothing dog-specific
-in the core. Swap the demo tools for yours.
+Built for [Dogathon](https://luma.com/rklrsomo).
+
+**Live demo:** https://pawthway-hackathon.web.app
+
+See [CLAUDE.md](./CLAUDE.md) for the full architecture writeup (Firebase
+Hosting + Firestore + Cloud Run), phase ownership, and env var setup.
 
 ## Setup
 
 ```bash
 uv sync
 cp .env.example .env    # add your ANTHROPIC_API_KEY
+cd web && npm install && cp .env.example .env   # add Firebase web config
 ```
 
 ## Run
@@ -38,6 +45,14 @@ Open http://localhost:5173. The Vite dev server proxies `/api/*` to the
 backend, so there's no CORS setup to think about. The backend is intentionally
 single-session (one `Agent`, one pending approval slot) — right for a live
 demo on a laptop, not for multiple concurrent users.
+
+Seed Firestore with the sample dog roster and the demo `fosters/annie` doc
+(needs `gcloud auth application-default login` once, or `FIREBASE_PROJECT_ID`
+set):
+
+```bash
+uv run python scripts/seed_firestore.py
+```
 
 ```
 web/src/
@@ -120,18 +135,41 @@ access, and ask the agent to retry.
 Arcade names tools `Gmail.SendEmail`, which the Messages API rejects (no dots
 allowed), so the adapter sanitizes names and keeps a map back to the real ones.
 
+## Deploy
+
+Everything lives in the `pawthway-hackathon` GCP/Firebase project (Blaze plan,
+needed for Cloud Run):
+
+```bash
+# Agent backend -> Cloud Run
+gcloud run deploy pawthway-agent --source . --project=pawthway-hackathon \
+  --region=us-central1 --allow-unauthenticated \
+  --set-env-vars=ANTHROPIC_API_KEY=<key>
+
+# put the printed Service URL into web/.env as VITE_AGENT_URL, then:
+
+# Frontend -> Firebase Hosting, Firestore rules
+cd web && npm run build && cd ..
+firebase deploy --only hosting,firestore:rules --project=pawthway-hackathon
+```
+
 ## Layout
 
 ```
 src/agent/
-  tools.py         @tool decorator, Registry, schema generation
-  loop.py          Agent — streaming, tool dispatch, approval gate
-  cli.py           REPL
-  server.py        FastAPI SSE bridge for the web demo
-  arcade_tools.py  Arcade adapter (optional)
-  builtin/         demo tools: shelter roster, fetch_url, calculate
-data/dogs.json     sample roster the demo tools read and write
-web/               React + Vite chat UI (see "Web demo" above)
+  tools.py             @tool decorator, Registry, schema generation
+  loop.py              Agent — streaming, tool dispatch, approval gate
+  cli.py               REPL
+  server.py            FastAPI SSE bridge for the web demo
+  arcade_tools.py      Arcade adapter (optional)
+  firestore_client.py  Firebase Admin SDK init
+  builtin/             shelter.py, foster.py, care.py, adoption.py, web.py
+scripts/seed_firestore.py   one-time Firestore seed (dogs.json -> `dogs`, plus fosters/annie)
+data/dogs.json         sample roster used to seed Firestore
+web/
+  src/firebase.ts      Firebase Web SDK init
+  src/hooks/           useFoster, useDogs, useCareLog — Firestore reads/writes
+  src/phases/          Hub, Onboarding, Discovery, Match, CarePlan, PostFoster views
 ```
 
 ## Notes

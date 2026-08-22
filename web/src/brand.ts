@@ -42,6 +42,27 @@ export const sidekickTheme: AppTheme = {
   },
 };
 
+export const pawthwayTheme: AppTheme = {
+  name: "Pawthway",
+  tagline: "the guided path from foster to forever.",
+  logo: {
+    horizontal: "/brand/logo-horizontal.png",
+    mark: "/brand/mark.png",
+    favicon: "/brand/favicon.png",
+  },
+  palette: {
+    evergreen: "#E8734A",
+    copper: "#F4A860",
+    cream: "#FFF7EE",
+    ink: "#2B2118",
+    muted: "#8A7A6B",
+    panel: "#FFFFFF",
+    border: "#F0DFCC",
+    danger: "#C0392B",
+    success: "#3F9142",
+  },
+};
+
 export function themeVars(theme: AppTheme): CSSProperties {
   return {
     "--brand-name": `"${theme.name}"`,

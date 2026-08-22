@@ -1,0 +1,27 @@
+rules_version = '2';
+
+// No auth in this hackathon demo -- one seeded foster ("annie") drives the
+// whole journey. Rules are scoped to the two known doc paths the app
+// actually touches rather than left wide open.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /dogs/{dogId} {
+      allow read: if true;
+      // Dog status/adoption profile only changes via the agent backend
+      // (Admin SDK bypasses these rules), not directly from the client.
+      allow write: if false;
+    }
+
+    match /fosters/annie {
+      allow read, write: if true;
+
+      match /careLog/{entryId} {
+        allow read, write: if true;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

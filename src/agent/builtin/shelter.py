@@ -1,24 +1,19 @@
-"""Demo tools over a local shelter roster. Swap the JSON for a real datastore."""
+"""Tools over the shelter's dog roster, backed by Firestore."""
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any
 
+from ..firestore_client import db
 from ..tools import tool
 
-DATA = Path(__file__).resolve().parents[3] / "data" / "dogs.json"
+STATUSES = ("available", "foster", "medical_hold", "adopted", "ready_for_adoption")
 
-STATUSES = ("available", "foster", "medical_hold", "adopted")
+COLLECTION = "dogs"
 
 
 def _load() -> list[dict[str, Any]]:
-    return json.loads(DATA.read_text())
-
-
-def _save(dogs: list[dict[str, Any]]) -> None:
-    DATA.write_text(json.dumps(dogs, indent=2) + "\n")
+    return [doc.to_dict() for doc in db().collection(COLLECTION).stream()]
 
 
 @tool
@@ -26,7 +21,7 @@ def list_dogs(status: str = "", max_weight_lbs: int = 0, good_with_kids: bool = 
     """List dogs in the shelter roster, optionally filtered.
 
     Args:
-        status: Keep only this status: available, foster, medical_hold, or adopted.
+        status: Keep only this status: available, foster, medical_hold, adopted, or ready_for_adoption.
         max_weight_lbs: Keep only dogs at or under this weight. 0 means no limit.
         good_with_kids: If true, keep only dogs cleared to live with children.
     """
@@ -47,10 +42,10 @@ def get_dog(dog_id: str) -> dict:
     Args:
         dog_id: The dog's id, for example d-001.
     """
-    for dog in _load():
-        if dog["id"] == dog_id:
-            return dog
-    raise KeyError(f"No dog with id {dog_id}")
+    snap = db().collection(COLLECTION).document(dog_id).get()
+    if not snap.exists:
+        raise KeyError(f"No dog with id {dog_id}")
+    return snap.to_dict()
 
 
 @tool(dangerous=True)
@@ -59,19 +54,22 @@ def update_dog(dog_id: str, status: str = "", notes: str = "") -> dict:
 
     Args:
         dog_id: The dog's id, for example d-001.
-        status: New status: available, foster, medical_hold, or adopted.
+        status: New status: available, foster, medical_hold, adopted, or ready_for_adoption.
         notes: Replacement notes text. Omit to leave the existing notes alone.
     """
     if status and status not in STATUSES:
         raise ValueError(f"status must be one of {', '.join(STATUSES)}")
 
-    dogs = _load()
-    for dog in dogs:
-        if dog["id"] == dog_id:
-            if status:
-                dog["status"] = status
-            if notes:
-                dog["notes"] = notes
-            _save(dogs)
-            return dog
-    raise KeyError(f"No dog with id {dog_id}")
+    ref = db().collection(COLLECTION).document(dog_id)
+    snap = ref.get()
+    if not snap.exists:
+        raise KeyError(f"No dog with id {dog_id}")
+
+    updates: dict[str, Any] = {}
+    if status:
+        updates["status"] = status
+    if notes:
+        updates["notes"] = notes
+    if updates:
+        ref.update(updates)
+    return ref.get().to_dict()
