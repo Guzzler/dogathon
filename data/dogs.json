@@ -442,5 +442,62 @@
       "Secure yard"
     ],
     "photo": 16
+  },
+  {
+    "id": "d-017",
+    "name": "Marty",
+    "breed": "Shepherd mix",
+    "age_years": 0.33,
+    "weight_lbs": 22,
+    "status": "available",
+    "intake_date": "2026-07-30",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "good_with_cats": false,
+    "notes": "Four-month-old puppy. Surrendered with two littermates. Shy at first, warms up quickly with food. Peak teething age; needs frozen washcloths and patient hands.",
+    "shelter_id": "coppers",
+    "energy_level": 3,
+    "grooming": "low",
+    "coat": "short",
+    "traits": [
+      "Playful puppy",
+      "Learning basic cues",
+      "Food motivated"
+    ],
+    "foster_length": "8–12 weeks",
+    "needs": [
+      "Frequent bathroom breaks",
+      "Puppy-proofed space",
+      "Patient training"
+    ],
+    "photo": 3
+  },
+  {
+    "id": "d-018",
+    "name": "Willow",
+    "breed": "Lab mix",
+    "age_years": 0.5,
+    "weight_lbs": 28,
+    "status": "available",
+    "intake_date": "2026-08-05",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "good_with_cats": true,
+    "notes": "Six-month-old puppy from a rural litter. Softer temperament than most puppies — happy to nap between play bursts. Fully vaccinated.",
+    "shelter_id": "petsun",
+    "energy_level": 2,
+    "grooming": "low",
+    "coat": "short",
+    "traits": [
+      "Gentle puppy",
+      "Nap-forward",
+      "Loves other dogs"
+    ],
+    "foster_length": "6–8 weeks",
+    "needs": [
+      "Crate for naps",
+      "Socialization outings"
+    ],
+    "photo": 5
   }
 ]

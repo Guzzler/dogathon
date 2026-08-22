@@ -48,7 +48,12 @@ export function normalizeDog(d: Dog): RichDog {
     needsList: d.needs ?? [],
     fosterLength: d.foster_length ?? "4–6 weeks",
     photoId: photoFor(d),
-    ageLabel: d.age_years === 1 ? "1 yr" : `${d.age_years} yrs`,
+    ageLabel:
+      d.age_years < 1
+        ? `${Math.max(1, Math.round(d.age_years * 12))} mo`
+        : d.age_years === 1
+          ? "1 yr"
+          : `${d.age_years} yrs`,
   };
 }
 
