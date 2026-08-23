@@ -11,3 +11,4 @@ build/
 node_modules/
 web/dist/
 .firebase/
+.claude/settings.local.json
