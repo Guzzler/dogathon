@@ -217,6 +217,29 @@ Two things keep that correct when more than one person is chatting, and both mat
 Conversations live in memory, so a Cloud Run restart or a second instance loses them. That's
 fine for a demo and the reason this isn't the place to put anything that has to survive.
 
+### What a turn is allowed to cost
+
+- **The model follows the surface.** `loop.model_for_surface()` maps the phase a chat is mounted
+  in to a model: Match pickup coordination gets `claude-haiku-4-5` (logistics, answers already in
+  Firestore), Care Plan and Post Foster get `claude-opus-4-7` — one has to be right about a
+  specific dog's medical notes, the other writes the paragraph a stranger reads. `/highlights`
+  was already deliberately on Haiku and stays there. The model is set per message rather than at
+  construction, because one session spans several phases.
+- **`phase` is optional and the fallback is the dear one.** `web/src/api.ts` doesn't send it yet,
+  so everything currently runs on the capable model; adding it to the `/chat` body is what turns
+  the cheap path on. An unknown phase costing more is the safe direction to fail.
+- **Swapping the model is not just swapping the string.** Adaptive thinking and
+  `output_config.effort` arrived with the 4.6 generation and are 400s on Haiku 4.5, so
+  `Agent._request()` sends them only for models in `loop.ADAPTIVE_MODELS`.
+- **`max_tokens` is 4096, down from 64000.** The longest thing the agent writes is a
+  one-paragraph adoption profile; the remainder is headroom for thinking, which is billed inside
+  the same ceiling. At 25 turns the old number was roughly $40 of output on one message.
+- **Cloud Run is pinned to exactly one instance** (`--min-instances=1 --max-instances=1` in
+  `deploy-backend.yml`). This is correctness, not thrift — sessions and approval queues are
+  per-process, so a second instance can swallow an `/approve` that a `/chat` elsewhere is
+  blocked on, and that tool hangs its 300s timeout with nothing in the logs. It also makes the
+  backend a single point of failure; the fix is Firestore-backed state, not a bigger number.
+
 ## Onboarding is a gate, not a phase you navigate to
 
 A foster with no intake can't reach anything else. `OnboardingGate` in `web/src/App.tsx`

@@ -9,7 +9,28 @@ import anthropic
 
 from .tools import Registry
 
-DEFAULT_MODEL = "claude-opus-4-7"
+# Two of the three surfaces earn the expensive model: Care Plan advice has to be
+# right about a specific dog's medical notes, and the adoption profile is the one
+# piece of writing a stranger reads. Match is pickup logistics whose answers are
+# already sitting in Firestore, so it runs on Haiku.
+MODEL_CAPABLE = "claude-opus-4-7"
+MODEL_CHEAP = "claude-haiku-4-5"
+
+# Keyed by the phase directory the chat is mounted in (web/src/phases/), so the
+# string the client sends is the one already on screen.
+SURFACE_MODELS = {
+    "match": MODEL_CHEAP,
+    "careplan": MODEL_CAPABLE,
+    "postfoster": MODEL_CAPABLE,
+}
+DEFAULT_MODEL = MODEL_CAPABLE
+
+# Adaptive thinking and output_config.effort arrived with the 4.6 generation;
+# Haiku 4.5 rejects both with a 400. Choosing the cheap model is therefore not a
+# matter of swapping the string — the request has to shed two parameters with it.
+# Add a model here only after checking it actually accepts them.
+ADAPTIVE_MODELS = frozenset({MODEL_CAPABLE})
+
 DEFAULT_SYSTEM = (
     "You are a capable agent with access to tools. Prefer taking action with the "
     "tools you have over describing what the user could do themselves. Chain "
@@ -37,6 +58,16 @@ class ApprovalDenied(Exception):
     pass
 
 
+def model_for_surface(surface: str | None) -> str:
+    """Pick the model for the phase a chat is mounted in.
+
+    Falls back to the capable model for anything unrecognised — an unknown or
+    missing phase should cost more than it needs to, never answer a foster's
+    medical question on the cheap path by accident.
+    """
+    return SURFACE_MODELS.get((surface or "").strip().lower(), DEFAULT_MODEL)
+
+
 class Agent:
     """A conversation with Claude in which tools actually get run.
 
@@ -50,7 +81,13 @@ class Agent:
         *,
         system: str = DEFAULT_SYSTEM,
         model: str = DEFAULT_MODEL,
-        max_tokens: int = 64000,
+        # The longest thing this agent ever writes is a one-paragraph adoption
+        # profile — /highlights does the same shape of job in 300. The rest is
+        # headroom for adaptive thinking, which is billed and counted inside this
+        # same ceiling. It was 64000, which is room for output the product has no
+        # way to produce, on the priciest model, up to max_turns times per
+        # message: one runaway conversation could bill ~$40 of output alone.
+        max_tokens: int = 4096,
         effort: str = "high",
         thinking: bool = True,
         max_turns: int = 25,
@@ -78,13 +115,18 @@ class Agent:
             "system": self.system,
             "messages": self.messages,
             "tools": self.registry.specs(),
-            "output_config": {"effort": self.effort},
             # Rolling breakpoint: caches the longest stable prefix of tools +
             # system + history, so each extra turn re-reads instead of re-paying.
             "cache_control": {"type": "ephemeral"},
         }
-        if self.thinking:
-            kwargs["thinking"] = {"type": "adaptive", "display": "summarized"}
+        # Both of these are 400s on a pre-4.6 model rather than ignored fields,
+        # so they travel with the model rather than with the Agent's settings.
+        # Losing them on the cheap surface is the point: pickup logistics is
+        # lookup-and-confirm, not something to reason at length about.
+        if self.model in ADAPTIVE_MODELS:
+            kwargs["output_config"] = {"effort": self.effort}
+            if self.thinking:
+                kwargs["thinking"] = {"type": "adaptive", "display": "summarized"}
         return self.client.messages.stream(**kwargs)
 
     def run(self, user_message: str) -> Iterator[Event]:

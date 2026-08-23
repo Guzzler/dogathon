@@ -32,7 +32,7 @@ from pydantic import BaseModel
 
 from .builtin import registry
 from .current_foster import set_current_foster
-from .loop import Agent
+from .loop import Agent, model_for_surface
 
 load_dotenv()
 
@@ -155,6 +155,10 @@ class ChatRequest(BaseModel):
     message: str
     # The signed-in foster's uid. The client knows it; the model shouldn't have to guess.
     foster_id: str | None = None
+    # Which of the three surfaces is asking ("match", "careplan", "postfoster"),
+    # which is what selects the model. Optional: a client that doesn't send it
+    # gets the capable model, so an older build gets dearer, never worse.
+    phase: str | None = None
 
 
 class ApprovalRequest(BaseModel):
@@ -196,11 +200,16 @@ def _friendly_error(exc: Exception) -> dict[str, str]:
     return {"text": text, "code": code}
 
 
-def _stream(message: str, session: Session, foster_id: str) -> Iterator[str]:
+def _stream(message: str, session: Session, foster_id: str, model: str) -> Iterator[str]:
     # Set inside the generator, not in the endpoint: the generator body runs in its
     # own context while the response streams, so binding it here is what keeps two
     # overlapping conversations from resolving each other's foster id.
     set_current_foster(foster_id)
+    # A session outlives the phase it started in — the same foster walks from Match
+    # to Care Plan on one conversation — so the model is chosen per message, not at
+    # construction. Switching mid-conversation is safe: a model that doesn't
+    # recognise the thinking blocks already in the history ignores them.
+    session.agent.model = model
     try:
         for ev in session.agent.run(message):
             payload: dict[str, Any] = {"text": ev.text}
@@ -243,7 +252,7 @@ def chat(req: ChatRequest) -> StreamingResponse:
     foster_id = _normalize_foster_id(req.foster_id)
     session = _session(foster_id)
     return StreamingResponse(
-        _stream(req.message, session, foster_id),
+        _stream(req.message, session, foster_id, model_for_surface(req.phase)),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
