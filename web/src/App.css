@@ -102,9 +102,9 @@
 }
 
 .badge--dangerous {
-  background: rgba(231, 111, 81, 0.16);
+  background: rgba(196, 149, 90, 0.16);
   color: #f4d4aa;
-  border: 1px solid rgba(231, 111, 81, 0.32);
+  border: 1px solid rgba(196, 149, 90, 0.32);
 }
 
 .banner {
@@ -325,7 +325,7 @@
 
 .thinking-block {
   background: rgba(255, 252, 246, 0.78);
-  border: 1px dashed rgba(231, 111, 81, 0.5);
+  border: 1px dashed rgba(196, 149, 90, 0.5);
   border-radius: var(--radius-md);
   padding: 9px 11px;
   font-size: 12px;
@@ -372,12 +372,12 @@
 }
 
 .tool-card--pending_approval {
-  border-color: rgba(231, 111, 81, 0.58);
+  border-color: rgba(196, 149, 90, 0.58);
   background: #fff9ee;
 }
 
 .tool-card--running {
-  border-color: rgba(42, 157, 143, 0.28);
+  border-color: rgba(45, 90, 61, 0.28);
   background: #fbfaf4;
 }
 
@@ -455,7 +455,7 @@
 
 .composer__input:focus {
   border-color: var(--color-copper);
-  box-shadow: 0 0 0 3px rgba(231, 111, 81, 0.18);
+  box-shadow: 0 0 0 3px rgba(196, 149, 90, 0.18);
 }
 
 /* Buttons */
@@ -490,7 +490,7 @@
 .btn--primary {
   background: var(--color-evergreen);
   color: var(--color-cream);
-  box-shadow: 0 8px 20px rgba(42, 157, 143, 0.2);
+  box-shadow: 0 8px 20px rgba(45, 90, 61, 0.2);
 }
 
 .btn--ghost {

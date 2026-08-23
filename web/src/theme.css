@@ -2,19 +2,19 @@
   --cream:#FFF7F1;
   --cream-2:#FDEFE4;
   --card:#FFFFFF;
-  --ink:#264653;
-  --ink-2:#81949B;
-  --ink-3:#C2CBCF;
-  --coral:#2A9D8F;
-  --coral-dk:#217A70;
-  --coral-soft:#EAF5F4;
-  --sage:#F4A261;
-  --sage-soft:#FEF6EF;
-  --butter:#E9C46A;
-  --butter-soft:#FCF8ED;
+  --ink:#2C2622;
+  --ink-2:#6B5F57;
+  --ink-3:#A2948A;
+  --coral:#F4795B;
+  --coral-dk:#E05F41;
+  --coral-soft:#FFE7DF;
+  --sage:#79B39A;
+  --sage-soft:#E2F1EA;
+  --butter:#F7C86B;
+  --butter-soft:#FDF0D5;
   --line:#F0E4DA;
-  --shadow:0 2px 4px rgba(38,70,83,.04), 0 8px 24px rgba(38,70,83,.08);
-  --shadow-lg:0 4px 8px rgba(38,70,83,.06), 0 18px 48px rgba(38,70,83,.14);
+  --shadow:0 2px 4px rgba(87,62,48,.04), 0 8px 24px rgba(87,62,48,.08);
+  --shadow-lg:0 4px 8px rgba(87,62,48,.06), 0 18px 48px rgba(87,62,48,.14);
   --r-sm:12px; --r-md:18px; --r-lg:26px; --r-xl:34px;
   --font:'Nunito',system-ui,-apple-system,sans-serif;
   --display:'Fraunces',Georgia,serif;
@@ -64,7 +64,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .screen .btn{
   display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
   padding:17px 20px;border-radius:100px;font-size:16.5px;font-weight:800;
-  background:var(--coral);color:#fff;box-shadow:0 6px 18px rgba(42,157,143,.34);
+  background:var(--coral);color:#fff;box-shadow:0 6px 18px rgba(244,121,91,.34);
   transition:transform .12s ease, box-shadow .12s ease, opacity .12s;
 }
 .screen .btn:active{transform:scale(.975)}
@@ -79,7 +79,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
   background:var(--cream-2);color:var(--ink-2);font-size:12.5px;font-weight:700;white-space:nowrap;
 }
 .chip.coral{background:var(--coral-soft);color:var(--coral-dk)}
-.chip.sage{background:var(--sage-soft);color:#B15E1F}
+.chip.sage{background:var(--sage-soft);color:#3F7A63}
 .chip.butter{background:var(--butter-soft);color:#A8761B}
 
 .card{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow)}
@@ -132,7 +132,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .pin{background:none!important;border:none!important}
 .pin-in{
   position:relative;display:grid;place-items:center;width:46px;height:46px;border-radius:50%;
-  background:#fff;box-shadow:0 4px 14px rgba(38,70,83,.28);border:3px solid var(--coral);
+  background:#fff;box-shadow:0 4px 14px rgba(87,62,48,.28);border:3px solid var(--coral);
   font-size:20px;transition:transform .18s cubic-bezier(.34,1.56,.64,1);
 }
 .pin-in[data-sel="true"]{transform:scale(1.16);border-color:var(--ink);background:var(--butter-soft)}
@@ -176,11 +176,11 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 .slider::-moz-range-track{height:10px;border-radius:100px;background:var(--cream-2);border:1px solid var(--line)}
 .slider::-webkit-slider-thumb{
   -webkit-appearance:none;width:32px;height:32px;border-radius:50%;background:var(--coral);
-  border:4px solid #fff;box-shadow:0 3px 12px rgba(42,157,143,.5);margin-top:-12px;
+  border:4px solid #fff;box-shadow:0 3px 12px rgba(244,121,91,.5);margin-top:-12px;
 }
 .slider::-moz-range-thumb{
   width:32px;height:32px;border-radius:50%;background:var(--coral);
-  border:4px solid #fff;box-shadow:0 3px 12px rgba(42,157,143,.5);
+  border:4px solid #fff;box-shadow:0 3px 12px rgba(244,121,91,.5);
 }
 .ticks{display:flex;justify-content:space-between;margin-top:2px;padding:0 4px}
 .ticks span{font-size:12px;font-weight:700;color:var(--ink-3);transition:color .2s}
