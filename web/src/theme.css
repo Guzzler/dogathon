@@ -576,3 +576,31 @@ input,textarea,select{font-family:inherit}
    outside, so lift it clear of the tab bar. */
 :root{--demo-panel-bottom:16px}
 @media (max-width:640px){:root{--demo-panel-bottom:calc(80px + env(safe-area-inset-bottom))}}
+
+/* ---------- sign in ---------- */
+/* outranks `.screen .btn`, which would otherwise paint this coral */
+.screen .btn.signin__google{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  background:#fff;color:var(--ink);box-shadow:var(--shadow);border:1px solid var(--line);
+}
+.screen .btn.signin__google:disabled{background:var(--cream-2);color:var(--ink-3);box-shadow:none;opacity:1}
+.screen .btn.signin__google:disabled svg{opacity:.4}
+.signin__note{margin-top:10px;line-height:1.5;text-align:center}
+.signin__note code{background:var(--cream-2);padding:1px 5px;border-radius:5px;font-size:11.5px}
+.signin__fine{margin-top:14px;text-align:center;line-height:1.5;font-size:11.5px}
+.signin__error{
+  margin-bottom:11px;padding:11px 13px;border-radius:var(--r-sm);
+  background:var(--coral-soft);color:var(--coral);font-size:13px;font-weight:700;line-height:1.45;
+}
+
+/* ---------- account ---------- */
+.avatar{border-radius:50%;object-fit:cover;flex-shrink:0;display:block}
+.avatar--initial{
+  display:grid;place-items:center;background:var(--coral-soft);color:var(--coral);
+  font-weight:900;line-height:1;
+}
+.tabbar__link--account{background:none;border:none;cursor:pointer}
+.account__upsell{
+  margin-top:16px;padding:13px 15px;border-radius:var(--r-sm);background:var(--butter-soft);
+}
+.account__upsell code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:5px;font-size:11.5px}

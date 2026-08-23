@@ -1,23 +1,23 @@
 import demoDogs from "../../../data/dogs.json";
 import type { CareLogEntry, Dog, Foster } from "../types";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_CARE_CHECKLIST, DEFAULT_PREP_CHECKLIST } from "../checklists";
-import { FOSTER_ID } from "./fosterId";
 
 /**
  * Firebase config lives in `web/.env`, which isn't committed. Without it the app would
  * throw on the first Firestore call, so it falls back to the seed roster plus a
  * localStorage-backed foster. Same UI, same shapes — just no shared backend.
+ *
+ * This is also the guest path: a signed-out foster keeps their journey here rather than in
+ * Firestore, so the whole product works before anyone creates an account.
  */
 export const LOCAL_MODE = !import.meta.env.VITE_FIREBASE_PROJECT_ID;
 
 export const LOCAL_DOGS = demoDogs as Dog[];
 
-// Keyed by foster id so "start a new journey" gets a clean slate here too,
-// rather than inheriting whatever the previous one left behind.
-const KEY = `pawthway.localFoster.v1.${FOSTER_ID}`;
+const KEY = "pawthway.localFoster.v1";
 
 export const BLANK_FOSTER: Foster = {
-  id: FOSTER_ID,
+  id: "guest",
   name: "",
   phase: "onboarding",
   intake: {},
@@ -59,7 +59,7 @@ export function resetLocalFoster() {
 }
 
 /* ---------- care log (local mode) ---------- */
-const LOG_KEY = `pawthway.localCareLog.v1.${FOSTER_ID}`;
+const LOG_KEY = "pawthway.localCareLog.v1";
 const logListeners = new Set<(e: CareLogEntry[]) => void>();
 
 export function readLocalCareLog(): CareLogEntry[] {

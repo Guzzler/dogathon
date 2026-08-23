@@ -11,6 +11,8 @@ import { MatchChatView } from "./phases/match/MatchChatView";
 import { CarePlanView } from "./phases/careplan/CarePlanView";
 import { PostFosterView } from "./phases/postfoster/PostFosterView";
 import { PublicAdoptionView } from "./phases/postfoster/PublicAdoptionView";
+import { SignInView } from "./phases/auth/SignInView";
+import { useSession } from "./hooks/useSession";
 import { useFoster } from "./hooks/useFoster";
 import { hasOnboarded, journeyHome } from "./lib/foster";
 import "./App.css";
@@ -20,11 +22,24 @@ import "./theme.css";
 /** The questionnaire is the front door: nothing else is reachable until it's done. */
 const OPEN_ROUTES = ["/welcome", "/onboarding"];
 
+const Boot = () => <div className="boot"><span className="boot__paw">🐾</span></div>;
+
+/**
+ * Sits in front of the onboarding gate: the app needs to know *whose* journey it's loading
+ * before it can ask whether that journey has started.
+ */
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const session = useSession();
+  if (session.kind === "loading") return <Boot />;
+  if (session.kind === "signedOut") return <SignInView />;
+  return <>{children}</>;
+}
+
 function OnboardingGate({ children }: { children: React.ReactNode }) {
   const { foster, loading } = useFoster();
   const { pathname } = useLocation();
 
-  if (loading) return <div className="boot"><span className="boot__paw">🐾</span></div>;
+  if (loading) return <Boot />;
   if (!hasOnboarded(foster) && !OPEN_ROUTES.includes(pathname)) {
     return <Navigate to="/welcome" replace />;
   }
@@ -64,7 +79,7 @@ export default function App() {
  */
 function JourneyHome() {
   const { foster, loading } = useFoster();
-  if (loading) return <div className="boot"><span className="boot__paw">🐾</span></div>;
+  if (loading) return <Boot />;
   // Checked here rather than leaning on the gate's redirect, so a new visitor
   // goes straight to Welcome instead of bouncing through /discovery first.
   if (!hasOnboarded(foster)) return <Navigate to="/welcome" replace />;
@@ -74,5 +89,5 @@ function JourneyHome() {
 // Split out so the gate can sit inside Layout and still wrap every child route.
 import { Outlet } from "react-router-dom";
 function GateOutlet() {
-  return <OnboardingGate><Outlet /></OnboardingGate>;
+  return <AuthGate><OnboardingGate><Outlet /></OnboardingGate></AuthGate>;
 }

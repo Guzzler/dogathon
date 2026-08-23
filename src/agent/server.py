@@ -1,9 +1,9 @@
 """HTTP bridge for the web demo: SSE chat stream + an approval endpoint.
 
-One conversation per foster id. Each browser mints its own id
-(web/src/lib/fosterId.ts) and sends it with every request, so two people using
-the deployed URL at once get separate histories and separate approval slots
-rather than talking over each other.
+One conversation per foster id. The web client sends the signed-in user's uid
+(web/src/lib/session.ts) with every request, so two people using the deployed URL
+at once get separate histories and separate approval slots rather than talking
+over each other.
 
 Sessions live in memory, so a Cloud Run restart or a second instance loses
 history — fine for a demo, and the reason this isn't the place to put anything
@@ -31,6 +31,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from .builtin import registry
+from .current_foster import set_current_foster
 from .loop import Agent
 
 load_dotenv()
@@ -82,9 +83,11 @@ PAWTHWAY_SYSTEM = (
 
 _registry = registry()
 
-# `f_` + 20 hex, or the seeded demo foster. Mirrors FOSTER_ID_PATTERN in
-# web/src/lib/fosterId.ts and the match in firestore.rules.
-_FOSTER_ID_RE = re.compile(r"^(annie|f_[a-f0-9]{20})$")
+# A Firebase Auth uid (or the seeded demo foster). Deliberately permissive about
+# the alphabet -- uids are an opaque provider format and pinning it tighter would
+# silently drop real users into the demo journey. What this actually guards is the
+# Firestore path: no slashes, no dots, no traversal.
+_FOSTER_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 DEFAULT_FOSTER_ID = "annie"
 
 # Bounded so a long-lived instance can't accumulate a session per visitor
@@ -150,6 +153,7 @@ def _session(foster_id: str) -> Session:
 
 class ChatRequest(BaseModel):
     message: str
+    # The signed-in foster's uid. The client knows it; the model shouldn't have to guess.
     foster_id: str | None = None
 
 
@@ -192,7 +196,11 @@ def _friendly_error(exc: Exception) -> dict[str, str]:
     return {"text": text, "code": code}
 
 
-def _stream(message: str, session: Session) -> Iterator[str]:
+def _stream(message: str, session: Session, foster_id: str) -> Iterator[str]:
+    # Set inside the generator, not in the endpoint: the generator body runs in its
+    # own context while the response streams, so binding it here is what keeps two
+    # overlapping conversations from resolving each other's foster id.
+    set_current_foster(foster_id)
     try:
         for ev in session.agent.run(message):
             payload: dict[str, Any] = {"text": ev.text}
@@ -232,9 +240,10 @@ def list_tools() -> list[dict[str, Any]]:
 
 @app.post("/chat")
 def chat(req: ChatRequest) -> StreamingResponse:
-    session = _session(_normalize_foster_id(req.foster_id))
+    foster_id = _normalize_foster_id(req.foster_id)
+    session = _session(foster_id)
     return StreamingResponse(
-        _stream(req.message, session),
+        _stream(req.message, session, foster_id),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

@@ -102,6 +102,36 @@ Matching lives in `web/src/lib/matching.ts`: `scoreDog()` returns 0–99 from si
 plus home, experience and tag rules, and `matchReasons()` renders the same inputs as the
 "Why you match" copy.
 
+## Accounts: who the app is acting as
+
+`web/src/lib/session.ts` holds the current session in a **module-level variable**, not only in
+React state. `patchFoster()` and `addCareLogEntry()` are plain functions called from ~20
+places; they resolve the foster document synchronously via `fosterDocId()` rather than having
+a uid threaded through every call site.
+
+Three states matter:
+- **user** — signed in with Google. Owns `fosters/{uid}` and its `careLog` subcollection.
+- **guest** — chose "Continue as guest". Same journey, kept in localStorage. The flag persists
+  so the sign-in screen isn't a toll gate on every visit.
+- **signedOut** — sees `SignInView`, which is the real front door (in front of the onboarding
+  gate: the app must know *whose* journey to load before asking whether it has started).
+
+**Guest is not a fallback, it's a supported path.** Without `web/.env` there is no Firebase to
+authenticate against, so Google sign-in disables itself and says why — the whole product still
+runs on a fresh clone. Don't add code that assumes a uid exists.
+
+Firestore rules scope `fosters/{uid}` to `request.auth.uid == uid`. A shared adoption link is
+opened by people who can't read that document, so `useFoster`'s `onSnapshot` has an error
+callback that degrades to null instead of throwing.
+
+### The agent needs to know too
+
+Every tool takes `foster_id`, defaulting to `""`. `src/agent/current_foster.py` resolves an
+omitted id against whatever the last `/chat` request said, and `web/src/api.ts` sends
+`fosterDocId()` with each message. Without this the agent reads the seeded demo foster and
+confidently describes the wrong dog. Single-session, like the rest of that server — if it ever
+serves concurrent conversations, make it a contextvar.
+
 ## Onboarding is a gate, not a phase you navigate to
 
 A foster with no intake can't reach anything else. `OnboardingGate` in `web/src/App.tsx`

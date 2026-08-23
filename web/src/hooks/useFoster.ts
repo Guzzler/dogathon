@@ -2,46 +2,49 @@ import { useEffect, useState } from "react";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { firestore } from "../firebase";
 import type { Foster } from "../types";
-import { LOCAL_MODE, subscribeLocalFoster, writeLocalFoster } from "../lib/localMode";
-import { FOSTER_ID } from "../lib/fosterId";
+import { subscribeLocalFoster, writeLocalFoster } from "../lib/localMode";
+import { fosterDocId, getSession, subscribeSession } from "../lib/session";
 
-// Re-exported so the existing `from "./useFoster"` imports keep working; the id
-// itself now comes from lib/fosterId (one per browser, not one per deployment).
-export { FOSTER_ID };
+/** What we last loaded, and for whom — so switching users can't show stale data. */
+type Snapshot = { for: string | null; foster: Foster | null };
 
+/**
+ * Each signed-in user owns `fosters/{uid}`. Guests — and anyone running without Firebase
+ * config — keep the same journey in localStorage instead, so a fresh clone still works.
+ */
 export function useFoster() {
-  const [foster, setFoster] = useState<Foster | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [sessionKind, setSessionKind] = useState(() => getSession().kind);
+  const [docId, setDocId] = useState<string | null>(fosterDocId);
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+
+  useEffect(() => subscribeSession((s) => { setDocId(fosterDocId()); setSessionKind(s.kind); }), []);
 
   useEffect(() => {
-    if (LOCAL_MODE) {
-      const unsub = subscribeLocalFoster((f) => { setFoster(f); setLoading(false); });
-      return unsub;
-    }
-    const ref = doc(firestore, "fosters", FOSTER_ID);
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        setFoster(snap.exists() ? ({ id: snap.id, ...(snap.data() as Omit<Foster, "id">) }) : null);
-        setLoading(false);
-      },
-      // Without this, a rules rejection leaves `loading` true forever and the app
-      // sits on the boot spinner with no way out. Treat it as "no record yet" so
-      // the journey falls back to onboarding rather than hanging.
-      (err) => {
-        console.error("foster snapshot failed", err);
-        setFoster(null);
-        setLoading(false);
-      },
-    );
-    return unsub;
-  }, []);
+    if (sessionKind === "loading") return;          // wait for auth before picking a source
 
-  return { foster, loading };
+    if (!docId) {
+      return subscribeLocalFoster((foster) => setSnapshot({ for: null, foster }));
+    }
+
+    return onSnapshot(
+      doc(firestore, "fosters", docId),
+      (snap) => setSnapshot({
+        for: docId,
+        foster: snap.exists() ? { id: snap.id, ...(snap.data() as Omit<Foster, "id">) } : null,
+      }),
+      // Rules deny cross-user reads; a shared adoption link hits this. Degrade, don't crash.
+      () => setSnapshot({ for: docId, foster: null }),
+    );
+  }, [docId, sessionKind]);
+
+  // Derived rather than stored, so a user switch reads as loading without an extra setState.
+  const loading = sessionKind === "loading" || snapshot?.for !== docId;
+
+  return { foster: loading ? null : snapshot!.foster, loading };
 }
 
 export async function patchFoster(patch: Record<string, unknown>): Promise<void> {
-  if (LOCAL_MODE) { writeLocalFoster(patch); return; }
-  const ref = doc(firestore, "fosters", FOSTER_ID);
-  await setDoc(ref, patch, { merge: true });
+  const id = fosterDocId();
+  if (!id) { writeLocalFoster(patch); return; }
+  await setDoc(doc(firestore, "fosters", id), patch, { merge: true });
 }

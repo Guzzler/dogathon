@@ -1,34 +1,38 @@
 import { useEffect, useState } from "react";
 import { addDoc, collection, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore";
 import { firestore } from "../firebase";
-import { FOSTER_ID } from "./useFoster";
+import { fosterDocId, subscribeSession } from "../lib/session";
 import type { CareLogEntry } from "../types";
-import { appendLocalCareLog, LOCAL_MODE, subscribeLocalCareLog } from "../lib/localMode";
+import { appendLocalCareLog, subscribeLocalCareLog } from "../lib/localMode";
 
+/** Subcollection of the signed-in user's foster doc; localStorage for guests. */
 export function useCareLog() {
   const [entries, setEntries] = useState<CareLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [docId, setDocId] = useState<string | null>(fosterDocId);
+
+  useEffect(() => subscribeSession(() => setDocId(fosterDocId())), []);
 
   useEffect(() => {
-    if (LOCAL_MODE) {
+    if (!docId) {
       return subscribeLocalCareLog((e) => { setEntries(e); setLoading(false); });
     }
-    const q = query(collection(firestore, "fosters", FOSTER_ID, "careLog"), orderBy("created_at"));
-    const unsub = onSnapshot(
+    const q = query(collection(firestore, "fosters", docId, "careLog"), orderBy("created_at"));
+    return onSnapshot(
       q,
       (snap) => {
         setEntries(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CareLogEntry, "id">) })));
         setLoading(false);
       },
-      // Same reasoning as useFoster: never leave a screen stuck loading.
+      // Rules deny cross-user reads, so a denied listen must still resolve loading —
+      // otherwise the screen sits on a spinner with no way out.
       (err) => {
         console.error("care log snapshot failed", err);
         setEntries([]);
         setLoading(false);
       },
     );
-    return unsub;
-  }, []);
+  }, [docId]);
 
   return { entries, loading };
 }
@@ -39,17 +43,13 @@ export async function addCareLogEntry(entry: {
   value?: string;
   photo_url?: string;
 }): Promise<void> {
-  if (LOCAL_MODE) {
-    appendLocalCareLog({
-      type: entry.type, note: entry.note ?? "", value: entry.value ?? "", photo_url: entry.photo_url ?? "",
-    });
-    return;
-  }
-  await addDoc(collection(firestore, "fosters", FOSTER_ID, "careLog"), {
+  const id = fosterDocId();
+  const base = {
     type: entry.type,
     note: entry.note ?? "",
     value: entry.value ?? "",
     photo_url: entry.photo_url ?? "",
-    created_at: serverTimestamp(),
-  });
+  };
+  if (!id) { appendLocalCareLog(base); return; }
+  await addDoc(collection(firestore, "fosters", id, "careLog"), { ...base, created_at: serverTimestamp() });
 }
