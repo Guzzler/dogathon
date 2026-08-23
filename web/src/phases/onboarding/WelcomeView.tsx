@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { LogoLockup } from "../../components/Logo";
 import { patchFoster } from "../../hooks/useFoster";
+import { sessionDisplayName } from "../../lib/session";
 
 /** First thing a brand-new foster sees — the app opens here, not on the Hub. */
 export function WelcomeView() {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
+  // Google already told us their name — no reason to make them type it again.
+  const [name, setName] = useState(sessionDisplayName);
   const [saving, setSaving] = useState(false);
 
   async function start() {

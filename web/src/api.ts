@@ -1,5 +1,5 @@
 import type { AgentEvent, EventKind, HealthInfo, ToolInfo } from "./types";
-import { FOSTER_ID } from "./lib/fosterId";
+import { fosterDocId } from "./lib/session";
 
 // Local dev goes through the Vite proxy (/api -> 127.0.0.1:8000). A
 // production build points straight at the deployed Cloud Run agent, since
@@ -28,12 +28,12 @@ export const getTools = () => json<ToolInfo[]>("/tools");
 export const resetChat = () =>
   json<{ ok: boolean }>("/reset", {
     method: "POST",
-    body: JSON.stringify({ foster_id: FOSTER_ID }),
+    body: JSON.stringify({ foster_id: fosterDocId() }),
   });
 export const sendApproval = (approved: boolean) =>
   json<{ ok: boolean }>("/approve", {
     method: "POST",
-    body: JSON.stringify({ approved, foster_id: FOSTER_ID }),
+    body: JSON.stringify({ approved, foster_id: fosterDocId() }),
   });
 
 /**
@@ -77,7 +77,9 @@ export async function streamChat(
     res = await fetch(`${AGENT_BASE}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, foster_id: FOSTER_ID }),
+      // Selects the conversation on the server and pins which journey its tools
+      // may read. Null for guests — the server falls back to the demo foster.
+      body: JSON.stringify({ message, foster_id: fosterDocId() }),
       signal,
     });
   } catch (err) {

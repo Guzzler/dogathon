@@ -4,6 +4,8 @@ import { useFoster } from "../hooks/useFoster";
 import { LOCAL_MODE } from "../lib/localMode";
 import { hasOnboarded, journeyTabs } from "../lib/foster";
 import { PawMark } from "./Logo";
+import { AccountTab } from "./AccountSheet";
+import { useSession } from "../hooks/useSession";
 
 /** Full-bleed screens own their own chrome, so the tab bar steps out of the way. */
 const FULL_BLEED = [/^\/welcome/, /^\/onboarding/, /^\/dog\//, /^\/adoption\//, /^\/match\/chat/];
@@ -11,6 +13,7 @@ const FULL_BLEED = [/^\/welcome/, /^\/onboarding/, /^\/dog\//, /^\/adoption\//, 
 export function Layout() {
   const { pathname } = useLocation();
   const { foster } = useFoster();
+  const session = useSession();
   // The visible steps follow the foster's phase, so the app reads as a journey.
   const tabs = journeyTabs(foster?.phase);
   const hideTabs = FULL_BLEED.some(re => re.test(pathname)) || !hasOnboarded(foster) || !tabs.length;
@@ -35,6 +38,8 @@ export function Layout() {
                 <span className="tabbar__label">{t.label}</span>
               </NavLink>
             ))}
+            {/* Not a journey step — identity lives alongside it, opening a sheet. */}
+            <AccountTab session={session} />
           </nav>
         )}
       </div>

@@ -4,6 +4,7 @@ back to the shelter, closing the loop on the foster journey.
 
 from __future__ import annotations
 
+from ..current_foster import resolve
 from ..firestore_client import db
 from .care import get_care_log
 from .foster import get_foster
@@ -12,7 +13,7 @@ from ..tools import tool
 
 
 @tool
-def generate_adoption_profile(foster_id: str = "annie") -> dict:
+def generate_adoption_profile(foster_id: str = "") -> dict:
     """Gather everything needed to write a dog's adoption profile: the
     shelter's record for the matched dog, the foster's intake notes, and the
     full care log (weigh-ins, vet visits, notes, photos) gathered while
@@ -20,8 +21,10 @@ def generate_adoption_profile(foster_id: str = "annie") -> dict:
     adoption-profile narrative yourself from this data, don't just repeat it.
 
     Args:
-        foster_id: The foster's id. Defaults to the demo foster, "annie".
+        foster_id: The foster's id. Leave this out -- it defaults to the
+            signed-in foster the app is showing.
     """
+    foster_id = resolve(foster_id)
     foster = get_foster(foster_id=foster_id)
     dog_id = foster.get("matchedDogId")
     if not dog_id:
@@ -34,7 +37,7 @@ def generate_adoption_profile(foster_id: str = "annie") -> dict:
 
 
 @tool(dangerous=True)
-def send_adoption_profile_to_shelter(foster_id: str = "annie", dog_id: str = "", profile_text: str = "") -> dict:
+def send_adoption_profile_to_shelter(foster_id: str = "", dog_id: str = "", profile_text: str = "") -> dict:
     """Send the finished adoption profile back to the shelter: saves it on
     the dog's record, marks the dog ready for adoption, and closes out the
     foster's journey. If a Gmail or Slack tool is available, also use it to
@@ -42,10 +45,12 @@ def send_adoption_profile_to_shelter(foster_id: str = "annie", dog_id: str = "",
     status update alone is the notification.
 
     Args:
-        foster_id: The foster's id. Defaults to the demo foster, "annie".
+        foster_id: The foster's id. Leave this out -- it defaults to the
+            signed-in foster the app is showing.
         dog_id: The matched dog's id, for example d-001.
         profile_text: The adoption profile narrative to send.
     """
+    foster_id = resolve(foster_id)
     if not dog_id or not profile_text:
         raise ValueError("dog_id and profile_text are both required.")
 

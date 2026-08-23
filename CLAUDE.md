@@ -102,6 +102,54 @@ Matching lives in `web/src/lib/matching.ts`: `scoreDog()` returns 0–99 from si
 plus home, experience and tag rules, and `matchReasons()` renders the same inputs as the
 "Why you match" copy.
 
+## Accounts: who the app is acting as
+
+`web/src/lib/session.ts` holds the current session in a **module-level variable**, not only in
+React state. `patchFoster()` and `addCareLogEntry()` are plain functions called from ~20
+places; they resolve the foster document synchronously via `fosterDocId()` rather than having
+a uid threaded through every call site.
+
+Three states matter:
+- **user** — signed in with Google. Owns `fosters/{uid}` and its `careLog` subcollection.
+- **guest** — chose "Continue as guest". Same journey, kept in localStorage. The flag persists
+  so the sign-in screen isn't a toll gate on every visit.
+- **signedOut** — sees `SignInView`, which is the real front door (in front of the onboarding
+  gate: the app must know *whose* journey to load before asking whether it has started).
+
+**Guest is not a fallback, it's a supported path.** Without `web/.env` there is no Firebase to
+authenticate against, so Google sign-in disables itself and says why — the whole product still
+runs on a fresh clone. Don't add code that assumes a uid exists.
+
+Firestore rules scope `fosters/{uid}` to `request.auth.uid == uid`. A shared adoption link is
+opened by people who can't read that document, so `useFoster`'s `onSnapshot` has an error
+callback that degrades to null instead of throwing.
+
+One consequence is worth knowing before you build on it: an **application is stored as fields
+on the foster's private document**, so a shelter can't query "who applied to us". Moving it to
+its own collection is cheap now and a migration later — see
+[docs/shelter-integration.md](docs/shelter-integration.md) before adding anything shelter-side.
+
+### The agent needs to know too
+
+Every tool takes `foster_id`, defaulting to `""`. `src/agent/current_foster.py` resolves an
+omitted id against the foster the conversation belongs to, and `web/src/api.ts` sends
+`fosterDocId()` with each message. Without this the agent reads the seeded demo foster and
+confidently describes the wrong dog.
+
+Two things keep that correct when more than one person is chatting, and both matter:
+
+- `current_foster` is a **ContextVar set inside the streaming generator** (`server._stream`),
+  not a module global set in the endpoint. A global is shared by every request in the process:
+  with two people chatting at once, the second request's id overwrites the first while the
+  first's stream is still open, and that stream's tool calls then read and write the wrong
+  person's journey. Don't simplify it back to a global.
+- `server.py` keeps **one `Agent` and one approval queue per foster id** (bounded by count and
+  idle time), with the id pinned into that session's system prompt. One shared `Agent` means
+  shared history — one foster's questions showing up in another's transcript.
+
+Conversations live in memory, so a Cloud Run restart or a second instance loses them. That's
+fine for a demo and the reason this isn't the place to put anything that has to survive.
+
 ## Onboarding is a gate, not a phase you navigate to
 
 A foster with no intake can't reach anything else. `OnboardingGate` in `web/src/App.tsx`

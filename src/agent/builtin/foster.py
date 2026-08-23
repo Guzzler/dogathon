@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..current_foster import resolve
 from ..firestore_client import db
 from ..tools import tool
 
@@ -49,13 +50,15 @@ def _ref(foster_id: str):
 
 
 @tool
-def get_foster(foster_id: str = "annie") -> dict:
+def get_foster(foster_id: str = "") -> dict:
     """Look up a foster's full journey record: intake answers, liked/passed
     dogs, matched dog, checklists, and pickup details.
 
     Args:
-        foster_id: The foster's id. Defaults to the demo foster, "annie".
+        foster_id: The foster's id. Leave this out -- it defaults to the
+            signed-in foster the app is showing.
     """
+    foster_id = resolve(foster_id)
     snap = _ref(foster_id).get()
     if not snap.exists:
         raise KeyError(f"No foster with id {foster_id}")
@@ -64,7 +67,7 @@ def get_foster(foster_id: str = "annie") -> dict:
 
 @tool(dangerous=True)
 def save_intake(
-    foster_id: str = "annie",
+    foster_id: str = "",
     living_arrangement: str = "",
     experience_level: str = "",
     time_availability: str = "",
@@ -75,7 +78,8 @@ def save_intake(
     """Save a foster's onboarding intake answers.
 
     Args:
-        foster_id: The foster's id. Defaults to the demo foster, "annie".
+        foster_id: The foster's id. Leave this out -- it defaults to the
+            signed-in foster the app is showing.
         living_arrangement: e.g. "apartment" or "house with yard".
         experience_level: e.g. "first-time" or "experienced".
         time_availability: How much daily time the foster has for a dog.
@@ -83,6 +87,7 @@ def save_intake(
         energy_preference: Preferred energy level, e.g. "low", "medium", "high".
         restrictions: Any hard restrictions, e.g. "no cats in the home".
     """
+    foster_id = resolve(foster_id)
     intake = {
         "living_arrangement": living_arrangement,
         "experience_level": experience_level,
@@ -96,15 +101,17 @@ def save_intake(
 
 
 @tool(dangerous=True)
-def record_swipe(foster_id: str = "annie", dog_id: str = "", liked: bool = False) -> dict:
+def record_swipe(foster_id: str = "", dog_id: str = "", liked: bool = False) -> dict:
     """Record a like/pass on a dog during discovery. A like moves the foster
     into the Match phase with that dog.
 
     Args:
-        foster_id: The foster's id. Defaults to the demo foster, "annie".
+        foster_id: The foster's id. Leave this out -- it defaults to the
+            signed-in foster the app is showing.
         dog_id: The dog's id, for example d-001.
         liked: True for a like (swipe right), False for a pass (swipe left).
     """
+    foster_id = resolve(foster_id)
     from firebase_admin import firestore as fa_firestore
 
     ref = _ref(foster_id)
@@ -118,15 +125,17 @@ def record_swipe(foster_id: str = "annie", dog_id: str = "", liked: bool = False
 
 
 @tool
-def update_checklist(foster_id: str = "annie", checklist: str = "prep", item_id: str = "", done: bool = True) -> dict:
+def update_checklist(foster_id: str = "", checklist: str = "prep", item_id: str = "", done: bool = True) -> dict:
     """Tick or untick one item on one of a foster's checklists.
 
     Args:
-        foster_id: The foster's id. Defaults to the demo foster, "annie".
+        foster_id: The foster's id. Leave this out -- it defaults to the
+            signed-in foster the app is showing.
         checklist: Which checklist: "approval", "prep", or "care".
         item_id: The checklist item's id, e.g. "crate" or "vet-visit".
         done: Whether the item is now done.
     """
+    foster_id = resolve(foster_id)
     if checklist not in CHECKLISTS:
         raise ValueError(f"checklist must be one of {', '.join(CHECKLISTS)}")
     field, defaults = CHECKLISTS[checklist]
