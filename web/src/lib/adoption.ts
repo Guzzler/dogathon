@@ -1,7 +1,7 @@
 import type { CareLogEntry, Foster } from "../types";
 import type { JournalEntry, Milestone, ScheduleBlock } from "../phases/careplan/types";
 import { medicalSummary, seedMilestones } from "../phases/careplan/data";
-import { ENERGY_WORD, photoUrl, sizeLabel, type RichDog } from "./dog";
+import { ENERGY_WORD, dogPhoto, sizeLabel, type RichDog } from "./dog";
 
 /**
  * The adoption page's content, with a source for every field.
@@ -65,7 +65,7 @@ export function buildAdoptionProfile(
 
   // The carousel opens on the shelter's own photo, then everything the foster added.
   const photos = [
-    { url: photoUrl(dog.photoId, 700, 700), date: "From the shelter", source: "shelter" as const },
+    { url: dogPhoto(dog, 700, 700), date: "From the shelter", source: "shelter" as const },
     ...journalPhotos,
   ];
 
@@ -93,25 +93,33 @@ export function buildAdoptionProfile(
     ? { value: logWeighIns[logWeighIns.length - 1].value, source: "care plan" as const }
     : lastMilestoneWeight
     ? { value: `${lastMilestoneWeight} lb`, source: "care plan" as const }
-    : { value: `${dog.weight_lbs} lb`, source: "shelter" as const };
+    : dog.weight_lbs != null
+    ? { value: `${dog.weight_lbs} lb`, source: "shelter" as const }
+    : { value: sizeLabel(dog.size), source: "shelter" as const };
 
   const shelterFacts = [
     { label: "Breed", value: dog.breed },
     { label: "Age", value: dog.ageLabel },
-    { label: "Size", value: `${sizeLabel(dog.size)} · ${dog.weight_lbs} lb at intake` },
+    { label: "Size", value: sizeLabel(dog.size) + (dog.weight_lbs != null ? ` · ${dog.weight_lbs} lb at intake` : "") },
     { label: "Energy level", value: ENERGY_WORD[dog.energyLevel] },
-    { label: "Grooming", value: `${dog.groomingLevel === "low" ? "Low" : "High"} · ${dog.coatLength} coat` },
+    ...(dog.groomingLevel || dog.coatLength
+      ? [{ label: "Grooming", value: [
+          dog.groomingLevel && (dog.groomingLevel === "low" ? "Low" : "High"),
+          dog.coatLength && `${dog.coatLength} coat`,
+        ].filter(Boolean).join(" · ") }]
+      : []),
   ];
 
-  // good_with_cats is optional on the record — absent means untested, not "no".
+  // All three are tri-state: a shelter that never recorded it is not the same as a "no",
+  // and printing "Not recommended" for an unknown is a claim about a real animal.
+  const compat = (ok: boolean | null | undefined) => ({
+    known: ok != null,
+    value: ok == null ? "Not tested" : ok ? "Yes" : "Not recommended",
+  });
   const compatibility = [
-    { label: "Kids", known: true, value: dog.good_with_kids ? "Yes" : "Not recommended" },
-    { label: "Dogs", known: true, value: dog.good_with_dogs ? "Yes" : "Not recommended" },
-    {
-      label: "Cats",
-      known: dog.good_with_cats !== undefined,
-      value: dog.good_with_cats === undefined ? "Not tested" : dog.good_with_cats ? "Yes" : "Not recommended",
-    },
+    { label: "Kids", ...compat(dog.good_with_kids) },
+    { label: "Dogs", ...compat(dog.good_with_dogs) },
+    { label: "Cats", ...compat(dog.good_with_cats) },
   ];
 
   const fosterNote = foster?.adoptionNote?.trim() || null;

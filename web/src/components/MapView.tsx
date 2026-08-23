@@ -3,8 +3,7 @@ import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { AnimatePresence, motion } from "motion/react";
-import { SHELTERS } from "../lib/shelters";
-import { photoUrl, type RichDog } from "../lib/dog";
+import { dogPhoto, type RichDog } from "../lib/dog";
 import { distanceMi } from "../lib/matching";
 
 /** Single paw, drawn rather than the two-paw 🐾 emoji. */
@@ -58,17 +57,28 @@ export default function MapView({ dogs, me, scoreOf, onOpen }: {
   const [sel, setSel] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("match");
 
+  // Derived from the dogs, not from the SHELTERS constant — real orgs aren't in that list,
+  // and iterating it would leave every genuine shelter without a pin.
   const shelters = useMemo(() => {
-    const by: Record<string, RichDog[]> = {};
-    dogs.forEach(d => { (by[d.shelter.id] ||= []).push(d); });
-    return SHELTERS.map(s => ({ ...s, dogs: by[s.id] ?? [], miles: distanceMi(me, s) }));
+    const by = new Map<string, { shelter: RichDog["shelter"]; dogs: RichDog[] }>();
+    dogs.forEach(d => {
+      const hit = by.get(d.shelter.id);
+      if (hit) hit.dogs.push(d);
+      else by.set(d.shelter.id, { shelter: d.shelter, dogs: [d] });
+    });
+    return [...by.values()].map(({ shelter, dogs }) => ({
+      ...shelter, dogs, miles: distanceMi(me, shelter),
+    }));
   }, [dogs, me]);
 
-  const selS = sel ? shelters.find(s => s.id === sel)! : null;
+  // A shelter can vanish between renders (filters, a new roster) — don't assume it's there.
+  const selS = sel ? shelters.find(s => s.id === sel) ?? null : null;
 
   const list = useMemo(() => {
     let out = selS ? selS.dogs : dogs;
-    if (!selS && sort === "easy") out = out.filter(d => d.energyLevel <= 2 && d.good_with_kids);
+    // Deliberately excludes unknowns: a "first-time friendly" filter should be conservative,
+    // and leaving a dog out is not a claim about it.
+    if (!selS && sort === "easy") out = out.filter(d => d.energyLevel <= 2 && d.good_with_kids === true);
     if (!selS && sort === "small") out = out.filter(d => d.size === "small");
     const copy = [...out];
     if (sort === "near") copy.sort((a, b) => distanceMi(me, a.shelter) - distanceMi(me, b.shelter));
@@ -141,7 +151,7 @@ export default function MapView({ dogs, me, scoreOf, onOpen }: {
               <button key={d.id} onClick={() => onOpen(d.id)} style={{ flexShrink: 0, width: 108, textAlign: "left" }}>
                 <div style={{
                   position: "relative", width: 108, height: 108, borderRadius: 17, overflow: "hidden",
-                  background: `var(--cream-2) url(${photoUrl(d.photoId, 300, 300)}) center/cover`,
+                  background: `var(--cream-2) url(${dogPhoto(d, 300, 300)}) center/cover`,
                 }}>
                   <span style={{
                     position: "absolute", top: 6, right: 6, padding: "3px 7px", borderRadius: 100,

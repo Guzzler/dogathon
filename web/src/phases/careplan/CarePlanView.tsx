@@ -4,7 +4,7 @@ import { DemoCarePanel } from "../../components/DemoCarePanel";
 import { useDogs } from "../../hooks/useDogs";
 import { useFoster } from "../../hooks/useFoster";
 import { useCareSchedule, useJournal } from "../../hooks/useJournal";
-import { normalizeDog, photoUrl } from "../../lib/dog";
+import { normalizeDog, dogPhoto } from "../../lib/dog";
 import { DEMO_MODE } from "../../lib/demoMode";
 import type { Dog } from "../../types";
 import {
@@ -41,11 +41,11 @@ function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
     name: d.name,
     breed: d.breed,
     ageMonths: Math.max(1, Math.round(d.age_years * 12)),
-    weightLbs: d.weight_lbs,
+    weightLbs: d.weight_lbs ?? 0,   // 0 reads as "unknown" in the Care Plan header
     pickupDate,
     medicalFlags: d.needs ?? [],
     backstory: d.notes,
-    photoUrl: photoUrl(d.photoId, 600, 600),
+    photoUrl: dogPhoto(d, 600, 600),
   };
 }
 

@@ -13,6 +13,8 @@ export const prefs = (i: FosterIntake | undefined) => ({
   tags: i?.pref_tags ?? [],
 });
 
+const compat = (ok: boolean | null | undefined) => (ok == null ? -4 : ok ? 6 : -26);
+
 export function scoreDog(d: RichDog, intake: FosterIntake | undefined): number {
   const p = prefs(intake);
   let s = 52;
@@ -38,13 +40,17 @@ export function scoreDog(d: RichDog, intake: FosterIntake | undefined): number {
   const isPuppy = d.age_years < 1;
   if (t.includes("puppy"))     s += isPuppy ? 18 : -20;
   if (t.includes("adult"))     s += isPuppy ? -14 : 6;
-  if (t.includes("groomLow"))  s += d.groomingLevel === "low" ? 10 : -12;
+  // Same reasoning as compat(): unknown is not a mismatch, just no evidence either way.
+  if (t.includes("groomLow"))  s += d.groomingLevel == null ? 0 : d.groomingLevel === "low" ? 10 : -12;
   if (t.includes("groomHigh")) s += d.groomingLevel === "high" ? 4 : 0;
-  if (t.includes("coatShort")) s += d.coatLength === "short" ? 8 : -8;
-  if (t.includes("coatLong"))  s += d.coatLength === "long" ? 8 : -8;
-  if (t.includes("kidsGood"))  s += d.good_with_kids ? 6 : -26;
-  if (t.includes("withDogs"))  s += d.good_with_dogs ? 6 : -26;
-  if (t.includes("withCats"))  s += d.goodWithCats ? 6 : -26;
+  if (t.includes("coatShort")) s += d.coatLength == null ? 0 : d.coatLength === "short" ? 8 : -8;
+  if (t.includes("coatLong"))  s += d.coatLength == null ? 0 : d.coatLength === "long" ? 8 : -8;
+  // Three-way, and the middle case matters: real listings leave compatibility blank
+  // constantly. Scoring unknown as a hard no would push honest records under the
+  // score >= 45 cutoff in DiscoveryView, making real data look emptier than invented data.
+  if (t.includes("kidsGood"))  s += compat(d.good_with_kids);
+  if (t.includes("withDogs"))  s += compat(d.good_with_dogs);
+  if (t.includes("withCats"))  s += compat(d.goodWithCats);
 
   return Math.max(4, Math.min(99, Math.round(s)));
 }

@@ -6,14 +6,15 @@ export interface RichDog extends Dog {
   shelter: Shelter;
   size: DogSize;
   energyLevel: number;
-  groomingLevel: "low" | "high";
-  coatLength: "short" | "long";
-  goodWithCats: boolean;
+  groomingLevel: "low" | "high" | null;
+  coatLength: "short" | "long" | null;
+  goodWithCats: boolean | null;
   traitList: string[];
   needsList: string[];
   fosterWeeks: number;
   fosterLength: string;
   photoId: number;
+  photos: string[];
   ageLabel: string;
 }
 
@@ -40,17 +41,20 @@ export function normalizeDog(d: Dog): RichDog {
   const weeks = d.foster_weeks ?? parseLegacyLength(d.foster_length) ?? 6;
   return {
     ...d,
-    shelter: shelterFor(d.shelter_id, d.id),
-    size: sizeFromWeight(d.weight_lbs),
+    // A real org travels on the record; shelterFor() is the seeded-demo fallback.
+    shelter: d.shelter ?? shelterFor(d.shelter_id, d.id),
+    // A published size bucket is better evidence than a weight we had to infer.
+    size: d.size ?? (d.weight_lbs != null ? sizeFromWeight(d.weight_lbs) : "medium"),
     energyLevel: d.energy_level ?? guessEnergy(d),
-    groomingLevel: d.grooming ?? "low",
-    coatLength: d.coat ?? "short",
-    goodWithCats: d.good_with_cats ?? false,
+    groomingLevel: d.grooming ?? null,
+    coatLength: d.coat ?? null,
+    goodWithCats: d.good_with_cats ?? null,
     traitList: d.traits ?? [],
     needsList: d.needs ?? [],
     fosterWeeks: weeks,
     fosterLength: formatWeeks(weeks),
     photoId: photoFor(d),
+    photos: d.photo_urls ?? [],
     ageLabel:
       d.age_years < 1
         ? `${Math.max(1, Math.round(d.age_years * 12))} mo`
@@ -76,6 +80,9 @@ function parseLegacyLength(text: string | undefined): number | null {
   const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
   return /month/i.test(text) ? Math.round(avg * 4.345) : Math.round(avg);
 }
+
+/** A real photo when the source gave us one, otherwise the placedog stand-in. */
+export const dogPhoto = (d: RichDog, w = 800, h = 1000) => d.photos[0] ?? photoUrl(d.photoId, w, h);
 
 export const photoUrl = (n: number, w = 800, h = 1000) => `https://placedog.net/${w}/${h}?id=${n}`;
 export const sizeLabel = (s: DogSize) => ({ small: "Small", medium: "Medium", large: "Large" }[s]);
