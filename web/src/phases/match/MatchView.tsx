@@ -8,9 +8,14 @@ import { PickupScheduler } from "../../components/PickupScheduler";
 import { DemoShelterPanel } from "../../components/DemoShelterPanel";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_PREP_CHECKLIST, checklistOwner } from "../../checklists";
 import { normalizeDog, photoUrl } from "../../lib/dog";
+import { downloadIcs } from "../../lib/calendar";
+import { DEMO_MODE } from "../../lib/demoMode";
 import type { ChecklistItem, Pickup } from "../../types";
 
 const STAGES = ["Applied", "Under review", "Approved", "Pickup"];
+
+/** How long each shelter-side review step takes to clear. See the effect below. */
+const REVIEW_STEP_MS = 6000;
 
 export function MatchView() {
   const navigate = useNavigate();
@@ -28,6 +33,30 @@ export function MatchView() {
     if (Object.keys(patch).length) patchFoster(patch);
   }, [foster]);
 
+  // Derived above the early returns so the review effect below can be a hook.
+  const approvalItems = foster?.approvalChecklist ?? DEFAULT_APPROVAL_CHECKLIST;
+  const ownerOf = (i: ChecklistItem) => i.owner ?? checklistOwner(i.id);
+  const yourStepsAll = approvalItems.filter((i) => ownerOf(i) === "foster");
+  const shelterStepsAll = approvalItems.filter((i) => ownerOf(i) === "shelter");
+  const yourStepsDone = yourStepsAll.length > 0 && yourStepsAll.every((i) => i.done);
+  const nextShelterStep = shelterStepsAll.find((i) => !i.done);
+
+  // There's no shelter dashboard in this app, so the review that would happen on
+  // their side happens here: once the foster has finished their own steps, the
+  // shelter's clear one at a time. Demo mode leaves it to the panel instead, so a
+  // walkthrough can move at whatever pace the room needs.
+  useEffect(() => {
+    if (DEMO_MODE || !foster || !yourStepsDone || !nextShelterStep) return;
+    const id = nextShelterStep.id;
+    const timer = setTimeout(() => {
+      const items = (foster.approvalChecklist ?? DEFAULT_APPROVAL_CHECKLIST).map((i) =>
+        i.id === id ? { ...i, done: true } : i,
+      );
+      patchFoster({ approvalChecklist: items });
+    }, REVIEW_STEP_MS);
+    return () => clearTimeout(timer);
+  }, [foster, yourStepsDone, nextShelterStep]);
+
   if (loading) return <p className="pw-loading">Loading…</p>;
   if (!foster || !foster.matchedDogId || !dog) {
     return (
@@ -44,14 +73,16 @@ export function MatchView() {
     );
   }
 
-  const approval = foster.approvalChecklist ?? DEFAULT_APPROVAL_CHECKLIST;
+  const approval = approvalItems;
   const prep = foster.prepChecklist ?? DEFAULT_PREP_CHECKLIST;
-  const yourSteps = approval.filter((i) => (i.owner ?? checklistOwner(i.id)) === "foster");
-  const shelterSteps = approval.filter((i) => (i.owner ?? checklistOwner(i.id)) === "shelter");
+  const yourSteps = yourStepsAll;
+  const shelterSteps = shelterStepsAll;
   // The badge tracks only the shelter's own review; scheduling needs both sides finished.
   const shelterApproved = shelterSteps.length > 0 && shelterSteps.every((i) => i.done);
   const approved = approval.length > 0 && approval.every((i) => i.done);
   const activeIdx = foster.pickup ? 3 : approved ? 2 : 1;
+  // Only true once the foster has done their part and the shelter is still working.
+  const reviewInProgress = !DEMO_MODE && yourStepsDone && !shelterApproved;
 
   function setApprovalItem(id: string, done: boolean) {
     const items = approval.map((i) => (i.id === id ? { ...i, done } : i));
@@ -94,7 +125,11 @@ export function MatchView() {
         {/* Approval badge + timeline */}
         <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: .05 }} className="card" style={{ padding: 15 }}>
           <div className={`chip ${shelterApproved ? "sage" : "butter"}`} style={{ fontWeight: 800 }}>
-            {shelterApproved ? "✓ Shelter approved you as a foster" : "⏳ Waiting on shelter review"}
+            {shelterApproved
+              ? "✓ Shelter approved you as a foster"
+              : reviewInProgress
+                ? "⏳ Shelter is reviewing your application"
+                : "⏳ Waiting on shelter review"}
           </div>
           <div className="tl">
             {STAGES.map((label, n) => (
@@ -131,6 +166,30 @@ export function MatchView() {
                   <div className="muted" style={{ marginTop: 2 }}>{foster.pickup.time} · {foster.pickup.location}</div>
                 </div>
               </div>
+              <div className="row" style={{ gap: 8, marginTop: 13 }}>
+                <button
+                  type="button"
+                  className="btn outline sm"
+                  style={{ flex: 1, margin: 0 }}
+                  onClick={() => downloadIcs({
+                    dogName: dog.name,
+                    shelterName: dog.shelter.name,
+                    date: foster.pickup!.date,
+                    time: foster.pickup!.time,
+                    location: foster.pickup!.location,
+                  })}
+                >
+                  Add to calendar
+                </button>
+                <button
+                  type="button"
+                  className="btn outline sm"
+                  style={{ flex: 1, margin: 0 }}
+                  onClick={() => patchFoster({ pickup: null })}
+                >
+                  Reschedule
+                </button>
+              </div>
             </motion.div>
           ) : (
             <PickupScheduler shelter={dog.shelter} onConfirm={confirmPickup} />
@@ -142,12 +201,23 @@ export function MatchView() {
           <div className="match-chat">
             <div className="eyebrow" style={{ marginBottom: 9 }}>Chat with {dog.shelter.short}</div>
             <AgentChatPanel
+              activityMode="minimal"
               placeholder="Ask about parking, what to bring…"
-              emptyState={`Confirmed for ${pickupDateLabel} at ${foster.pickup.time}.`}
-              quickActions={[{
-                label: "What should I bring?",
-                message: `I just scheduled pickup for ${dog.name} on ${pickupDateLabel} at ${foster.pickup.time}. Can you confirm that works and let me know what I should bring?`,
-              }]}
+              emptyState={`You're confirmed for ${pickupDateLabel} at ${foster.pickup.time}. Ask us anything before the day.`}
+              quickActions={[
+                {
+                  label: "What should I bring?",
+                  message: `I'm picking up ${dog.name} on ${pickupDateLabel} at ${foster.pickup.time}. What should I bring?`,
+                },
+                {
+                  label: "How long does it take?",
+                  message: `How long should I set aside for the ${dog.name} pickup appointment?`,
+                },
+                {
+                  label: "Parking?",
+                  message: `Where should I park for pickup at ${dog.shelter.name}?`,
+                },
+              ]}
             />
           </div>
         )}
@@ -163,7 +233,9 @@ export function MatchView() {
         </button>
       </div>
 
-      <DemoShelterPanel items={shelterSteps} onToggle={setApprovalItem} onSetAll={setAllShelterItems} />
+      {DEMO_MODE && (
+        <DemoShelterPanel items={shelterSteps} onToggle={setApprovalItem} onSetAll={setAllShelterItems} />
+      )}
     </div>
   );
 }

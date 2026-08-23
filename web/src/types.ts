@@ -14,6 +14,8 @@ export interface AgentEvent {
   name?: string;
   args?: Record<string, unknown>;
   is_error?: boolean;
+  /** Set on `error` frames so the UI can branch without parsing the message. */
+  code?: string;
 }
 
 export interface ToolInfo {
@@ -36,7 +38,12 @@ export interface Turn {
   text: string;
   thinking?: string;
   toolCalls?: ToolCallState[];
-  errored?: boolean;
+  /**
+   * Set when the turn failed. Kept separate from `text` so a failure renders as
+   * its own notice with a retry, instead of being appended to whatever partial
+   * answer had already streamed in.
+   */
+  error?: { message: string; code: string };
 }
 
 export interface HealthInfo {

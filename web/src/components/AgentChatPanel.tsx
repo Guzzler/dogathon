@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { sendApproval, streamChat } from "../api";
-import { TurnView } from "./TurnView";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChatError, sendApproval, streamChat } from "../api";
+import { TurnView, type ActivityMode } from "./TurnView";
 import { ApprovalModal } from "./ApprovalModal";
 import type { AgentEvent, ToolCallState, Turn } from "../types";
 
@@ -26,33 +26,74 @@ interface Props {
   placeholder?: string;
   emptyState?: string;
   quickActions?: QuickAction[];
+  /**
+   * "detailed" shows each tool as a readable row — right where the agent's work
+   * is the point. "minimal" collapses it to a single line, for the Match chat
+   * that's framed as messaging a person.
+   */
+  activityMode?: ActivityMode;
 }
 
-export function AgentChatPanel({ placeholder = "Ask a question…", emptyState, quickActions }: Props) {
+export function AgentChatPanel({
+  placeholder = "Ask a question…",
+  emptyState,
+  quickActions,
+  activityMode = "detailed",
+}: Props) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [pendingApproval, setPendingApproval] = useState<ToolCallState | null>(null);
   const [deciding, setDeciding] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
+
   const dangerousNames = useRef<Set<string>>(new Set(DEFAULT_DANGEROUS));
   const scrollRef = useRef<HTMLDivElement>(null);
-  const pinnedToBottom = useRef(true);
+  const abortRef = useRef<AbortController | null>(null);
+  const lastMessage = useRef<string>("");
+  // Follow the stream until the reader scrolls up themselves; then leave them be.
+  const pinned = useRef(true);
+  const programmatic = useRef(false);
 
-  // Replies are much taller than the panel, so without this the answer streams in
-  // below the fold and you're left looking at the tool cards. Stop following once
-  // the reader scrolls up themselves.
-  useEffect(() => {
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
-    if (el && pinnedToBottom.current) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({ top: el.scrollHeight, behavior: reduced ? "auto" : "smooth" });
+    pinned.current = true;
+    setAtBottom(true);
+  }, []);
+
+  // Replies run taller than the panel, so without this the answer streams in below
+  // the fold and you're left looking at the top of the message. Instant, not
+  // smooth -- this fires on every token, and a smooth scroll would restart its
+  // animation each time and never arrive.
+  useEffect(() => {
+    if (!pinned.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    programmatic.current = true;
+    el.scrollTop = el.scrollHeight;
   }, [turns]);
 
   function trackScroll() {
     const el = scrollRef.current;
-    if (el) pinnedToBottom.current = el.scrollHeight - el.clientHeight - el.scrollTop < 40;
+    if (!el) return;
+    // Our own scroll shouldn't be read as the reader taking over.
+    if (programmatic.current) {
+      programmatic.current = false;
+      return;
+    }
+    const distance = el.scrollHeight - el.clientHeight - el.scrollTop;
+    pinned.current = distance < 48;
+    setAtBottom(pinned.current);
   }
 
   function updateLastTurn(fn: (turn: Turn) => Turn) {
     setTurns((prev) => {
+      if (!prev.length) return prev;
       const next = [...prev];
       next[next.length - 1] = fn(next[next.length - 1]);
       return next;
@@ -93,26 +134,72 @@ export function AgentChatPanel({ placeholder = "Ask a question…", emptyState, 
         });
         break;
       case "error":
-        updateLastTurn((t) => ({ ...t, text: t.text + `\n\n${event.text}`, errored: true }));
+        updateLastTurn((t) => ({
+          ...t,
+          error: { message: event.text, code: event.code ?? "unknown" },
+          // A tool left mid-flight when the turn dies would otherwise spin forever.
+          toolCalls: (t.toolCalls ?? []).map((c) =>
+            c.status === "running" || c.status === "pending_approval" ? { ...c, status: "error" } : c,
+          ),
+        }));
+        setPendingApproval(null);
         break;
       case "turn_end":
         break;
     }
   }
 
-  async function send(message: string) {
-    if (!message.trim() || streaming) return;
-    setInput("");
-    setTurns((prev) => [...prev, { role: "user", text: message }, { role: "assistant", text: "" }]);
+  async function run(message: string) {
+    lastMessage.current = message;
+    pinned.current = true;
     setStreaming(true);
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      await streamChat(message, handleEvent);
+      await streamChat(message, handleEvent, controller.signal);
     } catch (err) {
-      updateLastTurn((t) => ({ ...t, text: t.text + `\n\nConnection error: ${err}`, errored: true }));
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      const error =
+        err instanceof ChatError
+          ? { message: err.message, code: err.code }
+          : { message: "Something went wrong. Try again in a moment.", code: "unknown" };
+      updateLastTurn((t) => ({ ...t, error }));
     } finally {
-      setStreaming(false);
-      setPendingApproval(null);
+      if (abortRef.current === controller) {
+        setStreaming(false);
+        setPendingApproval(null);
+        abortRef.current = null;
+      }
     }
+  }
+
+  async function send(message: string) {
+    const trimmed = message.trim();
+    if (!trimmed || streaming) return;
+    setInput("");
+    setTurns((prev) => [...prev, { role: "user", text: trimmed }, { role: "assistant", text: "" }]);
+    await run(trimmed);
+  }
+
+  /** Replaces the failed assistant turn in place, so retrying doesn't duplicate the question. */
+  async function retry() {
+    if (streaming || !lastMessage.current) return;
+    setTurns((prev) => {
+      const next = [...prev];
+      next[next.length - 1] = { role: "assistant", text: "" };
+      return next;
+    });
+    await run(lastMessage.current);
+  }
+
+  function stop() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setStreaming(false);
+    setPendingApproval(null);
   }
 
   async function decide(approved: boolean) {
@@ -120,26 +207,61 @@ export function AgentChatPanel({ placeholder = "Ask a question…", emptyState, 
     try {
       await sendApproval(approved);
       setPendingApproval(null);
+    } catch {
+      updateLastTurn((t) => ({
+        ...t,
+        error: { message: "Couldn't send your decision. Check your connection and try again.", code: "network" },
+      }));
+      setPendingApproval(null);
     } finally {
       setDeciding(false);
     }
   }
 
+  const lastTurn = turns[turns.length - 1];
+  const failed = Boolean(lastTurn?.error) && !streaming;
+  // Nothing has come back yet — show a typing dot rather than an empty bubble.
+  const awaitingFirstToken =
+    streaming && lastTurn?.role === "assistant" && !lastTurn.text && !lastTurn.toolCalls?.length;
+
   return (
-    <div className="agent-panel">
-      <div className="agent-panel__scroll" ref={scrollRef} onScroll={trackScroll}>
-        {turns.length === 0 && <p className="agent-panel__empty">{emptyState ?? "Ask anything."}</p>}
-        {turns.map((turn, i) => (
-          <TurnView key={i} turn={turn} />
-        ))}
+    <div className="chat">
+      <div className="chat__scroll" ref={scrollRef} onScroll={trackScroll}>
+        {turns.length === 0 ? (
+          <div className="chat__empty">
+            <p>{emptyState ?? "Ask anything."}</p>
+          </div>
+        ) : (
+          <>
+            {turns.map((turn, i) => (
+              <TurnView
+                key={i}
+                turn={turn}
+                activityMode={activityMode}
+                onRetry={i === turns.length - 1 && failed ? retry : undefined}
+              />
+            ))}
+            {awaitingFirstToken && (
+              <div className="chat__typing" aria-label="Assistant is typing">
+                <span /><span /><span />
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      {quickActions && quickActions.length > 0 && (
-        <div className="agent-panel__quick-actions">
+      {!atBottom && turns.length > 0 && (
+        <button type="button" className="chat__jump" onClick={() => scrollToBottom()}>
+          ↓ Latest
+        </button>
+      )}
+
+      {quickActions && quickActions.length > 0 && turns.length === 0 && (
+        <div className="chat__suggestions">
           {quickActions.map((action) => (
             <button
               key={action.label}
-              className="btn btn--primary"
+              className="chat__suggestion"
               type="button"
               disabled={streaming}
               onClick={() => send(action.message)}
@@ -151,22 +273,29 @@ export function AgentChatPanel({ placeholder = "Ask a question…", emptyState, 
       )}
 
       <form
-        className="agent-panel__composer"
+        className="chat__composer"
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
         }}
       >
         <input
-          className="agent-panel__input"
+          className="chat__input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={streaming ? "Working…" : placeholder}
+          placeholder={placeholder}
           disabled={streaming}
+          aria-label="Message"
         />
-        <button className="btn btn--ghost" type="submit" disabled={streaming || !input.trim()}>
-          Send
-        </button>
+        {streaming ? (
+          <button className="chat__send chat__send--stop" type="button" onClick={stop} aria-label="Stop">
+            ■
+          </button>
+        ) : (
+          <button className="chat__send" type="submit" disabled={!input.trim()} aria-label="Send">
+            ↑
+          </button>
+        )}
       </form>
 
       {pendingApproval && <ApprovalModal call={pendingApproval} onDecide={decide} deciding={deciding} />}

@@ -8,6 +8,7 @@ into a multi-tenant server without adding per-session state.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import queue
 from typing import Any, Iterator
@@ -89,6 +90,32 @@ def _sse(event: str, data: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
+def _friendly_error(exc: Exception) -> dict[str, str]:
+    """Turn a provider exception into something safe to show a foster.
+
+    The raw text from the SDK is a JSON blob with a request id in it — useless to
+    the person reading, and it leaks how the thing is wired. The real exception is
+    logged for whoever is on call; the browser gets a sentence and a code it can
+    branch on.
+    """
+    status = getattr(exc, "status_code", None)
+    name = type(exc).__name__
+
+    if status == 401 or "authentication_error" in str(exc):
+        code, text = "auth", "The assistant isn't set up correctly right now. The team has been notified."
+    elif status == 429 or "rate_limit" in str(exc):
+        code, text = "rate_limit", "Lots of people are asking questions right now. Try again in a moment."
+    elif status is not None and 500 <= status < 600:
+        code, text = "upstream", "The assistant is having trouble right now. Try again in a moment."
+    elif name in {"APIConnectionError", "APITimeoutError", "ConnectionError", "TimeoutError"}:
+        code, text = "network", "Couldn't reach the assistant. Check your connection and try again."
+    else:
+        code, text = "unknown", "Something went wrong on our side. Try again in a moment."
+
+    logging.exception("agent stream failed (code=%s)", code)
+    return {"text": text, "code": code}
+
+
 def _stream(message: str) -> Iterator[str]:
     try:
         for ev in _agent.run(message):
@@ -101,7 +128,7 @@ def _stream(message: str) -> Iterator[str]:
                 payload["is_error"] = ev.is_error
             yield _sse(ev.kind, payload)
     except Exception as exc:  # keep the stream alive long enough to report the failure
-        yield _sse("error", {"text": f"{type(exc).__name__}: {exc}"})
+        yield _sse("error", _friendly_error(exc))
 
 
 @app.get("/health")

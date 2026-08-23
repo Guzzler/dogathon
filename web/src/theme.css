@@ -259,37 +259,190 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 /* Form controls default to the platform monospace/system font — inherit ours instead. */
 input,textarea,select{font-family:inherit}
 
-/* The agent panel is sized for a desktop column; in the phone frame give it a
-   workable height and stop the composer collapsing. */
-.phone-body .agent-panel{height:auto;min-height:340px;max-height:62vh}
-.phone-body .agent-panel__scroll{flex:1;min-height:120px;overflow-y:auto}
-.phone-body .agent-panel__composer{flex-shrink:0;flex-wrap:wrap}
-.phone-body .agent-panel__composer .btn{flex-shrink:0}
-.phone-body .agent-panel__quick-actions{display:flex;flex-direction:column;gap:8px}
+/* ---------- chat ----------
+   One scroll container, and `overscroll-behavior:contain` so reaching the top or
+   bottom of the thread doesn't hand the gesture to the page behind it. That
+   chaining was what made this feel slippery: a flick inside the chat used to
+   scroll the whole Match screen once the thread ran out. */
+.chat{
+  position:relative;display:flex;flex-direction:column;
+  background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.chat__scroll{
+  flex:1;min-height:0;max-height:min(420px,52dvh);
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  padding:16px;display:flex;flex-direction:column;gap:12px;
+}
+/* Deliberately NOT `scroll-behavior:smooth`: the follow-the-stream effect assigns
+   scrollTop on every token, and a smooth scroll restarts its animation each time,
+   so the view never actually reaches the bottom. The jump button asks for smooth
+   explicitly instead. */
+.chat__scroll::-webkit-scrollbar{width:0}
 
-/* Match's pickup chat sits inline in a scrolling page, not in a fixed-height
-   drawer, so the panel has to size to its own content -- otherwise min-height
-   pushes it past its container and it overlaps the button below. Its buttons
-   also inherit .screen .btn, which is a full-width CTA; scale them back down. */
-.screen .match-chat .agent-panel{
-  height:auto;min-height:0;max-height:none;
-  border:none;border-radius:var(--r-lg);box-shadow:var(--shadow);background:#fff;
+.chat__empty{padding:12px 4px;color:var(--ink-3);font-size:13px;line-height:1.55}
+.chat__empty p{margin:0}
+
+/* messages */
+.msg{display:flex;flex-direction:column;gap:7px;max-width:100%}
+.msg--user{align-items:flex-end}
+.msg--agent{align-items:flex-start}
+.msg__bubble{
+  max-width:85%;padding:10px 14px;border-radius:var(--r-md);
+  font-size:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word;
 }
-.screen .match-chat .agent-panel__scroll{max-height:260px;min-height:0;padding:14px;gap:10px}
-.screen .match-chat .agent-panel__empty{font-size:12.5px;margin:0;max-width:none}
-.screen .match-chat .agent-panel__quick-actions{padding:0 14px 10px}
-.screen .match-chat .agent-panel__composer{padding:10px 14px;border-top:1px solid var(--line);flex-wrap:nowrap}
-.screen .match-chat .btn{
-  width:auto;padding:9px 15px;font-size:13px;border-radius:100px;
-  box-shadow:none;flex-shrink:0;
+.msg--user .msg__bubble{background:var(--coral);color:#fff;border-bottom-right-radius:8px}
+.msg--agent .msg__bubble{background:var(--cream);color:var(--ink);border-bottom-left-radius:8px}
+
+.msg__activity{display:flex;flex-direction:column;gap:5px;width:100%;max-width:85%}
+.msg__working{font-size:12.5px;font-weight:700;color:var(--ink-3);padding:2px 2px 0}
+
+/* markdown inside a bubble — tightened up, since the agent writes short lists
+   and a browser's default list indent looks like a document, not a message */
+.md>*:first-child{margin-top:0}
+.md>*:last-child{margin-bottom:0}
+.md p{margin:0 0 8px}
+.md p.md-heading{font-weight:800;margin:12px 0 5px}
+.md ul,.md ol{margin:0 0 8px;padding-left:19px;display:flex;flex-direction:column;gap:4px}
+.md li{line-height:1.45}
+.md li::marker{color:var(--ink-3)}
+.md strong{font-weight:800}
+.md code{
+  padding:1px 5px;border-radius:5px;background:rgba(0,0,0,.06);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em;
 }
-.screen .match-chat .agent-panel__input{border-color:var(--line);background:var(--cream)}
-/* This chat is framed as messaging the shelter's coordinator, so keep the proof
-   that the agent looked something up but drop the raw JSON payloads. Care Plan
-   and Post Foster still show them in full -- there, the work *is* the demo. */
-.screen .match-chat .tool-card__args,
-.screen .match-chat .tool-card__result{display:none}
-.screen .match-chat .tool-card__head{margin:0}
+.msg--user .md code{background:rgba(255,255,255,.22)}
+
+/* failure notice — its own block, never mixed into the reply text */
+.msg__error{
+  display:flex;gap:9px;align-items:flex-start;width:100%;max-width:85%;
+  padding:11px 13px;border-radius:var(--r-sm);
+  background:#FEF1EE;border:1px solid #F8D5CC;
+}
+.msg__error-icon{
+  flex-shrink:0;width:18px;height:18px;border-radius:50%;
+  background:var(--coral-dk);color:#fff;
+  font-size:12px;font-weight:800;display:grid;place-items:center;
+}
+.msg__error-body{min-width:0}
+.msg__error-body p{margin:0;font-size:13px;line-height:1.5;color:#8A3A26}
+.msg__retry{
+  margin-top:7px;padding:5px 12px;border-radius:100px;
+  background:#fff;border:1px solid #F0C2B5;color:var(--coral-dk);
+  font-size:12.5px;font-weight:800;cursor:pointer;
+}
+.msg__retry:hover{background:var(--coral-soft)}
+
+/* tool activity — a readable line, detail on demand */
+.activity{border-radius:var(--r-sm);background:var(--cream);overflow:hidden}
+.activity--error{background:#FEF1EE}
+.activity__row{
+  display:flex;align-items:center;gap:8px;width:100%;
+  padding:8px 11px;text-align:left;background:none;border:none;
+  font-family:inherit;font-size:12.5px;font-weight:700;color:var(--ink-2);
+}
+.activity__row:not(:disabled){cursor:pointer}
+.activity__icon{flex-shrink:0;font-size:13px;line-height:1}
+.activity__text{flex:1;min-width:0}
+.activity--done .activity__text{color:var(--ink-3)}
+.activity__check{color:var(--sage);font-weight:800;flex-shrink:0}
+.activity__chevron{color:var(--ink-3);flex-shrink:0;font-size:11px}
+.activity__spinner{
+  flex-shrink:0;width:11px;height:11px;border-radius:50%;
+  border:2px solid var(--line);border-top-color:var(--coral);
+  animation:activity-spin .7s linear infinite;
+}
+@keyframes activity-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.activity__spinner{animation-duration:2s}}
+.activity__detail{padding:0 11px 10px}
+.activity__detail pre{
+  margin:0 0 6px;padding:9px 10px;border-radius:9px;
+  background:#fff;border:1px solid var(--line);
+  font-size:11px;line-height:1.45;color:var(--ink-2);
+  white-space:pre-wrap;word-break:break-word;max-height:180px;overflow:auto;
+}
+.activity__detail pre:last-child{margin-bottom:0}
+
+/* typing indicator */
+.chat__typing{display:flex;gap:4px;padding:11px 14px;background:var(--cream);border-radius:var(--r-md);border-bottom-left-radius:8px;width:fit-content}
+.chat__typing span{
+  width:6px;height:6px;border-radius:50%;background:var(--ink-3);
+  animation:typing-bounce 1.1s ease-in-out infinite;
+}
+.chat__typing span:nth-child(2){animation-delay:.15s}
+.chat__typing span:nth-child(3){animation-delay:.3s}
+@keyframes typing-bounce{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.chat__typing span{animation:none;opacity:.5}}
+
+/* jump back to the newest message after scrolling up */
+.chat__jump{
+  position:absolute;left:50%;transform:translateX(-50%);
+  bottom:66px;z-index:2;
+  padding:6px 14px;border-radius:100px;border:1px solid var(--line);
+  background:#fff;box-shadow:var(--shadow);
+  font-size:12px;font-weight:800;color:var(--ink-2);cursor:pointer;
+}
+
+/* starter prompts, shown only on an empty thread */
+.chat__suggestions{display:flex;flex-wrap:wrap;gap:7px;padding:0 16px 12px}
+.chat__suggestion{
+  padding:8px 14px;border-radius:100px;
+  background:var(--coral-soft);border:none;color:var(--coral-dk);
+  font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;
+}
+.chat__suggestion:hover:not(:disabled){background:#FFD9CC}
+.chat__suggestion:disabled{opacity:.5;cursor:default}
+
+.chat__composer{
+  display:flex;gap:8px;align-items:center;flex-shrink:0;
+  padding:11px 12px;border-top:1px solid var(--line);background:#fff;
+}
+.chat__input{
+  flex:1;min-width:0;padding:10px 15px;border-radius:100px;
+  border:1px solid var(--line);background:var(--cream);
+  font-family:inherit;font-size:14px;color:var(--ink);
+}
+.chat__input:focus{outline:none;border-color:var(--coral);background:#fff}
+.chat__input::placeholder{color:var(--ink-3)}
+.chat__send{
+  flex-shrink:0;width:38px;height:38px;border-radius:50%;border:none;
+  background:var(--coral);color:#fff;font-size:16px;font-weight:800;
+  cursor:pointer;display:grid;place-items:center;
+}
+.chat__send:disabled{background:var(--line);color:var(--ink-3);cursor:default}
+.chat__send--stop{background:var(--ink-2);font-size:11px}
+
+/* approval — leads with the consequence, not the function name */
+.approve-overlay{
+  position:absolute;inset:0;z-index:60;display:grid;place-items:center;
+  padding:24px;background:rgba(44,38,34,.45);backdrop-filter:blur(2px);
+}
+.approve{
+  width:100%;max-width:330px;padding:22px;border-radius:var(--r-lg);
+  background:#fff;box-shadow:var(--shadow-lg);text-align:center;
+}
+.approve__icon{font-size:30px;line-height:1}
+.approve__title{margin-top:11px;font-size:17px}
+.approve__body{margin-top:7px;font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+.approve__toggle{
+  margin-top:12px;background:none;border:none;
+  font-family:inherit;font-size:12px;font-weight:800;color:var(--ink-3);
+  text-decoration:underline;cursor:pointer;
+}
+.approve__raw{
+  margin-top:9px;padding:10px;border-radius:10px;text-align:left;
+  background:var(--cream);border:1px solid var(--line);
+  font-size:11px;line-height:1.45;color:var(--ink-2);
+  white-space:pre-wrap;word-break:break-word;max-height:150px;overflow:auto;
+}
+.approve__actions{display:flex;gap:9px;margin-top:18px}
+.approve__btn{
+  flex:1;padding:12px;border-radius:100px;border:none;
+  font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;
+}
+.approve__btn--deny{background:var(--cream);color:var(--ink-2)}
+.approve__btn--go{background:var(--coral);color:#fff}
+.approve__btn:disabled{opacity:.6;cursor:default}
 
 /* boot splash while the foster record loads, so the gate doesn't flash the Hub */
 .boot{flex:1;display:grid;place-items:center;background:var(--cream)}

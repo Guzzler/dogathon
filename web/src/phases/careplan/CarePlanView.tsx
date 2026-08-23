@@ -5,6 +5,7 @@ import { useDogs } from "../../hooks/useDogs";
 import { useFoster } from "../../hooks/useFoster";
 import { useCareSchedule, useJournal } from "../../hooks/useJournal";
 import { normalizeDog, photoUrl } from "../../lib/dog";
+import { DEMO_MODE } from "../../lib/demoMode";
 import type { Dog } from "../../types";
 import {
   daysSincePickup,
@@ -207,13 +208,15 @@ export function CarePlanView() {
 
   return (
     <div className="cp-stage cp-stage--solo">
-      <DemoCarePanel
-        day={dayInFoster}
-        onSetDay={setDayInFoster}
-        dayOptions={dayOptionsWithDates}
-        experience={experience}
-        onSetExperience={setExperience}
-      />
+      {DEMO_MODE && (
+        <DemoCarePanel
+          day={dayInFoster}
+          onSetDay={setDayInFoster}
+          dayOptions={dayOptionsWithDates}
+          experience={experience}
+          onSetExperience={setExperience}
+        />
+      )}
 
       <main className="cp-main" role="application">
         {view === "hub" && (
