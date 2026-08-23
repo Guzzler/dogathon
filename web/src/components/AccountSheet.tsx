@@ -2,11 +2,13 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { AUTH_AVAILABLE, signInWithGoogle, signOutOfPawthway } from "../auth";
+import { clearGuestData } from "../lib/localMode";
 import type { Session } from "../lib/session";
 
 /** Identity and sign-out. A sheet rather than a route, so it stays out of the journey. */
 export function AccountSheet({ session, onClose }: { session: Session; onClose: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [confirmWipe, setConfirmWipe] = useState(false);
   const isGuest = session.kind === "guest";
 
   async function upgrade() {
@@ -41,8 +43,8 @@ export function AccountSheet({ session, onClose }: { session: Session; onClose: 
         {isGuest && (
           <div className="account__upsell">
             <p className="sub" style={{ fontSize: 13.5 }}>
-              Your journey lives in this browser. Sign in to keep it if you switch devices or
-              clear your data.
+              Your journey lives in this browser — anyone else using it picks up where you left
+              off. Sign in to make it yours and keep it across devices.
             </p>
             {!AUTH_AVAILABLE && (
               <p className="muted" style={{ marginTop: 7 }}>
@@ -63,6 +65,29 @@ export function AccountSheet({ session, onClose }: { session: Session; onClose: 
           onClick={async () => { await signOutOfPawthway(); onClose(); }}>
           {isGuest ? "Leave guest mode" : "Sign out"}
         </button>
+
+        {isGuest && (confirmWipe ? (
+          <div className="account__wipe">
+            <p className="sub" style={{ fontSize: 13 }}>
+              This erases the questionnaire, saved dogs, and journal on this device. It can't be
+              undone.
+            </p>
+            <div className="row" style={{ gap: 8, marginTop: 10 }}>
+              <button className="btn btn--ghost" style={{ flex: 1 }} onClick={() => setConfirmWipe(false)}>
+                Keep it
+              </button>
+              <button className="btn btn--primary" style={{ flex: 1 }}
+                onClick={() => { clearGuestData(); onClose(); }}>
+                Erase
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="btn btn--ghost" style={{ marginTop: 8 }} onClick={() => setConfirmWipe(true)}>
+            Start fresh on this device
+          </button>
+        ))}
+
         <button className="btn btn--ghost" style={{ marginTop: 8 }} onClick={onClose}>Close</button>
       </motion.div>
     </>,

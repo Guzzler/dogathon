@@ -547,6 +547,8 @@ input,textarea,select{font-family:inherit}
 .sharesheet{
   /* motion animates `transform`, so centring can't use translateX — auto margins instead */
   position:fixed;left:0;right:0;margin:0 auto;bottom:0;width:100%;max-width:430px;z-index:901;
+  /* a tall sheet on a short screen scrolls rather than running off the top */
+  max-height:88vh;overflow-y:auto;
   background:#fff;border-radius:28px 28px 0 0;
   padding:12px 22px max(22px,env(safe-area-inset-bottom));
 }
@@ -604,3 +606,7 @@ input,textarea,select{font-family:inherit}
   margin-top:16px;padding:13px 15px;border-radius:var(--r-sm);background:var(--butter-soft);
 }
 .account__upsell code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:5px;font-size:11.5px}
+.account__wipe{margin-top:10px;padding:13px 15px;border-radius:var(--r-sm);background:var(--coral-soft)}
+.account__wipe .btn{margin-top:0}
+/* destructive confirm sits on coral-soft, so the primary needs to be solid to read */
+.account__wipe .btn--primary{background:var(--coral);color:#fff;border:none}
