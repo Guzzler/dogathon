@@ -58,6 +58,19 @@ export function resetLocalFoster() {
   listeners.forEach(fn => fn(BLANK_FOSTER));
 }
 
+/**
+ * Wipe everything this device's guest has done.
+ *
+ * A browser can't tell two people apart, so on a shared or demo machine the next guest
+ * inherits the previous one's journey. This is the one-tap way to hand it over clean.
+ */
+export function clearGuestData() {
+  localStorage.removeItem(KEY);
+  localStorage.removeItem(LOG_KEY);
+  listeners.forEach(fn => fn(BLANK_FOSTER));
+  logListeners.forEach(fn => fn([]));
+}
+
 /* ---------- care log (local mode) ---------- */
 const LOG_KEY = "pawthway.localCareLog.v1";
 const logListeners = new Set<(e: CareLogEntry[]) => void>();

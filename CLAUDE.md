@@ -120,6 +120,12 @@ Three states matter:
 authenticate against, so Google sign-in disables itself and says why — the whole product still
 runs on a fresh clone. Don't add code that assumes a uid exists.
 
+Guest storage is `localStorage`, which is per-browser and per-origin. Hosted, that means two
+visitors on two devices get separate journeys automatically — but **two people sharing one
+browser share one journey**, because a browser cannot tell them apart. Only signing in
+distinguishes humans. `clearGuestData()` (surfaced as "Start fresh on this device" in the
+account sheet) is the one-tap handover for a shared or demo machine.
+
 Firestore rules scope `fosters/{uid}` to `request.auth.uid == uid`. A shared adoption link is
 opened by people who can't read that document, so `useFoster`'s `onSnapshot` has an error
 callback that degrades to null instead of throwing.
