@@ -196,6 +196,13 @@ on the foster's private document**, so a shelter can't query "who applied to us"
 its own collection is cheap now and a migration later — see
 [docs/shelter-integration.md](docs/shelter-integration.md) before adding anything shelter-side.
 
+Relatedly, every dog in `data/dogs.json` is invented and the shelters in `web/src/lib/shelters.ts`
+are real organisations we have no relationship with.
+[docs/real-data-sourcing.md](docs/real-data-sourcing.md) covers where real listings would come
+from (the Petfinder API shut down in December 2025 — don't plan around it), the source-adapter
+design that makes manual shelter entry and a synced feed the same code path, and the partnership
+question that gates turning any of it on.
+
 ### The agent needs to know too
 
 Every tool takes `foster_id`, defaulting to `""`. `src/agent/current_foster.py` resolves an
