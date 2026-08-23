@@ -150,7 +150,7 @@ export function CardShell({ dog, me, score, behind }: {
               <span style={{ fontWeight: 700, fontSize: 16, opacity: .92 }}>{dog.ageLabel}</span>
             </div>
             <div style={{ fontSize: 14, opacity: .88, marginTop: 3, fontWeight: 600 }}>
-              {dog.breed} · {dog.weight_lbs} lb · {miles.toFixed(1)} mi away
+              {[dog.breed, dog.weight_lbs != null && `${dog.weight_lbs} lb`, `${miles.toFixed(1)} mi away`].filter(Boolean).join(" · ")}
             </div>
             <div style={{ fontSize: 13.5, opacity: .95, marginTop: 6, fontWeight: 800 }}>
               🗓️ {dog.fosterLength} foster

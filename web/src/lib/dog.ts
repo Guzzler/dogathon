@@ -43,7 +43,8 @@ export function normalizeDog(d: Dog): RichDog {
     ...d,
     // A real org travels on the record; shelterFor() is the seeded-demo fallback.
     shelter: d.shelter ?? shelterFor(d.shelter_id, d.id),
-    size: sizeFromWeight(d.weight_lbs),
+    // A published size bucket is better evidence than a weight we had to infer.
+    size: d.size ?? (d.weight_lbs != null ? sizeFromWeight(d.weight_lbs) : "medium"),
     energyLevel: d.energy_level ?? guessEnergy(d),
     groomingLevel: d.grooming ?? null,
     coatLength: d.coat ?? null,

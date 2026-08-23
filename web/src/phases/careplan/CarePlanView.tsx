@@ -41,7 +41,7 @@ function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
     name: d.name,
     breed: d.breed,
     ageMonths: Math.max(1, Math.round(d.age_years * 12)),
-    weightLbs: d.weight_lbs,
+    weightLbs: d.weight_lbs ?? 0,   // 0 reads as "unknown" in the Care Plan header
     pickupDate,
     medicalFlags: d.needs ?? [],
     backstory: d.notes,

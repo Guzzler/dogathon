@@ -102,6 +102,67 @@ Matching lives in `web/src/lib/matching.ts`: `scoreDog()` returns 0–99 from si
 plus home, experience and tag rules, and `matchReasons()` renders the same inputs as the
 "Why you match" copy.
 
+## The dog roster is scraped, reviewed, and committed
+
+`data/dogs.json` is built once, offline, and committed. Nothing calls out at runtime — no
+per-user cost, no rate limits, nothing to fail on stage.
+
+**Source: the SF SPCA's own site**, scraped. The alternatives were tried and rejected:
+Petfinder decommissioned their API on 2 December 2025 (`api.petfinder.com` no longer
+resolves), RescueGroups needs a key granted by a human, and **both carry only adoption
+listings**. The SF SPCA publishes more than either — staff-written write-ups, and which dogs
+are currently in a foster home.
+
+`scripts/import_dogs.py` runs the pipeline; `scripts/shelters/sfspca.py` is the scraper.
+
+- **Enumeration comes from their sitemap** (`sfspca-adoption-sitemap.xml`), not the
+  JavaScript-rendered listing page — more reliable and gentler on them. One request per
+  second; they're a small non-profit.
+- **Detail pages are server-rendered**, so plain `httpx` is enough. Facts come from the
+  `adoptionFacts__div` block, the write-up from the `theme-post-content` widget.
+- **The sitemap mixes dogs and cats.** Two independent checks, because neither is
+  sufficient: a cat-breed list (Turkish Van is a cat despite sounding like nothing in
+  particular) and the write-up's own vocabulary. A cat in a dog app is the worst possible
+  miss.
+- **Foster placement is prose, not a field** — "currently in a foster home", "his foster
+  parent said". Surfaced as a status chip; never used to hide a dog, since every adoptable
+  dog is a foster candidate.
+
+Re-bake without re-fetching with `--from-cache`.
+
+### Descriptive fields are hand-written
+
+`notes`, `traits`, `needs`, `energy_level` and compatibility live in `data/enrichment.json`,
+written by hand from each write-up (which the importer dumps to
+`data/shelter_descriptions.json`). **No model call in the pipeline** — the roster is built
+once, so what ships is reviewed rather than regenerated, and no key is needed to build it.
+Each entry carries a `_name` so the file reads next to the opaque ids.
+
+`scripts/shelters/enrich.py` validates on the way in and **rejects rather than repairs**:
+notes over 240 characters, notes mentioning compatibility, notes carrying adoption fees, and
+energy outside 0–4. Anything rejected is simply absent.
+
+**Compatibility is a structured field, never prose**, and may be set only where the shelter
+says so outright ("he gets along with kids, adults, and other dogs"; "she'd like to avoid
+sharing a home"). Silence stays null. It is genuinely sparse — about 10% for kids — and that
+is the honest number, not a bug.
+
+## Unknown is not a claim
+
+Real listings leave fields blank constantly, so the schema carries that through rather than
+defaulting it. `good_with_kids`, `good_with_dogs`, `good_with_cats`, `grooming` and `coat`
+are all nullable and render as "Not recorded" / "Not tested", or omit their row entirely.
+`weight_lbs` is optional — a published `size` bucket beats a weight we'd have to invent.
+
+Two consequences worth knowing:
+
+- **`scoreDog` treats unknown as −4, not −26.** Scoring an unrecorded field the same as a
+  known "no" pushed honest records under Discovery's `>= 45` cutoff, which made real data
+  look emptier than invented data.
+- **Map pins come from the dogs, not from `SHELTERS`.** That constant is eight hardcoded SF
+  rescues; a real org would have had no pin at all. A dog carries its own `shelter`, and
+  `shelterFor()` remains only as the fallback for seeded records.
+
 ## Accounts: who the app is acting as
 
 `web/src/lib/session.ts` holds the current session in a **module-level variable**, not only in

@@ -1,0 +1,239 @@
+{
+  "_comment": "Written by hand from each shelter's own write-up (data/shelter_descriptions.json). Only what the listing actually says. Compatibility appears here as structured fields, never inside notes, and only where the shelter states it outright -- silence stays null so an unassessed dog never renders as 'Not recommended'.",
+  "sfspca-59537273": {
+    "_name": "Baby Seal",
+    "notes": "Playful and confident, and dives into everything \u2014 chasing toys, new smells, new people. Happiest being the centre of attention.",
+    "traits": [
+      "Playful",
+      "Confident",
+      "Loves toys"
+    ],
+    "needs": [
+      "Only dog in the home"
+    ],
+    "energy_level": 3,
+    "good_with_dogs": false
+  },
+  "sfspca-59013011": {
+    "_name": "Howdy",
+    "notes": "Always up for something \u2014 playtime, a jog, or entertaining herself. Then she'll lay her big head in your lap and talk your ear off.",
+    "traits": [
+      "Playful",
+      "Cuddly",
+      "Chatty"
+    ],
+    "energy_level": 3
+  },
+  "sfspca-60716178": {
+    "_name": "Champ",
+    "notes": "Loves meeting new people and pounces on his toys. Entertains himself happily, takes treats, sits on cue, and is still learning not to jump.",
+    "traits": [
+      "Loves people",
+      "Treat motivated",
+      "Self-entertaining"
+    ],
+    "needs": [
+      "Positive reinforcement training"
+    ],
+    "energy_level": 3
+  },
+  "sfspca-61200213": {
+    "_name": "Colocho",
+    "notes": "Affectionate, playful and curious, with distinctly refined opinions about toys and dinner. The shelter doesn't suit him; a settled home will.",
+    "traits": [
+      "Affectionate",
+      "Playful",
+      "Curious"
+    ],
+    "energy_level": 2
+  },
+  "sfspca-61409760": {
+    "_name": "Jimbo",
+    "notes": "Lively, goofy and very treat-motivated. Loves learning and is always ready to practise, with all the energy of a teenager still figuring things out.",
+    "traits": [
+      "Lively",
+      "Treat motivated",
+      "Goofy"
+    ],
+    "needs": [
+      "Teen-dog training"
+    ],
+    "energy_level": 4
+  },
+  "sfspca-49985119": {
+    "_name": "Krypto",
+    "notes": "A smart goofball who already knows sit, down and stay, and may be crate trained. Eager on walks, but happy to check in for a snack.",
+    "traits": [
+      "Smart",
+      "Well trained",
+      "Friendly"
+    ],
+    "energy_level": 3,
+    "good_with_dogs": true
+  },
+  "sfspca-51187664": {
+    "_name": "Jackie",
+    "notes": "Enjoys making friends and leaning in for a cuddle. Content to be a couch potato, and happy to try a walk if that's your thing.",
+    "traits": [
+      "Cuddly",
+      "Easygoing",
+      "Couch potato"
+    ],
+    "energy_level": 1,
+    "good_with_kids": true,
+    "good_with_dogs": false
+  },
+  "sfspca-59958533": {
+    "_name": "Little Biscuit",
+    "notes": "All puppy energy \u2014 wiggles, jumps and playtime \u2014 and learning that puzzle toys work too. Takes a little while to warm up, then loves being by your side.",
+    "traits": [
+      "Playful",
+      "Warms up fast",
+      "Puzzle toys"
+    ],
+    "needs": [
+      "Confidence building"
+    ],
+    "energy_level": 4
+  },
+  "sfspca-39869815": {
+    "_name": "Marcus",
+    "notes": "A quiet companion who prefers a slow life laying by your feet. Already well trained, and nervous about new people until they go at his pace.",
+    "traits": [
+      "Quiet",
+      "Calm",
+      "Well trained"
+    ],
+    "needs": [
+      "Patient introductions"
+    ],
+    "energy_level": 0,
+    "good_with_dogs": true
+  },
+  "sfspca-60580180": {
+    "_name": "Mitch",
+    "notes": "Has one true passion in life, and it is fetch. Still a teenager, still learning to greet people politely, and requests at least one session a day.",
+    "traits": [
+      "Fetch obsessed",
+      "Energetic",
+      "Playful"
+    ],
+    "needs": [
+      "Daily fetch"
+    ],
+    "energy_level": 4
+  },
+  "sfspca-49881797": {
+    "_name": "Prescott",
+    "notes": "A big, goofy boy who loves to explore, show off his zoomies and give kisses. Comes on strong because he doesn't know his own size.",
+    "traits": [
+      "Goofy",
+      "Affectionate",
+      "Big personality"
+    ],
+    "needs": [
+      "Leash training"
+    ],
+    "energy_level": 3
+  },
+  "sfspca-58381422": {
+    "_name": "Robin",
+    "notes": "Enthusiastic to a fault \u2014 he's actively unlearning the jumping and has got as far as sitting for joy instead. A fast learner.",
+    "traits": [
+      "Enthusiastic",
+      "Fast learner",
+      "Friendly"
+    ],
+    "needs": [
+      "Jumping practice"
+    ],
+    "energy_level": 3
+  },
+  "sfspca-61030992": {
+    "_name": "Roxy",
+    "notes": "Friendly to everyone she's met, with a repertoire of wiggles. Will lay her head in your lap or follow you around the house.",
+    "traits": [
+      "Friendly",
+      "Affectionate",
+      "Adventurous"
+    ],
+    "energy_level": 3
+  },
+  "sfspca-30469611": {
+    "_name": "Sirius",
+    "notes": "A senior who shows no signs of slowing down. Performs a meerkat act for attention, loves small plushies, and prefers to eat off a plate.",
+    "traits": [
+      "Charming",
+      "Vocal",
+      "Loves plushies"
+    ],
+    "energy_level": 1
+  },
+  "sfspca-60675147": {
+    "_name": "Stripe",
+    "notes": "Happy-go-lucky and mad about anything stuffed. A smart, fast learner who's still a bit forward on leash, and will plop down beside you on the couch.",
+    "traits": [
+      "Happy go lucky",
+      "Playful",
+      "Fast learner"
+    ],
+    "needs": [
+      "Leash training"
+    ],
+    "energy_level": 3
+  },
+  "sfspca-61466803": {
+    "_name": "Tip Toe",
+    "notes": "Shy but sweet, and taking her time with city life. Looking for someone willing to match her pace while she builds confidence.",
+    "traits": [
+      "Shy",
+      "Gentle",
+      "Sweet"
+    ],
+    "needs": [
+      "Only dog in the home",
+      "Slow introductions"
+    ],
+    "energy_level": 1,
+    "good_with_dogs": false
+  },
+  "sfspca-51832072": {
+    "_name": "Toby",
+    "notes": "Confident and curious, and knows exactly who he is. Treat-motivated, already knows his cues, and winds down happily with pets afterwards.",
+    "traits": [
+      "Confident",
+      "Friendly",
+      "Well trained"
+    ],
+    "energy_level": 2,
+    "good_with_kids": true,
+    "good_with_dogs": true
+  },
+  "sfspca-50906698": {
+    "_name": "Tulip",
+    "notes": "Takes a few days to warm up, then becomes an absolute lovebug. Whip-smart, knows her cues, and has wonderful leash manners.",
+    "traits": [
+      "Smart",
+      "Leash trained",
+      "Lovebug"
+    ],
+    "needs": [
+      "Only pet in the home"
+    ],
+    "energy_level": 2,
+    "good_with_dogs": false,
+    "good_with_cats": false
+  },
+  "sfspca-61128469": {
+    "_name": "Uncle Fester",
+    "notes": "Powerful-looking and an absolute goofball underneath. Sweet, gentle, and always pleased to welcome a new guest into the house.",
+    "traits": [
+      "Gentle",
+      "Goofy",
+      "Social with people"
+    ],
+    "energy_level": 2,
+    "good_with_dogs": false,
+    "good_with_cats": false
+  }
+}

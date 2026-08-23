@@ -1,1 +1,663 @@
-[]
+[
+  {
+    "id": "sfspca-59537273",
+    "name": "Baby Seal",
+    "breed": "Terrier",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": false,
+    "good_with_cats": null,
+    "notes": "Playful and confident, and dives into everything \u2014 chasing toys, new smells, new people. Happiest being the centre of attention.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/59537273/",
+    "age_years": 1.5,
+    "weight_lbs": 51,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/edb698eb-29f0-46e9-96eb-cb41957c2d5b.jpg"
+    ],
+    "traits": [
+      "Playful",
+      "Confident",
+      "Loves toys"
+    ],
+    "needs": [
+      "Only dog in the home"
+    ],
+    "energy_level": 3
+  },
+  {
+    "id": "sfspca-59013011",
+    "name": "Howdy",
+    "breed": "Australian Cattle Dog",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": null,
+    "good_with_cats": null,
+    "notes": "Always up for something \u2014 playtime, a jog, or entertaining herself. Then she'll lay her big head in your lap and talk your ear off.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/59013011/",
+    "age_years": 1.33,
+    "weight_lbs": 64,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/b8e4b0ca-9c98-441b-96fe-25f51e4476a6.jpg"
+    ],
+    "traits": [
+      "Playful",
+      "Cuddly",
+      "Chatty"
+    ],
+    "energy_level": 3
+  },
+  {
+    "id": "sfspca-60716178",
+    "name": "Champ",
+    "breed": "Terrier",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": null,
+    "good_with_cats": null,
+    "notes": "Loves meeting new people and pounces on his toys. Entertains himself happily, takes treats, sits on cue, and is still learning not to jump.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/60716178/",
+    "age_years": 2.33,
+    "weight_lbs": 61,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/29fd3f9a-6f7a-4983-84b9-82a668a09be1.jpg"
+    ],
+    "traits": [
+      "Loves people",
+      "Treat motivated",
+      "Self-entertaining"
+    ],
+    "energy_level": 3
+  },
+  {
+    "id": "sfspca-61200213",
+    "name": "Colocho",
+    "breed": "Spaniel",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": null,
+    "good_with_cats": null,
+    "notes": "Affectionate, playful and curious, with distinctly refined opinions about toys and dinner. The shelter doesn't suit him; a settled home will.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/61200213/",
+    "age_years": 2.17,
+    "weight_lbs": 40,
+    "size": "medium",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/fdc4eb15-78c5-4f5a-b057-7534e82a1e4b.jpg"
+    ],
+    "traits": [
+      "Affectionate",
+      "Playful",
+      "Curious"
+    ],
+    "energy_level": 2
+  },
+  {
+    "id": "sfspca-61409760",
+    "name": "Jimbo",
+    "breed": "Terrier",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": null,
+    "good_with_cats": null,
+    "notes": "Lively, goofy and very treat-motivated. Loves learning and is always ready to practise, with all the energy of a teenager still figuring things out.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/61409760/",
+    "age_years": 0.92,
+    "weight_lbs": 45,
+    "size": "medium",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/e394500d-be61-4eb2-b4db-c4ed2f607d56.jpg"
+    ],
+    "traits": [
+      "Lively",
+      "Treat motivated",
+      "Goofy"
+    ],
+    "needs": [
+      "Teen-dog training"
+    ],
+    "energy_level": 4
+  },
+  {
+    "id": "sfspca-49985119",
+    "name": "Krypto",
+    "breed": "Siberian Husky",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": true,
+    "good_with_cats": null,
+    "notes": "A smart goofball who already knows sit, down and stay, and may be crate trained. Eager on walks, but happy to check in for a snack.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/49985119/",
+    "age_years": 4.42,
+    "weight_lbs": 68,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/31841c04-e115-4d2a-8781-fdd7d5378ac9.jpg"
+    ],
+    "traits": [
+      "Smart",
+      "Well trained",
+      "Friendly"
+    ],
+    "energy_level": 3
+  },
+  {
+    "id": "sfspca-51187664",
+    "name": "Jackie",
+    "breed": "Terrier",
+    "status": "available",
+    "good_with_kids": true,
+    "good_with_dogs": false,
+    "good_with_cats": null,
+    "notes": "Enjoys making friends and leaning in for a cuddle. Content to be a couch potato, and happy to try a walk if that's your thing.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/51187664/",
+    "age_years": 4.58,
+    "weight_lbs": 52,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/12410876-3c12-4bc6-a6e7-e4768bc3de4f.jpg"
+    ],
+    "traits": [
+      "Cuddly",
+      "Easygoing",
+      "Couch potato"
+    ],
+    "energy_level": 1
+  },
+  {
+    "id": "sfspca-59958533",
+    "name": "Little Biscuit",
+    "breed": "Shepherd",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": null,
+    "good_with_cats": null,
+    "notes": "All puppy energy \u2014 wiggles, jumps and playtime \u2014 and learning that puzzle toys work too. Takes a little while to warm up, then loves being by your side.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/59958533/",
+    "age_years": 0.83,
+    "weight_lbs": 60,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/bd9d885f-be25-4bea-95ed-06d3aec0f34e.jpg"
+    ],
+    "traits": [
+      "Playful",
+      "Warms up fast",
+      "Puzzle toys"
+    ],
+    "needs": [
+      "Confidence building"
+    ],
+    "energy_level": 4
+  },
+  {
+    "id": "sfspca-39869815",
+    "name": "Marcus",
+    "breed": "Retriever",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": true,
+    "good_with_cats": null,
+    "notes": "A quiet companion who prefers a slow life laying by your feet. Already well trained, and nervous about new people until they go at his pace.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/39869815/",
+    "age_years": 10.83,
+    "weight_lbs": 71,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/51494ab8-3441-4c16-bfc7-30c14f380db6.jpg"
+    ],
+    "in_foster_home": true,
+    "traits": [
+      "Quiet",
+      "Calm",
+      "Well trained"
+    ],
+    "needs": [
+      "Patient introductions"
+    ],
+    "energy_level": 0
+  },
+  {
+    "id": "sfspca-60580180",
+    "name": "Mitch",
+    "breed": "Shepherd",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": null,
+    "good_with_cats": null,
+    "notes": "Has one true passion in life, and it is fetch. Still a teenager, still learning to greet people politely, and requests at least one session a day.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/60580180/",
+    "age_years": 1.17,
+    "weight_lbs": 39,
+    "size": "medium",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/d74e6082-c1e0-4f75-859a-d95c315baaa3.jpg"
+    ],
+    "traits": [
+      "Fetch obsessed",
+      "Energetic",
+      "Playful"
+    ],
+    "needs": [
+      "Daily fetch"
+    ],
+    "energy_level": 4
+  },
+  {
+    "id": "sfspca-49881797",
+    "name": "Prescott",
+    "breed": "Shepherd",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": null,
+    "good_with_cats": null,
+    "notes": "A big, goofy boy who loves to explore, show off his zoomies and give kisses. Comes on strong because he doesn't know his own size.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/49881797/",
+    "age_years": 4.75,
+    "weight_lbs": 104,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/eaa99297-9fde-48e9-84a1-1b116889b429.jpg"
+    ],
+    "traits": [
+      "Goofy",
+      "Affectionate",
+      "Big personality"
+    ],
+    "needs": [
+      "Leash training"
+    ],
+    "energy_level": 3
+  },
+  {
+    "id": "sfspca-58381422",
+    "name": "Robin",
+    "breed": "Hound",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": null,
+    "good_with_cats": null,
+    "notes": "Enthusiastic to a fault \u2014 he's actively unlearning the jumping and has got as far as sitting for joy instead. A fast learner.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/58381422/",
+    "age_years": 1.58,
+    "weight_lbs": 89,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/899a25ba-234d-4bd2-bf6b-cd6ada60b5e1.jpg"
+    ],
+    "traits": [
+      "Enthusiastic",
+      "Fast learner",
+      "Friendly"
+    ],
+    "needs": [
+      "Jumping practice"
+    ],
+    "energy_level": 3
+  },
+  {
+    "id": "sfspca-61030992",
+    "name": "Roxy",
+    "breed": "Australian Cattle Dog",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": null,
+    "good_with_cats": null,
+    "notes": "Friendly to everyone she's met, with a repertoire of wiggles. Will lay her head in your lap or follow you around the house.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/61030992/",
+    "age_years": 1.25,
+    "weight_lbs": 52,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/e5ab33ad-dab7-4b12-9e0d-6a25707b824a.jpg"
+    ],
+    "traits": [
+      "Friendly",
+      "Affectionate",
+      "Adventurous"
+    ],
+    "energy_level": 3
+  },
+  {
+    "id": "sfspca-30469611",
+    "name": "Sirius",
+    "breed": "Chihuahua",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": null,
+    "good_with_cats": null,
+    "notes": "A senior who shows no signs of slowing down. Performs a meerkat act for attention, loves small plushies, and prefers to eat off a plate.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/30469611/",
+    "age_years": 11.08,
+    "weight_lbs": 12,
+    "size": "small",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/58edf164-33d0-48bc-a078-34a085597c78.jpg"
+    ],
+    "in_foster_home": true,
+    "traits": [
+      "Charming",
+      "Vocal",
+      "Loves plushies"
+    ],
+    "energy_level": 1
+  },
+  {
+    "id": "sfspca-60675147",
+    "name": "Stripe",
+    "breed": "Shepherd",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": null,
+    "good_with_cats": null,
+    "notes": "Happy-go-lucky and mad about anything stuffed. A smart, fast learner who's still a bit forward on leash, and will plop down beside you on the couch.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/60675147/",
+    "age_years": 1.92,
+    "weight_lbs": 50,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/88794183-1dd6-4360-a2be-0fb455fb0a14.jpg"
+    ],
+    "traits": [
+      "Happy go lucky",
+      "Playful",
+      "Fast learner"
+    ],
+    "needs": [
+      "Leash training"
+    ],
+    "energy_level": 3
+  },
+  {
+    "id": "sfspca-61466803",
+    "name": "Tip Toe",
+    "breed": "Retriever",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": false,
+    "good_with_cats": null,
+    "notes": "Shy but sweet, and taking her time with city life. Looking for someone willing to match her pace while she builds confidence.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/61466803/",
+    "age_years": 1.5,
+    "weight_lbs": 38,
+    "size": "medium",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/524eaf5d-8b13-48b8-acd5-04f551eb6c75.jpg"
+    ],
+    "traits": [
+      "Shy",
+      "Gentle",
+      "Sweet"
+    ],
+    "needs": [
+      "Only dog in the home",
+      "Slow introductions"
+    ],
+    "energy_level": 1
+  },
+  {
+    "id": "sfspca-51832072",
+    "name": "Toby",
+    "breed": "German Shepherd",
+    "status": "available",
+    "good_with_kids": true,
+    "good_with_dogs": true,
+    "good_with_cats": null,
+    "notes": "Confident and curious, and knows exactly who he is. Treat-motivated, already knows his cues, and winds down happily with pets afterwards.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/51832072/",
+    "age_years": 3.67,
+    "weight_lbs": 58,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/b29ac0ff-e5f0-41b5-a981-71fceec14cfd.jpg"
+    ],
+    "traits": [
+      "Confident",
+      "Friendly",
+      "Well trained"
+    ],
+    "energy_level": 2
+  },
+  {
+    "id": "sfspca-50906698",
+    "name": "Tulip",
+    "breed": "Australian Cattle Dog",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": false,
+    "good_with_cats": false,
+    "notes": "Takes a few days to warm up, then becomes an absolute lovebug. Whip-smart, knows her cues, and has wonderful leash manners.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/50906698/",
+    "age_years": 4.0,
+    "weight_lbs": 61,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/a62343ba-ff0f-4367-920a-053b87f12a7b.jpg"
+    ],
+    "in_foster_home": true,
+    "traits": [
+      "Smart",
+      "Leash trained",
+      "Lovebug"
+    ],
+    "needs": [
+      "Only pet in the home"
+    ],
+    "energy_level": 2
+  },
+  {
+    "id": "sfspca-61128469",
+    "name": "Uncle Fester",
+    "breed": "Bulldog",
+    "status": "available",
+    "good_with_kids": null,
+    "good_with_dogs": false,
+    "good_with_cats": false,
+    "notes": "Powerful-looking and an absolute goofball underneath. Sweet, gentle, and always pleased to welcome a new guest into the house.",
+    "shelter": {
+      "id": "sfspca-mission",
+      "name": "SF SPCA Mission Campus",
+      "short": "SF SPCA",
+      "address": "201 Alabama St, San Francisco",
+      "lat": 37.7663,
+      "lng": -122.4122
+    },
+    "shelter_id": "sfspca-mission",
+    "source": "sfspca",
+    "source_url": "https://www.sfspca.org/sfspca-adoption/61128469/",
+    "age_years": 3.67,
+    "weight_lbs": 56,
+    "size": "large",
+    "photo_urls": [
+      "https://g.petango.com/photos/1145/745ca778-3938-48cc-90c7-e7a3f47a62ab.jpg"
+    ],
+    "traits": [
+      "Gentle",
+      "Goofy",
+      "Social with people"
+    ],
+    "energy_level": 2
+  }
+]

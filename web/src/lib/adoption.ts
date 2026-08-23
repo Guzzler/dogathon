@@ -93,12 +93,14 @@ export function buildAdoptionProfile(
     ? { value: logWeighIns[logWeighIns.length - 1].value, source: "care plan" as const }
     : lastMilestoneWeight
     ? { value: `${lastMilestoneWeight} lb`, source: "care plan" as const }
-    : { value: `${dog.weight_lbs} lb`, source: "shelter" as const };
+    : dog.weight_lbs != null
+    ? { value: `${dog.weight_lbs} lb`, source: "shelter" as const }
+    : { value: sizeLabel(dog.size), source: "shelter" as const };
 
   const shelterFacts = [
     { label: "Breed", value: dog.breed },
     { label: "Age", value: dog.ageLabel },
-    { label: "Size", value: `${sizeLabel(dog.size)} · ${dog.weight_lbs} lb at intake` },
+    { label: "Size", value: sizeLabel(dog.size) + (dog.weight_lbs != null ? ` · ${dog.weight_lbs} lb at intake` : "") },
     { label: "Energy level", value: ENERGY_WORD[dog.energyLevel] },
     ...(dog.groomingLevel || dog.coatLength
       ? [{ label: "Grooming", value: [

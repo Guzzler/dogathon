@@ -68,9 +68,16 @@ export function DogDetailView() {
             <p className="sub" style={{ marginTop: 4, fontWeight: 700, color: "var(--ink-2)" }}>
               {dog.ageLabel} · {dog.breed} · {sizeLabel(dog.size)}
             </p>
-            <span className="chip butter" style={{ marginTop: 10, fontWeight: 800 }}>
-              🗓️ {dog.fosterLength} foster
-            </span>
+            <div className="row" style={{ gap: 7, marginTop: 10, flexWrap: "wrap" }}>
+              <span className="chip butter" style={{ fontWeight: 800 }}>
+                🗓️ {dog.fosterLength} foster
+              </span>
+              {dog.in_foster_home && (
+                <span className="chip sage" style={{ fontWeight: 800 }}>
+                  🏠 Already in a foster home
+                </span>
+              )}
+            </div>
 
             {reasons.length > 0 && (
               <Section title="Why you match">
@@ -107,7 +114,7 @@ export function DogDetailView() {
                     <b style={{ fontSize: 13.5 }}>{ENERGY_WORD[dog.energyLevel]}</b>
                   </div>
                 </Row>
-                <Row k="Size"><b>{sizeLabel(dog.size)} · {dog.weight_lbs} lb</b></Row>
+                <Row k="Size"><b>{sizeLabel(dog.size)}{dog.weight_lbs != null && ` · ${dog.weight_lbs} lb`}</b></Row>
                 {(dog.groomingLevel || dog.coatLength) && (
                   <Row k="Grooming"><b>
                     {[dog.groomingLevel && (dog.groomingLevel === "low" ? "Low" : "High"),

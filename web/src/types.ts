@@ -61,7 +61,8 @@ export interface Dog {
   name: string;
   breed: string;
   age_years: number;
-  weight_lbs: number;
+  /** Optional: some sources publish a size bucket but never a weight. */
+  weight_lbs?: number;
   status: DogStatus;
   intake_date?: string;
   // Tri-state: null means the shelter didn't record it. Never coerce to false — that
@@ -73,6 +74,8 @@ export interface Dog {
 
   // Added for Discovery. All optional — dogs seeded before these existed still
   // render, because `normalizeDog()` derives sensible values from the fields above.
+  /** Preferred over deriving from weight — a published bucket beats a guessed number. */
+  size?: DogSize;
   shelter_id?: string;
   good_with_cats?: boolean | null;
   energy_level?: number;          // 0 (couch potato) – 4 (zoomies)
@@ -87,6 +90,9 @@ export interface Dog {
 
   /** Denormalised from the source org. Real shelters aren't in `shelters.ts`. */
   shelter?: { id: string; name: string; short: string; address: string; lat: number; lng: number };
+
+  /** The shelter says this dog already has a foster. Shown as status, never used to hide them. */
+  in_foster_home?: boolean;
 
   // Provenance, so a re-import can tell its own records apart from seeded ones.
   source?: string;
