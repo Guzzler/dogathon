@@ -100,6 +100,7 @@ export function PostFosterView() {
         {drafting ? (
           <div className="care-tips-drawer">
             <AgentChatPanel
+              phase="postfoster"
               placeholder="e.g. send the adoption profile to the shelter"
               emptyState={`Ask the agent to draft ${dog.name}'s adoption profile from the weigh-ins, notes, and photos you've logged — then approve sending it to the shelter.`}
               quickActions={[

@@ -67,6 +67,7 @@ export function MatchChatView() {
       </div>
 
       <AgentChatPanel
+              phase="match"
         variant="full"
         activityMode="minimal"
         placeholder="Ask about parking, what to bring…"
