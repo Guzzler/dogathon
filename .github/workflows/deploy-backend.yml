@@ -9,6 +9,7 @@ on:
       - "uv.lock"
       - "Dockerfile"
       - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
 
 concurrency:
   group: deploy-backend
@@ -29,12 +30,16 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      # The key goes in via env rather than inline interpolation so a stray character
+      # in the secret can't reshape the command line, and so it isn't echoed in logs.
       - name: Deploy to Cloud Run
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           gcloud run deploy pawthway-agent \
             --source . \
             --project=pawthway-hackathon \
             --region=us-central1 \
             --allow-unauthenticated \
-            --set-env-vars=ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }} \
+            --set-env-vars="ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
             --quiet

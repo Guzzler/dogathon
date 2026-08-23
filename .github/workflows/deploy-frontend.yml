@@ -10,6 +10,7 @@ on:
       - "firestore.rules"
       - "firestore.indexes.json"
       - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch:
 
 concurrency:
   group: deploy-frontend
