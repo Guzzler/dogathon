@@ -610,3 +610,21 @@ input,textarea,select{font-family:inherit}
 .account__wipe .btn{margin-top:0}
 /* destructive confirm sits on coral-soft, so the primary needs to be solid to read */
 .account__wipe .btn--primary{background:var(--coral);color:#fff;border:none}
+
+/* ---------- discovery loading / empty ---------- */
+.discovery-state{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:0 28px;
+}
+.discovery-state__bar{
+  width:132px;height:5px;border-radius:100px;background:var(--cream-2);
+  overflow:hidden;margin-top:26px;
+}
+.discovery-state__bar > i{
+  display:block;width:40%;height:100%;border-radius:100px;background:var(--coral);
+  animation:discovery-sweep 1.15s ease-in-out infinite;
+}
+@keyframes discovery-sweep{
+  0%{transform:translateX(-100%)}
+  100%{transform:translateX(330%)}
+}

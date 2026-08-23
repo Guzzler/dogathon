@@ -57,7 +57,10 @@ export function DiscoveryView() {
     passedDogIds: (foster?.passedDogIds ?? []).filter(x => x !== id),
   });
 
-  if (fosterLoading || dogsLoading) return <p className="pw-loading">Loading dogs…</p>;
+  // The map is expensive and meaningless without pins, so nothing renders until the roster
+  // resolves. An empty roster is a real outcome, not an error — say so plainly.
+  if (fosterLoading || dogsLoading) return <FindingDogs />;
+  if (!available.length) return <NoDogsNearby />;
 
   return (
     <div className="screen">
@@ -161,5 +164,36 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
         <button className="btn" style={{ marginTop: 8 }} onClick={onClose}>Done</button>
       </motion.div>
     </>
+  );
+}
+
+/** Shown while the roster resolves — the map stays out until there's something to pin. */
+function FindingDogs() {
+  return (
+    <div className="screen discovery-state">
+      <motion.div initial={{ scale: .85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 200, damping: 18 }}>
+        <PawMark size={64} />
+      </motion.div>
+      <h2 style={{ marginTop: 20 }}>Finding dogs near you</h2>
+      <p className="sub" style={{ marginTop: 8, maxWidth: 260 }}>
+        Checking shelters in your area for dogs who need a foster.
+      </p>
+      <div className="discovery-state__bar"><i /></div>
+    </div>
+  );
+}
+
+/** An empty radius is an honest answer, not a failure. */
+function NoDogsNearby() {
+  return (
+    <div className="screen discovery-state">
+      <div style={{ fontSize: 44 }}>🐾</div>
+      <h2 style={{ marginTop: 16 }}>No dogs nearby yet</h2>
+      <p className="sub" style={{ marginTop: 8, maxWidth: 280 }}>
+        There aren't any dogs listed near you right now. Shelters add new ones all the time —
+        it's worth checking back.
+      </p>
+    </div>
   );
 }

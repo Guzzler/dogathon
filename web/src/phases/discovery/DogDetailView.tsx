@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
-import { ENERGY_WORD, normalizeDog, photoUrl, sizeLabel } from "../../lib/dog";
+import { ENERGY_WORD, normalizeDog, dogPhoto, sizeLabel } from "../../lib/dog";
 import { distanceMi, matchReasons, scoreDog, useMyLocation } from "../../lib/matching";
 import { activeApplication, applicationStage } from "../../lib/foster";
 
@@ -49,7 +49,7 @@ export function DogDetailView() {
     <div className="screen">
       <div className="scroll">
         <div style={{ position: "relative", height: 340, flexShrink: 0 }}>
-          <img src={photoUrl(dog.photoId, 800, 900)} alt={dog.name}
+          <img src={dogPhoto(dog, 800, 900)} alt={dog.name}
             style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, var(--cream) 0%, var(--cream) 9%, rgba(255,247,241,0) 46%)" }} />
           <button className="iconbtn" onClick={() => navigate(-1)}
@@ -108,7 +108,12 @@ export function DogDetailView() {
                   </div>
                 </Row>
                 <Row k="Size"><b>{sizeLabel(dog.size)} · {dog.weight_lbs} lb</b></Row>
-                <Row k="Grooming"><b>{dog.groomingLevel === "low" ? "Low" : "High"} · {dog.coatLength} coat</b></Row>
+                {(dog.groomingLevel || dog.coatLength) && (
+                  <Row k="Grooming"><b>
+                    {[dog.groomingLevel && (dog.groomingLevel === "low" ? "Low" : "High"),
+                      dog.coatLength && `${dog.coatLength} coat`].filter(Boolean).join(" · ")}
+                  </b></Row>
+                )}
                 <Row k="Good with kids"><Yes ok={dog.good_with_kids} /></Row>
                 <Row k="Good with dogs"><Yes ok={dog.good_with_dogs} /></Row>
                 <Row k="Good with cats"><Yes ok={dog.goodWithCats} /></Row>
@@ -222,6 +227,9 @@ function Row({ k, children, last }: { k: string; children: React.ReactNode; last
   );
 }
 
-const Yes = ({ ok }: { ok: boolean }) => (
-  <b style={{ color: ok ? "var(--sage)" : "var(--ink-3)" }}>{ok ? "Yes" : "Not yet"}</b>
+/** Tri-state: null means the shelter never recorded it, which is not the same as "no". */
+const Yes = ({ ok }: { ok: boolean | null | undefined }) => (
+  <b style={{ color: ok ? "var(--sage)" : "var(--ink-3)" }}>
+    {ok == null ? "Not recorded" : ok ? "Yes" : "Not yet"}
+  </b>
 );

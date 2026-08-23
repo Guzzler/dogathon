@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, useMotionValue, useTransform } from "motion/react";
-import { photoUrl, type RichDog } from "../lib/dog";
+import { dogPhoto, type RichDog } from "../lib/dog";
 import { distanceMi } from "../lib/matching";
 
 type Props = {
@@ -129,7 +129,7 @@ export function CardShell({ dog, me, score, behind }: {
       transform: behind ? "scale(.93) translateY(14px)" : undefined,
       opacity: behind ? .55 : 1, pointerEvents: behind ? "none" : undefined,
     }}>
-      <img src={photoUrl(dog.photoId, 800, 1000)} alt={dog.name} draggable={false}
+      <img src={dogPhoto(dog, 800, 1000)} alt={dog.name} draggable={false}
         style={{ width: "100%", height: "100%", objectFit: "cover", userSelect: "none" }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(28,20,15,.86) 0%, rgba(28,20,15,.34) 32%, transparent 58%)" }} />
 

@@ -63,16 +63,18 @@ export interface Dog {
   age_years: number;
   weight_lbs: number;
   status: DogStatus;
-  intake_date: string;
-  good_with_kids: boolean;
-  good_with_dogs: boolean;
+  intake_date?: string;
+  // Tri-state: null means the shelter didn't record it. Never coerce to false — that
+  // renders as a factual claim ("Not recommended") about a real animal.
+  good_with_kids: boolean | null;
+  good_with_dogs: boolean | null;
   notes: string;
   adoption_profile?: string;
 
   // Added for Discovery. All optional — dogs seeded before these existed still
   // render, because `normalizeDog()` derives sensible values from the fields above.
   shelter_id?: string;
-  good_with_cats?: boolean;
+  good_with_cats?: boolean | null;
   energy_level?: number;          // 0 (couch potato) – 4 (zoomies)
   grooming?: "low" | "high";
   coat?: "short" | "long";
@@ -80,7 +82,16 @@ export interface Dog {
   needs?: string[];
   foster_weeks?: number;   // expected foster stay, 1–16
   foster_length?: string;  // legacy free text; foster_weeks wins when both exist
-  photo?: number;
+  photo?: number;          // placedog id, for seeded/demo dogs only
+  photo_urls?: string[];   // real photos from the source, preferred when present
+
+  /** Denormalised from the source org. Real shelters aren't in `shelters.ts`. */
+  shelter?: { id: string; name: string; short: string; address: string; lat: number; lng: number };
+
+  // Provenance, so a re-import can tell its own records apart from seeded ones.
+  source?: string;
+  source_url?: string;
+  imported_at?: string;
 }
 
 export interface ChecklistItem {
