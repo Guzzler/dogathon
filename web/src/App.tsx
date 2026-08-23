@@ -12,6 +12,7 @@ import { CarePlanView } from "./phases/careplan/CarePlanView";
 import { PostFosterView } from "./phases/postfoster/PostFosterView";
 import { PublicAdoptionView } from "./phases/postfoster/PublicAdoptionView";
 import { SignInView } from "./phases/auth/SignInView";
+import { DemoIntroView, demoIntroSeen } from "./phases/auth/DemoIntroView";
 import { useSession } from "./hooks/useSession";
 import { useFoster } from "./hooks/useFoster";
 import { hasOnboarded, journeyHome } from "./lib/foster";
@@ -32,6 +33,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const session = useSession();
   if (session.kind === "loading") return <Boot />;
   if (session.kind === "signedOut") return <SignInView />;
+  return <>{children}</>;
+}
+
+function DemoIntroGate({ children }: { children: React.ReactNode }) {
+  if (!demoIntroSeen()) return <DemoIntroView />;
   return <>{children}</>;
 }
 
@@ -89,5 +95,5 @@ function JourneyHome() {
 // Split out so the gate can sit inside Layout and still wrap every child route.
 import { Outlet } from "react-router-dom";
 function GateOutlet() {
-  return <AuthGate><OnboardingGate><Outlet /></OnboardingGate></AuthGate>;
+  return <AuthGate><DemoIntroGate><OnboardingGate><Outlet /></OnboardingGate></DemoIntroGate></AuthGate>;
 }
