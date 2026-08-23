@@ -82,11 +82,20 @@ export const sendApproval = (approved: boolean) =>
     body: JSON.stringify({ approved }),
   }, true);
 
+/**
+ * Which of the three chat surfaces is asking. The server maps this to a model
+ * (`loop.model_for_surface`): Match is pickup logistics whose answers are already
+ * in Firestore and runs on Haiku; Care Plan and Post Foster get the capable model.
+ * Omitting it is safe but expensive — the fallback is the dear model on purpose.
+ */
+export type ChatSurface = "match" | "careplan" | "postfoster";
+
 /** Streams SSE frames from POST /api/chat, calling onEvent as each one parses. */
 export async function streamChat(
   message: string,
   onEvent: (event: AgentEvent) => void,
   signal?: AbortSignal,
+  phase?: ChatSurface,
 ): Promise<void> {
   // Outside the try: a missing sign-in is already a ChatError the panel can render,
   // and calling it a network failure would send the foster to check their wifi.
@@ -97,7 +106,7 @@ export async function streamChat(
     res = await fetch(`${AGENT_BASE}/chat`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, phase }),
       signal,
     });
   } catch (err) {

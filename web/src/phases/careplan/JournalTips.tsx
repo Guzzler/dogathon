@@ -116,7 +116,7 @@ export function JournalTips({
     try {
       await streamChat(prompt, (event) => {
         if (event.kind === "text") patch((a) => ({ ...a, answer: a.answer + event.text }));
-      });
+      }, undefined, "careplan");
       patch((a) => ({ ...a, pending: false }));
     } catch {
       const { text: canned, citedTip } = askAbout(dogName, fallbackQuestion, tips);

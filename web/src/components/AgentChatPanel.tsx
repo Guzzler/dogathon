@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChatError, sendApproval, streamChat } from "../api";
+import { ChatError, sendApproval, streamChat, type ChatSurface } from "../api";
 import { TurnView, type ActivityMode } from "./TurnView";
 import { ApprovalModal } from "./ApprovalModal";
 import type { AgentEvent, ToolCallState, Turn } from "../types";
@@ -37,6 +37,11 @@ interface Props {
    * it's given — the thread is then the only thing that scrolls.
    */
   variant?: "card" | "full";
+  /**
+   * Which surface this panel is mounted in. Selects the model server-side, so a
+   * mount that forgets it silently pays for the capable model.
+   */
+  phase: ChatSurface;
 }
 
 export function AgentChatPanel({
@@ -45,6 +50,7 @@ export function AgentChatPanel({
   quickActions,
   activityMode = "detailed",
   variant = "card",
+  phase,
 }: Props) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
@@ -186,7 +192,7 @@ export function AgentChatPanel({
     abortRef.current = controller;
 
     try {
-      await streamChat(message, handleEvent, controller.signal);
+      await streamChat(message, handleEvent, controller.signal, phase);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       const error =
