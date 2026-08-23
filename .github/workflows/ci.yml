@@ -1,0 +1,74 @@
+name: CI
+
+# A push to main deploys straight to Firebase Hosting and Cloud Run, so main is production.
+# This is the only place a change gets looked at before it lands there.
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        working-directory: web
+        run: npm ci
+
+      # `npm run build` is `tsc -b && vite build`, so this is the typecheck as well.
+      # No web/.env is written: the build must not need secrets, and LOCAL_MODE covers
+      # a config-less clone at runtime.
+      - name: Build
+        working-directory: web
+        run: npm run build
+
+      - name: Test
+        working-directory: web
+        run: npm test
+
+      - name: Lint
+        working-directory: web
+        run: npm run lint
+
+  backend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to an exact release: astral-sh/setup-uv stopped publishing floating major
+      # tags after v7, so `@v10` does not resolve.
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "latest-known"
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync dependencies
+        run: uv sync --locked
+
+      # server.py builds the tool registry at import time, so this exercises every
+      # builtin tool module. Firestore and Anthropic clients are both lazy, so it
+      # needs no credentials.
+      - name: Import the server
+        run: uv run python -c "import agent.server"
+
+      # The CLI and the seed script are never imported above, and a syntax error in
+      # either only surfaces when someone runs them.
+      - name: Compile everything else
+        run: uv run python -m compileall -q src scripts
