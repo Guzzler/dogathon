@@ -124,13 +124,31 @@ Firestore rules scope `fosters/{uid}` to `request.auth.uid == uid`. A shared ado
 opened by people who can't read that document, so `useFoster`'s `onSnapshot` has an error
 callback that degrades to null instead of throwing.
 
+One consequence is worth knowing before you build on it: an **application is stored as fields
+on the foster's private document**, so a shelter can't query "who applied to us". Moving it to
+its own collection is cheap now and a migration later — see
+[docs/shelter-integration.md](docs/shelter-integration.md) before adding anything shelter-side.
+
 ### The agent needs to know too
 
 Every tool takes `foster_id`, defaulting to `""`. `src/agent/current_foster.py` resolves an
-omitted id against whatever the last `/chat` request said, and `web/src/api.ts` sends
+omitted id against the foster the conversation belongs to, and `web/src/api.ts` sends
 `fosterDocId()` with each message. Without this the agent reads the seeded demo foster and
-confidently describes the wrong dog. Single-session, like the rest of that server — if it ever
-serves concurrent conversations, make it a contextvar.
+confidently describes the wrong dog.
+
+Two things keep that correct when more than one person is chatting, and both matter:
+
+- `current_foster` is a **ContextVar set inside the streaming generator** (`server._stream`),
+  not a module global set in the endpoint. A global is shared by every request in the process:
+  with two people chatting at once, the second request's id overwrites the first while the
+  first's stream is still open, and that stream's tool calls then read and write the wrong
+  person's journey. Don't simplify it back to a global.
+- `server.py` keeps **one `Agent` and one approval queue per foster id** (bounded by count and
+  idle time), with the id pinned into that session's system prompt. One shared `Agent` means
+  shared history — one foster's questions showing up in another's transcript.
+
+Conversations live in memory, so a Cloud Run restart or a second instance loses them. That's
+fine for a demo and the reason this isn't the place to put anything that has to survive.
 
 ## Onboarding is a gate, not a phase you navigate to
 
