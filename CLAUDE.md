@@ -61,9 +61,10 @@ login and no cross-account glue:
   three hooks (`useFoster`, `useDogs`, `useCareLog`) fall back to `data/dogs.json` plus a
   localStorage-backed foster. A banner at the top of the app says when this is active. Add
   `web/.env` and it silently switches back to real Firestore — no code changes.
-- **No auth.** One seeded demo foster (`fosters/annie`), publicly viewable. Firestore rules
-  (`firestore.rules`) are scoped narrowly to `/dogs/**` (read-only) and `/fosters/annie/**`
-  (read+write) rather than wide open, so the public URL isn't a fully open database.
+- **Auth.** Google sign-in (`web/src/auth.ts`); each foster owns `fosters/{uid}`, enforced by
+  `firestore.rules`. Browsing is open to guests, but **applying to foster requires an
+  account** — see "Accounts" below. The agent backend is *not* covered by those rules (the
+  Admin SDK bypasses them), so it verifies a Firebase ID token itself on every call.
 
 ## New agent tool modules
 
@@ -181,6 +182,14 @@ Three states matter:
 authenticate against, so Google sign-in disables itself and says why — the whole product still
 runs on a fresh clone. Don't add code that assumes a uid exists.
 
+**Applying is where guest ends.** Browsing, saving and the questionnaire are open; tapping
+"Apply to foster" as a guest opens `SignInToApply` instead of committing (both apply paths:
+`DogDetailView`, `SavedView`). A shelter has to be able to reach a real person, and everything
+past applying — pickup coordination, care tips, the adoption profile — is agent work that the
+backend can only attribute from a signed-in token. `needsAccountToApply()` is the one check,
+and it deliberately doesn't fire when Firebase is unconfigured: a fresh clone has no account to
+sign in to and no Firestore to protect.
+
 Guest storage is `localStorage`, which is per-browser and per-origin. Hosted, that means two
 visitors on two devices get separate journeys automatically — but **two people sharing one
 browser share one journey**, because a browser cannot tell them apart. Only signing in
@@ -199,9 +208,13 @@ its own collection is cheap now and a migration later — see
 ### The agent needs to know too
 
 Every tool takes `foster_id`, defaulting to `""`. `src/agent/current_foster.py` resolves an
-omitted id against the foster the conversation belongs to, and `web/src/api.ts` sends
-`fosterDocId()` with each message. Without this the agent reads the seeded demo foster and
-confidently describes the wrong dog.
+omitted id against the foster the conversation belongs to. **That id comes from a verified
+Firebase ID token and nowhere else**: `web/src/api.ts` attaches `Authorization: Bearer
+<getIdToken()>` to `/chat`, `/approve`, `/reset` and `/highlights`, and `require_foster_id` in
+`server.py` reads the `uid` claim off it. The request body no longer carries a foster id, and
+must not get one back — the tools use the Admin SDK, which bypasses `firestore.rules`, so a
+body-supplied id is a read/write of any journey to anyone who knows a uid. `/health` and
+`/tools` stay open; they leak nothing.
 
 Two things keep that correct when more than one person is chatting, and both matter:
 
@@ -345,7 +358,9 @@ Two `.env` files, both gitignored, both templated by a `.env.example`:
 If you're a teammate pulling this repo fresh: copy both `.env.example` files, ask for the
 `ANTHROPIC_API_KEY` and the Firebase web config values (or run the `firebase apps:sdkconfig`
 command above yourself if you have access to the `pawthway-hackathon` Firebase project), then
-`gcloud auth application-default login` once so the Admin SDK can reach Firestore locally.
+`gcloud auth application-default login` once so the Admin SDK can reach Firestore *and verify
+ID tokens* locally. Both halves are needed to use the agent at all now: without `web/.env`
+there's no token to send, and without ADC the backend can't check one, so `/chat` answers 401.
 
 ## Local dev
 

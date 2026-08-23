@@ -141,7 +141,8 @@ Everything lives in the `pawthway-hackathon` GCP/Firebase project (Blaze plan,
 needed for Cloud Run):
 
 ```bash
-# Agent backend -> Cloud Run
+# Agent backend -> Cloud Run. Unauthenticated at the IAM layer because a browser can't mint
+# a Google token; the service verifies a Firebase ID token itself on every call instead.
 gcloud run deploy pawthway-agent --source . --project=pawthway-hackathon \
   --region=us-central1 --allow-unauthenticated \
   --set-env-vars=ANTHROPIC_API_KEY=<key>

@@ -6,6 +6,7 @@ import { useDogs } from "../../hooks/useDogs";
 import { ENERGY_WORD, normalizeDog, dogPhoto, sizeLabel } from "../../lib/dog";
 import { distanceMi, matchReasons, scoreDog, useMyLocation } from "../../lib/matching";
 import { activeApplication, applicationStage } from "../../lib/foster";
+import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
 
 export function DogDetailView() {
   const { id = "" } = useParams();
@@ -14,6 +15,7 @@ export function DogDetailView() {
   const { dogs, loading } = useDogs();
   const { pos } = useMyLocation();
   const [contact, setContact] = useState(false);
+  const [needsAccount, setNeedsAccount] = useState(false);
 
   if (loading) return <p className="pw-loading">Loading…</p>;
   const raw = dogs.find(d => d.id === id);
@@ -34,6 +36,11 @@ export function DogDetailView() {
       ? { likedDogIds: (foster?.likedDogIds ?? []).filter(x => x !== dog.id) }
       : { likedDogIds: [...new Set([...(foster?.likedDogIds ?? []), dog.id])] }
   );
+
+  // "One foster at a time" is about the journey they already have, so that explanation wins
+  // over the account prompt — being told to sign in first would only bury it.
+  const startApply = () =>
+    blocked || !needsAccountToApply() ? setContact(true) : setNeedsAccount(true);
 
   const apply = async () => {
     await patchFoster({
@@ -153,10 +160,16 @@ export function DogDetailView() {
               {applicationStage(active).cta}
             </button>
           ) : (
-            <button className="btn" style={{ flex: 1.3 }} onClick={() => setContact(true)}>Apply to foster</button>
+            <button className="btn" style={{ flex: 1.3 }} onClick={startApply}>Apply to foster</button>
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {needsAccount && (
+          <SignInToApply dogName={dog.name} onClose={() => setNeedsAccount(false)} />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {contact && (
