@@ -14,10 +14,19 @@ export function useCareLog() {
       return subscribeLocalCareLog((e) => { setEntries(e); setLoading(false); });
     }
     const q = query(collection(firestore, "fosters", FOSTER_ID, "careLog"), orderBy("created_at"));
-    const unsub = onSnapshot(q, (snap) => {
-      setEntries(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CareLogEntry, "id">) })));
-      setLoading(false);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setEntries(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CareLogEntry, "id">) })));
+        setLoading(false);
+      },
+      // Same reasoning as useFoster: never leave a screen stuck loading.
+      (err) => {
+        console.error("care log snapshot failed", err);
+        setEntries([]);
+        setLoading(false);
+      },
+    );
     return unsub;
   }, []);
 

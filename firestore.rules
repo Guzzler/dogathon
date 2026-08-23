@@ -1,8 +1,13 @@
 rules_version = '2';
 
-// No auth in this hackathon demo -- one seeded foster ("annie") drives the
-// whole journey. Rules are scoped to the two known doc paths the app
-// actually touches rather than left wide open.
+// There's no auth yet, so these rules can't express "only the owner". What they
+// do instead is constrain the shape of what a client may touch: each browser
+// mints an unguessable id (web/src/lib/fosterId.ts) and writes only under that
+// document, so one visitor can no longer stomp on another's journey by default.
+//
+// This is isolation, not access control. Anyone who learns an id can read that
+// journey. Before this holds anything sensitive, add Firebase Auth and change
+// the match below to `if request.auth.uid == fosterId`.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /dogs/{dogId} {
@@ -12,11 +17,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    match /fosters/annie {
-      allow read, write: if true;
+    // `f_` + 20 hex chars, or the seeded demo foster. Keep in sync with
+    // FOSTER_ID_PATTERN in web/src/lib/fosterId.ts.
+    match /fosters/{fosterId} {
+      allow read, write: if fosterId == 'annie'
+                         || fosterId.matches('^f_[a-f0-9]{20}$');
 
       match /careLog/{entryId} {
-        allow read, write: if true;
+        allow read, write: if fosterId == 'annie'
+                           || fosterId.matches('^f_[a-f0-9]{20}$');
       }
     }
 

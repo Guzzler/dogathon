@@ -7,6 +7,7 @@ import { DiscoveryView } from "./phases/discovery/DiscoveryView";
 import { DogDetailView } from "./phases/discovery/DogDetailView";
 import { SavedView } from "./phases/discovery/SavedView";
 import { MatchView } from "./phases/match/MatchView";
+import { MatchChatView } from "./phases/match/MatchChatView";
 import { CarePlanView } from "./phases/careplan/CarePlanView";
 import { PostFosterView } from "./phases/postfoster/PostFosterView";
 import { PublicAdoptionView } from "./phases/postfoster/PublicAdoptionView";
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="dog/:id" element={<DogDetailView />} />
           <Route path="saved" element={<SavedView />} />
           <Route path="match" element={<MatchView />} />
+          <Route path="match/chat" element={<MatchChatView />} />
           <Route path="care-plan" element={<CarePlanView />} />
           {/* Journal & Emergency are routes, not local state, so the app tab bar can carry them. */}
           <Route path="care-plan/:tab" element={<CarePlanView />} />
@@ -55,10 +57,17 @@ export default function App() {
   );
 }
 
-/** The journey's entry point sends you to whichever step you're actually on. */
+/**
+ * The journey's entry point sends you to whichever step you're actually on:
+ * onboarding once and only once, then Match or Care Plan if a dog is already
+ * spoken for, otherwise Discovery.
+ */
 function JourneyHome() {
   const { foster, loading } = useFoster();
   if (loading) return <div className="boot"><span className="boot__paw">🐾</span></div>;
+  // Checked here rather than leaning on the gate's redirect, so a new visitor
+  // goes straight to Welcome instead of bouncing through /discovery first.
+  if (!hasOnboarded(foster)) return <Navigate to="/welcome" replace />;
   return <Navigate to={journeyHome(foster?.phase)} replace />;
 }
 

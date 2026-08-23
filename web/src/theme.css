@@ -269,6 +269,40 @@ input,textarea,select{font-family:inherit}
   background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow);
   overflow:hidden;
 }
+/* Owns the whole screen: the thread is the only scroller, so nothing chains and
+   nothing runs under the tab bar. */
+.chat--full{flex:1;min-height:0;border-radius:0;box-shadow:none}
+.chat--full .chat__scroll{max-height:none}
+
+/* the row on Match that opens the chat screen */
+.chat-entry{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  padding:14px 15px;cursor:pointer;
+}
+.chat-entry__icon{
+  width:40px;height:40px;border-radius:13px;flex-shrink:0;
+  background:var(--coral-soft);display:grid;place-items:center;font-size:17px;
+}
+.chat-entry__body{flex:1;min-width:0}
+.chat-entry__title{font-weight:800;font-size:14.5px}
+.chat-entry__sub{margin-top:2px;color:var(--ink-3);font-size:12.5px}
+.chat-entry__chevron{color:var(--ink-3);font-size:20px;flex-shrink:0}
+
+/* the chat screen itself */
+.chat-screen{background:#fff}
+.chat-screen__bar{
+  display:flex;align-items:center;gap:6px;flex-shrink:0;
+  padding:14px 16px 12px;border-bottom:1px solid var(--line);background:#fff;
+}
+.chat-screen__back{
+  width:34px;height:34px;flex-shrink:0;border:none;background:none;
+  font-size:24px;line-height:1;color:var(--ink-2);cursor:pointer;
+  display:grid;place-items:center;
+}
+.chat-screen__title{min-width:0}
+.chat-screen__name{font-weight:800;font-size:15px}
+.chat-screen__sub{margin-top:1px;color:var(--ink-3);font-size:12px}
+
 .chat__scroll{
   flex:1;min-height:0;max-height:min(420px,52dvh);
   overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;

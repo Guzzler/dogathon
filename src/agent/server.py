@@ -1,8 +1,14 @@
 """HTTP bridge for the web demo: SSE chat stream + an approval endpoint.
 
-Single-session by design — one Agent, one pending approval slot. That's the
-right amount of infrastructure for a live demo on a laptop; don't grow this
-into a multi-tenant server without adding per-session state.
+One conversation per foster id. Each browser mints its own id
+(web/src/lib/fosterId.ts) and sends it with every request, so two people using
+the deployed URL at once get separate histories and separate approval slots
+rather than talking over each other.
+
+Sessions live in memory, so a Cloud Run restart or a second instance loses
+history — fine for a demo, and the reason this isn't the place to put anything
+that has to survive. Real durability means moving the transcript into Firestore
+alongside the rest of the foster's record.
 """
 
 from __future__ import annotations
@@ -11,6 +17,11 @@ import json
 import logging
 import os
 import queue
+import re
+import threading
+import time
+from collections import OrderedDict
+from dataclasses import dataclass, field
 from typing import Any, Iterator
 
 from dotenv import load_dotenv
@@ -70,20 +81,85 @@ PAWTHWAY_SYSTEM = (
 )
 
 _registry = registry()
-_approval_box: "queue.Queue[bool]" = queue.Queue()
-_agent = Agent(
-    _registry,
-    system=PAWTHWAY_SYSTEM,
-    approve=lambda name, args: _approval_box.get(timeout=300),
-)
+
+# `f_` + 20 hex, or the seeded demo foster. Mirrors FOSTER_ID_PATTERN in
+# web/src/lib/fosterId.ts and the match in firestore.rules.
+_FOSTER_ID_RE = re.compile(r"^(annie|f_[a-f0-9]{20})$")
+DEFAULT_FOSTER_ID = "annie"
+
+# Bounded so a long-lived instance can't accumulate a session per visitor
+# forever. Oldest-idle is evicted first; an evicted foster simply starts a new
+# conversation on their next message.
+MAX_SESSIONS = 200
+SESSION_TTL_SECONDS = 3600
+
+
+@dataclass
+class Session:
+    """One foster's conversation, plus the approval slot that turn is waiting on."""
+
+    agent: Agent
+    approvals: "queue.Queue[bool]" = field(default_factory=queue.Queue)
+    last_used: float = field(default_factory=time.monotonic)
+
+
+_sessions: "OrderedDict[str, Session]" = OrderedDict()
+_sessions_lock = threading.Lock()
+
+
+def _normalize_foster_id(raw: str | None) -> str:
+    """Untrusted input reaches Firestore paths through the tools, so validate the shape."""
+    candidate = (raw or "").strip()
+    return candidate if _FOSTER_ID_RE.match(candidate) else DEFAULT_FOSTER_ID
+
+
+def _build_agent(foster_id: str, approvals: "queue.Queue[bool]") -> Agent:
+    # Pinning the id in the system prompt is what stops the agent falling back to
+    # the "annie" tool defaults and reading somebody else's journey.
+    system = (
+        f"{PAWTHWAY_SYSTEM}\n\n"
+        f"The foster you are talking to has id \"{foster_id}\". Always pass "
+        f"foster_id=\"{foster_id}\" to every tool that accepts it. Never use a "
+        f"different foster id, and never answer using another foster's data."
+    )
+    return Agent(
+        _registry,
+        system=system,
+        approve=lambda name, args: approvals.get(timeout=300),
+    )
+
+
+def _session(foster_id: str) -> Session:
+    now = time.monotonic()
+    with _sessions_lock:
+        for stale in [k for k, s in _sessions.items() if now - s.last_used > SESSION_TTL_SECONDS]:
+            del _sessions[stale]
+
+        session = _sessions.get(foster_id)
+        if session is None:
+            approvals: "queue.Queue[bool]" = queue.Queue()
+            session = Session(agent=_build_agent(foster_id, approvals), approvals=approvals)
+            _sessions[foster_id] = session
+            while len(_sessions) > MAX_SESSIONS:
+                _sessions.popitem(last=False)
+
+        session.last_used = now
+        _sessions.move_to_end(foster_id)
+        return session
 
 
 class ChatRequest(BaseModel):
     message: str
+    foster_id: str | None = None
 
 
 class ApprovalRequest(BaseModel):
     approved: bool
+    foster_id: str | None = None
+
+
+class ResetRequest(BaseModel):
+    foster_id: str | None = None
 
 
 def _sse(event: str, data: dict[str, Any]) -> str:
@@ -116,9 +192,9 @@ def _friendly_error(exc: Exception) -> dict[str, str]:
     return {"text": text, "code": code}
 
 
-def _stream(message: str) -> Iterator[str]:
+def _stream(message: str, session: Session) -> Iterator[str]:
     try:
-        for ev in _agent.run(message):
+        for ev in session.agent.run(message):
             payload: dict[str, Any] = {"text": ev.text}
             if ev.name:
                 payload["name"] = ev.name
@@ -135,10 +211,14 @@ def _stream(message: str) -> Iterator[str]:
 def health() -> dict[str, Any]:
     from . import arcade_tools
 
+    with _sessions_lock:
+        active = len(_sessions)
+
     return {
         "anthropic_key_set": bool(os.environ.get("ANTHROPIC_API_KEY")),
         "arcade_available": arcade_tools.available(),
         "tool_count": len(_registry),
+        "active_sessions": active,
     }
 
 
@@ -152,8 +232,9 @@ def list_tools() -> list[dict[str, Any]]:
 
 @app.post("/chat")
 def chat(req: ChatRequest) -> StreamingResponse:
+    session = _session(_normalize_foster_id(req.foster_id))
     return StreamingResponse(
-        _stream(req.message),
+        _stream(req.message, session),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -231,13 +312,13 @@ def highlights(req: HighlightsRequest) -> dict[str, Any]:
 
 @app.post("/approve")
 def approve(req: ApprovalRequest) -> dict[str, bool]:
-    _approval_box.put(req.approved)
+    _session(_normalize_foster_id(req.foster_id)).approvals.put(req.approved)
     return {"ok": True}
 
 
 @app.post("/reset")
-def reset() -> dict[str, bool]:
-    _agent.reset()
+def reset(req: ResetRequest | None = None) -> dict[str, bool]:
+    _session(_normalize_foster_id(req.foster_id if req else None)).agent.reset()
     return {"ok": True}
 
 

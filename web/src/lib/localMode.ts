@@ -1,6 +1,7 @@
 import demoDogs from "../../../data/dogs.json";
 import type { CareLogEntry, Dog, Foster } from "../types";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_CARE_CHECKLIST, DEFAULT_PREP_CHECKLIST } from "../checklists";
+import { FOSTER_ID } from "./fosterId";
 
 /**
  * Firebase config lives in `web/.env`, which isn't committed. Without it the app would
@@ -11,11 +12,13 @@ export const LOCAL_MODE = !import.meta.env.VITE_FIREBASE_PROJECT_ID;
 
 export const LOCAL_DOGS = demoDogs as Dog[];
 
-const KEY = "pawthway.localFoster.v1";
+// Keyed by foster id so "start a new journey" gets a clean slate here too,
+// rather than inheriting whatever the previous one left behind.
+const KEY = `pawthway.localFoster.v1.${FOSTER_ID}`;
 
 export const BLANK_FOSTER: Foster = {
-  id: "annie",
-  name: "Annie",
+  id: FOSTER_ID,
+  name: "",
   phase: "onboarding",
   intake: {},
   likedDogIds: [],
@@ -56,7 +59,7 @@ export function resetLocalFoster() {
 }
 
 /* ---------- care log (local mode) ---------- */
-const LOG_KEY = "pawthway.localCareLog.v1";
+const LOG_KEY = `pawthway.localCareLog.v1.${FOSTER_ID}`;
 const logListeners = new Set<(e: CareLogEntry[]) => void>();
 
 export function readLocalCareLog(): CareLogEntry[] {

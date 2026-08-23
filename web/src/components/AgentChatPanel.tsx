@@ -32,6 +32,11 @@ interface Props {
    * that's framed as messaging a person.
    */
   activityMode?: ActivityMode;
+  /**
+   * "card" sits inside a page and caps its own height. "full" fills the screen
+   * it's given — the thread is then the only thing that scrolls.
+   */
+  variant?: "card" | "full";
 }
 
 export function AgentChatPanel({
@@ -39,6 +44,7 @@ export function AgentChatPanel({
   emptyState,
   quickActions,
   activityMode = "detailed",
+  variant = "card",
 }: Props) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
@@ -53,17 +59,40 @@ export function AgentChatPanel({
   const lastMessage = useRef<string>("");
   // Follow the stream until the reader scrolls up themselves; then leave them be.
   const pinned = useRef(true);
-  const programmatic = useRef(false);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  /**
+   * Animated by hand rather than with `behavior:"smooth"`. Native smooth scrolling
+   * is silently a no-op in some engines and gets cancelled by the surrounding
+   * scroll container in others, which left the button hiding itself without ever
+   * moving the view. A rAF tween always arrives.
+   */
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    el.scrollTo({ top: el.scrollHeight, behavior: reduced ? "auto" : "smooth" });
     pinned.current = true;
     setAtBottom(true);
+
+    const target = el.scrollHeight - el.clientHeight;
+    const start = el.scrollTop;
+    const distance = target - start;
+    if (distance <= 0) return;
+
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      el.scrollTop = target;
+      return;
+    }
+
+    const duration = Math.min(420, 120 + distance * 0.25);
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / duration);
+      // easeOutCubic — quick off the mark, settles gently.
+      el.scrollTop = start + distance * (1 - Math.pow(1 - p, 3));
+      if (p < 1 && pinned.current) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   }, []);
 
   // Replies run taller than the panel, so without this the answer streams in below
@@ -74,18 +103,16 @@ export function AgentChatPanel({
     if (!pinned.current) return;
     const el = scrollRef.current;
     if (!el) return;
-    programmatic.current = true;
     el.scrollTop = el.scrollHeight;
   }, [turns]);
 
+  // Position alone decides whether we're following, with no "was that us?" flag:
+  // our own scroll always lands at the bottom (distance 0, still pinned), and
+  // content growing doesn't fire a scroll event, so only the reader moving away
+  // can unpin. An earlier flag-based version swallowed the reader's first scroll.
   function trackScroll() {
     const el = scrollRef.current;
     if (!el) return;
-    // Our own scroll shouldn't be read as the reader taking over.
-    if (programmatic.current) {
-      programmatic.current = false;
-      return;
-    }
     const distance = el.scrollHeight - el.clientHeight - el.scrollTop;
     pinned.current = distance < 48;
     setAtBottom(pinned.current);
@@ -225,7 +252,7 @@ export function AgentChatPanel({
     streaming && lastTurn?.role === "assistant" && !lastTurn.text && !lastTurn.toolCalls?.length;
 
   return (
-    <div className="chat">
+    <div className={`chat chat--${variant}`}>
       <div className="chat__scroll" ref={scrollRef} onScroll={trackScroll}>
         {turns.length === 0 ? (
           <div className="chat__empty">

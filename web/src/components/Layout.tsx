@@ -6,7 +6,7 @@ import { hasOnboarded, journeyTabs } from "../lib/foster";
 import { PawMark } from "./Logo";
 
 /** Full-bleed screens own their own chrome, so the tab bar steps out of the way. */
-const FULL_BLEED = [/^\/welcome/, /^\/onboarding/, /^\/dog\//, /^\/adoption\//];
+const FULL_BLEED = [/^\/welcome/, /^\/onboarding/, /^\/dog\//, /^\/adoption\//, /^\/match\/chat/];
 
 export function Layout() {
   const { pathname } = useLocation();
