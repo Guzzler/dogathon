@@ -20,7 +20,9 @@ export function useFoster() {
   useEffect(() => subscribeSession((s) => { setDocId(fosterDocId()); setSessionKind(s.kind); }), []);
 
   useEffect(() => {
-    if (sessionKind === "loading") return;          // wait for auth before picking a source
+    // Signed out belongs to nobody: don't load the guest journey behind the sign-in screen,
+    // or the chrome (tab bar, badges) renders as if someone were partway through it.
+    if (sessionKind === "loading" || sessionKind === "signedOut") return;
 
     if (!docId) {
       return subscribeLocalFoster((foster) => setSnapshot({ for: null, foster }));
@@ -36,6 +38,8 @@ export function useFoster() {
       () => setSnapshot({ for: docId, foster: null }),
     );
   }, [docId, sessionKind]);
+
+  if (sessionKind === "signedOut") return { foster: null, loading: false };
 
   // Derived rather than stored, so a user switch reads as loading without an extra setState.
   const loading = sessionKind === "loading" || snapshot?.for !== docId;
