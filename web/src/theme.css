@@ -372,7 +372,6 @@ input,textarea,select{font-family:inherit}
 /* the share sheet is fixed, so it sits outside .phone-body — repeat the ghost fix */
 .sharesheet .btn--ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
 .sharesheet a.btn{text-decoration:none}
-.ap-hero--swatch{display:grid;place-items:center;font-size:34px;opacity:.9}
 .ap-caption{font-size:13px;font-weight:600;color:var(--ink-2);margin-top:9px;font-style:italic}
 
 .ap-src{font-size:11.5px;font-weight:700;color:var(--ink-3)}

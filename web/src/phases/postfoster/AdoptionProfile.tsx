@@ -20,16 +20,8 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
   return (
     <>
       <div className="ap-gallery">
-          {/* Journal photos are colour swatches until real upload exists — handle both. */}
-          {shot.url ? (
-            <motion.img key={hero} src={shot.url} alt={shot.caption ?? dog.name}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ap-hero" />
-          ) : (
-            <motion.div key={hero} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="ap-hero ap-hero--swatch" style={{ background: shot.color ?? "var(--cream-2)" }}>
-              <span>📷</span>
-            </motion.div>
-          )}
+          <motion.img key={hero} src={shot.url} alt={shot.caption ?? dog.name}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="ap-hero" />
         <div className="row" style={{ gap: 8, marginTop: 9 }}>
           <span className="ap-src">{shot.source === "journal" ? "📔" : "🏠"} {shot.date}</span>
           {shot.caption && <span className="ap-caption">{shot.caption}</span>}
@@ -38,9 +30,9 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
         {profile.photos.length > 1 && (
           <div className="ap-thumbs">
             {profile.photos.map((p, i) => (
-              <button key={(p.url ?? p.color ?? "") + i} onClick={() => setHero(i)} data-on={i === hero}
+              <button key={p.url + i} onClick={() => setHero(i)} data-on={i === hero}
                 className="ap-thumb"
-                style={p.url ? { backgroundImage: `url(${p.url})` } : { background: p.color }}
+                style={{ backgroundImage: `url(${p.url})` }}
                 aria-label={`Photo ${i + 1}`} />
             ))}
           </div>

@@ -14,7 +14,7 @@ import { ENERGY_WORD, photoUrl, sizeLabel, type RichDog } from "./dog";
  */
 export interface AdoptionProfile {
   /** The shelter's photo first, then every photo the foster logged, oldest to newest. */
-  photos: { url?: string; color?: string; caption?: string; date: string; source: "shelter" | "journal" }[];
+  photos: { url: string; caption?: string; date: string; source: "shelter" | "journal" }[];
   hasJournalPhotos: boolean;
   /** Every note the foster logged, oldest first — the whole foster period, not just recent. */
   journalNotes: { date: string; text: string; starred: boolean; day: number }[];
@@ -53,10 +53,13 @@ export function buildAdoptionProfile(
   // Oldest first, so the page and the summary both read Day 1 → today rather than newest-first.
   const byDay = [...journal].sort((a, b) => a.dayInFoster - b.dayInFoster);
 
+  // Only entries that actually carry an image. Early builds logged a colour swatch when the
+  // composer couldn't upload, and a blank tile on a page someone reads to decide about a real
+  // animal is worse than one fewer photo.
   const journalPhotos = byDay
-    .filter((e) => e.kind === "photo")
+    .filter((e) => e.kind === "photo" && e.photoUrl)
     .map((e) => ({
-      url: e.photoUrl, color: e.imageColor, caption: e.caption,
+      url: e.photoUrl!, caption: e.caption,
       date: e.createdAt, source: "journal" as const,
     }));
 
