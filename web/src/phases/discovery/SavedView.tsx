@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
 import { normalizeDog, dogPhoto, type RichDog } from "../../lib/dog";
 import { scoreDog } from "../../lib/matching";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
+import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
 
 const STAGES = ["Applied", "Under review", "Approved", "Pickup"];
 
@@ -93,11 +95,17 @@ function BlockedNotice({ dogName, phase }: { dogName: string; phase: "match" | "
 function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean }) {
   const navigate = useNavigate();
   const { foster } = useFoster();
+  const [needsAccount, setNeedsAccount] = useState(false);
 
   const remove = () => patchFoster({ likedDogIds: (foster?.likedDogIds ?? []).filter(x => x !== d.id) });
   // Applying is what commits the foster to a dog — it sets matchedDogId and advances the
-  // phase, which is exactly what the Match view (Sharang's) reads.
+  // phase, which is exactly what the Match view (Sharang's) reads. It's also where a guest
+  // has to become an account: everything past here needs a shelter to be able to reach them.
   const apply = async () => {
+    if (needsAccountToApply()) {
+      setNeedsAccount(true);
+      return;
+    }
     await patchFoster({ matchedDogId: d.id, phase: "match" });
     navigate("/match");
   };
@@ -124,6 +132,10 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
           Apply to foster
         </button>
       </div>
+
+      <AnimatePresence>
+        {needsAccount && <SignInToApply dogName={d.name} onClose={() => setNeedsAccount(false)} />}
+      </AnimatePresence>
     </motion.div>
   );
 }

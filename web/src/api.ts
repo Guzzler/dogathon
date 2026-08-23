@@ -1,40 +1,10 @@
 import type { AgentEvent, EventKind, HealthInfo, ToolInfo } from "./types";
-import { fosterDocId } from "./lib/session";
+import { auth } from "./auth";
 
 // Local dev goes through the Vite proxy (/api -> 127.0.0.1:8000). A
 // production build points straight at the deployed Cloud Run agent, since
 // Firebase Hosting doesn't run the Python backend.
 const AGENT_BASE = import.meta.env.VITE_AGENT_URL || "/api";
-
-async function json<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${AGENT_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
-  if (!res.ok) throw new Error(`${path} -> ${res.status}`);
-  return res.json();
-}
-
-export const getHealth = () => json<HealthInfo>("/health");
-/** Compresses journal notes into short adoption-profile tags. */
-export const getHighlights = (notes: string[]) =>
-  json<{ tags: string[]; summary: string }>("/highlights", {
-    method: "POST",
-    body: JSON.stringify({ notes }),
-  });
-export const getTools = () => json<ToolInfo[]>("/tools");
-// Every agent call carries the foster id: it selects the conversation on the
-// server and pins which journey the tools are allowed to read.
-export const resetChat = () =>
-  json<{ ok: boolean }>("/reset", {
-    method: "POST",
-    body: JSON.stringify({ foster_id: fosterDocId() }),
-  });
-export const sendApproval = (approved: boolean) =>
-  json<{ ok: boolean }>("/approve", {
-    method: "POST",
-    body: JSON.stringify({ approved, foster_id: fosterDocId() }),
-  });
 
 /**
  * A failure worth showing someone. `code` is what the UI branches on; `message`
@@ -55,10 +25,10 @@ export class ChatError extends Error {
 
 function describeStatus(status: number): ChatError {
   if (status === 401 || status === 403) {
-    return new ChatError("auth", "The assistant isn't set up correctly right now. The team has been notified.");
+    return new ChatError("auth", "Your session has expired. Sign in again to pick this back up.");
   }
   if (status === 429) {
-    return new ChatError("rate_limit", "Lots of people are asking questions right now. Try again in a moment.");
+    return new ChatError("rate_limit", "That's a lot of questions at once — give it a minute and try again.");
   }
   if (status >= 500) {
     return new ChatError("upstream", "The assistant is having trouble right now. Try again in a moment.");
@@ -66,20 +36,68 @@ function describeStatus(status: number): ChatError {
   return new ChatError("unknown", "Something went wrong. Try again in a moment.");
 }
 
+/**
+ * The agent's tools reach Firestore through the Admin SDK, which bypasses the security
+ * rules, so this token is the only thing telling the backend whose journey it may touch.
+ * It carries the uid, which is why nothing here sends a foster id any more.
+ *
+ * Every surface that talks to the agent sits behind applying, and applying needs an
+ * account — so no signed-in user here means a broken session, not an ordinary state.
+ */
+async function authHeader(): Promise<Record<string, string>> {
+  const user = auth?.currentUser;
+  if (!user) throw new ChatError("auth", "Sign in to talk to your shelter coordinator.");
+  try {
+    // Cached until it's close to expiring and refreshed after that, so per-call is fine.
+    return { Authorization: `Bearer ${await user.getIdToken()}` };
+  } catch {
+    throw new ChatError("auth", "Couldn't confirm your sign-in. Sign in again to pick this back up.");
+  }
+}
+
+async function json<T>(path: string, init?: RequestInit, authed = false): Promise<T> {
+  const res = await fetch(`${AGENT_BASE}${path}`, {
+    ...init,
+    // After the spread, not before: the header is what authorises the call and no
+    // caller gets to drop it by passing its own headers.
+    headers: { "Content-Type": "application/json", ...(authed ? await authHeader() : {}) },
+  });
+  if (!res.ok) throw describeStatus(res.status);
+  return res.json();
+}
+
+export const getHealth = () => json<HealthInfo>("/health");
+/** Compresses journal notes into short adoption-profile tags. */
+export const getHighlights = (notes: string[]) =>
+  json<{ tags: string[]; summary: string }>("/highlights", {
+    method: "POST",
+    body: JSON.stringify({ notes }),
+  }, true);
+export const getTools = () => json<ToolInfo[]>("/tools");
+export const resetChat = () =>
+  json<{ ok: boolean }>("/reset", { method: "POST", body: "{}" }, true);
+export const sendApproval = (approved: boolean) =>
+  json<{ ok: boolean }>("/approve", {
+    method: "POST",
+    body: JSON.stringify({ approved }),
+  }, true);
+
 /** Streams SSE frames from POST /api/chat, calling onEvent as each one parses. */
 export async function streamChat(
   message: string,
   onEvent: (event: AgentEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
+  // Outside the try: a missing sign-in is already a ChatError the panel can render,
+  // and calling it a network failure would send the foster to check their wifi.
+  const headers = { "Content-Type": "application/json", ...(await authHeader()) };
+
   let res: Response;
   try {
     res = await fetch(`${AGENT_BASE}/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // Selects the conversation on the server and pins which journey its tools
-      // may read. Null for guests — the server falls back to the demo foster.
-      body: JSON.stringify({ message, foster_id: fosterDocId() }),
+      headers,
+      body: JSON.stringify({ message }),
       signal,
     });
   } catch (err) {

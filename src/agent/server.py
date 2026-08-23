@@ -1,9 +1,11 @@
 """HTTP bridge for the web demo: SSE chat stream + an approval endpoint.
 
-One conversation per foster id. The web client sends the signed-in user's uid
-(web/src/lib/session.ts) with every request, so two people using the deployed URL
-at once get separate histories and separate approval slots rather than talking
-over each other.
+One conversation per foster id, and the id comes from a verified Firebase ID
+token — never from the request body. The tools reach Firestore through the Admin
+SDK (`firestore_client.py`), which bypasses `firestore.rules` entirely, so this
+service is the *only* thing standing between an anonymous caller and any foster's
+journey. A body-supplied id would let anyone who knows a uid read and write that
+person's record; the token is what makes "this is my journey" checkable.
 
 Sessions live in memory, so a Cloud Run restart or a second instance loses
 history — fine for a demo, and the reason this isn't the place to put anything
@@ -25,23 +27,37 @@ from dataclasses import dataclass, field
 from typing import Any, Iterator
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from firebase_admin import auth as firebase_auth
 from pydantic import BaseModel
 
 from .builtin import registry
 from .current_foster import set_current_foster
+from .firestore_client import _ensure_app
 from .loop import Agent, model_for_surface
 
 load_dotenv()
 
+# Cloud Run runs this with --allow-unauthenticated because a browser can't mint a
+# Google IAM token; the Firebase ID token below is the actual door. The origin list
+# is a second, weaker lock — it stops a random site from spending a signed-in
+# foster's session, but it's the token that decides whose data is reachable.
+ALLOWED_ORIGINS = [
+    "https://pawthway-hackathon.web.app",
+    "https://pawthway-hackathon.firebaseapp.com",
+    # Vite dev server. Both spellings, because it prints one and people type the other.
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
 app = FastAPI(title="pawthway agent")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 PAWTHWAY_SYSTEM = (
@@ -83,12 +99,10 @@ PAWTHWAY_SYSTEM = (
 
 _registry = registry()
 
-# A Firebase Auth uid (or the seeded demo foster). Deliberately permissive about
-# the alphabet -- uids are an opaque provider format and pinning it tighter would
-# silently drop real users into the demo journey. What this actually guards is the
-# Firestore path: no slashes, no dots, no traversal.
+# A Firebase Auth uid. Deliberately permissive about the alphabet -- uids are an
+# opaque provider format and pinning it tighter would lock out real users. What this
+# actually guards is the Firestore path: no slashes, no dots, no traversal.
 _FOSTER_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
-DEFAULT_FOSTER_ID = "annie"
 
 # Bounded so a long-lived instance can't accumulate a session per visitor
 # forever. Oldest-idle is evicted first; an evicted foster simply starts a new
@@ -110,10 +124,84 @@ _sessions: "OrderedDict[str, Session]" = OrderedDict()
 _sessions_lock = threading.Lock()
 
 
-def _normalize_foster_id(raw: str | None) -> str:
-    """Untrusted input reaches Firestore paths through the tools, so validate the shape."""
+def _normalize_foster_id(raw: str | None) -> str | None:
+    """The id reaches Firestore paths through the tools, so validate the shape.
+
+    Verified-then-still-checked: a token claim is trustworthy about *who*, not about
+    what characters it contains. Returns None rather than a default, because falling
+    back to a real foster id here would hand the caller someone else's journey.
+    """
     candidate = (raw or "").strip()
-    return candidate if _FOSTER_ID_RE.match(candidate) else DEFAULT_FOSTER_ID
+    return candidate if _FOSTER_ID_RE.match(candidate) else None
+
+
+def require_foster_id(authorization: str | None = Header(default=None)) -> str:
+    """Resolve the caller to a foster id, or refuse.
+
+    Everything downstream of this uses the Admin SDK, so this is the trust boundary
+    for the whole service: the id is taken from the token's `uid` claim and nowhere
+    else. `verify_id_token` checks the signature, the audience, the issuer and the
+    expiry, so a forged or stale token can't get past it.
+    """
+    scheme, _, token = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        raise HTTPException(status_code=401, detail="Sign in to use the assistant.")
+
+    _ensure_app()
+    try:
+        claims = firebase_auth.verify_id_token(token.strip())
+    except Exception:
+        # Deliberately one message for expired, malformed and forged: telling a caller
+        # which one it was is free reconnaissance, and the fix is the same either way.
+        logging.info("rejected an id token")
+        raise HTTPException(status_code=401, detail="Your session has expired. Sign in again.")
+
+    foster_id = _normalize_foster_id(claims.get("uid"))
+    if foster_id is None:
+        raise HTTPException(status_code=401, detail="Your session has expired. Sign in again.")
+    return foster_id
+
+
+# Per-instance, and Cloud Run runs several: the real ceiling is this times the
+# instance count. It's a brake on one signed-in foster hammering the model, not a
+# quota -- anything that has to hold exactly needs shared state (Firestore, Redis).
+CHAT_REQUESTS_PER_MINUTE = 20
+_REFILL_PER_SECOND = CHAT_REQUESTS_PER_MINUTE / 60
+
+
+@dataclass
+class _Bucket:
+    tokens: float
+    updated: float
+
+
+_buckets: dict[str, _Bucket] = {}
+_buckets_lock = threading.Lock()
+
+
+def _take_chat_token(foster_id: str) -> bool:
+    now = time.monotonic()
+    with _buckets_lock:
+        bucket = _buckets.get(foster_id)
+        if bucket is None:
+            # A bucket that has had time to refill completely carries no state worth
+            # keeping, so dropping those is what stops this growing per visitor.
+            full_after = CHAT_REQUESTS_PER_MINUTE / _REFILL_PER_SECOND
+            for idle in [k for k, b in _buckets.items() if now - b.updated > full_after]:
+                del _buckets[idle]
+            bucket = _Bucket(tokens=float(CHAT_REQUESTS_PER_MINUTE), updated=now)
+            _buckets[foster_id] = bucket
+
+        bucket.tokens = min(
+            float(CHAT_REQUESTS_PER_MINUTE),
+            bucket.tokens + (now - bucket.updated) * _REFILL_PER_SECOND,
+        )
+        bucket.updated = now
+
+        if bucket.tokens < 1:
+            return False
+        bucket.tokens -= 1
+        return True
 
 
 def _build_agent(foster_id: str, approvals: "queue.Queue[bool]") -> Agent:
@@ -151,23 +239,23 @@ def _session(foster_id: str) -> Session:
         return session
 
 
+# None of these carry a foster id: which journey a request touches is decided by the
+# token, so there is nothing for the body to say about it.
 class ChatRequest(BaseModel):
     message: str
-    # The signed-in foster's uid. The client knows it; the model shouldn't have to guess.
-    foster_id: str | None = None
     # Which of the three surfaces is asking ("match", "careplan", "postfoster"),
     # which is what selects the model. Optional: a client that doesn't send it
     # gets the capable model, so an older build gets dearer, never worse.
+    # NB: the foster id is NOT accepted here — it comes off the verified token.
     phase: str | None = None
 
 
 class ApprovalRequest(BaseModel):
     approved: bool
-    foster_id: str | None = None
 
 
 class ResetRequest(BaseModel):
-    foster_id: str | None = None
+    pass
 
 
 def _sse(event: str, data: dict[str, Any]) -> str:
@@ -248,8 +336,13 @@ def list_tools() -> list[dict[str, Any]]:
 
 
 @app.post("/chat")
-def chat(req: ChatRequest) -> StreamingResponse:
-    foster_id = _normalize_foster_id(req.foster_id)
+def chat(req: ChatRequest, foster_id: str = Depends(require_foster_id)) -> StreamingResponse:
+    if not _take_chat_token(foster_id):
+        raise HTTPException(
+            status_code=429,
+            detail="That's a lot of questions at once. Give it a minute and try again.",
+        )
+
     session = _session(foster_id)
     return StreamingResponse(
         _stream(req.message, session, foster_id, model_for_surface(req.phase)),
@@ -281,7 +374,9 @@ HIGHLIGHTS_PROMPT = (
 )
 
 
-@app.post("/highlights")
+# Signed in only: the body is a foster's own journal about their dog, and an open
+# endpoint that takes text and returns model output is also somebody else's free LLM.
+@app.post("/highlights", dependencies=[Depends(require_foster_id)])
 def highlights(req: HighlightsRequest) -> dict[str, Any]:
     """Summarise journal entries into adoption-profile tags and a short write-up.
 
@@ -329,14 +424,19 @@ def highlights(req: HighlightsRequest) -> dict[str, Any]:
 
 
 @app.post("/approve")
-def approve(req: ApprovalRequest) -> dict[str, bool]:
-    _session(_normalize_foster_id(req.foster_id)).approvals.put(req.approved)
+def approve(req: ApprovalRequest, foster_id: str = Depends(require_foster_id)) -> dict[str, bool]:
+    # This is the release valve for the dangerous (writing) tools, so it needs the same
+    # door as /chat -- otherwise an attacker triggers a write and approves it themselves.
+    _session(foster_id).approvals.put(req.approved)
     return {"ok": True}
 
 
 @app.post("/reset")
-def reset(req: ResetRequest | None = None) -> dict[str, bool]:
-    _session(_normalize_foster_id(req.foster_id if req else None)).agent.reset()
+def reset(
+    req: ResetRequest | None = None,
+    foster_id: str = Depends(require_foster_id),
+) -> dict[str, bool]:
+    _session(foster_id).agent.reset()
     return {"ok": True}
 
 
