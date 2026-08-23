@@ -205,12 +205,14 @@ on the foster's private document**, so a shelter can't query "who applied to us"
 its own collection is cheap now and a migration later — see
 [docs/shelter-integration.md](docs/shelter-integration.md) before adding anything shelter-side.
 
-Relatedly, every dog in `data/dogs.json` is invented and the shelters in `web/src/lib/shelters.ts`
-are real organisations we have no relationship with.
-[docs/real-data-sourcing.md](docs/real-data-sourcing.md) covers where real listings would come
-from (the Petfinder API shut down in December 2025 — don't plan around it), the source-adapter
-design that makes manual shelter entry and a synced feed the same code path, and the partnership
-question that gates turning any of it on.
+`data/dogs.json` is a real, scraped roster (SF SPCA — see "The dog roster is scraped, reviewed,
+and committed" below), not the invented one `docs/real-data-sourcing.md` describes; that
+document predates the scrape and is stale on that point. **Production Firestore's `dogs`
+collection is a separate thing from the committed file** — nobody has run
+`scripts/import_dogs.py` against it without `--dry-run`, so a hosted deploy still shows
+whatever was seeded there originally. Run it (`--from-cache` reuses the committed scrape, no
+re-fetch) with real GCP credentials to fix that; the importer now deletes stale docs first, so
+it replaces the collection rather than appending to it.
 
 ### The agent needs to know too
 
