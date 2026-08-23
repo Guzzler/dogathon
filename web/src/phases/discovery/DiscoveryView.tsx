@@ -31,8 +31,9 @@ export function DiscoveryView() {
 
   const matches = useMemo(() => {
     const needle = q.trim().toLowerCase();
+    // No match-score cutoff: the real roster is small, so a weak match still beats no
+    // dog at all. Still ranked best-first via the sort below.
     return available
-      .filter(d => scoreOf(d) >= 45)
       .filter(d => !needle || [d.name, d.breed, d.shelter.name, d.shelter.address].some(f => f.toLowerCase().includes(needle)))
       .sort((a, b) => scoreOf(b) - scoreOf(a));
   }, [available, intake, q]); // eslint-disable-line

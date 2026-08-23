@@ -89,10 +89,28 @@ def main() -> None:
     else:
         from agent.firestore_client import db
         client = db()
+        collection = client.collection("dogs")
+
+        # Replace, not append. Earlier runs (and the original hand-written seed) left docs
+        # in this collection that this scrape doesn't produce -- without deleting those, a
+        # real import just adds the real roster alongside the dummy one instead of
+        # replacing it, which is exactly the bug that left production showing fake dogs.
+        new_ids = {d["id"] for d in dogs}
+        existing_ids = {doc.id for doc in collection.list_documents()}
+        stale_ids = existing_ids - new_ids
+        if stale_ids:
+            stale = sorted(stale_ids)
+            for start in range(0, len(stale), 400):
+                batch = client.batch()
+                for doc_id in stale[start : start + 400]:
+                    batch.delete(collection.document(doc_id))
+                batch.commit()
+            print(f"  removed {len(stale)} stale docs (no longer in the scrape): {stale[:5]}{'...' if len(stale) > 5 else ''}")
+
         for start in range(0, len(dogs), 400):     # Firestore caps a batch at 500 ops
             batch = client.batch()
             for d in dogs[start : start + 400]:
-                batch.set(client.collection("dogs").document(d["id"]), d)
+                batch.set(collection.document(d["id"]), d)
             batch.commit()
         print(f"wrote {len(dogs)} dogs -> Firestore")
 
