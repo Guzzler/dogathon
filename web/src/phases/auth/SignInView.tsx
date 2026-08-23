@@ -57,7 +57,7 @@ export function SignInView() {
         )}
 
         <button className="btn outline" style={{ marginTop: 9 }} onClick={continueAsGuest}>
-          Continue as guest
+          Continue As Guest
         </button>
 
         <p className="muted signin__fine">

@@ -271,9 +271,9 @@
 }
 
 .badge--soft {
-  background: rgba(232, 115, 74, 0.12);
+  background: rgba(42, 157, 143, 0.12);
   color: var(--color-evergreen, var(--color-ink));
-  border: 1px solid rgba(232, 115, 74, 0.24);
+  border: 1px solid rgba(42, 157, 143, 0.24);
 }
 
 /* Checklist card */

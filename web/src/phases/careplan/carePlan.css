@@ -27,8 +27,8 @@
     padding: 24px 32px;
     align-items: start;
     background:
-      radial-gradient(1200px 600px at 20% 0%, rgba(196, 149, 90, 0.14), transparent 60%),
-      radial-gradient(900px 500px at 100% 100%, rgba(45, 90, 61, 0.14), transparent 60%),
+      radial-gradient(1200px 600px at 20% 0%, rgba(231, 111, 81, 0.14), transparent 60%),
+      radial-gradient(900px 500px at 100% 100%, rgba(42, 157, 143, 0.14), transparent 60%),
       linear-gradient(180deg, #f8f3ea 0%, #ece4d3 100%);
     height: auto;
     border-radius: 20px;
@@ -62,9 +62,9 @@
   line-height: 1.55;
   color: var(--color-muted);
   padding: 10px 12px;
-  background: rgba(196, 149, 90, 0.08);
+  background: rgba(231, 111, 81, 0.08);
   border-radius: 10px;
-  border: 1px dashed rgba(196, 149, 90, 0.3);
+  border: 1px dashed rgba(231, 111, 81, 0.3);
 }
 
 .cp-demo-hint em {
@@ -142,7 +142,7 @@
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  box-shadow: 0 4px 10px rgba(45, 90, 61, 0.25);
+  box-shadow: 0 4px 10px rgba(42, 157, 143, 0.25);
 }
 
 .cp-topbar > div {
@@ -230,7 +230,7 @@
 .cp-tab--active {
   background: var(--color-evergreen);
   color: var(--color-cream);
-  box-shadow: 0 4px 10px rgba(45, 90, 61, 0.22);
+  box-shadow: 0 4px 10px rgba(42, 157, 143, 0.22);
 }
 
 .cp-tab--danger.cp-tab--active {
@@ -331,7 +331,7 @@
 
 .cp-card--pinned {
   background: linear-gradient(160deg, #fff8e6 0%, #fffdf6 100%);
-  border-color: rgba(196, 149, 90, 0.5);
+  border-color: rgba(231, 111, 81, 0.5);
 }
 
 .cp-pinned-title {
@@ -373,7 +373,7 @@
 
 .cp-phase-banner {
   padding: 14px 16px;
-  background: linear-gradient(135deg, #2d5a3d 0%, #244a32 100%);
+  background: linear-gradient(135deg, #2A9D8F 0%, #217A70 100%);
   color: var(--color-cream);
   border-radius: var(--cp-radius);
   box-shadow: 0 8px 20px rgba(23, 53, 38, 0.22);
@@ -494,7 +494,7 @@
 }
 
 .cp-schedule-block + .cp-schedule-block {
-  border-top: 1px dashed rgba(196, 149, 90, 0.28);
+  border-top: 1px dashed rgba(231, 111, 81, 0.28);
 }
 
 .cp-schedule-block__marker {
@@ -516,19 +516,19 @@
 .cp-schedule-block--passed .cp-schedule-block__dot {
   background: var(--color-copper);
   border-color: var(--color-copper);
-  box-shadow: 0 0 0 3px rgba(196, 149, 90, 0.18);
+  box-shadow: 0 0 0 3px rgba(231, 111, 81, 0.18);
 }
 
 .cp-schedule-block--current .cp-schedule-block__dot {
   background: var(--color-evergreen);
   border-color: var(--color-evergreen);
-  box-shadow: 0 0 0 4px rgba(45, 90, 61, 0.16);
+  box-shadow: 0 0 0 4px rgba(42, 157, 143, 0.16);
   animation: cp-pulse 2s infinite ease-in-out;
 }
 
 @keyframes cp-pulse {
-  0%, 100% { box-shadow: 0 0 0 4px rgba(45, 90, 61, 0.16); }
-  50% { box-shadow: 0 0 0 8px rgba(45, 90, 61, 0.06); }
+  0%, 100% { box-shadow: 0 0 0 4px rgba(42, 157, 143, 0.16); }
+  50% { box-shadow: 0 0 0 8px rgba(42, 157, 143, 0.06); }
 }
 
 .cp-schedule-block__label {
@@ -586,8 +586,8 @@
 }
 
 .cp-schedule-item__chip--vaccine { background: rgba(127, 95, 191, 0.14); color: #5a3fa0; }
-.cp-schedule-item__chip--wellness { background: rgba(45, 90, 61, 0.12); color: var(--color-evergreen); }
-.cp-schedule-item__chip--grooming { background: rgba(196, 149, 90, 0.16); color: #8a662f; }
+.cp-schedule-item__chip--wellness { background: rgba(42, 157, 143, 0.12); color: var(--color-evergreen); }
+.cp-schedule-item__chip--grooming { background: rgba(231, 111, 81, 0.16); color: #8a662f; }
 .cp-schedule-item__chip--medication { background: rgba(168, 64, 52, 0.12); color: var(--color-danger); }
 .cp-schedule-item__chip--training { background: rgba(47, 122, 75, 0.14); color: var(--color-success); }
 .cp-schedule-item__chip--checkup { background: rgba(23, 53, 38, 0.1); color: var(--color-ink); }
@@ -618,7 +618,7 @@
 
 .cp-week {
   padding: 12px 0 10px;
-  border-top: 1px dashed rgba(196, 149, 90, 0.28);
+  border-top: 1px dashed rgba(231, 111, 81, 0.28);
 }
 
 .cp-week:first-child { border-top: none; }
@@ -647,7 +647,7 @@
 .cp-week--current .cp-week__dot {
   background: var(--color-evergreen);
   border-color: var(--color-evergreen);
-  box-shadow: 0 0 0 4px rgba(45, 90, 61, 0.14);
+  box-shadow: 0 0 0 4px rgba(42, 157, 143, 0.14);
 }
 
 .cp-week__label {
@@ -740,8 +740,8 @@
 }
 
 .cp-plan-chip__kind--vaccine { background: rgba(127, 95, 191, 0.14); color: #5a3fa0; }
-.cp-plan-chip__kind--wellness { background: rgba(45, 90, 61, 0.12); color: var(--color-evergreen); }
-.cp-plan-chip__kind--grooming { background: rgba(196, 149, 90, 0.16); color: #8a662f; }
+.cp-plan-chip__kind--wellness { background: rgba(42, 157, 143, 0.12); color: var(--color-evergreen); }
+.cp-plan-chip__kind--grooming { background: rgba(231, 111, 81, 0.16); color: #8a662f; }
 .cp-plan-chip__kind--medication { background: rgba(168, 64, 52, 0.12); color: var(--color-danger); }
 .cp-plan-chip__kind--training { background: rgba(47, 122, 75, 0.14); color: var(--color-success); }
 .cp-plan-chip__kind--checkup { background: rgba(23, 53, 38, 0.1); color: var(--color-ink); }
@@ -820,7 +820,7 @@
   padding: 8px 12px 8px 10px;
   border-radius: 10px;
   background: transparent;
-  border-left: 2px solid rgba(196, 149, 90, 0.35);
+  border-left: 2px solid rgba(231, 111, 81, 0.35);
   margin-left: 6px;
   font-size: 13px;
 }
@@ -1001,7 +1001,7 @@
   top: 8px;
   bottom: 8px;
   width: 2px;
-  background: rgba(196, 149, 90, 0.3);
+  background: rgba(231, 111, 81, 0.3);
 }
 
 .cp-milestone {
@@ -1018,7 +1018,7 @@
   border-radius: 50%;
   background: var(--color-copper);
   border: 3px solid #fffdf8;
-  box-shadow: 0 0 0 1px rgba(196, 149, 90, 0.5);
+  box-shadow: 0 0 0 1px rgba(231, 111, 81, 0.5);
 }
 
 .cp-milestone--vet .cp-milestone__dot { background: var(--color-evergreen); }
@@ -1042,7 +1042,7 @@
 
 .cp-milestone--upcoming .cp-milestone__body {
   background: #fff9ee;
-  border-color: rgba(196, 149, 90, 0.5);
+  border-color: rgba(231, 111, 81, 0.5);
   border-style: dashed;
 }
 
@@ -1072,7 +1072,7 @@
   font-weight: 800;
   padding: 2px 7px;
   border-radius: 999px;
-  background: rgba(45, 90, 61, 0.1);
+  background: rgba(42, 157, 143, 0.1);
   color: var(--color-evergreen);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1121,7 +1121,7 @@
 .cp-composer-mode--active {
   background: var(--color-evergreen);
   color: var(--color-cream);
-  box-shadow: 0 3px 8px rgba(45, 90, 61, 0.2);
+  box-shadow: 0 3px 8px rgba(42, 157, 143, 0.2);
 }
 
 .cp-composer-card .cp-btn {
@@ -1138,7 +1138,7 @@
 
 .cp-feed-item--ask {
   background: linear-gradient(180deg, #f6f1e9 0%, #fffdf6 100%);
-  border-color: rgba(196, 149, 90, 0.4);
+  border-color: rgba(231, 111, 81, 0.4);
 }
 
 .cp-feed-item__row {
@@ -1240,7 +1240,7 @@
 .cp-composer__textarea:focus,
 .cp-composer__input:focus {
   border-color: var(--color-copper);
-  box-shadow: 0 0 0 3px rgba(196, 149, 90, 0.18);
+  box-shadow: 0 0 0 3px rgba(231, 111, 81, 0.18);
 }
 
 .cp-btn {
@@ -1266,7 +1266,7 @@
 .cp-btn--primary {
   background: var(--color-evergreen);
   color: var(--color-cream);
-  box-shadow: 0 6px 14px rgba(45, 90, 61, 0.22);
+  box-shadow: 0 6px 14px rgba(42, 157, 143, 0.22);
 }
 
 .cp-btn--ghost {
@@ -1423,7 +1423,7 @@
 
 .cp-tip-card--pinned {
   background: linear-gradient(180deg, #fff8e6 0%, #fffdf6 100%);
-  border-color: rgba(196, 149, 90, 0.5);
+  border-color: rgba(231, 111, 81, 0.5);
 }
 
 .cp-tip-card h4 {
@@ -1745,7 +1745,7 @@
   text-align: left;
 }
 
-.cp-earlier:hover { background: rgba(196, 149, 90, 0.06); }
+.cp-earlier:hover { background: rgba(231, 111, 81, 0.06); }
 
 .cp-earlier__caret { font-size: 10px; flex: 0 0 auto; }
 
