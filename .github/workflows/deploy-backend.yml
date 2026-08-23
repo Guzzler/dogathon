@@ -32,6 +32,16 @@ jobs:
 
       # The key goes in via env rather than inline interpolation so a stray character
       # in the secret can't reshape the command line, and so it isn't echoed in logs.
+      #
+      # --max-instances=1 is a correctness pin, not a cost knob, and raising it will
+      # break the product in a way that looks like nothing at all: server.py holds each
+      # session's Agent and its approval queue.Queue in this process's memory, and there
+      # is no session affinity. On a second instance, a /chat blocked waiting for
+      # approval never sees the /approve that landed elsewhere — no error, no log, the
+      # tool call just sits out its full 300s timeout while the foster watches a spinner.
+      # Lift it only once conversation and approval state live in Firestore.
+      # --min-instances=1 keeps that single instance warm, so a cold start doesn't land
+      # in the middle of someone's first message.
       - name: Deploy to Cloud Run
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -42,4 +52,6 @@ jobs:
             --region=us-central1 \
             --allow-unauthenticated \
             --set-env-vars="ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}" \
+            --min-instances=1 \
+            --max-instances=1 \
             --quiet
