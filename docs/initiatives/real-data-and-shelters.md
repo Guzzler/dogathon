@@ -27,9 +27,15 @@ scales past one shelter.
   before anything writes; the real push **replaces** the roster rather than
   appending (PR #13 fixed silent duplication). This is the pattern to
   extend, not replace.
-- **It runs on a person's laptop, not a schedule.** Nothing currently
-  triggers it. "Keep the dogs updated" today means someone remembers to run
-  it.
+- **It has a manual trigger, deliberately not a schedule.**
+  `.github/workflows/import-dogs.yml` (added same day as M1, after this doc's
+  first draft) runs it via `workflow_dispatch` with a `--plan`-by-default
+  preview and an explicit re-scrape opt-in, using the same service account
+  the deploys use. Its own comment states the reasoning: "the roster should
+  change when someone decides it should, not because a file moved." That's
+  a real design position, not an oversight — M4 below is about deciding
+  whether to keep it manual-only or add a proposal-only schedule, not about
+  assuming a schedule is obviously better.
 - **The roster is one shelter deep.** Every dog in `data/dogs.json` carries
   `shelter_id: "sfspca-mission"`. `web/src/lib/shelters.ts` still lists
   eight organizations. Seven of them have zero dogs and no import path —
@@ -73,15 +79,19 @@ already in `shelter-integration.md`). Manual entry through this UI becomes
 the second source adapter — proving the pipeline works for a shelter that
 isn't SF SPCA, with zero scraping risk and no third-party approval needed.
 
-**M4 — schedule the existing import, and reconcile drift.** Turn
-`scripts/import_dogs.py --plan` into a Cloud Scheduler + Cloud Run job
-(infra already exists in this project) that runs on a cadence — weekly is
-plenty given the source is a shelter's own adoptable-dogs page, not a
-fast-moving feed — and **opens a PR with the diff for a human to merge**,
-not an auto-write. Automated *proposal*, human *approval*: the same split
-as the shelter-admin surface, applied to the scrape path. Also the moment to
-fix the `shelters.ts` drift: verify all eight against a live source (or cut
-to the one that's actually populated until M3 gives the others real data).
+**M4 — decide on a cadence, and reconcile drift.** The import
+workflow (`import-dogs.yml`) already exists and already defaults to
+preview-only; what's still a decision, not engineering, is whether to also
+add a Cloud Scheduler trigger that runs `--plan` on a cadence and opens an
+issue or PR with the diff for a human to act on — automated *proposal*,
+human *approval*, never an auto-write, consistent with the workflow's own
+stated philosophy. Weekly would be plenty given the source is a shelter's
+own adoptable-dogs page, not a fast-moving feed. Don't build the scheduler
+without that decision being made on purpose; the manual trigger alone may
+be the right amount of automation for a two-shelter roster. Separately from
+that decision: fix the `shelters.ts` drift — verify all eight against a
+live source, or cut to the one that's actually populated until M3 gives
+the others real data.
 
 **M5 — a second automated source, gated on demonstrated need.**
 `real-data-sourcing.md` already picked RescueGroups.org as the one open API
