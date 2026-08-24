@@ -111,13 +111,32 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
     `plan_only` still connects and still reads, so a preview proves the credentials work
     and shows the true diff. Only the writes are skipped.
     """
+    from google.api_core import exceptions as gcloud_exc
+
     from agent.firestore_client import db
 
     client = db()
     collection = client.collection("dogs")
 
     new_ids = {d["id"] for d in dogs}
-    existing_ids = {doc.id for doc in collection.list_documents()}
+    try:
+        existing_ids = {doc.id for doc in collection.list_documents()}
+    except gcloud_exc.PermissionDenied:
+        # Deploying Cloud Run and reading Firestore are separate grants, so the service
+        # account that ships the app can authenticate here and still be refused. The raw
+        # gRPC traceback doesn't say which permission is missing, so say it here.
+        raise SystemExit(
+            "\nFirestore refused the request: the credentials are valid but the account "
+            "has no access to this project's data.\n\n"
+            "Grant it the Cloud Datastore User role (roles/datastore.user), which covers "
+            "both the read this\nstep does and the writes that follow:\n\n"
+            "  gcloud projects add-iam-policy-binding pawthway-hackathon \\\n"
+            "    --member=serviceAccount:<the client_email from GCP_SA_KEY> \\\n"
+            "    --role=roles/datastore.user\n\n"
+            "In the console: IAM & Admin -> IAM -> find that service account -> Edit -> "
+            "Add role ->\n'Cloud Datastore User'. The address is the `client_email` field "
+            "inside the GCP_SA_KEY secret.\n"
+        ) from None
     stale_ids = existing_ids - new_ids
 
     # Never delete a dog someone is partway through fostering. Match, Care Plan and Post
