@@ -1,0 +1,75 @@
+name: Import dog roster (Firestore)
+
+# Manual only. The committed data/dogs.json covers LOCAL_MODE and guest browsing, but a
+# configured deploy reads the live `dogs` collection, and nothing else writes to it — so
+# without running this, production keeps serving whatever was seeded there first.
+#
+# Not on a push trigger on purpose: this rewrites a production collection, and the roster
+# should change when someone decides it should, not because a file moved.
+on:
+  workflow_dispatch:
+    inputs:
+      plan_only:
+        description: "Preview only — connect, report the diff, write nothing"
+        type: boolean
+        default: true
+      rescrape:
+        description: "Re-fetch from sfspca.org instead of using the committed scrape"
+        type: boolean
+        default: false
+
+concurrency:
+  group: import-dogs
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same service account the deploys use. It needs Firestore write access
+      # (roles/datastore.user) on top of the deploy roles; if it doesn't have it, the
+      # step below fails with a PermissionDenied naming the missing permission.
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "latest-known"
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync dependencies
+        run: uv sync --locked
+
+      # --from-cache replays data/sfspca_scrape.json rather than hitting the shelter, so a
+      # re-run costs them nothing. Re-scraping is opt-in and paced at one request/second.
+      - name: Import
+        env:
+          GOOGLE_CLOUD_PROJECT: pawthway-hackathon
+          FIREBASE_PROJECT_ID: pawthway-hackathon
+        run: |
+          ARGS=""
+          # --plan still connects and reads, so a preview proves the credentials work and
+          # shows the real diff. --dry-run would skip Firestore entirely and prove nothing.
+          [ "${{ inputs.plan_only }}" = "true" ] && ARGS="$ARGS --plan"
+          [ "${{ inputs.rescrape }}" = "true" ] || ARGS="$ARGS --from-cache"
+          echo "running: import_dogs.py $ARGS"
+          uv run python scripts/import_dogs.py $ARGS
+
+      # A re-scrape produces a roster the repo doesn't have yet; surface it so someone can
+      # commit it rather than letting Firestore and data/dogs.json drift apart.
+      - name: Check for uncommitted roster changes
+        if: ${{ inputs.rescrape }}
+        run: |
+          if ! git diff --quiet -- data/dogs.json data/sfspca_scrape.json; then
+            echo "::warning::The scrape changed data/dogs.json — commit it so the local"
+            echo "::warning::roster matches Firestore. Diff:"
+            git --no-pager diff --stat -- data/dogs.json data/sfspca_scrape.json
+          fi

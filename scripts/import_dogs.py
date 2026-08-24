@@ -8,9 +8,14 @@ RescueGroups needs a key granted by a human, and both carry only adoption listin
 SF SPCA's own pages are server-rendered, the write-ups are by staff who know the dog, and
 they say which dogs are in a foster home -- which no aggregator does.
 
-    uv run python scripts/import_dogs.py --dry-run     # scrape, write data/dogs.json only
-    uv run python scripts/import_dogs.py               # ...and push to Firestore
-    uv run python scripts/import_dogs.py --from-cache  # re-bake without re-fetching
+    uv run python scripts/import_dogs.py --dry-run     # data/dogs.json only, no credentials
+    uv run python scripts/import_dogs.py --plan        # ...and report the Firestore diff
+    uv run python scripts/import_dogs.py               # ...and actually write it
+    uv run python scripts/import_dogs.py --from-cache  # any of the above, without re-scraping
+
+Firestore writes replace rather than append -- see _push_to_firestore. Running this is the
+only thing that updates a deployed roster; the committed data/dogs.json only covers
+LOCAL_MODE and guest browsing.
 
 The descriptive fields are not generated. They are written by hand into
 data/enrichment.json from each write-up, validated on the way in, and committed -- so what
@@ -38,7 +43,10 @@ RAW = ROOT / "data" / "shelter_descriptions.json"
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dry-run", action="store_true", help="write data/dogs.json but not Firestore")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="write data/dogs.json and skip Firestore entirely (needs no credentials)")
+    ap.add_argument("--plan", action="store_true",
+                    help="connect to Firestore and report the diff, but write nothing")
     ap.add_argument("--from-cache", action="store_true",
                     help="re-bake from the last scrape instead of hitting the site again")
     ap.add_argument("--delay", type=float, default=1.0, help="seconds between requests")
@@ -87,34 +95,65 @@ def main() -> None:
     if args.dry_run:
         print("dry run: Firestore untouched")
     else:
-        from agent.firestore_client import db
-        client = db()
-        collection = client.collection("dogs")
-
-        # Replace, not append. Earlier runs (and the original hand-written seed) left docs
-        # in this collection that this scrape doesn't produce -- without deleting those, a
-        # real import just adds the real roster alongside the dummy one instead of
-        # replacing it, which is exactly the bug that left production showing fake dogs.
-        new_ids = {d["id"] for d in dogs}
-        existing_ids = {doc.id for doc in collection.list_documents()}
-        stale_ids = existing_ids - new_ids
-        if stale_ids:
-            stale = sorted(stale_ids)
-            for start in range(0, len(stale), 400):
-                batch = client.batch()
-                for doc_id in stale[start : start + 400]:
-                    batch.delete(collection.document(doc_id))
-                batch.commit()
-            print(f"  removed {len(stale)} stale docs (no longer in the scrape): {stale[:5]}{'...' if len(stale) > 5 else ''}")
-
-        for start in range(0, len(dogs), 400):     # Firestore caps a batch at 500 ops
-            batch = client.batch()
-            for d in dogs[start : start + 400]:
-                batch.set(collection.document(d["id"]), d)
-            batch.commit()
-        print(f"wrote {len(dogs)} dogs -> Firestore")
+        _push_to_firestore(dogs, plan_only=args.plan)
 
     _summarise(dogs)
+
+
+def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
+    """Replace the `dogs` collection with this roster.
+
+    Replace, not append: earlier runs and the original hand-written seed left documents
+    here that this scrape doesn't produce. Without removing those, an import adds the real
+    roster *alongside* the dummy one -- which is exactly why production kept showing
+    invented dogs long after data/dogs.json became real.
+
+    `plan_only` still connects and still reads, so a preview proves the credentials work
+    and shows the true diff. Only the writes are skipped.
+    """
+    from agent.firestore_client import db
+
+    client = db()
+    collection = client.collection("dogs")
+
+    new_ids = {d["id"] for d in dogs}
+    existing_ids = {doc.id for doc in collection.list_documents()}
+    stale_ids = existing_ids - new_ids
+
+    # Never delete a dog someone is partway through fostering. Match, Care Plan and Post
+    # Foster all resolve the dog by `matchedDogId`, so removing it drops that foster onto a
+    # "no foster yet" screen with no route back. A dog adopted off the shelter's site falls
+    # out of the scrape, so this is reachable in normal use, not just in theory.
+    matched = {
+        (snap.to_dict() or {}).get("matchedDogId")
+        for snap in client.collection("fosters").stream()
+    }
+    matched.discard(None)
+    spoken_for = stale_ids & matched
+    stale_ids -= spoken_for
+
+    print(f"\nfirestore plan  ({len(existing_ids)} docs live now)")
+    print(f"  write   {len(dogs)}")
+    print(f"  delete  {len(stale_ids)}" + (f"  {sorted(stale_ids)[:6]}" if stale_ids else ""))
+    if spoken_for:
+        print(f"  keep    {len(spoken_for)} stale but matched to a foster: {sorted(spoken_for)}")
+
+    if plan_only:
+        print("  (plan only -- nothing written)")
+        return
+
+    for start in range(0, len(sorted(stale_ids)), 400):   # Firestore caps a batch at 500 ops
+        batch = client.batch()
+        for doc_id in sorted(stale_ids)[start : start + 400]:
+            batch.delete(collection.document(doc_id))
+        batch.commit()
+
+    for start in range(0, len(dogs), 400):
+        batch = client.batch()
+        for d in dogs[start : start + 400]:
+            batch.set(collection.document(d["id"]), d)
+        batch.commit()
+    print(f"  done: {len(dogs)} written, {len(stale_ids)} deleted")
 
 
 def _summarise(dogs: list[dict]) -> None:
