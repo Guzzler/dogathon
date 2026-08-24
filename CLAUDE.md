@@ -5,6 +5,11 @@ repo. This is the Dogathon hackathon project: **Pawthway**, a guided, Tinder-sty
 app that takes a foster from onboarding through discovery, matching, care, and handing the
 dog back adoption-ready.
 
+**Where the active work is tracked:** [`docs/initiatives/`](docs/initiatives/README.md) -- a
+plan/execute loop directs and builds toward a real, shelter-usable app from here. This file
+stays the reference for what's already true about the codebase; that directory is where "what
+to build next" lives, with a task queue and a ledger per initiative.
+
 ## Phase ownership
 
 The app is 5 phases, each a self-contained route/view so people can build in parallel against
