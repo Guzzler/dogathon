@@ -208,11 +208,23 @@ its own collection is cheap now and a migration later — see
 `data/dogs.json` is a real, scraped roster (SF SPCA — see "The dog roster is scraped, reviewed,
 and committed" below), not the invented one `docs/real-data-sourcing.md` describes; that
 document predates the scrape and is stale on that point. **Production Firestore's `dogs`
-collection is a separate thing from the committed file** — nobody has run
-`scripts/import_dogs.py` against it without `--dry-run`, so a hosted deploy still shows
-whatever was seeded there originally. Run it (`--from-cache` reuses the committed scrape, no
-re-fetch) with real GCP credentials to fix that; the importer now deletes stale docs first, so
-it replaces the collection rather than appending to it.
+collection is a separate thing from the committed file** — the committed roster only covers
+`LOCAL_MODE` and guest browsing, and nothing writes to the live collection except
+`scripts/import_dogs.py`. Until someone runs it, a hosted deploy serves whatever was seeded
+there first.
+
+Run it from the **Import dog roster (Firestore)** workflow — manual dispatch, authenticating
+with the same `GCP_SA_KEY` the deploys use (that service account additionally needs
+`roles/datastore.user`). Leave *plan only* ticked first: it connects and reports the diff
+without writing, which is also how you find out whether the credentials are right. Locally,
+`--dry-run` rebuilds `data/dogs.json` and skips Firestore entirely, so it needs no
+credentials at all.
+
+Writes **replace rather than append** — the reason production kept serving invented dogs is
+that the importer used to only `set()` the new roster and never removed what was already
+there. One deliberate exception: a stale dog still referenced by some foster's
+`matchedDogId` is kept, because Match, Care Plan and Post Foster all resolve the dog by id
+and deleting it strands that foster on a "no foster yet" screen.
 
 ### The agent needs to know too
 
