@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { AUTH_AVAILABLE, signInWithGoogle, signOutOfPawthway } from "../auth";
+import { AUTH_AVAILABLE, deleteAccount, signInWithGoogle, signOutOfPawthway } from "../auth";
 import { clearGuestData } from "../lib/localMode";
 import type { Session } from "../lib/session";
 
@@ -9,7 +9,18 @@ import type { Session } from "../lib/session";
 export function AccountSheet({ session, onClose }: { session: Session; onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const isGuest = session.kind === "guest";
+
+  async function removeAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+    try { await deleteAccount(); onClose(); }
+    catch { setDeleteError("Couldn't delete your account — try signing in again first."); }
+    finally { setDeleting(false); }
+  }
 
   async function upgrade() {
     setBusy(true);
@@ -85,6 +96,30 @@ export function AccountSheet({ session, onClose }: { session: Session; onClose: 
         ) : (
           <button className="btn btn--ghost" style={{ marginTop: 8 }} onClick={() => setConfirmWipe(true)}>
             Start fresh on this device
+          </button>
+        ))}
+
+        {!isGuest && (confirmDelete ? (
+          <div className="account__wipe">
+            <p className="sub" style={{ fontSize: 13 }}>
+              This permanently deletes your account: your profile, matches, and journal. It
+              can't be undone.
+            </p>
+            {deleteError && <p className="muted" style={{ marginTop: 6 }}>{deleteError}</p>}
+            <div className="row" style={{ gap: 8, marginTop: 10 }}>
+              <button className="btn btn--ghost" style={{ flex: 1 }} disabled={deleting}
+                onClick={() => setConfirmDelete(false)}>
+                Keep it
+              </button>
+              <button className="btn btn--primary" style={{ flex: 1 }} disabled={deleting}
+                onClick={removeAccount}>
+                {deleting ? "Deleting…" : "Delete account"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="btn btn--ghost" style={{ marginTop: 8 }} onClick={() => setConfirmDelete(true)}>
+            Delete account
           </button>
         ))}
 
