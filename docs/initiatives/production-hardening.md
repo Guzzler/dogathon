@@ -69,14 +69,6 @@ telling you chat is broken.
 
 ## Task queue
 
-- **PH-2 (2026-08-24).** Account deletion. A `DELETE /account` endpoint (or
-  a client-side Firestore delete + `auth.currentUser.delete()` if simpler
-  given no admin panel exists yet) that removes `fosters/{uid}`, its
-  `careLog` subcollection, and the Firebase Auth user. Exposed from
-  `AccountSheet.tsx` behind a confirmation, not auto-discoverable enough to
-  fire accidentally. Verify: create a throwaway account, delete it, confirm
-  the Firestore doc and subcollection are gone and the uid can no longer
-  sign in to see old data.
 - **PH-3 (gated on M2 of `real-data-and-shelters.md`).** Firestore-backed
   agent sessions (the H1 real fix above). Gated because it touches the same
   `server.py` session code that shelter-side auth work will also touch —
@@ -85,8 +77,17 @@ telling you chat is broken.
 
 ## Ledger
 
-- 2026-08-24 — PH-1 — PR #__ — `send_adoption_profile_to_shelter` now
+- 2026-08-24 — PH-1 — PR #19 — `send_adoption_profile_to_shelter` now
   returns `notified_shelter: arcade_tools.available()` instead of a
   hardcoded `True`; `PAWTHWAY_SYSTEM` tells the model to say plainly when
   nobody was notified. Did the smaller return-value + prompt fix, not a
   new notification path (that stays open if Arcade gets configured later).
+- 2026-08-24 — PH-2 — PR #__ — Client-side account deletion: `deleteAccount()`
+  in `web/src/auth.ts` deletes the `careLog` subcollection docs, then
+  `fosters/{uid}`, then the Firebase Auth user (re-prompting Google sign-in
+  once on `auth/requires-recent-login`). Wired into `AccountSheet.tsx`
+  behind a "Delete account" button + confirm step, signed-in users only —
+  guests already have "Start fresh on this device". No rules change needed;
+  `firestore.rules` already lets the owner write/delete their own doc and
+  subcollection. Went client-side per the task's own fallback (no admin
+  panel exists to host a `DELETE /account` endpoint).
