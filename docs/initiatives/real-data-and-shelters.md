@@ -42,10 +42,18 @@ scales past one shelter.
   they're decorative until M3.
 - **`shelters.ts` has drifted from reality**, per `real-data-sourcing.md`'s
   own finding: one entry isn't a distinct organization, and Family Dog
-  Rescue appears to have closed at the address the app displays. Harmless
-  today because no application can reach a real shelter contact anyway.
-  Becomes a real problem the moment M2 ships and an application is
-  something a shelter is meant to see.
+  Rescue appears to have closed at the address the app displays. This is
+  **not merely a decorative-until-M3 problem** — verified 2026-08-24: every
+  real dog in `data/dogs.json` carries `shelter_id: "sfspca-mission"`
+  (confirmed by grep, all 8 entries), but `web/src/lib/shelters.ts`'s only
+  SF SPCA entry has `id: "sfspca"`. `shelterFor()`
+  (`web/src/lib/shelters.ts:18-24`) does an exact-id lookup and, on a miss,
+  falls back to a deterministic hash of the dog's id across all 8
+  shelters — so **every real SF SPCA dog currently browsing live shows a
+  wrong, hash-assigned shelter card today**, not SF SPCA. A guest scrolling
+  the app right now can see a real dog attributed to the (possibly closed)
+  Family Dog Rescue. This is a live browsing-surface bug, independent of
+  M2/M3 and applications.
 - **No `shelters` Firestore collection, no shelter accounts, no
   `applications` collection.** `firestore.rules` still has
   `match /dogs/{dogId} { allow write: if false }` — only the agent's Admin
@@ -120,13 +128,25 @@ adds a second thing that can drift.
   see applications for that shelter and cannot see another shelter's; a uid
   not in any `staffUids` gets a clear "not staff" state, not a blank
   screen.
-- **RS-3 (2026-08-24, independent of RS-1/RS-2).** Fix the `shelters.ts`
-  drift now rather than waiting for M4's scheduled job: verify each of the
-  eight entries (does it still operate, is the address current, is it a
-  distinct org), and either correct or remove the ones that don't check
-  out — Family Dog Rescue specifically, per `real-data-sourcing.md`'s
-  finding. Small, no dependencies, and every day it's wrong is a day the
-  app can send someone to a defunct address.
+- **RS-3 (2026-08-24, independent of RS-1/RS-2, raised in priority
+  2026-08-24).** Fix the `shelters.ts` drift now rather than waiting for
+  M4's scheduled job. Two parts: (1) **the id mismatch is the more urgent
+  half** — `data/dogs.json`'s `shelter_id: "sfspca-mission"` doesn't match
+  `shelters.ts`'s `id: "sfspca"`, so `shelterFor()` (`shelters.ts:18-24`)
+  falls back to a per-dog hash across all 8 shelters for every real dog in
+  prod right now, showing wrong (sometimes defunct) shelter cards on the
+  live browsing surface — fix by changing `shelters.ts`'s SF SPCA `id` to
+  `"sfspca-mission"` (matches the data) or the importer's output to
+  `"sfspca"` (matches the UI), whichever direction `scripts/shelters/sfspca.py`
+  makes cheaper, then re-run the import so `data/dogs.json` and
+  `web/src/lib/shelters.ts` agree; (2) verify each of the eight entries
+  (does it still operate, is the address current, is it a distinct org),
+  and either correct or remove the ones that don't check out — Family Dog
+  Rescue specifically, per `real-data-sourcing.md`'s finding. Verify: after
+  the fix, every dog in `data/dogs.json` resolves via `shelterFor()`'s exact
+  match (not the hash fallback) to the correct real SF SPCA entry; add a
+  regression check (a unit test or an assertion in the import script) so a
+  future id rename can't silently reintroduce the mismatch.
 
 ## The part that's a conversation, not a PR
 
