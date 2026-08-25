@@ -7,6 +7,8 @@ import { normalizeDog, dogPhoto, type RichDog } from "../../lib/dog";
 import { scoreDog } from "../../lib/matching";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
+import { createApplication } from "../../lib/applications";
+import { fosterDocId } from "../../lib/session";
 
 const STAGES = ["Applied", "Under review", "Approved", "Pickup"];
 
@@ -107,6 +109,12 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
       return;
     }
     await patchFoster({ matchedDogId: d.id, phase: "match" });
+    const fosterId = fosterDocId();
+    if (fosterId) {
+      await createApplication({
+        fosterId, fosterName: foster?.name ?? "", dogId: d.id, shelterId: d.shelter_id,
+      });
+    }
     navigate("/match");
   };
 

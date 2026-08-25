@@ -111,17 +111,7 @@ adds a second thing that can drift.
 
 ## Task queue
 
-- **RS-1 (2026-08-24).** Build the `applications` collection and
-  `shelters/{id}` (M2). Exact shape and rules are already specified in
-  `shelter-integration.md` — implement it as written rather than
-  re-deriving it. Migration: `fosters/{uid}.matchedDogId` /
-  `approvalChecklist` / `pickup` stay as read-through convenience fields for
-  now (nothing currently live needs a hard cutover — the roster is one
-  shelter deep and there's no real application yet to migrate). Verify:
-  a foster applying creates an `applications` doc; a Firestore query
-  `where("shelterId","==","sfspca-mission")` returns it, which is impossible
-  today.
-- **RS-2 (gated on RS-1).** Shelter sign-in, application list, and
+- **RS-2 (gated on RS-1, now unblocked — see Ledger).** Shelter sign-in, application list, and
   add/retire a dog (M3, first half). Reuse `SignInView`'s Google auth path;
   a new route gated on `staffUids` membership, not a new auth system.
   Verify: a uid manually added to `shelters/sfspca-mission.staffUids` can
@@ -165,3 +155,15 @@ to a real user until it has.
 
 - 2026-08-24 — M1 — PRs #6, #13, #14 — offline SF SPCA import, reviewed
   descriptions, diff-before-write, replace-not-append.
+- 2026-08-24 — RS-1 — PR #__ — `applications/{id}` + `shelters/{id}` rules
+  added to `firestore.rules` (isStaff(), create/read/update sketch from
+  shelter-integration.md, verbatim). `web/src/lib/applications.ts`'s
+  `createApplication()` opens an application doc from both apply() sites
+  (`SavedView.tsx`, `DogDetailView.tsx`) using the dog's own `shelter_id`
+  (not `shelterFor()`'s hash-fallback id, so it's unaffected by RS-3's
+  mismatch). `fosters/{uid}.matchedDogId`/`approvalChecklist`/`pickup` left
+  untouched as read-through fields, per the task's own migration note.
+  Did not seed real `shelters/{id}` docs or change the `dogs` write rule —
+  both need a real staff uid to add by hand, which is RS-2/M3's job, not
+  M2's; `isStaff()` is safe to ship with no shelter docs existing yet since
+  nothing calls it until RS-2 lands.

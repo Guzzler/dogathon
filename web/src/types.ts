@@ -136,6 +136,25 @@ export interface Pickup {
   location: string;
 }
 
+export type ApplicationStatus = "submitted" | "in_review" | "approved" | "declined" | "withdrawn";
+
+/**
+ * A relationship between a foster and a shelter -- queryable from both sides, unlike the
+ * matchedDogId/approvalChecklist/pickup fields on fosters/{uid}. See
+ * docs/shelter-integration.md. Those fields stay as read-through convenience for the foster's
+ * own screens; this collection is the source of truth once a shelter needs to read it.
+ */
+export interface Application {
+  id: string;
+  fosterId: string;
+  fosterName: string;
+  dogId: string;
+  shelterId: string;
+  status: ApplicationStatus;
+  checklist: ChecklistItem[];
+  pickup: Pickup | null;
+}
+
 export interface Foster {
   id: string;
   name: string;
