@@ -7,6 +7,8 @@ import { ENERGY_WORD, normalizeDog, dogPhoto, sizeLabel } from "../../lib/dog";
 import { distanceMi, matchReasons, scoreDog, useMyLocation } from "../../lib/matching";
 import { activeApplication, applicationStage } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
+import { createApplication } from "../../lib/applications";
+import { fosterDocId } from "../../lib/session";
 
 export function DogDetailView() {
   const { id = "" } = useParams();
@@ -48,6 +50,12 @@ export function DogDetailView() {
       matchedDogId: dog.id,
       phase: "match",
     });
+    const fosterId = fosterDocId();
+    if (fosterId) {
+      await createApplication({
+        fosterId, fosterName: foster?.name ?? "", dogId: dog.id, shelterId: raw.shelter_id,
+      });
+    }
     setContact(false);
     navigate("/match");
   };

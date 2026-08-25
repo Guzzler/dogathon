@@ -4,10 +4,16 @@ rules_version = '2';
 // careLog subcollection. Nobody can read or write anyone else's journey.
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isStaff(shelterId) {
+      return request.auth != null &&
+        request.auth.uid in get(/databases/$(database)/documents/shelters/$(shelterId)).data.staffUids;
+    }
+
     match /dogs/{dogId} {
       allow read: if true;
       // Dog status/adoption profile only changes via the agent backend
       // (Admin SDK bypasses these rules), not directly from the client.
+      // Becomes isStaff(shelter_id) once a shelter can edit its own roster (M3).
       allow write: if false;
     }
 
@@ -17,6 +23,29 @@ service cloud.firestore {
       match /careLog/{entryId} {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
+    }
+
+    // A relationship between a foster and a shelter, queryable from both sides -- see
+    // docs/shelter-integration.md. matchedDogId/approvalChecklist/pickup on fosters/{uid}
+    // stay as read-through convenience fields; this collection is the source of truth.
+    match /applications/{applicationId} {
+      allow read: if request.auth != null && (
+        resource.data.fosterId == request.auth.uid || isStaff(resource.data.shelterId)
+      );
+      // A foster opens an application for themselves; only staff move it forward.
+      allow create: if request.auth != null
+                    && request.resource.data.fosterId == request.auth.uid
+                    && request.resource.data.status == "submitted";
+      allow update: if isStaff(resource.data.shelterId)
+                    || (resource.data.fosterId == request.auth.uid
+                        && request.resource.data.status == "withdrawn");
+    }
+
+    // staffUids is what lets the rules above express "is this person staff here" without a
+    // custom-claims setup. No self-serve signup yet -- uids are added by hand (M3).
+    match /shelters/{shelterId} {
+      allow read: if request.auth != null && request.auth.uid in resource.data.staffUids;
+      allow write: if false;
     }
 
     match /{document=**} {
