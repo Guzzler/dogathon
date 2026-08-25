@@ -69,18 +69,6 @@ telling you chat is broken.
 
 ## Task queue
 
-- **PH-1 (2026-08-24).** Make `send_adoption_profile_to_shelter` honest.
-  Either wire a real notification path (simplest: a Cloud Function or the
-  existing Arcade integration if a key gets configured) or — the smaller,
-  correct-today fix — change the return to
-  `"notified_shelter": arcade_tools.available()` and have the system prompt
-  in `src/agent/server.py` (`PAWTHWAY_SYSTEM`, the adoption-profile
-  paragraph) tell the model to say plainly when it could not notify anyone,
-  so the foster hears the truth instead of a silent lie. Do the honest
-  return-value fix first regardless of which path is chosen — it's one
-  line and removes the lie today. Verify: call the tool with Arcade
-  unconfigured (current prod state) and confirm the returned value and the
-  model's own words to the foster both say "not notified."
 - **PH-2 (2026-08-24).** Account deletion. A `DELETE /account` endpoint (or
   a client-side Firestore delete + `auth.currentUser.delete()` if simpler
   given no admin panel exists yet) that removes `fosters/{uid}`, its
@@ -97,4 +85,8 @@ telling you chat is broken.
 
 ## Ledger
 
-<!-- - 2026-08-24 — PH-1 — PR #__ — outcome -->
+- 2026-08-24 — PH-1 — PR #__ — `send_adoption_profile_to_shelter` now
+  returns `notified_shelter: arcade_tools.available()` instead of a
+  hardcoded `True`; `PAWTHWAY_SYSTEM` tells the model to say plainly when
+  nobody was notified. Did the smaller return-value + prompt fix, not a
+  new notification path (that stays open if Arcade gets configured later).

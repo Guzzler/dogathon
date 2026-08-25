@@ -4,6 +4,7 @@ back to the shelter, closing the loop on the foster journey.
 
 from __future__ import annotations
 
+from .. import arcade_tools
 from ..current_foster import resolve
 from ..firestore_client import db
 from .care import get_care_log
@@ -62,4 +63,4 @@ def send_adoption_profile_to_shelter(foster_id: str = "", dog_id: str = "", prof
     foster_ref = db().collection("fosters").document(foster_id)
     foster_ref.set({"phase": "complete", "readyForAdoption": True}, merge=True)
 
-    return {"dog_id": dog_id, "status": "ready_for_adoption", "notified_shelter": True}
+    return {"dog_id": dog_id, "status": "ready_for_adoption", "notified_shelter": arcade_tools.available()}
