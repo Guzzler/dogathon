@@ -43,6 +43,30 @@ jobs:
         working-directory: web
         run: npm run lint
 
+      # Guards against PR #11's near-miss: a full palette repaint got bundled into an
+      # unrelated feature PR and only didn't ship because the author caught it herself
+      # in review. Diff-only (not a whole-file scan) because App.css/pawthway.css/
+      # carePlan.css already carry legacy literals today -- this catches new drift
+      # without demanding an immediate cleanup of old drift. theme.css and brand.ts are
+      # exempt because they're where a color literal is *supposed* to live.
+      - name: Fetch main for the design-token diff
+        run: git fetch origin main --depth=1
+
+      - name: Design token guard
+        run: |
+          set -euo pipefail
+          hits=$(git diff origin/main...HEAD -- \
+              ':(glob)web/src/**/*.css' ':(glob)web/src/**/*.ts' ':(glob)web/src/**/*.tsx' \
+              ':(exclude)web/src/theme.css' ':(exclude)web/src/brand.ts' \
+            | grep -E '^\+' | grep -E -v '^\+\+\+' \
+            | grep -E '#[0-9a-fA-F]{3,8}\b|rgba?\(' || true)
+          if [ -n "$hits" ]; then
+            echo "::error::New hardcoded color literal(s) outside web/src/theme.css and web/src/brand.ts."
+            echo "Add the color as a token in web/src/theme.css (or brand.ts's palette) and reference it with var(--token-name) instead. See docs/initiatives/design-consistency.md."
+            echo "$hits"
+            exit 1
+          fi
+
   backend:
     runs-on: ubuntu-latest
     permissions:
