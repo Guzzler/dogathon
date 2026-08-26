@@ -6,73 +6,34 @@ true, or loses something a real person would mind losing. None of it is
 visible in a demo. All of it matters the first time a real dog goes home
 with a real foster.
 
-## H1 — Agent sessions are mitigated, not fixed
+## H1 — transcript is durable (PH-3); approval queue still isn't
 
 `src/agent/server.py` keeps one in-memory `Agent` and one approval
 `queue.Queue` per foster uid. `deploy-backend.yml` pins
 `--min-instances=1 --max-instances=1`, which was a **correctness** fix (a
 second instance could swallow an `/approve` that a `/chat` elsewhere was
 blocked on — see the comment above the flag in the workflow) not a cost one.
-It removes the acute failure. It does not mean sessions survive:
 
-- A redeploy (every merge to `main` that touches `src/**` triggers one)
-  drops every in-flight conversation.
-- The backend is now a documented single point of failure.
+**Resolved 2026-08-25 (PH-3):** `session_store.py` persists `Agent.messages`
+to `fosters/{uid}/agentSession/current` (`messagesJson`, a JSON string field
+— `content` blocks are lists of dicts, so this sidesteps any question about
+how deep Firestore lets map-nested arrays go) after every completed turn in
+`_stream`, and `_session()` loads it back when rebuilding a foster's
+session. Trimmed to the last 40 stored messages (~20 turns, a starting
+guess) on write. A redeploy or restart no longer drops a foster's
+conversation.
 
-**Real fix:** move `Session.agent`'s message history into Firestore, keyed by
-uid. That also gives fosters conversation history that survives a deploy,
-which they don't have today.
-
-**Correction (2026-08-25):** an earlier version of this section said "once
-state is durable, the instance pin can be lifted." That is wrong, and the
-distinction matters enough to design around. Persisting the transcript and
-sharing the *approval* channel are two different problems:
+**Still only mitigated, not fixed:** the *approval* channel.
 `Session.approvals` is a `queue.Queue[bool]` that a request thread is
 **blocked on** inside `_build_agent`'s `approve=lambda ...: approvals.get(
 timeout=300)` (`server.py:211-224`). A blocked thread is not serializable —
 it dies with the process, and a second instance has no way to hand a `bool`
-to a thread parked in another container. So durable transcripts fix
-*deploys losing history*; they do **not** fix the split-brain approval race
-that `--max-instances=1` exists to prevent. **The pin stays** until
-approvals themselves move to shared state (a Firestore field the blocked
-thread polls, or a real queue) — which is deliberately not part of PH-3.
-
-### PH-3's shape, decided 2026-08-25
-
-Verified against `src/agent/loop.py:106-182` and `src/agent/server.py:115-243`:
-
-- **What gets stored.** `Agent.messages` is a `list[dict[str, Any]]` of
-  Anthropic message blocks. Firestore **cannot** hold this natively —
-  `content` is a list of block dicts, and Firestore forbids nested arrays.
-  Store it as a single JSON **string** field (`messagesJson`), not an array.
-  This is the trap to design around, not an implementation detail to
-  discover mid-PR.
-- **Where.** *Not* a field on `fosters/{uid}` itself, which the web client
-  reads in full on every load — a transcript growing on that document would
-  inflate every client read of unrelated fields. Two placements satisfy
-  that: a subcollection doc (`fosters/{uid}/agentSession/current`) or a
-  separate top-level `agentSessions/{fosterId}`. **An implementation
-  in flight as of 2026-08-25 chose the top-level collection**, on the
-  reasoning that this is agent-internal state (tool-call payloads, thinking
-  blocks) rather than part of the foster's journey record that other tools
-  and the web UI read. That reasoning is sound and this doc defers to
-  whichever ships; the load-bearing constraint is only "off the foster
-  document." Whichever wins, the rules entry below must match it.
-- **When.** Persist once per completed turn, at the end of `_stream`
-  (`server.py:295-318`) — not per SSE event. A turn that dies mid-approval
-  is simply not persisted; on reload the foster resumes from the last
-  completed turn, which is the honest behavior given the point above.
-- **Size.** Firestore's 1MB document limit is a real ceiling for a long
-  tool-heavy transcript. Trim to the last N turns on write (N=20 is a
-  starting guess, not a measured one) and drop the oldest first, mirroring
-  `_sessions`' existing `MAX_SESSIONS` eviction.
-- **Rules.** The agent writes through the Admin SDK, which bypasses
-  `firestore.rules` entirely, so no rule is *needed* for the write path —
-  but add an explicit owner-read / no-client-write `match` anyway, so the
-  default-deny at the bottom of the file isn't the only thing standing
-  between a transcript and a client.
-- **`/reset`** (`server.py:439-444`) must delete the stored doc too, or it
-  will silently un-reset on the next cold start.
+to a thread parked in another container. Durable transcripts fix *deploys
+losing history*; they do **not** fix the split-brain approval race that
+`--max-instances=1` exists to prevent. **The pin stays** until approvals
+themselves move to shared state (a Firestore field the blocked thread
+polls, or a real queue) — deliberately out of scope for PH-3, and not
+queued yet.
 
 ## The notification that doesn't notify — fixed (PH-1, PR #19)
 
@@ -128,30 +89,6 @@ still ranked under PH-3, but no longer invisible to execute.
 
 ## Task queue
 
-- **PH-3 (2026-08-25 — gate cleared, now open).** Firestore-backed agent
-  sessions, built to the shape decided in "PH-3's shape" above. The gate
-  was M2 of `real-data-and-shelters.md`, which landed in PR #21; the gate's
-  stated *rationale* (shelter-side auth rebasing the same `server.py`) also
-  turns out not to bite — PR #21 changed only `firestore.rules` and
-  `web/src/**`, and RS-2 as queued is likewise a web-side route plus rules,
-  with nothing under `src/agent/`. Scope: add load-on-miss and
-  save-per-turn around `_session()`/`_stream()` in `src/agent/server.py`,
-  a `messagesJson` string field on whichever off-foster document the
-  "Where" bullet settles on, via the existing
-  `src/agent/firestore_client.py` Admin SDK handle, a matching
-  owner-read/no-client-write rule in `firestore.rules`, and deletion of that
-  doc from `/reset`. **Status: an implementation was in flight in the
-  working tree when this was queued (2026-08-25) — check
-  `gh pr list --state open` and `git status` before starting, this may
-  already be done.**
-  **Do not touch `--max-instances=1` in `deploy-backend.yml`** — see the
-  correction above; the pin is about approvals, not transcripts.
-  Verify: start a chat, say something memorable, `gcloud run services
-  update pawthway-agent --region ... --update-labels redeploy=$(date +%s)`
-  (or merge any `src/**` change) to force a new revision, then send a
-  follow-up that depends on the earlier message and confirm the agent still
-  has it; confirm `fosters/{uid}/agentSession/current` exists in the
-  Firestore console and that `POST /reset` removes it.
 - **PH-4 (2026-08-25).** Turn on `"strict": true` in
   `web/tsconfig.app.json`. This is the pre-existing "its own PR, not a
   drive-by" item above, now queued explicitly so it stops living only in
@@ -187,3 +124,13 @@ still ranked under PH-3, but no longer invisible to execute.
   `firestore.rules` already lets the owner write/delete their own doc and
   subcollection. Went client-side per the task's own fallback (no admin
   panel exists to host a `DELETE /account` endpoint).
+- 2026-08-25 — PH-3 — PR #__ — `src/agent/session_store.py` persists
+  `Agent.messages` (loop.py now dumps assistant content blocks to plain
+  dicts at append time, not raw SDK objects, so the list stays JSON-safe
+  throughout) as a `messagesJson` string on
+  `fosters/{uid}/agentSession/current`, trimmed to the last 40 messages on
+  write. `_session()` loads it on rebuild; `_stream` saves it in a `finally`
+  after each turn; `/reset` deletes the doc. Added an owner-read/
+  no-client-write rule for the subcollection in `firestore.rules`. Did not
+  touch `--max-instances=1` or the approval queue — out of scope per the
+  correction above.
