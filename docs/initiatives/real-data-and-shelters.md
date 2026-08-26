@@ -40,20 +40,29 @@ scales past one shelter.
   `shelter_id: "sfspca-mission"`. `web/src/lib/shelters.ts` still lists
   eight organizations. Seven of them have zero dogs and no import path —
   they're decorative until M3.
-- **`shelters.ts` has drifted from reality**, per `real-data-sourcing.md`'s
-  own finding: one entry isn't a distinct organization, and Family Dog
-  Rescue appears to have closed at the address the app displays. This is
-  **not merely a decorative-until-M3 problem** — verified 2026-08-24: every
-  real dog in `data/dogs.json` carries `shelter_id: "sfspca-mission"`
-  (confirmed by grep, all 8 entries), but `web/src/lib/shelters.ts`'s only
-  SF SPCA entry has `id: "sfspca"`. `shelterFor()`
-  (`web/src/lib/shelters.ts:18-24`) does an exact-id lookup and, on a miss,
-  falls back to a deterministic hash of the dog's id across all 8
-  shelters — so **every real SF SPCA dog currently browsing live shows a
-  wrong, hash-assigned shelter card today**, not SF SPCA. A guest scrolling
-  the app right now can see a real dog attributed to the (possibly closed)
-  Family Dog Rescue. This is a live browsing-surface bug, independent of
-  M2/M3 and applications.
+- **`shelters.ts` had drifted from reality, fixed 2026-08-25 (RS-3).** One
+  entry (`petsun`, "SF SPCA Pacific Heights") wasn't a distinct
+  organization — a second campus of the same SF SPCA — and Family Dog
+  Rescue appeared to have closed at the address the app displayed; both
+  removed. The id mismatch (`shelters.ts` had `id: "sfspca"`,
+  `data/dogs.json` carries `shelter_id: "sfspca-mission"`) is also fixed —
+  `shelters.ts`'s SF SPCA entry is now `"sfspca-mission"`.
+  **Correction to this doc's earlier claim:** the mismatch was **not**
+  actually showing a wrong shelter card on the live browsing surface, as
+  this doc previously said. `scripts/shelters/sfspca.py`'s `to_dog()`
+  writes a full denormalized `shelter` object onto every real dog record
+  (not just `shelter_id`), and `normalizeDog()`
+  (`web/src/lib/dog.ts:45`, `d.shelter ?? shelterFor(d.shelter_id, d.id)`)
+  prefers that embedded object over `shelterFor()`'s hash fallback — so a
+  real dog's card was always correct, and the hash fallback only ever ran
+  for seed/demo dogs without their own `shelter` field. The mismatch still
+  mattered, just for a different reason: RS-1's `createApplication()` sets
+  `applications/{id}.shelterId` from the dog's own `shelter_id`
+  (`"sfspca-mission"`), and RS-2's `isStaff(shelterId)` check needs a
+  `shelters/{id}` doc at that same id to mean anything — building RS-2
+  against the old `"sfspca"` id would have made staff auth silently match
+  nothing. Regression guard added: `web/src/lib/shelters.test.ts` asserts
+  every `data/dogs.json` entry resolves via `shelterFor()`'s exact match.
 - **`applications` rules exist; shelter accounts and `dogs` writes do not.**
   Updated 2026-08-25 against `firestore.rules` on `main`: RS-1 (PR #21)
   added `isStaff()`, `match /applications/{applicationId}`, and
@@ -120,43 +129,8 @@ adds a second thing that can drift.
 
 ## Task queue
 
-Ordered 2026-08-25: **RS-3 goes first.** It is a bug real users can see
-today, and RS-2 has to know which shelter id won anyway — building the
-shelter surface against an id that RS-3 then renames means doing it twice.
-
-- **RS-3 (2026-08-24, raised in priority 2026-08-24, re-verified still live
-  2026-08-25 — now first in this queue).** Fix the `shelters.ts` drift now
-  rather than waiting for M4's scheduled job. Re-verification detail: all 19
-  entries in `data/dogs.json` are `shelter_id: "sfspca-mission"`, while
-  `shelters.ts:7` is still `id: "sfspca"` — so the hash fallback is still
-  what real users see. Two parts:
-  1. **The id mismatch is the more urgent half.** `shelterFor()`
-     (`shelters.ts:18-24`) does an exact-id lookup and, on a miss, falls
-     back to a per-dog hash across all 8 shelters — so every real SF SPCA
-     dog in prod right now shows a wrong, sometimes defunct, shelter card.
-     Fix by changing `shelters.ts`'s SF SPCA `id` to `"sfspca-mission"`
-     (matches the data) or the importer's output to `"sfspca"` (matches the
-     UI), whichever direction `scripts/shelters/sfspca.py` makes cheaper,
-     then re-run the import so `data/dogs.json` and `web/src/lib/shelters.ts`
-     agree.
-  2. **Verify each of the eight entries** — does it still operate, is the
-     address current, is it a distinct org — and correct or remove the ones
-     that don't check out. Family Dog Rescue specifically, per
-     `real-data-sourcing.md`'s finding. New this run: `shelters.ts:14`
-     `petsun` is named "SF SPCA Pacific Heights", i.e. a second *campus* of
-     the same organization as `sfspca`, not a separate shelter. That is the
-     entry the evidence doc flagged as "not a distinct organization". So
-     this part also has to decide whether campuses are separate entries at
-     all — if they are, the naming should say so consistently; if they
-     aren't, `petsun` merges into the SF SPCA entry.
-
-  Verify: after the fix, every dog in `data/dogs.json` resolves via
-  `shelterFor()`'s exact match (not the hash fallback) to the correct real
-  SF SPCA entry; add a regression check (a unit test, or an assertion in the
-  import script) so a future id rename can't silently reintroduce the
-  mismatch.
-
-- **RS-2 (gated on RS-1, unblocked by PR #21; sequence after RS-3).**
+- **RS-2 (gated on RS-1, unblocked by PR #21; RS-3 landed first, so the
+  shelter id to use is settled: `"sfspca-mission"`).**
   Shelter sign-in, application list, and add/retire a dog (M3, first half).
   Reuse `SignInView`'s Google auth path; a new route gated on `staffUids`
   membership, not a new auth system. Note for whoever builds this: RS-1
@@ -199,3 +173,16 @@ to a real user until it has.
   both need a real staff uid to add by hand, which is RS-2/M3's job, not
   M2's; `isStaff()` is safe to ship with no shelter docs existing yet since
   nothing calls it until RS-2 lands.
+- 2026-08-25 — RS-3 — PR #__ — `web/src/lib/shelters.ts`'s SF SPCA id
+  changed `"sfspca"` -> `"sfspca-mission"` (matches `data/dogs.json` and
+  `scripts/shelters/sfspca.py`'s `CAMPUS["id"]`, cheaper than re-scraping);
+  removed `petsun` (a second campus of the same SF SPCA, not a distinct
+  org) and `familydog` (closed at the address shown, no verified current
+  one to replace it with). Added `web/src/lib/shelters.test.ts` as the
+  regression guard. Found and corrected a stale claim in this doc's own
+  "where this stands" section along the way: the mismatch never actually
+  broke the live browsing surface, because every real dog carries its own
+  denormalized `shelter` object that `normalizeDog()` already prefers over
+  the hash fallback — the fix still mattered for RS-2's `isStaff(shelterId)`
+  matching a real `shelters/{id}` doc, just not for the reason originally
+  written down.
