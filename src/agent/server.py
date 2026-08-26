@@ -7,10 +7,14 @@ service is the *only* thing standing between an anonymous caller and any foster'
 journey. A body-supplied id would let anyone who knows a uid read and write that
 person's record; the token is what makes "this is my journey" checkable.
 
-Sessions live in memory, so a Cloud Run restart or a second instance loses
-history — fine for a demo, and the reason this isn't the place to put anything
-that has to survive. Real durability means moving the transcript into Firestore
-alongside the rest of the foster's record.
+The live `Agent` and its approval queue still live in memory per instance --
+an approval is someone waiting mid-request, which can't be handed across a
+process boundary anyway. The message transcript itself is durable: it's
+persisted to Firestore (`session_store.py`) after every turn and reloaded
+when a foster's session is rebuilt, so a Cloud Run restart or redeploy no
+longer erases their conversation. `--min-instances=1 --max-instances=1`
+(`deploy-backend.yml`) is still pinned -- that was a correctness fix for the
+approval queue, not a durability one, and stays until that queue moves too.
 """
 
 from __future__ import annotations
@@ -33,6 +37,7 @@ from fastapi.responses import StreamingResponse
 from firebase_admin import auth as firebase_auth
 from pydantic import BaseModel
 
+from . import session_store
 from .builtin import registry
 from .current_foster import set_current_foster
 from .firestore_client import _ensure_app
@@ -233,7 +238,11 @@ def _session(foster_id: str) -> Session:
         session = _sessions.get(foster_id)
         if session is None:
             approvals: "queue.Queue[bool]" = queue.Queue()
-            session = Session(agent=_build_agent(foster_id, approvals), approvals=approvals)
+            agent = _build_agent(foster_id, approvals)
+            # Rebuilding after an eviction, a restart or a redeploy: pick the
+            # conversation back up instead of starting the foster over.
+            agent.messages = session_store.load(foster_id)
+            session = Session(agent=agent, approvals=approvals)
             _sessions[foster_id] = session
             while len(_sessions) > MAX_SESSIONS:
                 _sessions.popitem(last=False)
@@ -314,6 +323,13 @@ def _stream(message: str, session: Session, foster_id: str, model: str) -> Itera
             yield _sse(ev.kind, payload)
     except Exception as exc:  # keep the stream alive long enough to report the failure
         yield _sse("error", _friendly_error(exc))
+    finally:
+        # Persist even on failure: whatever turns did complete before the
+        # error should still survive a restart.
+        try:
+            session_store.save(foster_id, session.agent.messages)
+        except Exception:
+            logging.exception("failed to persist agent session for %s", foster_id)
 
 
 @app.get("/health")
@@ -441,6 +457,7 @@ def reset(
     foster_id: str = Depends(require_foster_id),
 ) -> dict[str, bool]:
     _session(foster_id).agent.reset()
+    session_store.clear(foster_id)
     return {"ok": True}
 
 

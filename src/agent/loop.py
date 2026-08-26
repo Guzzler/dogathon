@@ -149,9 +149,15 @@ class Agent:
                 yield Event("error", text=f"API error: {exc}", is_error=True)
                 return
 
-            # Append the raw blocks, not just the text: thinking blocks and
-            # tool_use blocks both have to survive into the next request.
-            self.messages.append({"role": "assistant", "content": reply.content})
+            # Dumped to plain dicts, not the raw SDK blocks: thinking blocks and
+            # tool_use blocks both have to survive into the next request, and
+            # keeping self.messages JSON-safe throughout is what lets a caller
+            # persist and reload it (see session_store.py) without a separate
+            # conversion step.
+            self.messages.append({
+                "role": "assistant",
+                "content": [block.model_dump(mode="json") for block in reply.content],
+            })
 
             calls = [b for b in reply.content if b.type == "tool_use"]
             if not calls:
