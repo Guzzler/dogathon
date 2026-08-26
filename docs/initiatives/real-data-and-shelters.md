@@ -54,11 +54,16 @@ scales past one shelter.
   the app right now can see a real dog attributed to the (possibly closed)
   Family Dog Rescue. This is a live browsing-surface bug, independent of
   M2/M3 and applications.
-- **No `shelters` Firestore collection, no shelter accounts, no
-  `applications` collection.** `firestore.rules` still has
-  `match /dogs/{dogId} { allow write: if false }` — only the agent's Admin
-  SDK writes, meaning no shelter can edit their own listing today even in
-  principle.
+- **`applications` rules exist; shelter accounts and `dogs` writes do not.**
+  Updated 2026-08-25 against `firestore.rules` on `main`: RS-1 (PR #21)
+  added `isStaff()`, `match /applications/{applicationId}`, and
+  `match /shelters/{shelterId}`, and `web/src/lib/applications.ts` now
+  writes an application doc from both apply() sites. What is still true:
+  `match /dogs/{dogId}` remains `allow write: if false` (with a comment
+  marking it as M3's job), **no `shelters/{id}` document has actually been
+  created**, and no uid is in any `staffUids` — so `isStaff()` currently
+  evaluates against nothing and no shelter can edit its own listing. RS-2
+  is what makes those rules load-bearing.
 
 ## Milestones
 
@@ -66,7 +71,11 @@ scales past one shelter.
 diff-before-write import path. (`scripts/import_dogs.py`,
 `data/enrichment.json`, PRs #6, #13, #14.)
 
-**M2 — the applications collection.** Move an application out of
+**M2 — done (2026-08-24, PR #21), with one part deferred.** The
+`applications/{id}` write path and the `applications`/`shelters` rules
+shipped. Deferred to M3 on purpose: seeding real `shelters/{id}` docs and
+relaxing the `dogs` write rule, both of which need a real staff uid that
+doesn't exist yet. Original scope, for the record: move an application out of
 `fosters/{uid}` (private, unqueryable by a shelter) into
 `applications/{id}` per `shelter-integration.md`'s shape: `fosterId`,
 `dogId`, `shelterId`, `status`, `checklist`, `pickup`. Add
@@ -111,32 +120,55 @@ adds a second thing that can drift.
 
 ## Task queue
 
-- **RS-2 (gated on RS-1, now unblocked — see Ledger).** Shelter sign-in, application list, and
-  add/retire a dog (M3, first half). Reuse `SignInView`'s Google auth path;
-  a new route gated on `staffUids` membership, not a new auth system.
-  Verify: a uid manually added to `shelters/sfspca-mission.staffUids` can
-  see applications for that shelter and cannot see another shelter's; a uid
-  not in any `staffUids` gets a clear "not staff" state, not a blank
-  screen.
-- **RS-3 (2026-08-24, independent of RS-1/RS-2, raised in priority
-  2026-08-24).** Fix the `shelters.ts` drift now rather than waiting for
-  M4's scheduled job. Two parts: (1) **the id mismatch is the more urgent
-  half** — `data/dogs.json`'s `shelter_id: "sfspca-mission"` doesn't match
-  `shelters.ts`'s `id: "sfspca"`, so `shelterFor()` (`shelters.ts:18-24`)
-  falls back to a per-dog hash across all 8 shelters for every real dog in
-  prod right now, showing wrong (sometimes defunct) shelter cards on the
-  live browsing surface — fix by changing `shelters.ts`'s SF SPCA `id` to
-  `"sfspca-mission"` (matches the data) or the importer's output to
-  `"sfspca"` (matches the UI), whichever direction `scripts/shelters/sfspca.py`
-  makes cheaper, then re-run the import so `data/dogs.json` and
-  `web/src/lib/shelters.ts` agree; (2) verify each of the eight entries
-  (does it still operate, is the address current, is it a distinct org),
-  and either correct or remove the ones that don't check out — Family Dog
-  Rescue specifically, per `real-data-sourcing.md`'s finding. Verify: after
-  the fix, every dog in `data/dogs.json` resolves via `shelterFor()`'s exact
-  match (not the hash fallback) to the correct real SF SPCA entry; add a
-  regression check (a unit test or an assertion in the import script) so a
-  future id rename can't silently reintroduce the mismatch.
+Ordered 2026-08-25: **RS-3 goes first.** It is a bug real users can see
+today, and RS-2 has to know which shelter id won anyway — building the
+shelter surface against an id that RS-3 then renames means doing it twice.
+
+- **RS-3 (2026-08-24, raised in priority 2026-08-24, re-verified still live
+  2026-08-25 — now first in this queue).** Fix the `shelters.ts` drift now
+  rather than waiting for M4's scheduled job. Re-verification detail: all 19
+  entries in `data/dogs.json` are `shelter_id: "sfspca-mission"`, while
+  `shelters.ts:7` is still `id: "sfspca"` — so the hash fallback is still
+  what real users see. Two parts:
+  1. **The id mismatch is the more urgent half.** `shelterFor()`
+     (`shelters.ts:18-24`) does an exact-id lookup and, on a miss, falls
+     back to a per-dog hash across all 8 shelters — so every real SF SPCA
+     dog in prod right now shows a wrong, sometimes defunct, shelter card.
+     Fix by changing `shelters.ts`'s SF SPCA `id` to `"sfspca-mission"`
+     (matches the data) or the importer's output to `"sfspca"` (matches the
+     UI), whichever direction `scripts/shelters/sfspca.py` makes cheaper,
+     then re-run the import so `data/dogs.json` and `web/src/lib/shelters.ts`
+     agree.
+  2. **Verify each of the eight entries** — does it still operate, is the
+     address current, is it a distinct org — and correct or remove the ones
+     that don't check out. Family Dog Rescue specifically, per
+     `real-data-sourcing.md`'s finding. New this run: `shelters.ts:14`
+     `petsun` is named "SF SPCA Pacific Heights", i.e. a second *campus* of
+     the same organization as `sfspca`, not a separate shelter. That is the
+     entry the evidence doc flagged as "not a distinct organization". So
+     this part also has to decide whether campuses are separate entries at
+     all — if they are, the naming should say so consistently; if they
+     aren't, `petsun` merges into the SF SPCA entry.
+
+  Verify: after the fix, every dog in `data/dogs.json` resolves via
+  `shelterFor()`'s exact match (not the hash fallback) to the correct real
+  SF SPCA entry; add a regression check (a unit test, or an assertion in the
+  import script) so a future id rename can't silently reintroduce the
+  mismatch.
+
+- **RS-2 (gated on RS-1, unblocked by PR #21; sequence after RS-3).**
+  Shelter sign-in, application list, and add/retire a dog (M3, first half).
+  Reuse `SignInView`'s Google auth path; a new route gated on `staffUids`
+  membership, not a new auth system. Note for whoever builds this: RS-1
+  shipped the `isStaff()` rule but **no `shelters/{id}` document exists
+  yet**, so the first step is creating `shelters/<the id RS-3 settled on>`
+  with a `staffUids` array containing a test uid — otherwise every rule
+  check evaluates against a missing document and the UI will look broken
+  rather than unauthorized. Verify: a uid manually added to that shelter's
+  `staffUids` can see applications for that shelter and cannot see another
+  shelter's; a uid not in any `staffUids` gets a clear "not staff" state,
+  not a blank screen. Per the section below, this ships to test accounts
+  only until Sharang has actually spoken to a shelter.
 
 ## The part that's a conversation, not a PR
 
@@ -155,7 +187,7 @@ to a real user until it has.
 
 - 2026-08-24 — M1 — PRs #6, #13, #14 — offline SF SPCA import, reviewed
   descriptions, diff-before-write, replace-not-append.
-- 2026-08-24 — RS-1 — PR #__ — `applications/{id}` + `shelters/{id}` rules
+- 2026-08-24 — RS-1 — PR #21 — `applications/{id}` + `shelters/{id}` rules
   added to `firestore.rules` (isStaff(), create/read/update sketch from
   shelter-integration.md, verbatim). `web/src/lib/applications.ts`'s
   `createApplication()` opens an application doc from both apply() sites

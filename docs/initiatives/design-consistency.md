@@ -54,7 +54,15 @@ touched the token surface.
 
 ## Task queue
 
-- **DC-1 (2026-08-24).** A CI guard against PR #11 recurring silently.
+Both open items re-verified against `main` on 2026-08-25 and both are still
+genuinely unbuilt — `scripts/` contains only `import_dogs.py`,
+`seed_firestore.py`, and `shelters/` (no token checker), `.github/workflows/ci.yml`
+has no color-literal step, and `web/src/brand.ts:24` still exports
+`sidekickTheme`. Nothing here was quietly fixed by a human PR. Queue left at
+two open plus one gated note — this doc is correct as written, so this run
+deliberately did not rewrite it.
+
+- **DC-1 (2026-08-24, re-verified open 2026-08-25).** A CI guard against PR #11 recurring silently.
   Add a script (`scripts/check-design-tokens.py` or a short bash step
   inline in `.github/workflows/ci.yml`'s `frontend` job) that runs
   `git diff origin/main...HEAD -- 'web/src/**/*.css' 'web/src/**/*.ts' 'web/src/**/*.tsx'`
@@ -69,7 +77,7 @@ touched the token surface.
   "color literal found." Verify: construct a throwaway diff that adds a
   hardcoded hex to `App.css` and confirm the check fails; confirm it passes
   on a PR that only edits `theme.css`.
-- **DC-2 (2026-08-24).** Remove `sidekickTheme` from `brand.ts`, or if
+- **DC-2 (2026-08-24, re-verified open 2026-08-25).** Remove `sidekickTheme` from `brand.ts`, or if
   there's a reason to keep it (a rollback reference, a second-brand plan
   nobody's written down) turn it into a one-line comment explaining why an
   unused theme object is still there, so it stops looking like a
