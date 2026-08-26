@@ -54,29 +54,6 @@ touched the token surface.
 
 ## Task queue
 
-Both open items re-verified against `main` on 2026-08-25 and both are still
-genuinely unbuilt — `scripts/` contains only `import_dogs.py`,
-`seed_firestore.py`, and `shelters/` (no token checker), `.github/workflows/ci.yml`
-has no color-literal step, and `web/src/brand.ts:24` still exports
-`sidekickTheme`. Nothing here was quietly fixed by a human PR. Queue left at
-two open plus one gated note — this doc is correct as written, so this run
-deliberately did not rewrite it.
-
-- **DC-1 (2026-08-24, re-verified open 2026-08-25).** A CI guard against PR #11 recurring silently.
-  Add a script (`scripts/check-design-tokens.py` or a short bash step
-  inline in `.github/workflows/ci.yml`'s `frontend` job) that runs
-  `git diff origin/main...HEAD -- 'web/src/**/*.css' 'web/src/**/*.ts' 'web/src/**/*.tsx'`
-  and fails if any **added** line contains a hex color (`#[0-9a-fA-F]{3,8}`)
-  or an `rgb(`/`rgba(` literal, in any file **other than**
-  `web/src/theme.css` and `web/src/brand.ts`. Deliberately diff-only, not
-  whole-file: `App.css`/`pawthway.css`/`carePlan.css` already contain
-  legacy literals today (that's exactly what PR #11's revert diff shows),
-  and a whole-file scan would fail on the first PR anyone opens. This
-  catches new drift without demanding an immediate cleanup of old drift.
-  Failure message should point at `theme.css`'s token list, not just say
-  "color literal found." Verify: construct a throwaway diff that adds a
-  hardcoded hex to `App.css` and confirm the check fails; confirm it passes
-  on a PR that only edits `theme.css`.
 - **DC-2 (2026-08-24, re-verified open 2026-08-25).** Remove `sidekickTheme` from `brand.ts`, or if
   there's a reason to keep it (a rollback reference, a second-brand plan
   nobody's written down) turn it into a one-line comment explaining why an
@@ -102,4 +79,15 @@ its own judgment about what looks nicer.
 
 ## Ledger
 
-<!-- - 2026-08-24 — DC-1 — PR #__ — outcome -->
+- 2026-08-25 — DC-1 — PR #__ — added a "Design token guard" step to
+  `.github/workflows/ci.yml`'s `frontend` job: fetches `origin/main`, diffs
+  it against HEAD over `web/src/**/*.css|*.ts|*.tsx` excluding `theme.css`
+  and `brand.ts` (git pathspec `:(glob)`/`:(exclude)` magic — a bare
+  `**` glob without `:(glob)` silently matches nothing under this git
+  version), and fails if an added line matches a hex color or
+  `rgb(`/`rgba(`. Went with the inline-bash option over a separate Python
+  script, per the task's own "either" framing. Verified locally on two
+  throwaway commits (not yet observed on a real GitHub Actions run): a
+  hardcoded hex added to `App.css` fails the check; a `theme.css`-only
+  edit passes. DC-3 is the note to watch the first real PR that exercises
+  this for real.
