@@ -3,10 +3,10 @@ import {
   signInWithPopup, signOut, type Auth,
 } from "firebase/auth";
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, query, where,
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where,
 } from "firebase/firestore";
 import { firebaseApp, firestore } from "./firebase";
-import { LOCAL_MODE } from "./lib/localMode";
+import { BLANK_FOSTER, clearGuestData, readLocalCareLog, readLocalFoster, LOCAL_MODE } from "./lib/localMode";
 import { clearGuest, setSession, wasGuest } from "./lib/session";
 
 export const auth: Auth | null = firebaseApp ? getAuth(firebaseApp) : null;
@@ -40,9 +40,39 @@ export function startAuth(): void {
 
 export async function signInWithGoogle(): Promise<void> {
   if (!auth) throw new Error("Firebase isn't configured — add web/.env to enable sign-in.");
+  // Read before clearGuest() below removes the flag this depends on.
+  const hadGuestData = wasGuest();
   // Signing in supersedes any guest choice, so the guest doc doesn't shadow the real one.
   clearGuest();
-  await signInWithPopup(auth, new GoogleAuthProvider());
+  const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+  if (hadGuestData) await migrateGuestData(cred.user.uid);
+}
+
+/**
+ * A guest's journey lives entirely in localStorage (`web/src/lib/localMode.ts`) — there's no
+ * Firebase Auth user to `linkWithCredential` onto, anonymous or otherwise. So "migration" here
+ * means copying that local state into the new `fosters/{uid}` doc on first sign-in, once,
+ * rather than linking credentials.
+ *
+ * Skips entirely if `fosters/{uid}` already exists — a returning user's real data always wins
+ * over a stale local guest doc left on the device.
+ */
+async function migrateGuestData(uid: string): Promise<void> {
+  const existing = await getDoc(doc(firestore, "fosters", uid));
+  if (existing.exists()) return;
+
+  const localFoster = readLocalFoster();
+  if (JSON.stringify(localFoster) === JSON.stringify(BLANK_FOSTER)) return;
+
+  const { id: _id, ...fosterData } = localFoster;
+  await setDoc(doc(firestore, "fosters", uid), fosterData);
+
+  // Sequential, not Promise.all, so serverTimestamp() ordering matches the original order.
+  for (const { id: _entryId, created_at: _createdAt, ...entry } of readLocalCareLog()) {
+    await addDoc(collection(firestore, "fosters", uid, "careLog"), { ...entry, created_at: serverTimestamp() });
+  }
+
+  clearGuestData();
 }
 
 export async function signOutOfPawthway(): Promise<void> {
