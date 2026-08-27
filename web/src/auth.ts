@@ -2,7 +2,9 @@ import {
   GoogleAuthProvider, deleteUser, getAuth, onAuthStateChanged, reauthenticateWithPopup,
   signInWithPopup, signOut, type Auth,
 } from "firebase/auth";
-import { collection, deleteDoc, doc, getDocs } from "firebase/firestore";
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, query, where,
+} from "firebase/firestore";
 import { firebaseApp, firestore } from "./firebase";
 import { LOCAL_MODE } from "./lib/localMode";
 import { clearGuest, setSession, wasGuest } from "./lib/session";
@@ -73,6 +75,41 @@ export async function deleteAccount(): Promise<void> {
 
   clearGuest();
   setSession({ kind: "signedOut" });
+}
+
+/**
+ * Builds a JSON export of everything a foster gave the app: their `fosters/{uid}` doc, its
+ * `careLog` subcollection, and their `applications` rows (queried by `fosterId`, since
+ * `applications` lives outside `fosters/{uid}` — see docs/shelter-integration.md).
+ *
+ * Deliberately excludes `fosters/{uid}/agentSession/current`: it's a `messagesJson` dump of
+ * the agent's own reasoning, already no-client-write in firestore.rules, not data the foster
+ * gave us.
+ */
+export async function exportAccountData(): Promise<void> {
+  if (!auth?.currentUser) throw new Error("Not signed in.");
+  const uid = auth.currentUser.uid;
+
+  const fosterSnap = await getDoc(doc(firestore, "fosters", uid));
+  const careLogSnap = await getDocs(collection(firestore, "fosters", uid, "careLog"));
+  const applicationsSnap = await getDocs(
+    query(collection(firestore, "applications"), where("fosterId", "==", uid)),
+  );
+
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    foster: fosterSnap.exists() ? fosterSnap.data() : null,
+    careLog: careLogSnap.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+    applications: applicationsSnap.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `pawthway-data-${uid}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export const AUTH_AVAILABLE = !LOCAL_MODE;
