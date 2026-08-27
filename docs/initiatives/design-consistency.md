@@ -61,12 +61,45 @@ touched the token surface.
   live option. Trivial, but it's the exact shape of thing that causes a
   PR-#11-style mistake: two theme objects, one wired in, no marker saying
   which.
-- **DC-3 (gated — needs one more real UI PR to test against).** Once DC-1
+- **DC-3 (gated — still not observable as of 2026-08-26).** Once DC-1
   is merged, deliberately exercise it: the next PR that touches any
   `.css`/`brand.ts` file should be watched to confirm the guard actually
   fires or actually stays quiet as appropriate, rather than trusting the
   throwaway-diff test from DC-1 alone. Not a queue item to build — a note
   for `plan` to check off once it's observed, then delete this line.
+  **Checked 2026-08-26: no qualifying PR yet.** DC-1 (PR #25) touched only
+  `.github/workflows/ci.yml`, so its own run exercised nothing, and PR #24 —
+  the one PR that did touch `web/src/**` — merged at 05:10Z, seven minutes
+  *before* the guard landed at 05:17Z. The next `web/src` PR is the first
+  real test. Two specific things to watch for when it comes, both unverified
+  rather than known-broken: (1) the step does
+  `git fetch origin main --depth=1` and then `git diff origin/main...HEAD`,
+  and a triple-dot diff needs a common ancestor — on a shallow fetch that
+  merge base may not exist, which would make the guard error or silently
+  diff nothing; (2) confirm a PR that legitimately edits `theme.css` alone
+  still passes. If (1) bites, deepening the fetch is the fix, not switching
+  to a two-dot diff.
+- **DC-4 (2026-08-26).** Close the gap DC-1 left open: **a wholesale repaint
+  of the canonical files still passes CI silently.** The guard excludes
+  `web/src/theme.css` and `web/src/brand.ts` — correctly, since that's where
+  color literals are supposed to live — but the consequence is that PR #11,
+  the exact incident this whole doc exists for, would sail through the guard
+  today. #11's damage was spread across five files, so the stray-literal
+  check would have caught *part* of it; the `:root` token rewrite and the
+  `pawthwayTheme.palette` rewrite, which were the actual repaint, would not
+  have been flagged at all. Fix the reporting half, not the failing half:
+  when a PR's diff touches either exempt file, emit a **non-failing**
+  notice — a `::warning::` plus a short block appended to
+  `$GITHUB_STEP_SUMMARY` naming the files and showing the changed token
+  lines. It must not `exit 1`: editing the palette on purpose is allowed and
+  this doc's stated goal is that a repaint be *visible in review*, not
+  blocked. Implement it as a second step in `ci.yml`'s `frontend` job next
+  to "Design token guard", reusing the same `origin/main...HEAD` diff (and
+  inheriting whatever DC-3 concludes about the shallow-fetch merge base — if
+  DC-3 lands first and deepens the fetch, don't duplicate that work).
+  Verify on two throwaway commits the way DC-1 was verified: a `theme.css`
+  `:root` edit produces the warning and a **green** job; a PR touching
+  neither exempt file produces no warning at all.
 
 ## What's parked
 
@@ -79,7 +112,7 @@ its own judgment about what looks nicer.
 
 ## Ledger
 
-- 2026-08-25 — DC-1 — PR #__ — added a "Design token guard" step to
+- 2026-08-25 — DC-1 — PR #25 — added a "Design token guard" step to
   `.github/workflows/ci.yml`'s `frontend` job: fetches `origin/main`, diffs
   it against HEAD over `web/src/**/*.css|*.ts|*.tsx` excluding `theme.css`
   and `brand.ts` (git pathspec `:(glob)`/`:(exclude)` magic — a bare

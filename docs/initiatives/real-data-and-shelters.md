@@ -37,9 +37,12 @@ scales past one shelter.
   whether to keep it manual-only or add a proposal-only schedule, not about
   assuming a schedule is obviously better.
 - **The roster is one shelter deep.** Every dog in `data/dogs.json` carries
-  `shelter_id: "sfspca-mission"`. `web/src/lib/shelters.ts` still lists
-  eight organizations. Seven of them have zero dogs and no import path —
-  they're decorative until M3.
+  `shelter_id: "sfspca-mission"`. `web/src/lib/shelters.ts` lists **six**
+  organizations — re-counted against `main` 2026-08-26; this line previously
+  said eight, which was true when written but stale the moment RS-3 (PR #24)
+  removed `petsun` and `familydog`. The remaining five (`acc`, `muttville`,
+  `coppers`, `wonder`, `rocket`) have zero dogs and no import path — they're
+  decorative until M3.
 - **`shelters.ts` had drifted from reality, fixed 2026-08-25 (RS-3).** One
   entry (`petsun`, "SF SPCA Pacific Heights") wasn't a distinct
   organization — a second campus of the same SF SPCA — and Family Dog
@@ -105,19 +108,43 @@ already in `shelter-integration.md`). Manual entry through this UI becomes
 the second source adapter — proving the pipeline works for a shelter that
 isn't SF SPCA, with zero scraping risk and no third-party approval needed.
 
-**M4 — decide on a cadence, and reconcile drift.** The import
-workflow (`import-dogs.yml`) already exists and already defaults to
-preview-only; what's still a decision, not engineering, is whether to also
-add a Cloud Scheduler trigger that runs `--plan` on a cadence and opens an
-issue or PR with the diff for a human to act on — automated *proposal*,
-human *approval*, never an auto-write, consistent with the workflow's own
-stated philosophy. Weekly would be plenty given the source is a shelter's
-own adoptable-dogs page, not a fast-moving feed. Don't build the scheduler
-without that decision being made on purpose; the manual trigger alone may
-be the right amount of automation for a two-shelter roster. Separately from
-that decision: fix the `shelters.ts` drift — verify all eight against a
-live source, or cut to the one that's actually populated until M3 gives
-the others real data.
+**M4 — decide on a cadence, and reconcile drift. Decision made 2026-08-26.**
+
+The `shelters.ts` drift half is **done** (RS-3, PR #24 — cut to six verified
+entries rather than re-verifying all eight).
+
+The cadence half was the open question, and the answer is: **yes to a
+cadence, no to Cloud Scheduler, and the deliverable is the notification, not
+the schedule.** Reasoning, grounded in the workflow as it actually exists:
+
+- **No Cloud Scheduler.** `import-dogs.yml` is already a GitHub Actions
+  workflow with the GCP service account wired in; a `schedule:` trigger adds
+  a cadence in the file that already does the work, with nothing new to
+  provision, authenticate, or pay for. Cloud Scheduler would mean a second
+  system holding a second credential to invoke the first one.
+- **Plan-only, permanently.** The workflow's `plan_only` input already
+  defaults to `true`, and `--plan` still connects and reads (per
+  `import_dogs.py:111`), so a scheduled run proves the credentials work and
+  prints a real diff while writing nothing. Automated *proposal*, human
+  *approval* — the workflow's own stated philosophy, unchanged.
+- **The scheduled run must `--rescrape`, and this is the part that's easy to
+  get wrong.** The workflow's other input defaults to `rescrape: false`,
+  which replays `data/sfspca_scrape.json` from cache. A scheduled drift check
+  running off the cache would diff the committed data against itself and
+  report "no drift" **forever** — worse than no check at all, because it
+  looks like a working signal. Drift detection means comparing against the
+  shelter's live page, so the scheduled path is the one case where
+  re-scraping is mandatory rather than opt-in.
+- **Weekly.** The source is a shelter's adoptable-dogs page, not a feed.
+- **The actual gap is that nobody reads Actions logs.** A plan-only run whose
+  diff dies in a log nobody opens is not a drift check. What makes the
+  cadence worth anything is failing loudly — or opening/updating an issue —
+  *only* when the diff is non-empty. Silence when nothing changed.
+
+Known constraints for whoever builds it: scheduled workflows only run from
+the default branch, and GitHub disables them after 60 days of repo
+inactivity. Neither is a blocker; both are worth a comment in the file.
+Queued as RS-4.
 
 **M5 — a second automated source, gated on demonstrated need.**
 `real-data-sourcing.md` already picked RescueGroups.org as the one open API
@@ -143,6 +170,32 @@ adds a second thing that can drift.
   shelter's; a uid not in any `staffUids` gets a clear "not staff" state,
   not a blank screen. Per the section below, this ships to test accounts
   only until Sharang has actually spoken to a shelter.
+- **RS-4 (2026-08-26, from the M4 decision above — read that section before
+  building; the reasoning there is the spec).** Add a weekly scheduled drift
+  check to `.github/workflows/import-dogs.yml`. Add a `schedule:` trigger
+  (weekly) alongside the existing `workflow_dispatch`, keeping every manual
+  input and its current default exactly as-is. The scheduled path must run
+  **plan-only** and **with a re-scrape** — the opposite of the manual
+  default on the rescrape flag, and the single most important detail in this
+  task: a cached replay diffs the committed data against itself and reports
+  "no drift" forever. Since the two triggers need different argument
+  defaults, read `github.event_name` to build the arg list rather than
+  relying on the input defaults, which are empty on a `schedule` event.
+  Then make the result visible: the run should be quiet when the diff is
+  empty and loud when it isn't. Prefer opening (or updating, don't spam a
+  new one weekly) a GitHub issue with the diff body — that needs
+  `issues: write` in the job's `permissions:`, which is currently
+  `contents: read`; failing the run with `::error::` and the diff is an
+  acceptable simpler fallback, say which you chose in the ledger row. The
+  existing `concurrency: import-dogs` group already prevents a scheduled run
+  from overlapping a manual one — leave it. Add a comment noting that
+  scheduled workflows only run from the default branch and are disabled
+  after 60 days of repo inactivity. **Nothing here may write to Firestore:**
+  do not add a path where a scheduled run drops `--plan`. Verify: trigger it
+  by hand via `workflow_dispatch` first to confirm the workflow still parses
+  and the manual path is unchanged, then confirm the scheduled branch of the
+  arg-building logic resolves to plan + rescrape (echo the final `ARGS` in
+  the run log and read it back).
 
 ## The part that's a conversation, not a PR
 
@@ -156,6 +209,10 @@ to anyone but the two of them testing it.** Nothing in this queue depends on
 that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
+
+*(Status as of 2026-08-26: no evidence this conversation has happened — no
+commit, no doc edit from Sharang, no note anywhere in the repo. Recorded so a
+future run doesn't mistake the passage of time for progress.)*
 
 ## Ledger
 
@@ -173,7 +230,7 @@ to a real user until it has.
   both need a real staff uid to add by hand, which is RS-2/M3's job, not
   M2's; `isStaff()` is safe to ship with no shelter docs existing yet since
   nothing calls it until RS-2 lands.
-- 2026-08-25 — RS-3 — PR #__ — `web/src/lib/shelters.ts`'s SF SPCA id
+- 2026-08-25 — RS-3 — PR #24 — `web/src/lib/shelters.ts`'s SF SPCA id
   changed `"sfspca"` -> `"sfspca-mission"` (matches `data/dogs.json` and
   `scripts/shelters/sfspca.py`'s `CAMPUS["id"]`, cheaper than re-scraping);
   removed `petsun` (a second campus of the same SF SPCA, not a distinct
