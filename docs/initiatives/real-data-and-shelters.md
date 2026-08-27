@@ -43,29 +43,10 @@ scales past one shelter.
   removed `petsun` and `familydog`. The remaining five (`acc`, `muttville`,
   `coppers`, `wonder`, `rocket`) have zero dogs and no import path — they're
   decorative until M3.
-- **`shelters.ts` had drifted from reality, fixed 2026-08-25 (RS-3).** One
-  entry (`petsun`, "SF SPCA Pacific Heights") wasn't a distinct
-  organization — a second campus of the same SF SPCA — and Family Dog
-  Rescue appeared to have closed at the address the app displayed; both
-  removed. The id mismatch (`shelters.ts` had `id: "sfspca"`,
-  `data/dogs.json` carries `shelter_id: "sfspca-mission"`) is also fixed —
-  `shelters.ts`'s SF SPCA entry is now `"sfspca-mission"`.
-  **Correction to this doc's earlier claim:** the mismatch was **not**
-  actually showing a wrong shelter card on the live browsing surface, as
-  this doc previously said. `scripts/shelters/sfspca.py`'s `to_dog()`
-  writes a full denormalized `shelter` object onto every real dog record
-  (not just `shelter_id`), and `normalizeDog()`
-  (`web/src/lib/dog.ts:45`, `d.shelter ?? shelterFor(d.shelter_id, d.id)`)
-  prefers that embedded object over `shelterFor()`'s hash fallback — so a
-  real dog's card was always correct, and the hash fallback only ever ran
-  for seed/demo dogs without their own `shelter` field. The mismatch still
-  mattered, just for a different reason: RS-1's `createApplication()` sets
-  `applications/{id}.shelterId` from the dog's own `shelter_id`
-  (`"sfspca-mission"`), and RS-2's `isStaff(shelterId)` check needs a
-  `shelters/{id}` doc at that same id to mean anything — building RS-2
-  against the old `"sfspca"` id would have made staff auth silently match
-  nothing. Regression guard added: `web/src/lib/shelters.test.ts` asserts
-  every `data/dogs.json` entry resolves via `shelterFor()`'s exact match.
+- **`shelters.ts` drift — fixed 2026-08-25 (RS-3, PR #24); settled, see the
+  Ledger for the full account.** The one thing worth carrying forward: the SF
+  SPCA id is `"sfspca-mission"` everywhere, and `web/src/lib/shelters.test.ts`
+  guards it. That is the id RS-2 must seed its `shelters/{id}` doc at.
 - **`applications` rules exist; shelter accounts and `dogs` writes do not.**
   Updated 2026-08-25 against `firestore.rules` on `main`: RS-1 (PR #21)
   added `isStaff()`, `match /applications/{applicationId}`, and
@@ -85,28 +66,21 @@ diff-before-write import path. (`scripts/import_dogs.py`,
 
 **M2 — done (2026-08-24, PR #21), with one part deferred.** The
 `applications/{id}` write path and the `applications`/`shelters` rules
-shipped. Deferred to M3 on purpose: seeding real `shelters/{id}` docs and
-relaxing the `dogs` write rule, both of which need a real staff uid that
-doesn't exist yet. Original scope, for the record: move an application out of
-`fosters/{uid}` (private, unqueryable by a shelter) into
-`applications/{id}` per `shelter-integration.md`'s shape: `fosterId`,
-`dogId`, `shelterId`, `status`, `checklist`, `pickup`. Add
-`shelters/{shelterId}` with `staffUids`. This is the actual prerequisite for
-"shelter admins approve things" — there is currently nowhere for an admin
-to look. Gated on nothing; can start immediately. `production-hardening.md`'s
-PH-3 (durable agent sessions) is gated on this landing first, not the other
-way around, since PH-3 touches the same Firestore-shape assumptions the
-agent's tools read.
+shipped, in `shelter-integration.md`'s shape. Deferred to M3 on purpose, and
+still open: seeding a real `shelters/{id}` doc and relaxing the `dogs` write
+rule, both of which need a staff uid that didn't exist yet. Those are now
+RS-2 and RS-6 respectively.
 
-**M3 — shelter accounts and the admin add/edit surface.** A shelter staff
-member signs in (reuses the existing Google auth — `staffUids` just needs
-their uid added by hand at first, no self-serve org signup yet), sees
-applications where `shelterId` matches theirs, and can add or retire their
-own dogs. This is the "approved via shelter admins" half. `firestore.rules`
-`dogs` write rule changes from `false` to `isStaff(shelterId)` (sketch
-already in `shelter-integration.md`). Manual entry through this UI becomes
-the second source adapter — proving the pipeline works for a shelter that
-isn't SF SPCA, with zero scraping risk and no third-party approval needed.
+**M3 — shelter accounts and the admin add/edit surface.** The "approved via
+shelter admins" half: staff sign in with the existing Google auth (uids added
+to `staffUids` by hand at first, no self-serve org signup), see their own
+shelter's applications, and add or retire their own dogs. Manual entry
+through this UI becomes the second source adapter — proving the pipeline
+works for a shelter that isn't SF SPCA, with zero scraping risk and no
+third-party approval needed. **Fully specified as RS-2 → RS-5 → RS-6 in the
+Task queue below**, including the device decision, the staff-resolution
+query, every required state, and the navigation model; that's the detail to
+build from, not this paragraph.
 
 **M4 — decide on a cadence, and reconcile drift. Decision made 2026-08-26.**
 
@@ -156,20 +130,142 @@ adds a second thing that can drift.
 
 ## Task queue
 
-- **RS-2 (gated on RS-1, unblocked by PR #21; RS-3 landed first, so the
-  shelter id to use is settled: `"sfspca-mission"`).**
-  Shelter sign-in, application list, and add/retire a dog (M3, first half).
-  Reuse `SignInView`'s Google auth path; a new route gated on `staffUids`
-  membership, not a new auth system. Note for whoever builds this: RS-1
-  shipped the `isStaff()` rule but **no `shelters/{id}` document exists
-  yet**, so the first step is creating `shelters/<the id RS-3 settled on>`
-  with a `staffUids` array containing a test uid — otherwise every rule
-  check evaluates against a missing document and the UI will look broken
-  rather than unauthorized. Verify: a uid manually added to that shelter's
-  `staffUids` can see applications for that shelter and cannot see another
-  shelter's; a uid not in any `staffUids` gets a clear "not staff" state,
-  not a blank screen. Per the section below, this ships to test accounts
-  only until Sharang has actually spoken to a shelter.
+RS-2's original scope — "shelter sign-in, application list, and add/retire a
+dog" — was one queue item covering three surfaces, which cannot land as one
+atomic PR without leaving the repo half-working. **Split 2026-08-26 into
+RS-2 / RS-5 / RS-6, in that order**, with the design questions it left open
+answered below rather than left to whoever picked it up. (RS-4 was already
+taken by the M4 drift check, which is unrelated and independent of these.)
+
+### Decisions that apply to all three (Sharang, 2026-08-26)
+
+- **Both sides are device-agnostic.** The shelter side is desk-shaped work —
+  lists, review, data entry — so it is built responsive and does **not** live
+  inside the 430px `.phone` frame. It must still be genuinely usable on a
+  phone: a staff member approving one application from their pocket is a real
+  case, not an afterthought. The foster side becoming responsive too is a
+  separate item (DC-5 in `design-consistency.md`) — don't do it here.
+- **Staff-ness is resolved by query, never by a document read** — see below.
+  That's a fix to a real bug in the previous spec, not a style preference.
+
+### The staff-resolution bug, and the fix
+
+The obvious implementation — `getDoc(doc("shelters", id))`, then check
+`staffUids` — **cannot work**, and would produce exactly the blank screen the
+original RS-2 said to avoid. `firestore.rules:57` reads:
+
+```
+allow read: if request.auth != null && request.auth.uid in resource.data.staffUids;
+```
+
+A non-staff user's read is therefore **denied** — and a *missing*
+`shelters/{id}` doc denies identically, since `resource.data` is null. Those
+two collapse into one indistinguishable `permission-denied` at the client:
+no way to tell "you aren't staff" from "that shelter doesn't exist", which
+want different screens and different fixes. (Offline is at least a distinct
+`unavailable` code, so it isn't part of the ambiguity — but it does mean the
+happy path ends up branching on error codes rather than on data, which is
+the deeper smell.)
+
+**Resolve staff-ness with a collection query instead:**
+
+```ts
+query(collection(firestore, "shelters"), where("staffUids", "array-contains", uid))
+```
+
+Firestore permits this against the rule exactly as it already stands — the
+rules engine can prove every matching document is readable, which is the
+documented secure-query pattern — so it needs **no rules change**. Do not
+touch `firestore.rules` for this. The result is unambiguous:
+
+| Result | Meaning | Screen |
+| --- | --- | --- |
+| resolves, 0 docs | signed in, not staff anywhere | "not staff" state |
+| resolves, ≥1 doc | staff — and you get the shelter(s) | dashboard |
+| rejects | a genuine error (offline, misconfig) | retry state |
+
+It also handles multi-shelter staff for free, which the doc-read approach
+couldn't express at all.
+
+### The items
+
+- **RS-2 (rescoped 2026-08-26) — staff resolution, the `/shelter` route
+  shell, and the gate.** No application list and no dog editing yet. This
+  item is purely: a staff member can reach a shelter surface that knows who
+  they are, and a non-staff visitor is told so clearly.
+  - Seed the first `shelters/{id}` document by hand — id
+    **`sfspca-mission`** (settled by RS-3; matches `data/dogs.json` and
+    `scripts/shelters/sfspca.py`'s `CAMPUS["id"]`), shape
+    `{ name, address, staffUids: [<a test uid>] }` per
+    `shelter-integration.md`. Until it exists every rule check evaluates
+    against nothing. `shelters/{id}` is `allow write: if false` on purpose —
+    create it from the Firebase console or an Admin-SDK one-off, not from the
+    client, and say which in the ledger row.
+  - Add `useStaffShelters()` in `web/src/hooks/` implementing the
+    array-contains query above. Return a discriminated result —
+    `{ state: "loading" | "notStaff" | "error" | "staff", shelters }` — so
+    callers can't accidentally collapse "not staff" into "error".
+  - Route: `/shelter` as a **sibling** of the foster
+    `<Route element={<Layout/>}>` in `App.tsx`, not nested inside it. That
+    route *is* the phone frame (`.shell > .phone`, `max-width:430px`), so
+    nesting would trap the dashboard inside it. Give it its own
+    `ShelterLayout`.
+  - Gate with a `StaffGate` mirroring the existing `AuthGate`/
+    `OnboardingGate` pattern in `App.tsx`: `loading` → the existing
+    `<Boot/>`; signed out → `SignInView` (reuse it, don't build a second
+    sign-in); `notStaff` → plain copy, "This is the shelter side of Pawthway.
+    Your account isn't on a shelter's staff list," and a link back to `/`;
+    `error` → a retry.
+  - **Discoverability is deliberately none.** No tab, no link from the foster
+    app — staff reach `/shelter` by URL. A visible entry point is a decision
+    for after a real shelter is using it (see "The part that's a
+    conversation" below).
+  - Verify: a uid in `staffUids` reaches the shell; a signed-in uid that
+    isn't gets the "not staff" copy rather than a blank screen or a spinner;
+    a signed-out visitor to `/shelter` gets sign-in and lands back on
+    `/shelter` afterwards. Check all three at 390px wide and at 1440px.
+- **RS-5 (gated on RS-2) — the application list and review.** The shelter's
+  actual inbox: `where("shelterId", "==", <their id>)`, newest first.
+  - Row: foster name (`fosterName` is denormalised onto the application for
+    exactly this), dog name, `status`, age of the application.
+  - Detail: the `checklist`, with `owner: "shelter"` items tickable and the
+    foster's own items read-only — `web/src/checklists.ts` already carries
+    `owner`, so filter on it rather than re-listing ids. Status moves
+    `submitted → in_review → approved | declined`. `withdrawn` is the
+    foster's to set, not the shelter's (`firestore.rules:49-51`).
+  - States, all four required: loading; **empty** ("No applications yet" —
+    the expected state for a real shelter on day one, not an error);
+    populated; error with retry.
+  - Do **not** write back to `fosters/{uid}`. The application document is the
+    source of truth for status/checklist/pickup per `shelter-integration.md`;
+    the foster's read-through fields are M2's deferred migration, not this
+    item's job.
+  - Verify: staff at `sfspca-mission` see only their own shelter's
+    applications; ticking a shelter-owned item persists; a foster-owned item
+    isn't tickable from this side.
+- **RS-6 (gated on RS-5) — add and retire a dog.** The second source adapter
+  from M3: manual entry proving the pipeline works for a shelter that isn't
+  SF SPCA, with no scraping.
+  - This is the item that changes `match /dogs/{dogId}`'s
+    `allow write: if false` to `isStaff(request.resource.data.shelter_id)`,
+    per the sketch already in `shelter-integration.md`. That is a
+    **deliberate, scoped** relaxation of a rule that exists for a reason — it
+    is not licence to widen anything else. The read rule, the agent's
+    Admin-SDK path, and every other rule stay exactly as they are.
+  - "Retire" is a status change, **not** a delete — a dog someone is
+    mid-application on must not vanish out from under them.
+  - Form fields mirror what `scripts/shelters/sfspca.py`'s `to_dog()` already
+    produces, so a hand-entered dog and a scraped one are the same shape
+    downstream. `shelter_id` comes from the staff member's own shelter, never
+    typed.
+  - Verify: a dog added through the form appears in foster-side discovery
+    with the right shelter card; retiring it removes it from discovery
+    without breaking an existing application; staff at one shelter cannot
+    write a dog carrying another shelter's `shelter_id` — the rules should
+    reject that, so test it rather than assuming.
+
+All three ship to test accounts only until Sharang has actually spoken to a
+shelter, per the section below.
 - **RS-4 (2026-08-26, from the M4 decision above — read that section before
   building; the reasoning there is the spec).** Add a weekly scheduled drift
   check to `.github/workflows/import-dogs.yml`. Add a `schedule:` trigger

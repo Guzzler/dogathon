@@ -86,11 +86,29 @@ is the source of truth — read it, don't assume this paragraph still holds.
   and read shelter info with zero setup; every surface that talks to the
   agent sits behind applying, so every agent call is authenticated by
   construction. Don't propose an anonymous-auth path.
-- **Guest→account migration is a known gap, deliberately deprioritized**
-  (Sharang, 2026-08-23: "guest migrations is fine" — meaning: real, but not
-  urgent). A guest who applies loses their onboarding answers and saved dogs
-  on sign-in, because `linkWithCredential` was never wired up. It's queued
-  in `production-hardening.md` at low priority, not silently dropped.
+- **Both sides are device-agnostic** (Sharang, 2026-08-26). Pawthway should be
+  a good phone app *and* a good web app, for fosters and for shelter staff.
+  The shelter side is built responsive from the start and outside the 430px
+  `.phone` frame (`real-data-and-shelters.md`, RS-2/RS-5/RS-6); the foster
+  side gets there separately via DC-5 in `design-consistency.md`. This
+  unparked the `.shell`/`.phone` restructure that `design-consistency.md` had
+  reserved for a Sharang decision — don't re-park it, and don't read it as
+  licence for a desktop-first redesign of the foster journey.
+- **Staff-ness is resolved by an `array-contains` query, not a document read**
+  (2026-08-26). `shelters/{id}`'s read rule denies non-staff, and a missing
+  doc denies identically, so `getDoc` can't distinguish "not staff" from
+  "no such shelter" — two states wanting different screens. The query form
+  makes the distinction structural and needs no rules change.
+  Full reasoning in `real-data-and-shelters.md`; don't re-derive it, and
+  don't "fix" it by loosening `firestore.rules`.
+- **Guest→account migration — shipped 2026-08-26 (PH-5, PR #29), and the
+  original framing of it was wrong.** This entry used to say the gap existed
+  "because `linkWithCredential` was never wired up." There was never an
+  anonymous Firebase Auth session to link: a guest is pure `localStorage`
+  (`web/src/lib/localMode.ts`). The fix copies that local state into
+  `fosters/{uid}` on first sign-in instead. Kept here rather than deleted
+  because the `linkWithCredential` framing appears in the evidence docs too
+  and is worth not re-deriving.
 
 ## Doc size
 
