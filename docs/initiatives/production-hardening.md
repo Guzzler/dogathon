@@ -82,22 +82,42 @@ still ranked under PH-3, but no longer invisible to execute.
   account — `web/src/lib/session.ts` has no `linkWithCredential` path.
   Deprioritized by Sharang (2026-08-23) rather than silently dropped; still
   worth a small fix. → PH-5.
-- **`tsconfig.app.json` has no `"strict"`.** `tsc -b` in CI (PR #8) catches
-  far less than it looks like — `string | null` flows into `string`
-  unchallenged. Flipping it will surface real errors across the codebase, so
-  it's its own PR, not a drive-by. → PH-4.
+- **`tsconfig.app.json` has no `"strict"` — but strict is on anyway.**
+  **Corrected 2026-08-26.** This bullet used to claim `tsc -b` in CI (PR #8)
+  "catches far less than it looks like — `string | null` flows into `string`
+  unchallenged," and that flipping the flag would surface errors across the
+  codebase. That was written from TypeScript ≤5 intuition and is **false for
+  this repo**: `package.json` pins `typescript: ~6.0.2`, and TypeScript 6
+  defaults `strict` to `true`. Verified by running the repo's own compiler
+  (`web/node_modules/.bin/tsc`, v6.0.3, 74 project files): `--strict` and the
+  bare project config both report **0 errors**, and an explicit
+  `--strict false` on a `const b: string = a` (where `a: string | null`) is
+  the only way to make that assignment stop erroring. The omission is a
+  latent risk, not an active hole — a TypeScript downgrade or an inherited
+  config that sets `strict: false` would silently switch it off with nothing
+  in CI to say so. → PH-4, now a one-line explicitness fix rather than a
+  codebase-wide cleanup.
+  *(Watch for `npx tsc` when re-checking this: `npx` resolves to an unrelated
+  `tsc@2.0.4` package from npm, which prints a banner and exits 1 without
+  compiling anything. Use `./node_modules/.bin/tsc`.)*
 
 ## Task queue
 
-- **PH-4 (2026-08-25).** Turn on `"strict": true` in
-  `web/tsconfig.app.json`. This is the pre-existing "its own PR, not a
-  drive-by" item above, now queued explicitly so it stops living only in
-  prose. Expect real errors — `string | null` into `string` is the shape
-  called out. Fix them in the same PR rather than sprinkling `!` or `any`;
-  if the count turns out to be large (say >40), flip the individual flags
-  that pay off most first (`strictNullChecks` alone) and say so in the
-  ledger row rather than half-finishing. Verify: `npm run build` in `web/`
-  passes, and CI's `frontend` job is green.
+- **PH-4 (rewritten 2026-08-26 — scope shrank, see the corrected bullet
+  above).** Add `"strict": true` explicitly to `web/tsconfig.app.json`'s
+  `compilerOptions`. **Do not expect errors.** TypeScript 6 already defaults
+  it on, so this is a one-line pin against a silent future regression (a TS
+  downgrade, or a config change setting it false), not the codebase-wide
+  cleanup this item was originally written as. The previous instruction to
+  "fix errors in the same PR" and to fall back to `strictNullChecks` alone
+  above 40 errors is withdrawn — if you somehow do hit errors, that itself
+  contradicts the verification below and is worth stopping and reporting
+  rather than working around. While you're in the file, the same reasoning
+  applies to nothing else in it — don't opportunistically add other flags.
+  Verify: `cd web && ./node_modules/.bin/tsc -p tsconfig.app.json --noEmit`
+  reports 0 errors both before and after your change (that equality is the
+  actual point of the task), `npm run build` passes, and CI's `frontend` job
+  is green. Use `./node_modules/.bin/tsc`, not `npx tsc` — see the note above.
 - **PH-5 (2026-08-25, low priority — do this last of the three).**
   Guest→account migration. A guest who onboards, saves dogs, then applies
   lands in a fresh empty account because `web/src/lib/session.ts` has no
@@ -107,6 +127,25 @@ still ranked under PH-3, but no longer invisible to execute.
   client-side, copy it into the new `fosters/{uid}` doc on first sign-in.
   Verify: as a guest, complete onboarding and save two dogs, then sign in
   with Google — the onboarding answers and both saved dogs are still there.
+- **PH-6 (2026-08-26).** Data export, the other half of PH-2. Deletion
+  shipped; a data-subject request can equally ask for a copy, and the app
+  stores real names, addresses, and pickup locations. Build it the same way
+  PH-2 went — client-side in `web/src/auth.ts` next to `deleteAccount()`,
+  since there is still no admin panel to host a `GET /account/export`
+  endpoint. Shape (already settled in the "Account deletion" section above,
+  don't redesign it): a single JSON blob of `fosters/{uid}`, its `careLog`
+  subcollection, and the foster's `applications` rows — the last of which
+  now exist as of RS-1 (PR #21), so include them rather than the
+  read-through `fosters/{uid}.matchedDogId`/`approvalChecklist`/`pickup`
+  fields alone. **Do not include `fosters/{uid}/agentSession/current`**: it
+  is a `messagesJson` dump of raw model turns, it is already
+  no-client-write in `firestore.rules`, and it is a transcript of the
+  agent's reasoning rather than data the foster gave you. Surface it in
+  `AccountSheet.tsx` beside the delete button, signed-in users only.
+  Deliver the file with a `Blob` + object-URL download; do not add a
+  dependency for this. Verify: as a signed-in test foster with at least one
+  saved dog, one care-log entry, and one submitted application, the
+  downloaded JSON contains all three and no `agentSession` key.
 
 ## Ledger
 
@@ -124,7 +163,7 @@ still ranked under PH-3, but no longer invisible to execute.
   `firestore.rules` already lets the owner write/delete their own doc and
   subcollection. Went client-side per the task's own fallback (no admin
   panel exists to host a `DELETE /account` endpoint).
-- 2026-08-25 — PH-3 — PR #__ — `src/agent/session_store.py` persists
+- 2026-08-25 — PH-3 — PR #23 — `src/agent/session_store.py` persists
   `Agent.messages` (loop.py now dumps assistant content blocks to plain
   dicts at append time, not raw SDK objects, so the list stays JSON-safe
   throughout) as a `messagesJson` string on

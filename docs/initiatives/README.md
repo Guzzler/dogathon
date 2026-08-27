@@ -110,3 +110,12 @@ Each initiative doc ends with a **Ledger** — one line per shipped item:
 rewrite history in it. If a task shipped smaller or different than queued,
 say so in the line rather than editing the original queue entry after the
 fact.
+
+**On `PR #__` placeholders.** execute writes its ledger row in the same
+commit as the code, before the PR exists, so it cannot know its own number
+and has been writing `PR #__`. All three docs had one as of 2026-08-26
+(PH-3, RS-3, DC-1 — backfilled to #23, #24, #25 in that run). This is a
+real ordering constraint, not sloppiness, so the convention is: **execute
+leaves `PR #__` and plan backfills it on the next run** from
+`gh pr list --state merged`. If execute can cheaply amend the row after
+opening the PR, better — but don't block a merge on it.
