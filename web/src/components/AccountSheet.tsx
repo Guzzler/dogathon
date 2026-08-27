@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { AUTH_AVAILABLE, deleteAccount, signInWithGoogle, signOutOfPawthway } from "../auth";
+import {
+  AUTH_AVAILABLE, deleteAccount, exportAccountData, signInWithGoogle, signOutOfPawthway,
+} from "../auth";
 import { clearGuestData } from "../lib/localMode";
 import type { Session } from "../lib/session";
 
@@ -12,7 +14,17 @@ export function AccountSheet({ session, onClose }: { session: Session; onClose: 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const isGuest = session.kind === "guest";
+
+  async function downloadData() {
+    setExporting(true);
+    setExportError(null);
+    try { await exportAccountData(); }
+    catch { setExportError("Couldn't export your data — try again."); }
+    finally { setExporting(false); }
+  }
 
   async function removeAccount() {
     setDeleting(true);
@@ -98,6 +110,14 @@ export function AccountSheet({ session, onClose }: { session: Session; onClose: 
             Start fresh on this device
           </button>
         ))}
+
+        {!isGuest && (
+          <button className="btn btn--ghost" style={{ marginTop: 8 }} disabled={exporting}
+            onClick={downloadData}>
+            {exporting ? "Preparing…" : "Download my data"}
+          </button>
+        )}
+        {!isGuest && exportError && <p className="muted" style={{ marginTop: 6 }}>{exportError}</p>}
 
         {!isGuest && (confirmDelete ? (
           <div className="account__wipe">

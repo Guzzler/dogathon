@@ -53,18 +53,19 @@ made the tool honest, not capable. A real notification path is downstream of
 M3 in `real-data-and-shelters.md` (a shelter with an account and an
 application list is the thing worth notifying), so it is not queued here.
 
-## Account deletion — shipped; export — still absent
+## Account deletion and export — both shipped
 
 **Deletion resolved 2026-08-24 (PH-2, PR #20):** `deleteAccount()` in
 `web/src/auth.ts`, surfaced in `AccountSheet.tsx` behind a confirm step for
 signed-in users. Verified present on `main` 2026-08-25.
 
-**Export is not built.** The app stores real names, addresses, and pickup
-locations behind Google sign-in, and a data-subject request can ask for a
-copy as well as a deletion. Not queued yet because deletion is the half with
-teeth and it now exists; a JSON dump of `fosters/{uid}` plus its
-`careLog` and the foster's `applications` rows is the obvious shape when it
-is queued.
+**Export resolved 2026-08-26 (PH-6):** `exportAccountData()` in
+`web/src/auth.ts` builds a JSON blob of `fosters/{uid}`, its `careLog`
+subcollection, and `applications` rows (queried by `fosterId`), triggered
+via a "Download my data" button in `AccountSheet.tsx` beside the delete
+button, signed-in users only. Deliberately excludes
+`fosters/{uid}/agentSession/current` — the agent's own reasoning, not
+foster-given data, and already no-client-write in rules.
 
 ## No error tracking
 
@@ -112,25 +113,6 @@ still ranked under PH-3, but no longer invisible to execute.
   client-side, copy it into the new `fosters/{uid}` doc on first sign-in.
   Verify: as a guest, complete onboarding and save two dogs, then sign in
   with Google — the onboarding answers and both saved dogs are still there.
-- **PH-6 (2026-08-26).** Data export, the other half of PH-2. Deletion
-  shipped; a data-subject request can equally ask for a copy, and the app
-  stores real names, addresses, and pickup locations. Build it the same way
-  PH-2 went — client-side in `web/src/auth.ts` next to `deleteAccount()`,
-  since there is still no admin panel to host a `GET /account/export`
-  endpoint. Shape (already settled in the "Account deletion" section above,
-  don't redesign it): a single JSON blob of `fosters/{uid}`, its `careLog`
-  subcollection, and the foster's `applications` rows — the last of which
-  now exist as of RS-1 (PR #21), so include them rather than the
-  read-through `fosters/{uid}.matchedDogId`/`approvalChecklist`/`pickup`
-  fields alone. **Do not include `fosters/{uid}/agentSession/current`**: it
-  is a `messagesJson` dump of raw model turns, it is already
-  no-client-write in `firestore.rules`, and it is a transcript of the
-  agent's reasoning rather than data the foster gave you. Surface it in
-  `AccountSheet.tsx` beside the delete button, signed-in users only.
-  Deliver the file with a `Blob` + object-URL download; do not add a
-  dependency for this. Verify: as a signed-in test foster with at least one
-  saved dog, one care-log entry, and one submitted application, the
-  downloaded JSON contains all three and no `agentSession` key.
 
 ## Ledger
 
@@ -158,7 +140,7 @@ still ranked under PH-3, but no longer invisible to execute.
   no-client-write rule for the subcollection in `firestore.rules`. Did not
   touch `--max-instances=1` or the approval queue — out of scope per the
   correction above.
-- 2026-08-26 — PH-4 — PR #__ — Added `"strict": true` explicitly to
+- 2026-08-26 — PH-4 — PR #27 — Added `"strict": true` explicitly to
   `web/tsconfig.app.json`'s `compilerOptions`, per the doc's own corrected
   premise: TypeScript 6 (`~6.0.2` in `package.json`) already defaults
   `strict` on, so this was a one-line pin against a silent future
@@ -166,4 +148,11 @@ still ranked under PH-3, but no longer invisible to execute.
   `./node_modules/.bin/tsc -p tsconfig.app.json --noEmit` both before and
   after the change, `npm run build`, `npm run lint` (no new warnings beyond
   the pre-existing ones), and `npm run test` (28/28) all green.
-  correction above.
+- 2026-08-26 — PH-6 — PR #__ — `exportAccountData()` in `web/src/auth.ts`
+  builds a JSON blob of `fosters/{uid}`, its `careLog` subcollection, and
+  `applications` rows (queried `where("fosterId", "==", uid)` — no
+  composite index needed, single equality filter). Delivered via a
+  `Blob` + object-URL `<a download>` click, no new dependency. Wired into
+  `AccountSheet.tsx` as a "Download my data" button beside "Delete
+  account", signed-in users only. Excludes
+  `fosters/{uid}/agentSession/current` per the task's own instruction.
