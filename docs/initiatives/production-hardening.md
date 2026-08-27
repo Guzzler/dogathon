@@ -103,21 +103,6 @@ still ranked under PH-3, but no longer invisible to execute.
 
 ## Task queue
 
-- **PH-4 (rewritten 2026-08-26 — scope shrank, see the corrected bullet
-  above).** Add `"strict": true` explicitly to `web/tsconfig.app.json`'s
-  `compilerOptions`. **Do not expect errors.** TypeScript 6 already defaults
-  it on, so this is a one-line pin against a silent future regression (a TS
-  downgrade, or a config change setting it false), not the codebase-wide
-  cleanup this item was originally written as. The previous instruction to
-  "fix errors in the same PR" and to fall back to `strictNullChecks` alone
-  above 40 errors is withdrawn — if you somehow do hit errors, that itself
-  contradicts the verification below and is worth stopping and reporting
-  rather than working around. While you're in the file, the same reasoning
-  applies to nothing else in it — don't opportunistically add other flags.
-  Verify: `cd web && ./node_modules/.bin/tsc -p tsconfig.app.json --noEmit`
-  reports 0 errors both before and after your change (that equality is the
-  actual point of the task), `npm run build` passes, and CI's `frontend` job
-  is green. Use `./node_modules/.bin/tsc`, not `npx tsc` — see the note above.
 - **PH-5 (2026-08-25, low priority — do this last of the three).**
   Guest→account migration. A guest who onboards, saves dogs, then applies
   lands in a fresh empty account because `web/src/lib/session.ts` has no
@@ -172,4 +157,13 @@ still ranked under PH-3, but no longer invisible to execute.
   after each turn; `/reset` deletes the doc. Added an owner-read/
   no-client-write rule for the subcollection in `firestore.rules`. Did not
   touch `--max-instances=1` or the approval queue — out of scope per the
+  correction above.
+- 2026-08-26 — PH-4 — PR #__ — Added `"strict": true` explicitly to
+  `web/tsconfig.app.json`'s `compilerOptions`, per the doc's own corrected
+  premise: TypeScript 6 (`~6.0.2` in `package.json`) already defaults
+  `strict` on, so this was a one-line pin against a silent future
+  regression, not a codebase-wide cleanup. Verified `0 errors` from
+  `./node_modules/.bin/tsc -p tsconfig.app.json --noEmit` both before and
+  after the change, `npm run build`, `npm run lint` (no new warnings beyond
+  the pre-existing ones), and `npm run test` (28/28) all green.
   correction above.
