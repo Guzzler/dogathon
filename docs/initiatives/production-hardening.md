@@ -78,11 +78,16 @@ telling you chat is broken.
 Both are now queued below (PH-4, PH-5) rather than sitting only in prose —
 still ranked under PH-3, but no longer invisible to execute.
 
-- **Guest→account migration.** A guest who completes onboarding, saves
-  dogs, then applies (which requires signing in) lands in a fresh empty
-  account — `web/src/lib/session.ts` has no `linkWithCredential` path.
-  Deprioritized by Sharang (2026-08-23) rather than silently dropped; still
-  worth a small fix. → PH-5.
+- **Guest→account migration — resolved 2026-08-26 (PH-5).** A guest who
+  completes onboarding, saves dogs, then applies (which requires signing
+  in) used to land in a fresh empty account. `web/src/lib/session.ts` never
+  had a Firebase anonymous-auth user to `linkWithCredential` onto — a guest
+  is pure `localStorage` (`web/src/lib/localMode.ts`), no Firebase Auth
+  session at all — so the original bullet's premise was slightly off too:
+  `migrateGuestData()` in `web/src/auth.ts` copies the local `Foster` and
+  care-log entries into the new `fosters/{uid}` doc on first
+  `signInWithGoogle()`, only when that doc doesn't already exist (a
+  returning user's real data always wins).
 - **`tsconfig.app.json` has no `"strict"` — but strict is on anyway.**
   **Corrected 2026-08-26.** This bullet used to claim `tsc -b` in CI (PR #8)
   "catches far less than it looks like — `string | null` flows into `string`
@@ -104,15 +109,10 @@ still ranked under PH-3, but no longer invisible to execute.
 
 ## Task queue
 
-- **PH-5 (2026-08-25, low priority — do this last of the three).**
-  Guest→account migration. A guest who onboards, saves dogs, then applies
-  lands in a fresh empty account because `web/src/lib/session.ts` has no
-  `linkWithCredential` path. Deprioritized by Sharang on 2026-08-23 but
-  real: use `linkWithCredential`/`linkWithPopup` on the existing anonymous
-  local session where possible, and where the guest state is purely
-  client-side, copy it into the new `fosters/{uid}` doc on first sign-in.
-  Verify: as a guest, complete onboarding and save two dogs, then sign in
-  with Google — the onboarding answers and both saved dogs are still there.
+Empty as of 2026-08-26 — PH-4, PH-5, and PH-6 all shipped this run. The
+remaining open items in this doc (the approval-queue split-brain race under
+"H1", no error tracking) are prose, not queued tasks yet; `plan` picks the
+next one.
 
 ## Ledger
 
@@ -148,7 +148,7 @@ still ranked under PH-3, but no longer invisible to execute.
   `./node_modules/.bin/tsc -p tsconfig.app.json --noEmit` both before and
   after the change, `npm run build`, `npm run lint` (no new warnings beyond
   the pre-existing ones), and `npm run test` (28/28) all green.
-- 2026-08-26 — PH-6 — PR #__ — `exportAccountData()` in `web/src/auth.ts`
+- 2026-08-26 — PH-6 — PR #28 — `exportAccountData()` in `web/src/auth.ts`
   builds a JSON blob of `fosters/{uid}`, its `careLog` subcollection, and
   `applications` rows (queried `where("fosterId", "==", uid)` — no
   composite index needed, single equality filter). Delivered via a
@@ -156,3 +156,21 @@ still ranked under PH-3, but no longer invisible to execute.
   `AccountSheet.tsx` as a "Download my data" button beside "Delete
   account", signed-in users only. Excludes
   `fosters/{uid}/agentSession/current` per the task's own instruction.
+- 2026-08-26 — PH-5 — PR #__ — `migrateGuestData()` in `web/src/auth.ts`,
+  called from `signInWithGoogle()` when `wasGuest()` was true before the
+  guest flag is cleared. Copies the localStorage `Foster` and care-log
+  entries into the new `fosters/{uid}` doc, then `clearGuestData()`.
+  **Shipped smaller than queued, and for a real reason:** the task said to
+  "use `linkWithCredential`/`linkWithPopup` on the existing anonymous local
+  session where possible" — there is no such session. A Pawthway guest has
+  no Firebase Auth user at all (anonymous auth is never called; see
+  `localMode.ts` and the README's "browsing doesn't require an account"
+  decision), so credential linking has nothing to link and the task's own
+  fallback — "where the guest state is purely client-side, copy it into the
+  new `fosters/{uid}` doc" — is the whole job. Guarded two ways: skips if
+  `fosters/{uid}` already exists (returning user's real data wins over a
+  stale local guest doc on a shared device) and skips if the local foster
+  still equals `BLANK_FOSTER` (nothing worth migrating). Care-log entries
+  are re-written sequentially with a fresh `serverTimestamp()` rather than
+  the local `created_at`, preserving order. **Not verified live** — needs a
+  real Google sign-in against the deployed app; build/lint/test green only.
