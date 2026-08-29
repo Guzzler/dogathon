@@ -13,8 +13,12 @@ import { PostFosterView } from "./phases/postfoster/PostFosterView";
 import { PublicAdoptionView } from "./phases/postfoster/PublicAdoptionView";
 import { SignInView } from "./phases/auth/SignInView";
 import { DemoIntroView, demoIntroSeen } from "./phases/auth/DemoIntroView";
+import { ShelterLayout } from "./phases/shelter/ShelterLayout";
+import { ShelterHomeView } from "./phases/shelter/ShelterHomeView";
+import { ShelterNotStaffView, ShelterErrorView } from "./phases/shelter/ShelterAccessViews";
 import { useSession } from "./hooks/useSession";
 import { useFoster } from "./hooks/useFoster";
+import { StaffShelterProvider, useStaffShelters } from "./hooks/useStaffShelters";
 import { hasOnboarded, journeyHome } from "./lib/foster";
 import "./App.css";
 import "./pawthway.css";
@@ -52,6 +56,27 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * The shelter side's front door. `useStaffShelters` is always called (never behind an
+ * early return) so its hook order stays stable across the loading -> signed-in transition --
+ * it degrades to "notStaff" on its own when there's no uid yet, which is what makes that safe.
+ * A signed-out visit renders SignInView in place rather than redirecting, so completing the
+ * popup sign-in just re-renders this same gate on the same /shelter URL -- no redirect-back
+ * bookkeeping needed.
+ */
+function StaffGate({ children }: { children: React.ReactNode }) {
+  const session = useSession();
+  const uid = session.kind === "user" ? session.uid : null;
+  const result = useStaffShelters(uid);
+
+  if (session.kind === "loading") return <Boot />;
+  if (session.kind === "signedOut" || session.kind === "guest") return <SignInView />;
+  if (result.state === "loading") return <Boot />;
+  if (result.state === "error") return <ShelterErrorView />;
+  if (result.state === "notStaff") return <ShelterNotStaffView />;
+  return <StaffShelterProvider value={result.shelters}>{children}</StaffShelterProvider>;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -73,6 +98,11 @@ export default function App() {
           <Route path="care-plan/:tab" element={<CarePlanView />} />
           <Route path="post-foster" element={<PostFosterView />} />
         </Route>
+      </Route>
+      {/* A sibling of the foster Layout, not nested inside it: Layout *is* the 430px phone
+          frame, which would trap a desk-shaped dashboard. See ShelterLayout's own comment. */}
+      <Route path="shelter" element={<ShelterLayout />}>
+        <Route index element={<ShelterGateOutlet />} />
       </Route>
     </Routes>
   );
@@ -96,4 +126,8 @@ function JourneyHome() {
 import { Outlet } from "react-router-dom";
 function GateOutlet() {
   return <AuthGate><DemoIntroGate><OnboardingGate><Outlet /></OnboardingGate></DemoIntroGate></AuthGate>;
+}
+
+function ShelterGateOutlet() {
+  return <StaffGate><ShelterHomeView /></StaffGate>;
 }
