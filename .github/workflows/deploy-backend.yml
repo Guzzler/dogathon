@@ -33,13 +33,20 @@ jobs:
       # The key goes in via env rather than inline interpolation so a stray character
       # in the secret can't reshape the command line, and so it isn't echoed in logs.
       #
-      # --max-instances=1 is a correctness pin, not a cost knob, and raising it will
-      # break the product in a way that looks like nothing at all: server.py holds each
-      # session's Agent and its approval queue.Queue in this process's memory, and there
-      # is no session affinity. On a second instance, a /chat blocked waiting for
-      # approval never sees the /approve that landed elsewhere — no error, no log, the
-      # tool call just sits out its full 300s timeout while the foster watches a spinner.
-      # Lift it only once conversation and approval state live in Firestore.
+      # --max-instances=1 is a correctness pin, not a cost knob. It exists because a
+      # /chat blocked waiting for approval used to hold a queue.Queue in one process's
+      # memory: on a second instance the /approve landed elsewhere and the parked tool
+      # call sat out its full 300s timeout with no error and no log, while the foster
+      # watched a spinner.
+      #
+      # As of PH-8 that is no longer true. Both halves of a session now live in
+      # Firestore: the transcript (session_store.py) and the approval handoff, which is
+      # a polled field on the same document (approval_store.py). A decision written by
+      # any instance reaches the thread parked in any other. **The pin is therefore
+      # removable — but it has not been removed here on purpose.** Lifting it is its own
+      # change, made after this has been watched working in production for a while, not
+      # a side effect of the PR that made it safe. When it goes, raise it in one small
+      # PR and watch /health's active_sessions across instances.
       # --min-instances=1 keeps that single instance warm, so a cold start doesn't land
       # in the middle of someone's first message.
       - name: Deploy to Cloud Run

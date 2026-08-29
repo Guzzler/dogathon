@@ -6,10 +6,9 @@ true, or loses something a real person would mind losing. None of it is
 visible in a demo. All of it matters the first time a real dog goes home
 with a real foster.
 
-## H1 — transcript is durable (PH-3); approval queue still isn't
+## H1 — transcript is durable (PH-3); approval channel is too (PH-8)
 
-`src/agent/server.py` keeps one in-memory `Agent` and one approval
-`queue.Queue` per foster uid. `deploy-backend.yml` pins
+`src/agent/server.py` keeps one in-memory `Agent` per foster uid. `deploy-backend.yml` pins
 `--min-instances=1 --max-instances=1`, which was a **correctness** fix (a
 second instance could swallow an `/approve` that a `/chat` elsewhere was
 blocked on — see the comment above the flag in the workflow) not a cost one.
@@ -23,17 +22,23 @@ session. Trimmed to the last 40 stored messages (~20 turns, a starting
 guess) on write. A redeploy or restart no longer drops a foster's
 conversation.
 
-**Still only mitigated, not fixed:** the *approval* channel.
-`Session.approvals` is a `queue.Queue[bool]` that a request thread is
-**blocked on** inside `_build_agent`'s `approve=lambda ...: approvals.get(
-timeout=300)` (`server.py:211-224`). A blocked thread is not serializable —
-it dies with the process, and a second instance has no way to hand a `bool`
-to a thread parked in another container. Durable transcripts fix *deploys
-losing history*; they do **not** fix the split-brain approval race that
-`--max-instances=1` exists to prevent. **The pin stays** until approvals
-themselves move to shared state (a Firestore field the blocked thread
-polls, or a real queue) — deliberately out of scope for PH-3, and not
-queued yet.
+**Resolved 2026-08-29 (PH-8).** The paragraph that used to sit here described
+`Session.approvals` as a `queue.Queue[bool]` a request thread blocks on — a
+blocked thread being unserializable, and a second instance having no way to
+hand it a `bool`. That is no longer the shape. `src/agent/approval_store.py`
+writes a `pendingApproval` map onto the same
+`fosters/{uid}/agentSession/current` document PH-3 created and **polls** it at
+one read per second up to the same 300-second ceiling; `/approve` writes the
+decision and no longer touches the in-memory session at all. A decision written
+by any instance reaches a thread parked in any other.
+
+**What that leaves open, deliberately.** The `--min-instances=1
+--max-instances=1` pin is now *removable* and has **not been removed** — it
+comes out as its own small change once this has been watched working in
+production, not as a side effect of the PR that made it safe. Until then the
+backend is still a single point of failure, and that is a choice rather than a
+constraint. `deploy-backend.yml`'s comment says the same thing at the point
+someone would actually edit the flag.
 
 ## The notification that doesn't notify — fixed (PH-1, PR #19)
 
@@ -132,44 +137,10 @@ gate is lifted and replaced with a better one.
 - **PH-9 — shipped 2026-08-29.** `tests/` plus a `Test` step in `ci.yml`'s
   `backend` job. See Ledger for what it covers and what it deliberately does not.
 
-- **PH-8 (2026-08-28; re-gated 2026-08-29 on PH-9, not on PH-7's alerting
-  half) — move the approval channel to shared state.** The old gate made this
-  wait on a GCP console click no unattended run can perform, which is not a
-  gate, it's a deadlock. What this change actually needs before it is safe is a
-  way to assert its own behaviour, and PH-7's shipped half already supplies the
-  production signal it wanted (`/health` now reports `active_sessions` and
-  `firestore_reachable`, so "did this instance just restart and drop every
-  parked approval thread" is answerable without asking a foster). The last thing holding `--max-instances=1` in place. Read H1 above
-  in full before starting; the constraint is stated there precisely and this
-  item does not restate it.
-  - The shape: `Session.approvals` is a `queue.Queue[bool]` that a request
-    thread **blocks on** inside `_build_agent`'s
-    `approve=lambda name, args: approvals.get(timeout=300)`
-    (`server.py:216-228`, `:240-245`), and `/approve` hands it a bool with
-    `_session(foster_id).approvals.put(...)` (`:450`). A parked thread is not
-    serializable and a second instance cannot reach it. Replace the in-process
-    handoff with one a second instance could satisfy: a field on
-    `fosters/{uid}/agentSession/current` (the doc PH-3 already created) that
-    the blocked thread polls, with the same 300s ceiling. A Firestore
-    real-time listener is the tempting alternative — it is also a second
-    concurrency model inside a thread that is already blocking, so prefer the
-    boring poll unless you find a concrete reason not to, and record the
-    reason if you do.
-  - **Do not touch `--min-instances` / `--max-instances` in this PR.** The
-    pin comes out only after this has been observed working, and that is a
-    separate, deliberately separate, change. `deploy-backend.yml:36-56`
-    carries a comment explaining the pin — update it to say the pin is now
-    removable and why, don't remove it.
-  - Rules: `fosters/{uid}/agentSession/current` is owner-read /
-    no-client-write today (PH-3). An approval written by the *server* via the
-    Admin SDK keeps that true. If your design needs the client to write this
-    field, stop — that's a different design, and widening that rule is not in
-    scope.
-  - Verify: two approvals in one session both resolve; an approval that
-    nobody answers still times out at 300s rather than hanging; restarting
-    the backend mid-approval leaves the foster with a recoverable state
-    rather than a dead stream. State plainly in the ledger row which of these
-    you actually exercised and which you only reasoned about.
+- **PH-8 — shipped 2026-08-29.** `src/agent/approval_store.py`; the approval
+  handoff is a polled Firestore field, not an in-process queue. The
+  `--max-instances=1` pin is now *removable* and was deliberately not removed —
+  see the Ledger and the updated comment in `deploy-backend.yml`.
 
 ### Needs a human, not a queue item
 
@@ -312,3 +283,43 @@ gate is lifted and replaced with a better one.
   broken assertion to this branch and reading the failure back off the real
   Actions run before reverting it — the `backend` job went red at the `Test`
   step in run 33240237512, then green again in the run on the revert.
+- 2026-08-29 — PH-8 — PR #__ — The approval handoff moved from an in-process
+  `queue.Queue[bool]` to a polled Firestore field. New `src/agent/approval_store.py`:
+  `request()` writes a `pendingApproval` map (`requestId`, `tool`, `decision`,
+  `requestedAt`) onto `fosters/{uid}/agentSession/current` with `merge=True`,
+  `wait()` polls it once a second against the same 300s ceiling, `resolve()` writes
+  the decision, `clear()` nulls the field. `Session.approvals` is gone;
+  `_build_agent` now closes over `_await_approval(foster_id, name)`; `/approve` calls
+  `approval_store.resolve()` and **no longer touches `_session()`** — building a
+  session just to reach a queue was the old shape, and the thread waiting may be in
+  another instance. Went with the poll over a real-time listener exactly as the item
+  suggested: a listener is a second concurrency model inside a thread that is already
+  blocking, and 300 document reads for the worst case is a rounding error next to the
+  model call in the same turn. **Three deliberate changes beyond the literal task.**
+  (1) A timeout now returns `False` (declined) instead of letting `queue.Empty`
+  escape — the old behaviour aborted the stream leaving an assistant `tool_use`
+  block with no matching `tool_result`, which the next request would send back to the
+  API; declining keeps the transcript well-formed. (2) `session_store.save()` now uses
+  `merge=True`, because a plain `set()` on the shared document would delete a
+  `pendingApproval` a turn is parked on. (3) A Firestore failure while *recording* the
+  request declines rather than proceeding — an unaskable question is not a yes.
+  No rules change: both sides run server-side through the Admin SDK, so
+  `agentSession/{doc}` stays owner-read / no-client-write. **The instance pins were not
+  touched**, per the item's own instruction; `deploy-backend.yml`'s comment now says the
+  pin is removable, why, and that lifting it is its own change.
+  Verified — and this line distinguishes what was exercised from what was reasoned
+  about, per the item's request. **Exercised**, in 8 new tests in
+  `tests/test_approval_store.py` (20 backend tests total, green locally and in CI):
+  two approvals in one session both resolving; an unanswered approval waiting the full
+  300s and then declining (driven through an injected clock, so the test doesn't sleep);
+  a request whose document vanishes underneath it — the `/reset` and restart case —
+  declining immediately rather than waiting out the ceiling; a stale request not
+  consuming a newer request's answer; a double-tapped `/approve` reporting nothing
+  pending; a decision arriving mid-poll being picked up promptly; a transient Firestore
+  error not deciding the question in either direction; and the transcript and the
+  approval sharing one document without clobbering each other. **Reasoned about only:**
+  the actual two-instance case — it cannot be observed while `--max-instances=1`
+  stands, which is the deliberate ordering, and the thing to watch when the pin is
+  lifted is an approval issued against one instance being answered against another.
+  Also not exercised end-to-end: a real dangerous-tool approval through the browser UI,
+  which needs a signed-in foster and a live Anthropic key.
