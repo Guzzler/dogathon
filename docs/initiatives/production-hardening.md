@@ -129,42 +129,8 @@ skipped every run. PH-8 was gated on it, which made the entire
 production-hardening queue depend on something no automated run can do; that
 gate is lifted and replaced with a better one.
 
-- **PH-9 (2026-08-29) — give the backend a test harness before PH-8 changes how
-  it blocks.** Verified 2026-08-29: there is no `tests/` directory anywhere in
-  the repo, no `test_*.py` under `src/`, and `ci.yml`'s `backend` job runs
-  exactly two things — `uv run python -c "import agent.server"` and
-  `uv run python -m compileall -q src scripts`. That is an import check, not a
-  test suite. The frontend has 28 tests; the backend has zero. PH-8 is a
-  **concurrency** change to a code path where a request thread blocks on a
-  handoff with a 300-second ceiling, and shipping that with no way to assert
-  behaviour except by reading it is how the DC-1 lesson repeats itself on the
-  Python side.
-  - Not a coverage push. The deliverable is a harness plus the two or three
-    tests that PH-8 will actually need to lean on.
-  - Add `pytest` as a dev dependency in `pyproject.toml` (there is a `uv.lock`
-    — regenerate it in the same commit so `uv sync --locked` in CI keeps
-    working; a stale lock fails the `backend` job outright and that is the
-    first thing to check if it goes red).
-  - Add a `Test` step to `ci.yml`'s `backend` job after "Sync dependencies",
-    running `uv run pytest`. Leave the import and compileall steps alone — they
-    cover `scripts/` and the CLI, which tests won't.
-  - Worth covering, in rough priority: `session_store.py`'s serialize/restore
-    round trip (the `messagesJson` string and the 40-message trim — assert the
-    trim keeps the *newest* 40, since keeping the oldest would be a silent and
-    very confusing bug), and `GET /health`'s shape via FastAPI's `TestClient`
-    with `_firestore_reachable` patched both ways. Both are reachable without
-    credentials, which is the point: the tests must run in CI with no ADC, no
-    Anthropic key, and no network. If a test needs any of those, it is the
-    wrong test for this item.
-  - Do **not** add a Firestore emulator, mock the Anthropic SDK's streaming, or
-    restructure anything to be more testable. If something can't be tested
-    without a refactor, say so in the PR and leave it — the refactor is a
-    separate decision.
-  - Verify: `uv run pytest` green locally and in CI, `uv sync --locked` still
-    clean, and deliberately break one assertion on a throwaway commit to
-    confirm the new step can actually turn the `backend` job red. That last
-    step is not optional — an inert guard is the exact failure this repo has
-    already shipped once (see `design-consistency.md`, DC-3/DC-6).
+- **PH-9 — shipped 2026-08-29.** `tests/` plus a `Test` step in `ci.yml`'s
+  `backend` job. See Ledger for what it covers and what it deliberately does not.
 
 - **PH-8 (2026-08-28; re-gated 2026-08-29 on PH-9, not on PH-7's alerting
   half) — move the approval channel to shared state.** The old gate made this
@@ -320,3 +286,29 @@ gate is lifted and replaced with a better one.
   `uv run python -c "import agent.server"` and `compileall` both clean. Did
   not curl the deployed `/health` post-merge — left as a spot-check for
   whoever reads this ledger row next, since doing so isn't blocking.
+- 2026-08-29 — PH-9 — PR #__ — Backend test harness: `pytest>=8.0` as a
+  `[dependency-groups] dev` entry in `pyproject.toml` (regenerated `uv.lock` in
+  the same commit so `uv sync --locked` stays clean), a `[tool.pytest.ini_options]
+  testpaths = ["tests"]` so discovery doesn't walk `web/`, and a `Test` step
+  running `uv run pytest` appended to `ci.yml`'s `backend` job — the import and
+  compileall steps kept, not replaced, since they cover `scripts/` and the CLI.
+  12 tests, all runnable with no ADC, no `ANTHROPIC_API_KEY` and no network:
+  `tests/test_session_store.py` covers the save/load round trip through nested
+  `content` blocks, that the transcript is stored as a single `messagesJson`
+  **string** field, that the 40-message trim keeps the **newest** 40 (the
+  assertion PH-9 called out — keeping the oldest would be silent and very
+  confusing), corrupt-JSON tolerance, `clear()`, and overwrite-not-append;
+  `tests/test_health.py` covers `GET /health`'s exact key set with
+  `_firestore_reachable` patched both ways via `TestClient`, that `/health`
+  needs no `Authorization` header, that `tool_count` matches the import-time
+  registry, and — one addition beyond the queued list — that `POST /chat`
+  without a token is still 401, pinning PR #9's auth check so it can't be
+  refactored away quietly. `tests/conftest.py` holds a ~60-line in-memory
+  Firestore fake (`document`/`get`/`set`/`delete`) that `session_store.db` is
+  monkeypatched onto. **No emulator, no Anthropic mock, no refactor for
+  testability**, per the item's own instruction. Verified: `uv run pytest` green
+  locally (12 passed) and in CI, `uv sync --locked` clean, and the new step was
+  confirmed able to turn the `backend` job **red** by pushing a deliberately
+  broken assertion to this branch and reading the failure back off the real
+  Actions run before reverting it — the `backend` job went red at the `Test`
+  step in run 33240237512, then green again in the run on the revert.
