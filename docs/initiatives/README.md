@@ -61,7 +61,12 @@ is the source of truth — read it, don't assume this paragraph still holds.
    for. Ranked last only because it's ongoing hygiene, not a one-time
    unblock — but its first task queue item is concrete and worth doing soon:
    a live incident (PR #11, cited in that doc) is the reason it exists at
-   all, not a hypothetical.
+   all, not a hypothetical. **2026-08-28: its DC-6 is arguably the single
+   most urgent item across all three docs right now** — the CI guard that
+   this whole initiative produced has been failing open on every run since it
+   merged, which is worse than not having it, because the repo has been
+   acting as though it works. That doesn't reorder the initiatives; it does
+   mean don't read "ranked last" as "pick from here last" this week.
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -136,4 +141,17 @@ and has been writing `PR #__`. All three docs had one as of 2026-08-26
 real ordering constraint, not sloppiness, so the convention is: **execute
 leaves `PR #__` and plan backfills it on the next run** from
 `gh pr list --state merged`. If execute can cheaply amend the row after
-opening the PR, better — but don't block a merge on it.
+opening the PR, better — but don't block a merge on it. The convention is
+working as designed: PH-5 was the only outstanding placeholder on 2026-08-28
+and was backfilled to #29 that run.
+
+**A standing lesson from 2026-08-28, worth generalising past the one bug.**
+DC-1 shipped with its verification recorded honestly as *"verified locally on
+two throwaway commits (not yet observed on a real GitHub Actions run)"*, and
+that caveat turned out to be the whole story: the guard worked locally and
+has never once worked in CI, because the failure was in the CI environment's
+shallow checkout, which local testing cannot reproduce by construction. When
+a ledger row says a thing was verified locally but not in the environment it
+runs in, that is an **open item**, not a completed one — plan should treat it
+as something to go and check, on a named next run, rather than as a
+disclaimer that has been discharged by being written down.

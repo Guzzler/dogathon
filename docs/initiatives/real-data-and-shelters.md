@@ -57,6 +57,18 @@ scales past one shelter.
   created**, and no uid is in any `staffUids` — so `isStaff()` currently
   evaluates against nothing and no shelter can edit its own listing. RS-2
   is what makes those rules load-bearing.
+  **Re-verified 2026-08-28 against `firestore.rules` on `main`, not against
+  this paragraph's own prior wording:** `match /dogs/{dogId}` is still
+  `allow write: if false` at `:12-17`, with the "Becomes isStaff(shelter_id)
+  … (M3)" comment intact. Nothing has moved here since 2026-08-25 — the four
+  merges in between (#27, #28, #29, #30) were all production-hardening or
+  docs. The queue below is unchanged and still accurate.
+
+**Doc size watch (2026-08-28):** this file is ~350 lines, against the
+README's ~400-line archive threshold, and it is the only doc close to it. The
+next `plan` run that adds material here should first move the settled M1/M2/M4
+narrative into `docs/initiatives/archive/` per the README's rule, rather than
+appending and quietly blowing through the limit.
 
 ## Milestones
 
