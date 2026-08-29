@@ -45,9 +45,11 @@ behind a settled decision; read this file for what is open.
 - **`match /dogs/{dogId}` is still `allow write: if false`** — re-read at
   `firestore.rules:12-18` on 2026-08-29, the "Becomes isStaff(shelter_id) … (M3)"
   comment intact. That is RS-6's to change, nobody else's.
-- **`firestore.indexes.json` is wired to deploy as of 2026-08-29 (RS-7, PR #__)
-  and carries the `applications` composite index RS-5 needs — but the deploy is
-  403ing.** The service account can't create indexes. Blocking for RS-5; see RS-9.
+- **`firestore.indexes.json` deploys, and the `applications` composite index
+  (`shelterId` ASC, `createdAt` DESC) exists** — RS-7 (PR #__) wired the target,
+  RS-9 supplied the IAM grant it needed, run 33243275175 deployed it green, and
+  `gcloud firestore indexes composite list` reports it `READY`. RS-5's query has a
+  serving index to run against.
 - **RS-2's `staff` and `notStaff` states are still unverified live.** Named as a
   check for this run by RS-2's own ledger row; still outstanding, because both
   need a real Google popup sign-in that an unattended run cannot drive. Carried
@@ -164,16 +166,16 @@ taken by the M4 drift check, which is unrelated and independent of these.)
   (`shelterId` ASC, `createdAt` DESC) is in `firestore.indexes.json`. See the
   Ledger — including which half of the verification is still outstanding.
 
-- **RS-5 (ungated 2026-08-28; sequenced after RS-7 — and as of 2026-08-29
-  BLOCKED on RS-9, which is a human's IAM grant, not a queue item) — the
-  application list and review.** Do not start this until the `applications`
-  composite index actually exists; the first thing the screen does is run the
-  query that needs it. The shelter's actual inbox:
+- **RS-5 (ungated 2026-08-28; sequenced after RS-7, and unblocked 2026-08-29 when
+  RS-9's IAM grant let the index deploy) — the application list and review.** The
+  index hazard is discharged: `applications` (`shelterId` ASC, `createdAt` DESC)
+  is deployed. The `||`-rule list-query hazard below is **not** — that one still
+  has to be answered by running the query as the seeded staff uid before any UI
+  is written. The shelter's actual inbox:
   `where("shelterId", "==", <their id>)`, newest first.
-  - **Before writing any UI**, settle both hazards from the design section
-    above: RS-7 must have landed and the index must read `Enabled`, and the
-    `||`-rule list-query question must be answered by actually running the
-    query as the seeded staff uid. Record the answer in this doc. If the query
+  - **Before writing any UI**, settle the remaining hazard from the design section
+    above (the index one is done — see RS-9): the `||`-rule list-query question
+    must be answered by actually running the query as the seeded staff uid. Record the answer in this doc. If the query
     is denied, stop and write down the options — do **not** widen
     `firestore.rules` to make it pass.
   - Row: foster name (`fosterName` is denormalised onto the application for
@@ -250,23 +252,29 @@ shelter, per the section below.
 
 ### Needs a human, not a queue item
 
-- **RS-9 — grant the deploy service account permission to create Firestore
-  indexes. This one is blocking, and it is the exact case RS-7 said to stop on.**
-  RS-7 shipped and the target ran — and failed:
-  `Request to https://firestore.googleapis.com/v1/projects/…/collectionGroups/applications/indexes
-  had HTTP Error: 403, The caller does not have permission` (run 33240631397).
-  The deploy service account has `roles/datastore.user`, which can read and write
-  documents but cannot create composite indexes; that needs
-  `datastore.indexes.create`, i.e. **`roles/datastore.indexAdmin`** (or owner) on
-  `pawthway-hackathon`. One `gcloud projects add-iam-policy-binding` or one console
-  click. Until it happens the `Deploy Firestore indexes` step is red on every
-  frontend deploy — deliberately, so the gap stays visible rather than being
-  papered over by dropping the target again (see PR #39 for why that step now runs
-  *after* hosting rather than as part of it). **RS-5 is blocked on this**: its
-  query cannot run without the index, and the index cannot deploy without the
-  grant. Once granted, re-run the workflow and confirm the index reads `Enabled`
-  in the console — index builds are asynchronous, so a returning deploy is not a
-  serving index.
+- **RS-9 — DONE 2026-08-29, by Sharang, in-session.** Kept here rather than
+  deleted because the sequence is worth not re-deriving. RS-7's target ran and was
+  refused: `403, The caller does not have permission` (run 33240631397) — the deploy
+  service account had `roles/datastore.user`, which reads and writes documents but
+  cannot create composite indexes. Sharang granted
+  **`roles/datastore.indexAdmin`** to
+  `github-deploy@pawthway-hackathon.iam.gserviceaccount.com` and asked for it to be
+  applied in-session; the invocation is in the runbook note below. Re-ran
+  `deploy-frontend.yml` (run 33243275175): the `Deploy Firestore indexes` step is
+  green and logs *"deployed indexes in firestore.indexes.json successfully for
+  (default) database"*. Then waited out the asynchronous build and confirmed the
+  index actually **serves** — `gcloud firestore indexes composite list` went
+  `CREATING` → `READY` for `shelterId, createdAt, __name__` on the `(default)`
+  database. That last check is the one this initiative kept saying was outstanding;
+  it is now done, and by reading the index's real state rather than a deploy's exit
+  code. **RS-5 is unblocked.**
+
+  For the record, since "pull the key from GitHub and do it" was the first idea:
+  **a GitHub Actions secret cannot be read back.** `gh secret list` returns names
+  only — that's GitHub's design, not a permissions problem — so there is no path
+  where CI's `GCP_SA_KEY` gets pulled down to do a one-off admin action, and
+  wanting one is a smell. Use a human's own `gcloud` credentials, which is what
+  happened.
 
 - **RS-8 — confirm RS-2's `staff` and `notStaff` states on the deployed app.**
   Two of RS-2's three states have never been seen working, because both need a
@@ -391,3 +399,14 @@ for progress.)*
   that reports success while deploying nothing is exactly DC-3's inert-guard failure.
   The step stays red on every deploy until RS-9 grants
   `roles/datastore.indexAdmin`, which is the point.
+- 2026-08-29 — RS-9 — no PR (an IAM change, not a commit) — Granted
+  `roles/datastore.indexAdmin` to `github-deploy@pawthway-hackathon.iam.gserviceaccount.com`,
+  at Sharang's explicit in-session instruction. Re-ran `deploy-frontend.yml`
+  (33243275175): `Deploy Firestore indexes` green, *"deployed indexes in
+  firestore.indexes.json successfully"*, and the `applications` composite index now
+  exists on the `(default)` database and, after the asynchronous build, reports
+  `READY` rather than `CREATING`. The invocation is recorded in
+  [`docs/runbook-gcp.md`](../runbook-gcp.md) so it is reproducible rather than living
+  only in one person's shell history — the same requirement PH-7b states for its own
+  `gcloud` path. Note for anyone tempted by the shortcut that started this: CI's
+  `GCP_SA_KEY` **cannot** be read back out of GitHub, by design.
