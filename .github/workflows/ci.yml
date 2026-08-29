@@ -109,3 +109,9 @@ jobs:
       # either only surfaces when someone runs them.
       - name: Compile everything else
         run: uv run python -m compileall -q src scripts
+
+      # The import and compileall steps above cover `scripts/` and the CLI, which
+      # these tests don't -- they're kept, not replaced. Everything under tests/
+      # runs with no ADC, no ANTHROPIC_API_KEY and no network, same as this job.
+      - name: Test
+        run: uv run pytest
