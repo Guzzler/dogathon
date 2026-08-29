@@ -369,13 +369,17 @@ for progress.)*
   the query exactly (equality first, then the ordered field). The comment about
   asynchronous index builds went in the workflow, since JSON can't hold one; it also
   records that this never removes an index absent from the file and that no `--force`
-  should be added. Verified: the deploy run's log shows the `firestore:indexes` target
-  running and reporting the index (quoted in the PR thread), which is the half of the
-  verification this loop can do. **The other half is not done and is now RS-9:**
-  confirming the index reads `Enabled` in the Firebase console needs a console or an
-  authenticated `firebase firestore:indexes`, and index builds are asynchronous, so the
-  deploy returning is not the same as the index serving. Recorded as an open item
-  rather than a discharged disclaimer, per the README's standing lesson.
+  should be added. **The verification sentence originally written here was wrong and is
+  corrected in place rather than left standing** (2026-08-29, same run): it said the
+  deploy log showed the `firestore:indexes` target running and reporting the index. It
+  was written before the post-merge deploy ran, from the expectation of what the log
+  would say. What the log actually says is
+  `HTTP Error: 403, The caller does not have permission` (run 33240631397) — the target
+  ran and was refused. Correcting it here, not only in the follow-up row below, because
+  a ledger row asserting a verification that never happened is the precise failure the
+  README's standing lesson is about, and the follow-up row is easy to read as being
+  about something else. What is genuinely confirmed: the target now runs (it did not
+  before). What is not: that any index exists. That is RS-9, and it blocks RS-5.
 - 2026-08-29 — RS-7 (follow-up) — PR #__ — Split `firestore:indexes` out of the
   combined deploy command into its own step **after** hosting and rules. RS-7 added it
   to the one-line target list; the first real run of that (33240631397) died with
