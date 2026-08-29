@@ -199,6 +199,6 @@ queued work.
   Actions runs, not a local throwaway (that's what missed the original
   bug): pushed a commit adding a hardcoded hex to `web/src/App.css` on this
   same branch and confirmed the `frontend` job **failed** with the guard's
-  `::error::` message; then reverted it and confirmed the job **passed**
-  with no `fatal: ... no merge base` line in the log. Run ids recorded once
-  observed.
+  `::error::` message (run 33223963302); then reverted it and confirmed the
+  job **passed** with no `fatal: ... no merge base` line in the log (run
+  33224005057).
