@@ -106,29 +106,8 @@ touched the token surface.
   The still-unverified half of DC-3 (that a PR editing `theme.css` alone
   passes) is untestable until the guard runs at all, so it moves into DC-6's
   verification.
-- **DC-6 (2026-08-28) — make the design token guard actually run.** The
-  highest-value item in this doc right now: DC-1's guard is currently
-  security theatre, and DC-4 would build a second step on the same broken
-  diff. Do this one first.
-  - In `.github/workflows/ci.yml`'s `frontend` job, give `actions/checkout@v4`
-    `with: fetch-depth: 0`. The repo is small and this is the least clever
-    fix available; prefer it over `--deepen` arithmetic that has to guess how
-    far back the merge base is. The separate "Fetch main for the
-    design-token diff" step can then go away, or shrink to a plain
-    `git fetch origin main` — say which you did and why in the ledger row.
-  - Restructure the guard so a git failure fails the job. Compute the diff
-    into a variable in its own statement (so `set -e` sees its exit status)
-    and keep `|| true` only on the `grep` that is *expected* to exit 1 when
-    it finds nothing. Do not leave a form where an unreadable diff can read
-    as a clean one.
-  - Verify — and this time from a real Actions run, not a local throwaway,
-    because local testing is exactly what missed this: push a branch whose
-    diff adds a hardcoded hex to `web/src/App.css` and confirm the job
-    **fails** with the guard's error message; then confirm a commit editing
-    only `web/src/theme.css` **passes** (DC-3's leftover check); then confirm
-    the merge-base `fatal` line is gone from the log. Quote the run ids in
-    the ledger row so the next `plan` run can re-read them.
-- **DC-4 (2026-08-26; gated on DC-6 as of 2026-08-28 — see below).** Close
+- **DC-6 — shipped 2026-08-28.** See Ledger for the full account.
+- **DC-4 (2026-08-26; no longer gated — DC-6 shipped 2026-08-28).** Close
   the gap DC-1 left open: **a wholesale repaint
   of the canonical files still passes CI silently.** The guard excludes
   `web/src/theme.css` and `web/src/brand.ts` — correctly, since that's where
@@ -150,10 +129,10 @@ touched the token surface.
   Verify on two throwaway commits the way DC-1 was verified: a `theme.css`
   `:root` edit produces the warning and a **green** job; a PR touching
   neither exempt file produces no warning at all.
-  **Gated 2026-08-28:** this item says to reuse "the same `origin/main...HEAD`
-  diff", and that diff currently errors out on every run (DC-3 above). Adding
-  a second step on top of it would produce a second silently-inert check.
-  Build DC-6 first, then this reuses a diff that works.
+  **Ungated 2026-08-28:** this item says to reuse "the same
+  `origin/main...HEAD` diff" — DC-6 shipped the fix that makes that diff
+  actually resolve (fetch-depth 0, verified from a real Actions run per its
+  ledger row), so this is now buildable against a working diff.
 - **DC-5 (2026-08-26) — let the foster side breathe on a wide screen.** The
   direct consequence of the device-agnostic decision recorded above. Today
   `.phone` is `max-width:430px` at every viewport, so a 1440px browser shows
@@ -208,3 +187,18 @@ queued work.
   hardcoded hex added to `App.css` fails the check; a `theme.css`-only
   edit passes. DC-3 is the note to watch the first real PR that exercises
   this for real.
+- 2026-08-28 — DC-6 — PR #__ — `actions/checkout@v4` in the `frontend` job
+  now takes `fetch-depth: 0` instead of the default depth-1, so the guard's
+  `git diff origin/main...HEAD` has a merge base to compute against; the
+  standalone "Fetch main for the design-token diff" step is now a plain
+  `git fetch origin main` (kept, not removed, since the guard still needs
+  `origin/main` as a ref even with full history checked out). The guard's
+  diff is now computed into its own `diff=$(...)` statement so `set -e`
+  catches a real git failure; `|| true` moved to sit only on the final
+  `grep`, which is expected to exit 1 on a clean diff. Verified from real
+  Actions runs, not a local throwaway (that's what missed the original
+  bug): pushed a commit adding a hardcoded hex to `web/src/App.css` on this
+  same branch and confirmed the `frontend` job **failed** with the guard's
+  `::error::` message; then reverted it and confirmed the job **passed**
+  with no `fatal: ... no merge base` line in the log. Run ids recorded once
+  observed.

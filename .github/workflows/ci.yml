@@ -17,6 +17,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The design-token guard below diffs against origin/main's merge base. A
+          # shallow (default depth-1) checkout has no history to find that base in,
+          # which made the guard error with "no merge base" on every run since it
+          # landed while still reporting success -- see docs/initiatives/
+          # design-consistency.md DC-3/DC-6. The repo is small; a full fetch is cheap.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -50,15 +57,21 @@ jobs:
       # without demanding an immediate cleanup of old drift. theme.css and brand.ts are
       # exempt because they're where a color literal is *supposed* to live.
       - name: Fetch main for the design-token diff
-        run: git fetch origin main --depth=1
+        run: git fetch origin main
 
       - name: Design token guard
         run: |
           set -euo pipefail
-          hits=$(git diff origin/main...HEAD -- \
+          # Computed as its own statement so `set -e` sees git's exit status: the
+          # previous shape piped this straight into grep with a trailing `|| true`,
+          # which (with pipefail) swallowed a git failure along with the intentional
+          # "grep found nothing" case, so an unreadable diff read as a clean one.
+          diff=$(git diff origin/main...HEAD -- \
               ':(glob)web/src/**/*.css' ':(glob)web/src/**/*.ts' ':(glob)web/src/**/*.tsx' \
-              ':(exclude)web/src/theme.css' ':(exclude)web/src/brand.ts' \
-            | grep -E '^\+' | grep -E -v '^\+\+\+' \
+              ':(exclude)web/src/theme.css' ':(exclude)web/src/brand.ts')
+          # grep exits 1 (not found) on a clean diff -- that's the one place `|| true`
+          # belongs, since it's an expected outcome, not a failure.
+          hits=$(echo "$diff" | grep -E '^\+' | grep -E -v '^\+\+\+' \
             | grep -E '#[0-9a-fA-F]{3,8}\b|rgba?\(' || true)
           if [ -n "$hits" ]; then
             echo "::error::New hardcoded color literal(s) outside web/src/theme.css and web/src/brand.ts."
