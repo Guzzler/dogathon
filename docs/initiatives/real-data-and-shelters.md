@@ -45,9 +45,9 @@ behind a settled decision; read this file for what is open.
 - **`match /dogs/{dogId}` is still `allow write: if false`** — re-read at
   `firestore.rules:12-18` on 2026-08-29, the "Becomes isStaff(shelter_id) … (M3)"
   comment intact. That is RS-6's to change, nobody else's.
-- **`firestore.indexes.json` deploys as of 2026-08-29 (RS-7, PR #__)** and now
-  carries the `applications` composite index RS-5 needs. Whether that index has
-  actually reached `Enabled` in the console is unconfirmed — see RS-9.
+- **`firestore.indexes.json` is wired to deploy as of 2026-08-29 (RS-7, PR #__)
+  and carries the `applications` composite index RS-5 needs — but the deploy is
+  403ing.** The service account can't create indexes. Blocking for RS-5; see RS-9.
 - **RS-2's `staff` and `notStaff` states are still unverified live.** Named as a
   check for this run by RS-2's own ledger row; still outstanding, because both
   need a real Google popup sign-in that an unattended run cannot drive. Carried
@@ -164,8 +164,11 @@ taken by the M4 drift check, which is unrelated and independent of these.)
   (`shelterId` ASC, `createdAt` DESC) is in `firestore.indexes.json`. See the
   Ledger — including which half of the verification is still outstanding.
 
-- **RS-5 (ungated 2026-08-28; now sequenced after RS-7) — the application list
-  and review.** The shelter's actual inbox:
+- **RS-5 (ungated 2026-08-28; sequenced after RS-7 — and as of 2026-08-29
+  BLOCKED on RS-9, which is a human's IAM grant, not a queue item) — the
+  application list and review.** Do not start this until the `applications`
+  composite index actually exists; the first thing the screen does is run the
+  query that needs it. The shelter's actual inbox:
   `where("shelterId", "==", <their id>)`, newest first.
   - **Before writing any UI**, settle both hazards from the design section
     above: RS-7 must have landed and the index must read `Enabled`, and the
@@ -247,14 +250,23 @@ shelter, per the section below.
 
 ### Needs a human, not a queue item
 
-- **RS-9 — confirm the `applications` composite index reads `Enabled`.** RS-7
-  put it in `firestore.indexes.json` and put `firestore:indexes` in the deploy
-  target; the deploy run's own log is the evidence that the target ran, and it
-  is quoted in RS-7's ledger row. The console is the evidence that the index
-  finished **building**, which is asynchronous and which no unattended run here
-  can see (it needs the Firebase console or an authenticated
-  `firebase firestore:indexes`). Thirty seconds, and RS-5's first query depends
-  on it. If it is missing or stuck, say so here rather than working around it.
+- **RS-9 — grant the deploy service account permission to create Firestore
+  indexes. This one is blocking, and it is the exact case RS-7 said to stop on.**
+  RS-7 shipped and the target ran — and failed:
+  `Request to https://firestore.googleapis.com/v1/projects/…/collectionGroups/applications/indexes
+  had HTTP Error: 403, The caller does not have permission` (run 33240631397).
+  The deploy service account has `roles/datastore.user`, which can read and write
+  documents but cannot create composite indexes; that needs
+  `datastore.indexes.create`, i.e. **`roles/datastore.indexAdmin`** (or owner) on
+  `pawthway-hackathon`. One `gcloud projects add-iam-policy-binding` or one console
+  click. Until it happens the `Deploy Firestore indexes` step is red on every
+  frontend deploy — deliberately, so the gap stays visible rather than being
+  papered over by dropping the target again (see PR #39 for why that step now runs
+  *after* hosting rather than as part of it). **RS-5 is blocked on this**: its
+  query cannot run without the index, and the index cannot deploy without the
+  grant. Once granted, re-run the workflow and confirm the index reads `Enabled`
+  in the console — index builds are asynchronous, so a returning deploy is not a
+  serving index.
 
 - **RS-8 — confirm RS-2's `staff` and `notStaff` states on the deployed app.**
   Two of RS-2's three states have never been seen working, because both need a
@@ -364,3 +376,14 @@ for progress.)*
   authenticated `firebase firestore:indexes`, and index builds are asynchronous, so the
   deploy returning is not the same as the index serving. Recorded as an open item
   rather than a discharged disclaimer, per the README's standing lesson.
+- 2026-08-29 — RS-7 (follow-up) — PR #__ — Split `firestore:indexes` out of the
+  combined deploy command into its own step **after** hosting and rules. RS-7 added it
+  to the one-line target list; the first real run of that (33240631397) died with
+  `HTTP Error: 403, The caller does not have permission` on the `applications` index
+  **before hosting had shipped**, so a missing IAM grant took the site's deploy down
+  with it. Reordering means a red run now says "the index didn't deploy", not "the site
+  didn't". Deliberately **not** `continue-on-error` and deliberately **not** dropping
+  the target again — RS-7 said stop and say so rather than work around it, and a step
+  that reports success while deploying nothing is exactly DC-3's inert-guard failure.
+  The step stays red on every deploy until RS-9 grants
+  `roles/datastore.indexAdmin`, which is the point.
