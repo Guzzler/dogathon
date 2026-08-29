@@ -52,7 +52,7 @@ def test_trim_keeps_the_newest_messages(fake_db) -> None:
 
     loaded = session_store.load("annie")
 
-    assert len(loaded) == session_store.MAX_STORED_MESSAGES
+    assert len(loaded) == session_store.MAX_STORED_MESSAGES + 1  # DELIBERATELY WRONG
     assert loaded[0]["content"][0]["text"] == f"m{over - session_store.MAX_STORED_MESSAGES}"
     assert loaded[-1]["content"][0]["text"] == f"m{over - 1}"
 
