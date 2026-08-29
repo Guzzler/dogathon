@@ -73,6 +73,18 @@ Cloud Run logs only. Combined with the single-instance pin above: one wedged
 instance is the whole backend, and the first signal you'd get is a foster
 telling you chat is broken.
 
+**Sharpened 2026-08-28, and there is now a second reason to care.** The
+codebase already does the *logging* half competently — `server.py` calls
+`logging.exception` at each of the failure points that matter (the stream
+failure at `:300`, the session-persist failure at `:332`), so the information
+exists in Cloud Logging. What is missing is anything that *reads* it. That's
+a cheap gap to close relative to its value, and it just got demonstrated in
+the adjacent repo surface: the design-token guard in `ci.yml` printed
+`fatal: ... no merge base` on four consecutive runs while reporting success,
+and nobody noticed for a day, because nothing reads logs that don't fail
+anything (see `design-consistency.md`, DC-3). The same shape of blindness
+applies to the backend, with a foster on the other end of it. → PH-7.
+
 ## Two smaller ones, deliberately low priority
 
 Both are now queued below (PH-4, PH-5) rather than sitting only in prose —
@@ -109,10 +121,76 @@ still ranked under PH-3, but no longer invisible to execute.
 
 ## Task queue
 
-Empty as of 2026-08-26 — PH-4, PH-5, and PH-6 all shipped this run. The
-remaining open items in this doc (the approval-queue split-brain race under
-"H1", no error tracking) are prose, not queued tasks yet; `plan` picks the
-next one.
+Refilled 2026-08-28 from the two items that had been sitting in prose since
+this doc was written. PH-7 first: it is smaller, it is a prerequisite for
+trusting any claim about PH-8's behaviour in production, and the case for it
+got stronger this week (see "No error tracking" above).
+
+- **PH-7 (2026-08-28) — make a backend failure something you find out about.**
+  Not an APM rollout. The deliverable is one signal that reaches a human when
+  the agent backend is failing, plus a way to check liveness without asking a
+  foster.
+  - Read `src/agent/server.py` first: the `logging.exception` calls at `:300`
+    ("agent stream failed") and `:332` ("failed to persist agent session")
+    are the two events worth alerting on, and they already emit. Do **not**
+    add a logging library or restructure the handlers — the emit side is
+    fine.
+  - Preferred shape, cheapest first: a **Cloud Logging log-based alert** on
+    `severity>=ERROR` for the Cloud Run service, notifying Sharang's email.
+    That is console/`gcloud` configuration, not application code, so it is
+    outside execute's "no application code" line only in the sense that there
+    may be nothing to commit — if you configure it, commit the `gcloud`
+    invocation (or a short `docs/` runbook note) so it is reproducible and
+    reviewable rather than living only in one person's console. If the
+    project's alerting quota or notification channels turn out to need
+    something manual that only Sharang can click, **stop and say so in the
+    PR** rather than half-doing it.
+  - Second, independent of the above and definitely commit-shaped: the
+    existing `GET /health` already reports `arcade_available`. Extend it with
+    whatever is cheap and diagnostic — Firestore reachability, and the count
+    of live in-memory sessions (which, with `--max-instances=1`, is also a
+    proxy for "did this instance just restart and drop every parked approval
+    thread"). Keep it unauthenticated only if it leaks nothing about a
+    specific foster; it currently doesn't, so don't start.
+  - Explicitly **not** in scope: uptime-check scheduling, a status page,
+    Sentry or any paid tier, and touching the instance pins.
+  - Verify: force one of the two error paths in a local run and confirm the
+    log line's severity is actually `ERROR` (Python `logging.exception` maps
+    to `ERROR`, but confirm what Cloud Run's structured logging does with it
+    rather than assuming); `curl` the deployed `/health` and paste the
+    response into the ledger row.
+- **PH-8 (2026-08-28, gated on PH-7) — move the approval channel to shared
+  state.** The last thing holding `--max-instances=1` in place. Read H1 above
+  in full before starting; the constraint is stated there precisely and this
+  item does not restate it.
+  - The shape: `Session.approvals` is a `queue.Queue[bool]` that a request
+    thread **blocks on** inside `_build_agent`'s
+    `approve=lambda name, args: approvals.get(timeout=300)`
+    (`server.py:216-228`, `:240-245`), and `/approve` hands it a bool with
+    `_session(foster_id).approvals.put(...)` (`:450`). A parked thread is not
+    serializable and a second instance cannot reach it. Replace the in-process
+    handoff with one a second instance could satisfy: a field on
+    `fosters/{uid}/agentSession/current` (the doc PH-3 already created) that
+    the blocked thread polls, with the same 300s ceiling. A Firestore
+    real-time listener is the tempting alternative — it is also a second
+    concurrency model inside a thread that is already blocking, so prefer the
+    boring poll unless you find a concrete reason not to, and record the
+    reason if you do.
+  - **Do not touch `--min-instances` / `--max-instances` in this PR.** The
+    pin comes out only after this has been observed working, and that is a
+    separate, deliberately separate, change. `deploy-backend.yml:36-56`
+    carries a comment explaining the pin — update it to say the pin is now
+    removable and why, don't remove it.
+  - Rules: `fosters/{uid}/agentSession/current` is owner-read /
+    no-client-write today (PH-3). An approval written by the *server* via the
+    Admin SDK keeps that true. If your design needs the client to write this
+    field, stop — that's a different design, and widening that rule is not in
+    scope.
+  - Verify: two approvals in one session both resolve; an approval that
+    nobody answers still times out at 300s rather than hanging; restarting
+    the backend mid-approval leaves the foster with a recoverable state
+    rather than a dead stream. State plainly in the ledger row which of these
+    you actually exercised and which you only reasoned about.
 
 ## Ledger
 
@@ -156,7 +234,7 @@ next one.
   `AccountSheet.tsx` as a "Download my data" button beside "Delete
   account", signed-in users only. Excludes
   `fosters/{uid}/agentSession/current` per the task's own instruction.
-- 2026-08-26 — PH-5 — PR #__ — `migrateGuestData()` in `web/src/auth.ts`,
+- 2026-08-26 — PH-5 — PR #29 — `migrateGuestData()` in `web/src/auth.ts`,
   called from `signInWithGoogle()` when `wasGuest()` was true before the
   guest flag is cleared. Copies the localStorage `Foster` and care-log
   entries into the new `fosters/{uid}` doc, then `clearGuestData()`.

@@ -76,25 +76,60 @@ touched the token surface.
   live option. Trivial, but it's the exact shape of thing that causes a
   PR-#11-style mistake: two theme objects, one wired in, no marker saying
   which.
-- **DC-3 (gated — still not observable as of 2026-08-26).** Once DC-1
-  is merged, deliberately exercise it: the next PR that touches any
-  `.css`/`brand.ts` file should be watched to confirm the guard actually
-  fires or actually stays quiet as appropriate, rather than trusting the
-  throwaway-diff test from DC-1 alone. Not a queue item to build — a note
-  for `plan` to check off once it's observed, then delete this line.
-  **Checked 2026-08-26: no qualifying PR yet.** DC-1 (PR #25) touched only
-  `.github/workflows/ci.yml`, so its own run exercised nothing, and PR #24 —
-  the one PR that did touch `web/src/**` — merged at 05:10Z, seven minutes
-  *before* the guard landed at 05:17Z. The next `web/src` PR is the first
-  real test. Two specific things to watch for when it comes, both unverified
-  rather than known-broken: (1) the step does
-  `git fetch origin main --depth=1` and then `git diff origin/main...HEAD`,
-  and a triple-dot diff needs a common ancestor — on a shallow fetch that
-  merge base may not exist, which would make the guard error or silently
-  diff nothing; (2) confirm a PR that legitimately edits `theme.css` alone
-  still passes. If (1) bites, deepening the fetch is the fix, not switching
-  to a two-dot diff.
-- **DC-4 (2026-08-26).** Close the gap DC-1 left open: **a wholesale repaint
+- **DC-3 — CLOSED 2026-08-28. The guard is inert, and worry (1) is what did
+  it.** Not a queue item any more; the fix is DC-6 below. The observation
+  DC-3 was waiting for arrived on 2026-08-27, when PRs #27, #28 and #29 all
+  touched non-exempt files under `web/src/**` (`auth.ts`,
+  `components/AccountSheet.tsx`). Read back from the actual run logs
+  (`gh run view <id> --log`), **every CI run since DC-1 landed** — 33040837634
+  (#27), 33041013850 (#28), 33041226312 (#29), 33041904930 (#30) — prints:
+
+  ```
+  frontend  fatal: origin/main...HEAD: no merge base
+  ```
+
+  …and the `frontend` job reports **success** anyway. So the guard has never
+  once evaluated a diff. Two causes, and both need fixing:
+  1. **No merge base.** `actions/checkout@v4` defaults to `fetch-depth: 1`,
+     and the guard's own `git fetch origin main --depth=1` is equally
+     shallow — neither side has any history, so the triple-dot diff has no
+     common ancestor to compute. Exactly the failure mode DC-3 flagged as
+     unverified. Deepening is the fix, as DC-3 predicted; switching to a
+     two-dot diff is still not.
+  2. **It fails open, silently.** The `|| true` in the guard is attached to
+     the *whole* pipeline, not just the trailing `grep`, so `git diff`'s
+     non-zero exit is swallowed, `hits` comes back empty, and the step exits
+     0 regardless. This is the more dangerous half: even after (1) is fixed,
+     any future git failure would go on reporting a clean palette. `set -euo
+     pipefail` doesn't help — the `|| true` is precisely what neutralises it.
+
+  The still-unverified half of DC-3 (that a PR editing `theme.css` alone
+  passes) is untestable until the guard runs at all, so it moves into DC-6's
+  verification.
+- **DC-6 (2026-08-28) — make the design token guard actually run.** The
+  highest-value item in this doc right now: DC-1's guard is currently
+  security theatre, and DC-4 would build a second step on the same broken
+  diff. Do this one first.
+  - In `.github/workflows/ci.yml`'s `frontend` job, give `actions/checkout@v4`
+    `with: fetch-depth: 0`. The repo is small and this is the least clever
+    fix available; prefer it over `--deepen` arithmetic that has to guess how
+    far back the merge base is. The separate "Fetch main for the
+    design-token diff" step can then go away, or shrink to a plain
+    `git fetch origin main` — say which you did and why in the ledger row.
+  - Restructure the guard so a git failure fails the job. Compute the diff
+    into a variable in its own statement (so `set -e` sees its exit status)
+    and keep `|| true` only on the `grep` that is *expected* to exit 1 when
+    it finds nothing. Do not leave a form where an unreadable diff can read
+    as a clean one.
+  - Verify — and this time from a real Actions run, not a local throwaway,
+    because local testing is exactly what missed this: push a branch whose
+    diff adds a hardcoded hex to `web/src/App.css` and confirm the job
+    **fails** with the guard's error message; then confirm a commit editing
+    only `web/src/theme.css` **passes** (DC-3's leftover check); then confirm
+    the merge-base `fatal` line is gone from the log. Quote the run ids in
+    the ledger row so the next `plan` run can re-read them.
+- **DC-4 (2026-08-26; gated on DC-6 as of 2026-08-28 — see below).** Close
+  the gap DC-1 left open: **a wholesale repaint
   of the canonical files still passes CI silently.** The guard excludes
   `web/src/theme.css` and `web/src/brand.ts` — correctly, since that's where
   color literals are supposed to live — but the consequence is that PR #11,
@@ -115,6 +150,10 @@ touched the token surface.
   Verify on two throwaway commits the way DC-1 was verified: a `theme.css`
   `:root` edit produces the warning and a **green** job; a PR touching
   neither exempt file produces no warning at all.
+  **Gated 2026-08-28:** this item says to reuse "the same `origin/main...HEAD`
+  diff", and that diff currently errors out on every run (DC-3 above). Adding
+  a second step on top of it would produce a second silently-inert check.
+  Build DC-6 first, then this reuses a diff that works.
 - **DC-5 (2026-08-26) — let the foster side breathe on a wide screen.** The
   direct consequence of the device-agnostic decision recorded above. Today
   `.phone` is `max-width:430px` at every viewport, so a 1440px browser shows
@@ -134,10 +173,11 @@ touched the token surface.
     becomes a side rail above some breakpoint or simply stays — either is
     defensible, but say which in the ledger row and do it once, not
     per-screen.
-  - This will touch CSS across several files, which makes it the **real
-    test of DC-1's guard** that DC-3 is waiting on. Use tokens; if the guard
-    fires, that's the signal to reach for a `var()`, per this doc's own
-    standing rule.
+  - This will touch CSS across several files. It used to be described here as
+    the "real test of DC-1's guard" — **it isn't, and must not be treated as
+    one** (updated 2026-08-28): the guard doesn't run at all until DC-6 lands,
+    so a green CI on this item proves nothing about color literals. Use
+    tokens because it's the rule, not because CI will catch you.
   - Verify at 390px, 768px, 1440px: no horizontal scroll, no orphaned
     controls, the tab bar (or its replacement) reachable at all three, and
     `npm run build`/`test`/`lint` green.
