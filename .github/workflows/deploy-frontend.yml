@@ -65,7 +65,20 @@ jobs:
           npm ci
           npm run build
 
-      - name: Deploy to Firebase Hosting + Firestore rules
-        run: npx firebase-tools@latest deploy --only hosting,firestore:rules --project=pawthway-hackathon --non-interactive
+      # firestore:indexes was missing from this target list until 2026-08-29, which
+      # made firestore.indexes.json inert: the file is declared in firebase.json and
+      # this workflow triggers on it (see `paths:` above), so an index committed there
+      # would be reviewed, merged, and deployed by a run that silently did not deploy
+      # it. Nobody noticed because no query had needed a composite index yet.
+      #
+      # Two things worth knowing when reading this run's log:
+      #  - Index builds are asynchronous. `firebase deploy` returns before an index is
+      #    serving, so the first query after a deploy can still fail with
+      #    `failed-precondition` for a few minutes on a collection with real data.
+      #    That is expected, not a bug to chase.
+      #  - This never removes an index absent from the file. That is the safe
+      #    direction; do not add --force or anything that changes it.
+      - name: Deploy to Firebase Hosting + Firestore rules and indexes
+        run: npx firebase-tools@latest deploy --only hosting,firestore:rules,firestore:indexes --project=pawthway-hackathon --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
