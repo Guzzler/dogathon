@@ -332,6 +332,22 @@ def _stream(message: str, session: Session, foster_id: str, model: str) -> Itera
             logging.exception("failed to persist agent session for %s", foster_id)
 
 
+def _firestore_reachable() -> bool:
+    # Cheapest possible round trip: list(limit(1)) reads at most one document,
+    # against a collection that's `allow read: if true` regardless (see
+    # firestore.rules), and the Admin SDK bypasses rules anyway. A failure here
+    # (bad credentials, Firestore outage) is the same failure mode that makes
+    # every tool call error, so this doubles as an early warning for that.
+    try:
+        from .firestore_client import db
+
+        next(iter(db().collection("dogs").limit(1).stream()), None)
+        return True
+    except Exception:
+        logging.exception("firestore reachability check failed")
+        return False
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     from . import arcade_tools
@@ -342,6 +358,7 @@ def health() -> dict[str, Any]:
     return {
         "anthropic_key_set": bool(os.environ.get("ANTHROPIC_API_KEY")),
         "arcade_available": arcade_tools.available(),
+        "firestore_reachable": _firestore_reachable(),
         "tool_count": len(_registry),
         "active_sessions": active,
     }

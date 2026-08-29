@@ -126,7 +126,9 @@ this doc was written. PH-7 first: it is smaller, it is a prerequisite for
 trusting any claim about PH-8's behaviour in production, and the case for it
 got stronger this week (see "No error tracking" above).
 
-- **PH-7 (2026-08-28) — make a backend failure something you find out about.**
+- **PH-7 (2026-08-28) — make a backend failure something you find out about.
+  Commit-shaped half shipped 2026-08-28 (see Ledger); the alerting half is
+  still open, deliberately.**
   Not an APM rollout. The deliverable is one signal that reaches a human when
   the agent backend is failing, plus a way to check liveness without asking a
   foster.
@@ -159,7 +161,7 @@ got stronger this week (see "No error tracking" above).
     to `ERROR`, but confirm what Cloud Run's structured logging does with it
     rather than assuming); `curl` the deployed `/health` and paste the
     response into the ledger row.
-- **PH-8 (2026-08-28, gated on PH-7) — move the approval channel to shared
+- **PH-8 (2026-08-28, gated on PH-7's alerting half — see above) — move the approval channel to shared
   state.** The last thing holding `--max-instances=1` in place. Read H1 above
   in full before starting; the constraint is stated there precisely and this
   item does not restate it.
@@ -252,3 +254,28 @@ got stronger this week (see "No error tracking" above).
   are re-written sequentially with a fresh `serverTimestamp()` rather than
   the local `created_at`, preserving order. **Not verified live** — needs a
   real Google sign-in against the deployed app; build/lint/test green only.
+- 2026-08-28 — PH-7 (commit-shaped half only) — PR #__ — `GET /health` in
+  `src/agent/server.py` now also reports `firestore_reachable`: a
+  `_firestore_reachable()` helper does the cheapest possible round trip
+  (`db().collection("dogs").limit(1).stream()`, at most one document, against
+  a collection that's `allow read: if true` regardless) and returns `False`
+  on any exception rather than raising, logging via `logging.exception` the
+  same way the two existing failure points already do. `active_sessions` was
+  already present (added in `ab86b82`, before this doc described it as
+  missing — the doc's "already reports arcade_available" premise undercounted
+  what was there). Did **not** do the alerting half: creating a live Cloud
+  Logging log-based alert policy and notification channel is a real,
+  hard-to-reverse change to shared GCP infrastructure (cost/quota
+  implications, sends real email) that an unattended run shouldn't take on
+  its own judgment — the task's own escape hatch ("stop and say so in the PR
+  rather than half-doing it") is what this is invoking. `gcloud` is
+  authenticated against `pawthway-hackathon` in this environment if a human
+  wants to run the `logging` alert-policy commands directly; PH-8 stays
+  gated until that half lands. Verified: forced the failure path locally
+  (no ADC configured here) and confirmed `_firestore_reachable()` returns
+  `False` without raising —
+  `{'anthropic_key_set': False, 'arcade_available': False,
+  'firestore_reachable': False, 'tool_count': 14, 'active_sessions': 0}`;
+  `uv run python -c "import agent.server"` and `compileall` both clean. Did
+  not curl the deployed `/health` post-merge — left as a spot-check for
+  whoever reads this ledger row next, since doing so isn't blocking.
