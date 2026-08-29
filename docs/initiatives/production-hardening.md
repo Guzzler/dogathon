@@ -121,48 +121,59 @@ still ranked under PH-3, but no longer invisible to execute.
 
 ## Task queue
 
-Refilled 2026-08-28 from the two items that had been sitting in prose since
-this doc was written. PH-7 first: it is smaller, it is a prerequisite for
-trusting any claim about PH-8's behaviour in production, and the case for it
-got stronger this week (see "No error tracking" above).
+Reordered 2026-08-29. PH-7 is closed as far as this loop can close it: its
+commit-shaped half shipped (PR #33) and its alerting half is a GCP console
+action that execute correctly declined to take on its own judgment — that half
+now lives under "Needs a human" below rather than sitting in the queue getting
+skipped every run. PH-8 was gated on it, which made the entire
+production-hardening queue depend on something no automated run can do; that
+gate is lifted and replaced with a better one.
 
-- **PH-7 (2026-08-28) — make a backend failure something you find out about.
-  Commit-shaped half shipped 2026-08-28 (see Ledger); the alerting half is
-  still open, deliberately.**
-  Not an APM rollout. The deliverable is one signal that reaches a human when
-  the agent backend is failing, plus a way to check liveness without asking a
-  foster.
-  - Read `src/agent/server.py` first: the `logging.exception` calls at `:300`
-    ("agent stream failed") and `:332` ("failed to persist agent session")
-    are the two events worth alerting on, and they already emit. Do **not**
-    add a logging library or restructure the handlers — the emit side is
-    fine.
-  - Preferred shape, cheapest first: a **Cloud Logging log-based alert** on
-    `severity>=ERROR` for the Cloud Run service, notifying Sharang's email.
-    That is console/`gcloud` configuration, not application code, so it is
-    outside execute's "no application code" line only in the sense that there
-    may be nothing to commit — if you configure it, commit the `gcloud`
-    invocation (or a short `docs/` runbook note) so it is reproducible and
-    reviewable rather than living only in one person's console. If the
-    project's alerting quota or notification channels turn out to need
-    something manual that only Sharang can click, **stop and say so in the
-    PR** rather than half-doing it.
-  - Second, independent of the above and definitely commit-shaped: the
-    existing `GET /health` already reports `arcade_available`. Extend it with
-    whatever is cheap and diagnostic — Firestore reachability, and the count
-    of live in-memory sessions (which, with `--max-instances=1`, is also a
-    proxy for "did this instance just restart and drop every parked approval
-    thread"). Keep it unauthenticated only if it leaks nothing about a
-    specific foster; it currently doesn't, so don't start.
-  - Explicitly **not** in scope: uptime-check scheduling, a status page,
-    Sentry or any paid tier, and touching the instance pins.
-  - Verify: force one of the two error paths in a local run and confirm the
-    log line's severity is actually `ERROR` (Python `logging.exception` maps
-    to `ERROR`, but confirm what Cloud Run's structured logging does with it
-    rather than assuming); `curl` the deployed `/health` and paste the
-    response into the ledger row.
-- **PH-8 (2026-08-28, gated on PH-7's alerting half — see above) — move the approval channel to shared
-  state.** The last thing holding `--max-instances=1` in place. Read H1 above
+- **PH-9 (2026-08-29) — give the backend a test harness before PH-8 changes how
+  it blocks.** Verified 2026-08-29: there is no `tests/` directory anywhere in
+  the repo, no `test_*.py` under `src/`, and `ci.yml`'s `backend` job runs
+  exactly two things — `uv run python -c "import agent.server"` and
+  `uv run python -m compileall -q src scripts`. That is an import check, not a
+  test suite. The frontend has 28 tests; the backend has zero. PH-8 is a
+  **concurrency** change to a code path where a request thread blocks on a
+  handoff with a 300-second ceiling, and shipping that with no way to assert
+  behaviour except by reading it is how the DC-1 lesson repeats itself on the
+  Python side.
+  - Not a coverage push. The deliverable is a harness plus the two or three
+    tests that PH-8 will actually need to lean on.
+  - Add `pytest` as a dev dependency in `pyproject.toml` (there is a `uv.lock`
+    — regenerate it in the same commit so `uv sync --locked` in CI keeps
+    working; a stale lock fails the `backend` job outright and that is the
+    first thing to check if it goes red).
+  - Add a `Test` step to `ci.yml`'s `backend` job after "Sync dependencies",
+    running `uv run pytest`. Leave the import and compileall steps alone — they
+    cover `scripts/` and the CLI, which tests won't.
+  - Worth covering, in rough priority: `session_store.py`'s serialize/restore
+    round trip (the `messagesJson` string and the 40-message trim — assert the
+    trim keeps the *newest* 40, since keeping the oldest would be a silent and
+    very confusing bug), and `GET /health`'s shape via FastAPI's `TestClient`
+    with `_firestore_reachable` patched both ways. Both are reachable without
+    credentials, which is the point: the tests must run in CI with no ADC, no
+    Anthropic key, and no network. If a test needs any of those, it is the
+    wrong test for this item.
+  - Do **not** add a Firestore emulator, mock the Anthropic SDK's streaming, or
+    restructure anything to be more testable. If something can't be tested
+    without a refactor, say so in the PR and leave it — the refactor is a
+    separate decision.
+  - Verify: `uv run pytest` green locally and in CI, `uv sync --locked` still
+    clean, and deliberately break one assertion on a throwaway commit to
+    confirm the new step can actually turn the `backend` job red. That last
+    step is not optional — an inert guard is the exact failure this repo has
+    already shipped once (see `design-consistency.md`, DC-3/DC-6).
+
+- **PH-8 (2026-08-28; re-gated 2026-08-29 on PH-9, not on PH-7's alerting
+  half) — move the approval channel to shared state.** The old gate made this
+  wait on a GCP console click no unattended run can perform, which is not a
+  gate, it's a deadlock. What this change actually needs before it is safe is a
+  way to assert its own behaviour, and PH-7's shipped half already supplies the
+  production signal it wanted (`/health` now reports `active_sessions` and
+  `firestore_reachable`, so "did this instance just restart and drop every
+  parked approval thread" is answerable without asking a foster). The last thing holding `--max-instances=1` in place. Read H1 above
   in full before starting; the constraint is stated there precisely and this
   item does not restate it.
   - The shape: `Session.approvals` is a `queue.Queue[bool]` that a request
@@ -193,6 +204,36 @@ got stronger this week (see "No error tracking" above).
     the backend mid-approval leaves the foster with a recoverable state
     rather than a dead stream. State plainly in the ledger row which of these
     you actually exercised and which you only reasoned about.
+
+### Needs a human, not a queue item
+
+- **PH-7b — the alerting half of PH-7.** Nothing in the agent backend's failure
+  path reaches a person. The logging side is already correct — `server.py`
+  calls `logging.exception` at the stream failure (`:300`) and the
+  session-persist failure (`:332`), so the records exist in Cloud Logging at
+  `ERROR` severity. What's missing is one alert that reads them.
+  Deliberately **not** queued: creating a log-based alert policy and a
+  notification channel is a hard-to-reverse change to shared GCP
+  infrastructure that sends real email and carries quota implications, and an
+  unattended run declined it on exactly those grounds (PR #33). That was the
+  right call and re-queueing it would just produce the same refusal.
+  What Sharang needs to do, roughly: in the `pawthway-hackathon` project,
+  create a notification channel for his own email, then a log-based alerting
+  policy on the Cloud Run agent service filtered to `severity>=ERROR`. Console
+  or `gcloud logging` / `gcloud alpha monitoring` both work. **If you do it via
+  `gcloud`, paste the invocation into a short `docs/` runbook note** so it is
+  reproducible rather than living only in one person's console — that was the
+  original task's requirement and it still stands.
+  Explicitly out of scope even when this happens: uptime checks, a status page,
+  Sentry or any paid tier, and touching the instance pins.
+- **PH-7c — spot-check the deployed `/health`.** Thirty seconds, never done:
+  `curl https://<the Cloud Run agent URL>/health` and confirm
+  `firestore_reachable` is `true` in production. PR #33 verified the *failure*
+  path locally (no ADC in that environment, so it returned `false` without
+  raising, which was the thing being tested) but has never seen the success
+  path against real credentials. Until someone looks, "Firestore is reachable
+  from the backend" is an untested assertion in a health endpoint, which is a
+  slightly worse position than not having the field.
 
 ## Ledger
 
@@ -254,7 +295,7 @@ got stronger this week (see "No error tracking" above).
   are re-written sequentially with a fresh `serverTimestamp()` rather than
   the local `created_at`, preserving order. **Not verified live** — needs a
   real Google sign-in against the deployed app; build/lint/test green only.
-- 2026-08-28 — PH-7 (commit-shaped half only) — PR #__ — `GET /health` in
+- 2026-08-28 — PH-7 (commit-shaped half only) — PR #33 — `GET /health` in
   `src/agent/server.py` now also reports `firestore_reachable`: a
   `_firestore_reachable()` helper does the cheapest possible round trip
   (`db().collection("dogs").limit(1).stream()`, at most one document, against
