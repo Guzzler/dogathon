@@ -69,7 +69,9 @@ touched the token surface.
 
 ## Task queue
 
-- **DC-2 (2026-08-24, re-verified open 2026-08-25).** Remove `sidekickTheme` from `brand.ts`, or if
+- **DC-2 (2026-08-24; re-verified open again 2026-08-29 — `grep -rn sidekickTheme web/src/`
+  returns exactly one line, `brand.ts:24`, its own `export`, so it is still
+  defined, still unused, and still unmarked).** Remove `sidekickTheme` from `brand.ts`, or if
   there's a reason to keep it (a rollback reference, a second-brand plan
   nobody's written down) turn it into a one-line comment explaining why an
   unused theme object is still there, so it stops looking like a
@@ -187,7 +189,7 @@ queued work.
   hardcoded hex added to `App.css` fails the check; a `theme.css`-only
   edit passes. DC-3 is the note to watch the first real PR that exercises
   this for real.
-- 2026-08-28 — DC-6 — PR #__ — `actions/checkout@v4` in the `frontend` job
+- 2026-08-28 — DC-6 — PR #32 — `actions/checkout@v4` in the `frontend` job
   now takes `fetch-depth: 0` instead of the default depth-1, so the guard's
   `git diff origin/main...HEAD` has a merge base to compute against; the
   standalone "Fetch main for the design-token diff" step is now a plain

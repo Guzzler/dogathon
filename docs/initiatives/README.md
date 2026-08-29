@@ -61,12 +61,11 @@ is the source of truth — read it, don't assume this paragraph still holds.
    for. Ranked last only because it's ongoing hygiene, not a one-time
    unblock — but its first task queue item is concrete and worth doing soon:
    a live incident (PR #11, cited in that doc) is the reason it exists at
-   all, not a hypothetical. **2026-08-28: its DC-6 is arguably the single
-   most urgent item across all three docs right now** — the CI guard that
-   this whole initiative produced has been failing open on every run since it
-   merged, which is worse than not having it, because the repo has been
-   acting as though it works. That doesn't reorder the initiatives; it does
-   mean don't read "ranked last" as "pick from here last" this week.
+   all, not a hypothetical. *(2026-08-28 flagged DC-6 as the most urgent item
+   across all three docs, because the guard this initiative produced had been
+   failing open on every run since it merged. **DC-6 shipped 2026-08-28,
+   PR #32**, verified from real Actions runs in both directions — so that
+   flag is discharged and the ordinary ranking applies again.)*
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -124,7 +123,13 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded.
+snapshot) rather than let it grow unbounded. **The first archive exists as of
+2026-08-29**: `archive/real-data-and-shelters-2026-08-29.md`, holding that
+doc's settled M1/M2/M4 narrative. The pattern that worked: snapshot the whole
+doc verbatim into the archive so nothing is lost, then compress the settled
+sections in the working doc to one dated line each that points at the archive
+for the reasoning. Archives are append-only — if something in one turns out to
+be wrong, correct the working doc and say so there.
 
 ## Ledger convention
 
@@ -143,7 +148,9 @@ leaves `PR #__` and plan backfills it on the next run** from
 `gh pr list --state merged`. If execute can cheaply amend the row after
 opening the PR, better — but don't block a merge on it. The convention is
 working as designed: PH-5 was the only outstanding placeholder on 2026-08-28
-and was backfilled to #29 that run.
+and was backfilled to #29 that run; on 2026-08-29 all three of that week's
+shipped items carried one and were backfilled together — DC-6 → #32,
+PH-7 → #33, RS-2 → #34.
 
 **A standing lesson from 2026-08-28, worth generalising past the one bug.**
 DC-1 shipped with its verification recorded honestly as *"verified locally on

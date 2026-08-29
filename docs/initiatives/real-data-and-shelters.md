@@ -17,133 +17,121 @@ half is optional — a fully automated shelter side ships a stale or wrong
 listing to someone hoping to foster a specific dog; a fully manual one never
 scales past one shelter.
 
-## Where this actually stands (verified against `main`, not the evidence docs' dates)
+**Archived 2026-08-29.** This doc was approaching the README's ~400-line
+threshold, so the settled M1 / M2 / M4 narrative and the "where this stands"
+section as they stood are preserved verbatim in
+[`archive/real-data-and-shelters-2026-08-29.md`](archive/real-data-and-shelters-2026-08-29.md)
+and compressed to one line each below. Read the archive for the reasoning
+behind a settled decision; read this file for what is open.
 
-- **The low/no-cost update mechanism is already built, for one shelter.**
-  `scripts/import_dogs.py` scrapes SF SPCA (`scripts/shelters/sfspca.py`),
-  merges in hand-written descriptions from `data/enrichment.json`
-  (`scripts/shelters/enrich.py`), and writes `data/dogs.json` — reviewed and
-  committed, not fetched at runtime. `--plan` reports the Firestore diff
-  before anything writes; the real push **replaces** the roster rather than
-  appending (PR #13 fixed silent duplication). This is the pattern to
-  extend, not replace.
-- **It has a manual trigger, deliberately not a schedule.**
-  `.github/workflows/import-dogs.yml` (added same day as M1, after this doc's
-  first draft) runs it via `workflow_dispatch` with a `--plan`-by-default
-  preview and an explicit re-scrape opt-in, using the same service account
-  the deploys use. Its own comment states the reasoning: "the roster should
-  change when someone decides it should, not because a file moved." That's
-  a real design position, not an oversight — M4 below is about deciding
-  whether to keep it manual-only or add a proposal-only schedule, not about
-  assuming a schedule is obviously better.
-- **The roster is one shelter deep.** Every dog in `data/dogs.json` carries
-  `shelter_id: "sfspca-mission"`. `web/src/lib/shelters.ts` lists **six**
-  organizations — re-counted against `main` 2026-08-26; this line previously
-  said eight, which was true when written but stale the moment RS-3 (PR #24)
-  removed `petsun` and `familydog`. The remaining five (`acc`, `muttville`,
-  `coppers`, `wonder`, `rocket`) have zero dogs and no import path — they're
-  decorative until M3.
-- **`shelters.ts` drift — fixed 2026-08-25 (RS-3, PR #24); settled, see the
-  Ledger for the full account.** The one thing worth carrying forward: the SF
-  SPCA id is `"sfspca-mission"` everywhere, and `web/src/lib/shelters.test.ts`
-  guards it. That is the id RS-2 must seed its `shelters/{id}` doc at.
-- **`applications` rules exist; shelter accounts and `dogs` writes do not.**
-  Updated 2026-08-25 against `firestore.rules` on `main`: RS-1 (PR #21)
-  added `isStaff()`, `match /applications/{applicationId}`, and
-  `match /shelters/{shelterId}`, and `web/src/lib/applications.ts` now
-  writes an application doc from both apply() sites. What is still true:
-  `match /dogs/{dogId}` remains `allow write: if false` (with a comment
-  marking it as M3's job), **no `shelters/{id}` document has actually been
-  created**, and no uid is in any `staffUids` — so `isStaff()` currently
-  evaluates against nothing and no shelter can edit its own listing. RS-2
-  is what makes those rules load-bearing.
-  **Re-verified 2026-08-28 against `firestore.rules` on `main`, not against
-  this paragraph's own prior wording:** `match /dogs/{dogId}` is still
-  `allow write: if false` at `:12-17`, with the "Becomes isStaff(shelter_id)
-  … (M3)" comment intact. Nothing has moved here since 2026-08-25 — the four
-  merges in between (#27, #28, #29, #30) were all production-hardening or
-  docs. The queue below is unchanged and still accurate.
-  **Updated again 2026-08-28 (RS-2):** the "no `shelters/{id}` document has
-  actually been created" half is **no longer true** — `shelters/sfspca-mission`
-  now exists in production Firestore with the repo owner's uid in `staffUids`,
-  so `isStaff()` finally evaluates against something. The `dogs` write rule is
-  still `if false`; that's RS-6's to change, not RS-2's.
+## Where this actually stands (re-verified against `main` 2026-08-29)
 
-**Doc size watch (2026-08-28):** this file is ~350 lines, against the
-README's ~400-line archive threshold, and it is the only doc close to it. The
-next `plan` run that adds material here should first move the settled M1/M2/M4
-narrative into `docs/initiatives/archive/` per the README's rule, rather than
-appending and quietly blowing through the limit.
+- **The offline import pipeline is built, for one shelter, with a manual
+  trigger on purpose.** `scripts/import_dogs.py` + `scripts/shelters/sfspca.py`
+  + `data/enrichment.json` → `data/dogs.json`, reviewed and committed, never
+  fetched at runtime; `--plan` diffs before writing and the real push replaces
+  rather than appends (PR #13). `.github/workflows/import-dogs.yml` runs it via
+  `workflow_dispatch` only — *"the roster should change when someone decides it
+  should, not because a file moved."* Extend this pattern; don't replace it.
+- **The roster is one shelter deep.** Every dog carries
+  `shelter_id: "sfspca-mission"`. `web/src/lib/shelters.ts` lists six orgs; the
+  other five (`acc`, `muttville`, `coppers`, `wonder`, `rocket`) have zero dogs
+  and no import path — decorative until M3. The id `"sfspca-mission"` is
+  canonical everywhere and guarded by `web/src/lib/shelters.test.ts`.
+- **`shelters/sfspca-mission` now exists** in production Firestore with the repo
+  owner's uid in `staffUids` (RS-2, PR #34), so `isStaff()` finally evaluates
+  against a real document. `scripts/seed_shelter_staff.py` makes that write
+  reproducible.
+- **`match /dogs/{dogId}` is still `allow write: if false`** — re-read at
+  `firestore.rules:12-18` on 2026-08-29, the "Becomes isStaff(shelter_id) … (M3)"
+  comment intact. That is RS-6's to change, nobody else's.
+- **`firestore.indexes.json` is an empty stub that has never been deployed.**
+  New this run, and it gates RS-5 — see the design section below.
+- **RS-2's `staff` and `notStaff` states are still unverified live.** Named as a
+  check for this run by RS-2's own ledger row; still outstanding, because both
+  need a real Google popup sign-in that an unattended run cannot drive. Carried
+  forward deliberately rather than quietly dropped — see RS-8.
 
-## Milestones
+## Milestones (compressed; full narrative in the archive)
 
-**M1 — done.** Offline, reviewed, committed dog data for one shelter, with a
-diff-before-write import path. (`scripts/import_dogs.py`,
-`data/enrichment.json`, PRs #6, #13, #14.)
+- **M1 — done.** Offline, reviewed, committed dog data for one shelter with a
+  diff-before-write import path. PRs #6, #13, #14.
+- **M2 — done 2026-08-24 (PR #21).** `applications/{id}` writes and the
+  `applications`/`shelters` rules, in `shelter-integration.md`'s shape. Its two
+  deferred halves became RS-2 (shipped, PR #34) and RS-6 (open).
+- **M3 — shelter accounts and the admin add/edit surface. In progress.** Staff
+  sign in with the existing Google auth, uids added to `staffUids` by hand, see
+  their own shelter's applications, and add or retire their own dogs. Manual
+  entry becomes the second source adapter — proving the pipeline works for a
+  shelter that isn't SF SPCA, with zero scraping risk. RS-2 shipped the gate;
+  RS-5 and RS-6 are the remaining two thirds. Build from the queue items, not
+  from this paragraph.
+- **M4 — decided 2026-08-26; queued as RS-4.** Yes to a cadence, no to Cloud
+  Scheduler (a `schedule:` trigger on the workflow that already holds the
+  credential), plan-only permanently, weekly, and the scheduled path **must**
+  `--rescrape` — a cached replay diffs the committed data against itself and
+  reports "no drift" forever. The deliverable is the notification, not the
+  schedule. Full reasoning and the known constraints are in the archive and
+  restated where they matter in RS-4.
+- **M5 — a second automated source (RescueGroups.org), gated on demonstrated
+  need.** Don't build it until M3 has one real shelter using the admin surface;
+  a second automated source before the manual path is proven just adds a second
+  thing that can drift.
 
-**M2 — done (2026-08-24, PR #21), with one part deferred.** The
-`applications/{id}` write path and the `applications`/`shelters` rules
-shipped, in `shelter-integration.md`'s shape. Deferred to M3 on purpose, and
-still open: seeding a real `shelters/{id}` doc and relaxing the `dogs` write
-rule, both of which need a staff uid that didn't exist yet. Those are now
-RS-2 and RS-6 respectively.
+## The design question this run answered: RS-5's query has two ways to fail, and neither shows up before runtime
 
-**M3 — shelter accounts and the admin add/edit surface.** The "approved via
-shelter admins" half: staff sign in with the existing Google auth (uids added
-to `staffUids` by hand at first, no self-serve org signup), see their own
-shelter's applications, and add or retire their own dogs. Manual entry
-through this UI becomes the second source adapter — proving the pipeline
-works for a shelter that isn't SF SPCA, with zero scraping risk and no
-third-party approval needed. **Fully specified as RS-2 → RS-5 → RS-6 in the
-Task queue below**, including the device decision, the staff-resolution
-query, every required state, and the navigation model; that's the detail to
-build from, not this paragraph.
+RS-5 wants the shelter's inbox — `where("shelterId", "==", <their id>)`,
+**newest first**. That innocuous "newest first" is the whole problem, and
+checking it turned up a repo-wide gap.
 
-**M4 — decide on a cadence, and reconcile drift. Decision made 2026-08-26.**
+**(1) It needs a composite index, and this repo has never needed one before.**
+One equality filter plus an `orderBy` on a *different* field
+(`createdAt desc`) is precisely the shape Firestore cannot serve from its
+automatic single-field indexes. It fails at runtime with `failed-precondition`
+and a console link — not at build time, not in CI, not in any test. Every
+Firestore query shipped so far has been a single equality with no ordering
+(PH-6's export query, RS-2's `array-contains`), which is why nothing has hit
+this yet.
 
-The `shelters.ts` drift half is **done** (RS-3, PR #24 — cut to six verified
-entries rather than re-verifying all eight).
+**(2) `firestore.indexes.json` is wired up everywhere except the one place that
+matters.** Verified 2026-08-29 by reading the file and the workflow, not by
+assuming:
 
-The cadence half was the open question, and the answer is: **yes to a
-cadence, no to Cloud Scheduler, and the deliverable is the notification, not
-the schedule.** Reasoning, grounded in the workflow as it actually exists:
+- `firebase.json` declares `"firestore": { "indexes": "firestore.indexes.json" }`.
+- `firestore.indexes.json` is `{"indexes": [], "fieldOverrides": []}` and has
+  been untouched since the initial commit (`git log` on that path returns
+  exactly one commit, `7288418`).
+- `.github/workflows/deploy-frontend.yml:10-11` **triggers** the deploy on
+  changes to `firestore.rules` *and* `firestore.indexes.json` —
+- …but the deploy command at `:69` is
+  `firebase deploy --only hosting,firestore:rules`. **`firestore:indexes` is
+  not in the target list.**
 
-- **No Cloud Scheduler.** `import-dogs.yml` is already a GitHub Actions
-  workflow with the GCP service account wired in; a `schedule:` trigger adds
-  a cadence in the file that already does the work, with nothing new to
-  provision, authenticate, or pay for. Cloud Scheduler would mean a second
-  system holding a second credential to invoke the first one.
-- **Plan-only, permanently.** The workflow's `plan_only` input already
-  defaults to `true`, and `--plan` still connects and reads (per
-  `import_dogs.py:111`), so a scheduled run proves the credentials work and
-  prints a real diff while writing nothing. Automated *proposal*, human
-  *approval* — the workflow's own stated philosophy, unchanged.
-- **The scheduled run must `--rescrape`, and this is the part that's easy to
-  get wrong.** The workflow's other input defaults to `rescrape: false`,
-  which replays `data/sfspca_scrape.json` from cache. A scheduled drift check
-  running off the cache would diff the committed data against itself and
-  report "no drift" **forever** — worse than no check at all, because it
-  looks like a working signal. Drift detection means comparing against the
-  shelter's live page, so the scheduled path is the one case where
-  re-scraping is mandatory rather than opt-in.
-- **Weekly.** The source is a shelter's adoptable-dogs page, not a feed.
-- **The actual gap is that nobody reads Actions logs.** A plan-only run whose
-  diff dies in a log nobody opens is not a drift check. What makes the
-  cadence worth anything is failing loudly — or opening/updating an issue —
-  *only* when the diff is non-empty. Silence when nothing changed.
+So a composite index committed to that file would be diffed, reviewed, merged,
+and would trigger a deploy that silently does not deploy it. This is the same
+shape of failure as DC-3's inert token guard: a mechanism that looks wired up,
+reports success, and has never done its job — the difference being that nobody
+has noticed here because no query has needed it yet. RS-5 is the first one that
+will. That's RS-7 below, and it lands before RS-5.
 
-Known constraints for whoever builds it: scheduled workflows only run from
-the default branch, and GitHub disables them after 60 days of repo
-inactivity. Neither is a blocker; both are worth a comment in the file.
-Queued as RS-4.
+*(This whole section retires to a Ledger line once RS-7 and RS-5 have shipped —
+it is long because it is live, not because it is history. Working core is ~295
+lines against the README's ~250 guidance; that is where the slack goes back.)*
 
-**M5 — a second automated source, gated on demonstrated need.**
-`real-data-sourcing.md` already picked RescueGroups.org as the one open API
-worth a second look (free, terms explicitly permit caching, refresh cadence
-stated) — but getting a key and confirming Bay Area coverage is unstarted.
-Don't build this until M3 has at least one real shelter using the admin
-surface; a second automated source before the manual path is proven just
-adds a second thing that can drift.
+**(3) A hazard for RS-5 to test, not a conclusion.** `applications`'s read rule
+is an `||` —
+`resource.data.fosterId == request.auth.uid || isStaff(resource.data.shelterId)`
+(`firestore.rules:41-44`). Rules are not filters: a `list` query is allowed only
+if the engine can *prove* it safe from the query's own constraints. The staff
+branch pins `shelterId` via the `where` clause and should be provable (the same
+reasoning that made RS-2's `array-contains` work with no rules change), but the
+`fosterId` branch is unconstrained in this query, and an unprovable disjunct
+inside an `||` is a classic way a "should be fine" query comes back
+`permission-denied`. There is no emulator configured in `firebase.json`, so this
+cannot be settled offline — **run the query for real before building the UI on
+top of it, and do not widen `firestore.rules` if it fails.** If it fails, the fix
+is a narrower rule shape or a differently-shaped query, and that is a decision to
+write down here, not to paper over.
 
 ## Task queue
 
@@ -156,60 +144,59 @@ taken by the M4 drift check, which is unrelated and independent of these.)
 
 ### Decisions that apply to all three (Sharang, 2026-08-26)
 
-- **Both sides are device-agnostic.** The shelter side is desk-shaped work —
-  lists, review, data entry — so it is built responsive and does **not** live
-  inside the 430px `.phone` frame. It must still be genuinely usable on a
-  phone: a staff member approving one application from their pocket is a real
-  case, not an afterthought. The foster side becoming responsive too is a
-  separate item (DC-5 in `design-consistency.md`) — don't do it here.
-- **Staff-ness is resolved by query, never by a document read** — see below.
-  That's a fix to a real bug in the previous spec, not a style preference.
-
-### The staff-resolution bug, and the fix
-
-The obvious implementation — `getDoc(doc("shelters", id))`, then check
-`staffUids` — **cannot work**, and would produce exactly the blank screen the
-original RS-2 said to avoid. `firestore.rules:57` reads:
-
-```
-allow read: if request.auth != null && request.auth.uid in resource.data.staffUids;
-```
-
-A non-staff user's read is therefore **denied** — and a *missing*
-`shelters/{id}` doc denies identically, since `resource.data` is null. Those
-two collapse into one indistinguishable `permission-denied` at the client:
-no way to tell "you aren't staff" from "that shelter doesn't exist", which
-want different screens and different fixes. (Offline is at least a distinct
-`unavailable` code, so it isn't part of the ambiguity — but it does mean the
-happy path ends up branching on error codes rather than on data, which is
-the deeper smell.)
-
-**Resolve staff-ness with a collection query instead:**
-
-```ts
-query(collection(firestore, "shelters"), where("staffUids", "array-contains", uid))
-```
-
-Firestore permits this against the rule exactly as it already stands — the
-rules engine can prove every matching document is readable, which is the
-documented secure-query pattern — so it needs **no rules change**. Do not
-touch `firestore.rules` for this. The result is unambiguous:
-
-| Result | Meaning | Screen |
-| --- | --- | --- |
-| resolves, 0 docs | signed in, not staff anywhere | "not staff" state |
-| resolves, ≥1 doc | staff — and you get the shelter(s) | dashboard |
-| rejects | a genuine error (offline, misconfig) | retry state |
-
-It also handles multi-shelter staff for free, which the doc-read approach
-couldn't express at all.
+- **Both sides are device-agnostic.** The shelter side is desk-shaped work, so
+  it is built responsive and does **not** live inside the 430px `.phone` frame —
+  while still being genuinely usable on a phone, because a staff member
+  approving one application from their pocket is a real case. The foster side
+  becoming responsive is a separate item (DC-5 in `design-consistency.md`).
+- **Staff-ness is resolved by query, never by a document read.** Shipped that
+  way in RS-2; the derivation (why `getDoc` collapses "not staff" and "no such
+  shelter" into one indistinguishable `permission-denied`, and why
+  `where("staffUids", "array-contains", uid)` needs no rules change) is in the
+  archive. Don't re-derive it, and don't "fix" it by loosening
+  `firestore.rules`.
 
 ### The items
 
-- **RS-2 — shipped 2026-08-28.** See Ledger for the full account, including
-  which two of its three verification states are still unconfirmed live.
-- **RS-5 (was gated on RS-2; ungated 2026-08-28) — the application list and review.** The shelter's
-  actual inbox: `where("shelterId", "==", <their id>)`, newest first.
+- **RS-7 (2026-08-29) — make `firestore.indexes.json` a thing that actually
+  deploys, then put RS-5's index in it. Do this before RS-5.** Read the design
+  section above first; the reasoning is there and this item does not restate it.
+  - Add `firestore:indexes` to the deploy target in
+    `.github/workflows/deploy-frontend.yml:69`, so it reads
+    `--only hosting,firestore:rules,firestore:indexes`. The workflow already
+    triggers on the file (`:10-11`) and already authenticates with a service
+    account that deploys rules, so this is one token in one line — the reason it
+    is its own PR is that it is a deploy-path change and should be reviewable on
+    its own, not buried inside a UI diff.
+  - Add the composite index RS-5 needs to `firestore.indexes.json`:
+    collection `applications`, fields `shelterId` ASCENDING then `createdAt`
+    DESCENDING, `queryScope: COLLECTION`. Match the field order to the query
+    exactly — equality field first, then the ordered field.
+  - Leave a comment (in the workflow, since JSON can't hold one) noting that
+    index builds are asynchronous: `firebase deploy` returns before the index is
+    serving, so the first query after a deploy can still fail
+    `failed-precondition` for a few minutes on a collection with real data. That
+    is expected, not a bug to chase.
+  - **Do not delete an index.** `firebase deploy --only firestore:indexes` does
+    not remove indexes absent from the file, which is the safe direction; don't
+    add `--force` or any flag that changes that.
+  - Verify: after merge, confirm from the deploy run's log that the
+    `firestore:indexes` target actually ran and reported the index (the whole
+    point of this item is that the previous behaviour *looked* fine), then
+    confirm in the Firebase console that the `applications` composite index
+    exists and reads `Enabled`. Paste both into the ledger row. If the deploy
+    step errors because the service account lacks an index-admin permission,
+    **stop and say so in the PR** — that's a Sharang-clicks-something problem,
+    not one to work around by dropping the target again.
+- **RS-5 (ungated 2026-08-28; now sequenced after RS-7) — the application list
+  and review.** The shelter's actual inbox:
+  `where("shelterId", "==", <their id>)`, newest first.
+  - **Before writing any UI**, settle both hazards from the design section
+    above: RS-7 must have landed and the index must read `Enabled`, and the
+    `||`-rule list-query question must be answered by actually running the
+    query as the seeded staff uid. Record the answer in this doc. If the query
+    is denied, stop and write down the options — do **not** widen
+    `firestore.rules` to make it pass.
   - Row: foster name (`fosterName` is denormalised onto the application for
     exactly this), dog name, `status`, age of the application.
   - Detail: the `checklist`, with `owner: "shelter"` items tickable and the
@@ -219,14 +206,21 @@ couldn't express at all.
     foster's to set, not the shelter's (`firestore.rules:49-51`).
   - States, all four required: loading; **empty** ("No applications yet" —
     the expected state for a real shelter on day one, not an error);
-    populated; error with retry.
+    populated; error with retry. The error state must distinguish
+    `failed-precondition` (an index still building — retry genuinely helps)
+    from `permission-denied` (retry never helps), because after RS-7 those are
+    the two realistic failures and they want different copy.
+  - Use the shelters already resolved by `useMyShelters` (RS-2's context) —
+    don't re-run the `array-contains` query that already let this screen
+    through the gate.
   - Do **not** write back to `fosters/{uid}`. The application document is the
     source of truth for status/checklist/pickup per `shelter-integration.md`;
     the foster's read-through fields are M2's deferred migration, not this
     item's job.
   - Verify: staff at `sfspca-mission` see only their own shelter's
     applications; ticking a shelter-owned item persists; a foster-owned item
-    isn't tickable from this side.
+    isn't tickable from this side. Say in the ledger row which of these you
+    exercised against real data and which you only reasoned about.
 - **RS-6 (gated on RS-5) — add and retire a dog.** The second source adapter
   from M3: manual entry proving the pipeline works for a shelter that isn't
   SF SPCA, with no scraping.
@@ -247,35 +241,44 @@ couldn't express at all.
     without breaking an existing application; staff at one shelter cannot
     write a dog carrying another shelter's `shelter_id` — the rules should
     reject that, so test it rather than assuming.
+- **RS-4 (2026-08-26) — the weekly drift check.** The M4 bullet above *is* the
+  spec; the archive carries the full reasoning. Add a weekly `schedule:` trigger
+  to `.github/workflows/import-dogs.yml` alongside the existing
+  `workflow_dispatch`, leaving every manual input and default exactly as-is.
+  - The scheduled path runs **plan-only with `--rescrape`** — the opposite of
+    the manual rescrape default, and the one detail that decides whether this
+    task is worth doing at all: a cached replay diffs the committed data against
+    itself and reports "no drift" forever, which is worse than no check.
+  - Inputs are empty on a `schedule` event, so build the arg list from
+    `github.event_name` rather than relying on input defaults.
+  - Quiet on an empty diff, loud otherwise. Prefer opening (or **updating** —
+    don't spam a new one weekly) a GitHub issue with the diff body, which needs
+    `issues: write` in the job's `permissions:` (currently `contents: read`);
+    failing with `::error::` and the diff is an acceptable simpler fallback.
+    Say which you chose in the ledger row.
+  - Leave the existing `concurrency: import-dogs` group alone — it already stops
+    a scheduled run overlapping a manual one. Add a comment noting that
+    scheduled workflows only run from the default branch and are disabled after
+    60 days of repo inactivity.
+  - **Nothing here may write to Firestore.** Do not add a path where a scheduled
+    run drops `--plan`.
+  - Verify: `workflow_dispatch` it by hand first to confirm the file still
+    parses and the manual path is unchanged, then echo the final `ARGS` in the
+    run log and read back that the scheduled branch resolves to plan + rescrape.
 
-All three ship to test accounts only until Sharang has actually spoken to a
+All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
-- **RS-4 (2026-08-26, from the M4 decision above — read that section before
-  building; the reasoning there is the spec).** Add a weekly scheduled drift
-  check to `.github/workflows/import-dogs.yml`. Add a `schedule:` trigger
-  (weekly) alongside the existing `workflow_dispatch`, keeping every manual
-  input and its current default exactly as-is. The scheduled path must run
-  **plan-only** and **with a re-scrape** — the opposite of the manual
-  default on the rescrape flag, and the single most important detail in this
-  task: a cached replay diffs the committed data against itself and reports
-  "no drift" forever. Since the two triggers need different argument
-  defaults, read `github.event_name` to build the arg list rather than
-  relying on the input defaults, which are empty on a `schedule` event.
-  Then make the result visible: the run should be quiet when the diff is
-  empty and loud when it isn't. Prefer opening (or updating, don't spam a
-  new one weekly) a GitHub issue with the diff body — that needs
-  `issues: write` in the job's `permissions:`, which is currently
-  `contents: read`; failing the run with `::error::` and the diff is an
-  acceptable simpler fallback, say which you chose in the ledger row. The
-  existing `concurrency: import-dogs` group already prevents a scheduled run
-  from overlapping a manual one — leave it. Add a comment noting that
-  scheduled workflows only run from the default branch and are disabled
-  after 60 days of repo inactivity. **Nothing here may write to Firestore:**
-  do not add a path where a scheduled run drops `--plan`. Verify: trigger it
-  by hand via `workflow_dispatch` first to confirm the workflow still parses
-  and the manual path is unchanged, then confirm the scheduled branch of the
-  arg-building logic resolves to plan + rescrape (echo the final `ARGS` in
-  the run log and read it back).
+
+### Needs a human, not a queue item
+
+- **RS-8 — confirm RS-2's `staff` and `notStaff` states on the deployed app.**
+  Two of RS-2's three states have never been seen working, because both need a
+  real Google popup sign-in. Not queued for execute, which cannot drive one.
+  Sharang (or Eesha): sign in as the uid seeded in `shelters/sfspca-mission` and
+  open `https://pawthway-hackathon.web.app/shelter` — expect the staff
+  dashboard shell; then sign in with any other account and expect the "isn't on
+  a shelter's staff list" copy. Two minutes, and RS-5 is being built on the
+  assumption that it works. Record the result here when done.
 
 ## The part that's a conversation, not a PR
 
@@ -290,9 +293,10 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status as of 2026-08-26: no evidence this conversation has happened — no
-commit, no doc edit from Sharang, no note anywhere in the repo. Recorded so a
-future run doesn't mistake the passage of time for progress.)*
+*(Status as of 2026-08-29: still no evidence this conversation has happened —
+no commit, no doc edit from Sharang, no note anywhere in the repo. Re-checked,
+not carried over. Recorded so a future run doesn't mistake the passage of time
+for progress.)*
 
 ## Ledger
 
@@ -323,9 +327,9 @@ future run doesn't mistake the passage of time for progress.)*
   the hash fallback — the fix still mattered for RS-2's `isStaff(shelterId)`
   matching a real `shelters/{id}` doc, just not for the reason originally
   written down.
-- 2026-08-28 — RS-2 — PR #__ — Staff resolution, the `/shelter` route shell,
+- 2026-08-28 — RS-2 — PR #34 — Staff resolution, the `/shelter` route shell,
   and the gate. `web/src/hooks/useStaffShelters.ts` runs the
-  `array-contains` query from the section above and returns the discriminated
+  `array-contains` query and returns the discriminated
   `loading | notStaff | error | staff` result the task asked for; a
   `StaffShelterProvider`/`useMyShelters` context hands the resolved shelters
   to the screens behind the gate so they don't re-run the query that just let
@@ -353,5 +357,6 @@ future run doesn't mistake the passage of time for progress.)*
   a real Google popup sign-in, which an unattended run can't drive. The
   cheapest confirmation is a human signing in as the seeded uid on the
   deployed app and opening `/shelter` (expect the dashboard), then any other
-  account (expect the "isn't on a shelter's staff list" copy). `plan` should
-  treat that as a named check on its next run rather than assuming it works.
+  account (expect the "isn't on a shelter's staff list" copy). *(plan,
+  2026-08-29: still outstanding — promoted to RS-8 above rather than left as
+  a caveat inside a ledger row, per the README's standing lesson.)*
