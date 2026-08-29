@@ -310,4 +310,5 @@ gate is lifted and replaced with a better one.
   locally (12 passed) and in CI, `uv sync --locked` clean, and the new step was
   confirmed able to turn the `backend` job **red** by pushing a deliberately
   broken assertion to this branch and reading the failure back off the real
-  Actions run before reverting it — run ids in the PR thread.
+  Actions run before reverting it — the `backend` job went red at the `Test`
+  step in run 33240237512, then green again in the run on the revert.
