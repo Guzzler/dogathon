@@ -65,20 +65,37 @@ jobs:
           npm ci
           npm run build
 
-      # firestore:indexes was missing from this target list until 2026-08-29, which
+      - name: Deploy to Firebase Hosting + Firestore rules
+        run: npx firebase-tools@latest deploy --only hosting,firestore:rules --project=pawthway-hackathon --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+
+      # firestore:indexes was missing from the deploy target until 2026-08-29, which
       # made firestore.indexes.json inert: the file is declared in firebase.json and
       # this workflow triggers on it (see `paths:` above), so an index committed there
       # would be reviewed, merged, and deployed by a run that silently did not deploy
       # it. Nobody noticed because no query had needed a composite index yet.
       #
-      # Two things worth knowing when reading this run's log:
+      # It is a SEPARATE step, after hosting, and that ordering is deliberate. Adding
+      # the target to the combined command (run 33240631397) failed the whole deploy
+      # with `HTTP Error: 403, The caller does not have permission` before hosting had
+      # shipped -- so a missing IAM grant took the site down with it. The deploy service
+      # account has roles/datastore.user, which cannot create composite indexes; it
+      # needs datastore.indexes.create (roles/datastore.indexAdmin, or owner).
+      #
+      # Until someone grants that, this step goes RED on every run and the run fails,
+      # which is the point: the gap stays loud instead of being papered over by dropping
+      # the target again. Hosting and rules are already deployed by then, so a red run
+      # here means "the index didn't deploy", not "the site didn't".
+      #
+      # Two more things worth knowing when reading the log:
       #  - Index builds are asynchronous. `firebase deploy` returns before an index is
       #    serving, so the first query after a deploy can still fail with
       #    `failed-precondition` for a few minutes on a collection with real data.
       #    That is expected, not a bug to chase.
       #  - This never removes an index absent from the file. That is the safe
       #    direction; do not add --force or anything that changes it.
-      - name: Deploy to Firebase Hosting + Firestore rules and indexes
-        run: npx firebase-tools@latest deploy --only hosting,firestore:rules,firestore:indexes --project=pawthway-hackathon --non-interactive
+      - name: Deploy Firestore indexes
+        run: npx firebase-tools@latest deploy --only firestore:indexes --project=pawthway-hackathon --non-interactive
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
