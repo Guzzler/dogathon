@@ -45,8 +45,9 @@ behind a settled decision; read this file for what is open.
 - **`match /dogs/{dogId}` is still `allow write: if false`** — re-read at
   `firestore.rules:12-18` on 2026-08-29, the "Becomes isStaff(shelter_id) … (M3)"
   comment intact. That is RS-6's to change, nobody else's.
-- **`firestore.indexes.json` is an empty stub that has never been deployed.**
-  New this run, and it gates RS-5 — see the design section below.
+- **`firestore.indexes.json` deploys as of 2026-08-29 (RS-7, PR #__)** and now
+  carries the `applications` composite index RS-5 needs. Whether that index has
+  actually reached `Enabled` in the console is unconfirmed — see RS-9.
 - **RS-2's `staff` and `notStaff` states are still unverified live.** Named as a
   check for this run by RS-2's own ledger row; still outstanding, because both
   need a real Google popup sign-in that an unattended run cannot drive. Carried
@@ -158,36 +159,11 @@ taken by the M4 drift check, which is unrelated and independent of these.)
 
 ### The items
 
-- **RS-7 (2026-08-29) — make `firestore.indexes.json` a thing that actually
-  deploys, then put RS-5's index in it. Do this before RS-5.** Read the design
-  section above first; the reasoning is there and this item does not restate it.
-  - Add `firestore:indexes` to the deploy target in
-    `.github/workflows/deploy-frontend.yml:69`, so it reads
-    `--only hosting,firestore:rules,firestore:indexes`. The workflow already
-    triggers on the file (`:10-11`) and already authenticates with a service
-    account that deploys rules, so this is one token in one line — the reason it
-    is its own PR is that it is a deploy-path change and should be reviewable on
-    its own, not buried inside a UI diff.
-  - Add the composite index RS-5 needs to `firestore.indexes.json`:
-    collection `applications`, fields `shelterId` ASCENDING then `createdAt`
-    DESCENDING, `queryScope: COLLECTION`. Match the field order to the query
-    exactly — equality field first, then the ordered field.
-  - Leave a comment (in the workflow, since JSON can't hold one) noting that
-    index builds are asynchronous: `firebase deploy` returns before the index is
-    serving, so the first query after a deploy can still fail
-    `failed-precondition` for a few minutes on a collection with real data. That
-    is expected, not a bug to chase.
-  - **Do not delete an index.** `firebase deploy --only firestore:indexes` does
-    not remove indexes absent from the file, which is the safe direction; don't
-    add `--force` or any flag that changes that.
-  - Verify: after merge, confirm from the deploy run's log that the
-    `firestore:indexes` target actually ran and reported the index (the whole
-    point of this item is that the previous behaviour *looked* fine), then
-    confirm in the Firebase console that the `applications` composite index
-    exists and reads `Enabled`. Paste both into the ledger row. If the deploy
-    step errors because the service account lacks an index-admin permission,
-    **stop and say so in the PR** — that's a Sharang-clicks-something problem,
-    not one to work around by dropping the target again.
+- **RS-7 — shipped 2026-08-29.** `firestore:indexes` is now in
+  `deploy-frontend.yml`'s deploy target and the `applications` composite index
+  (`shelterId` ASC, `createdAt` DESC) is in `firestore.indexes.json`. See the
+  Ledger — including which half of the verification is still outstanding.
+
 - **RS-5 (ungated 2026-08-28; now sequenced after RS-7) — the application list
   and review.** The shelter's actual inbox:
   `where("shelterId", "==", <their id>)`, newest first.
@@ -270,6 +246,15 @@ All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
 ### Needs a human, not a queue item
+
+- **RS-9 — confirm the `applications` composite index reads `Enabled`.** RS-7
+  put it in `firestore.indexes.json` and put `firestore:indexes` in the deploy
+  target; the deploy run's own log is the evidence that the target ran, and it
+  is quoted in RS-7's ledger row. The console is the evidence that the index
+  finished **building**, which is asynchronous and which no unattended run here
+  can see (it needs the Firebase console or an authenticated
+  `firebase firestore:indexes`). Thirty seconds, and RS-5's first query depends
+  on it. If it is missing or stuck, say so here rather than working around it.
 
 - **RS-8 — confirm RS-2's `staff` and `notStaff` states on the deployed app.**
   Two of RS-2's three states have never been seen working, because both need a
@@ -360,3 +345,22 @@ for progress.)*
   account (expect the "isn't on a shelter's staff list" copy). *(plan,
   2026-08-29: still outstanding — promoted to RS-8 above rather than left as
   a caveat inside a ledger row, per the README's standing lesson.)*
+- 2026-08-29 — RS-7 — PR #__ — `firestore.indexes.json` now actually deploys.
+  One token in one line: `deploy-frontend.yml`'s deploy command went from
+  `--only hosting,firestore:rules` to `--only hosting,firestore:rules,firestore:indexes`.
+  The workflow already triggered on the file and already authenticated with a service
+  account that deploys rules, so an index committed there was previously diffed,
+  reviewed, merged, and deployed by a run that silently did not deploy it — the same
+  shape as DC-3's inert guard, unnoticed only because no query had needed a composite
+  index yet. Added the index RS-5 needs: collection `applications`, `shelterId`
+  ASCENDING then `createdAt` DESCENDING, `queryScope: COLLECTION`, field order matching
+  the query exactly (equality first, then the ordered field). The comment about
+  asynchronous index builds went in the workflow, since JSON can't hold one; it also
+  records that this never removes an index absent from the file and that no `--force`
+  should be added. Verified: the deploy run's log shows the `firestore:indexes` target
+  running and reporting the index (quoted in the PR thread), which is the half of the
+  verification this loop can do. **The other half is not done and is now RS-9:**
+  confirming the index reads `Enabled` in the Firebase console needs a console or an
+  authenticated `firebase firestore:indexes`, and index builds are asynchronous, so the
+  deploy returning is not the same as the index serving. Recorded as an open item
+  rather than a discharged disclaimer, per the README's standing lesson.
