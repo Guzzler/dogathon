@@ -1,12 +1,11 @@
 """Durable storage for a foster's agent conversation history.
 
-`server.py`'s in-memory `Session` still holds the live `Agent` and its
-approval queue -- those can't survive a process boundary anyway, since an
-approval is someone waiting mid-request blocked on a `queue.Queue.get()`,
-and `--max-instances=1` (`deploy-backend.yml`) stays pinned for exactly that
-reason. What *can* and should survive a Cloud Run restart or redeploy is the
-message transcript: without this, every merge to `src/**` silently drops
-every foster's conversation.
+`server.py`'s in-memory `Session` still holds the live `Agent`. What survives
+a Cloud Run restart or redeploy is the message transcript: without this, every
+merge to `src/**` silently drops every foster's conversation. The approval
+handoff, which used to be the other half of a `Session` and the reason
+`--max-instances=1` was pinned, now lives on this same document as a polled
+`pendingApproval` field -- see `approval_store.py`.
 
 Stored at `fosters/{uid}/agentSession/current`, not a field on the foster's
 main document -- that document is read in full by the web client on every
@@ -52,7 +51,10 @@ def load(foster_id: str) -> list[dict[str, Any]]:
 def save(foster_id: str, messages: list[dict[str, Any]]) -> None:
     """Overwrite the stored transcript, trimmed to the most recent turns."""
     trimmed = messages[-MAX_STORED_MESSAGES:]
-    _doc(foster_id).set({"messagesJson": json.dumps(trimmed)})
+    # merge=True because this document is shared: `approval_store.py` keeps the
+    # pending-approval field on it, and a plain set() here would delete a request
+    # a turn elsewhere is parked on.
+    _doc(foster_id).set({"messagesJson": json.dumps(trimmed)}, merge=True)
 
 
 def clear(foster_id: str) -> None:

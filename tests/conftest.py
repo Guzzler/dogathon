@@ -26,11 +26,18 @@ class FakeDocument:
     def get(self) -> "FakeSnapshot":
         return FakeSnapshot(self._store.get(self._path))
 
-    def set(self, data: dict[str, Any]) -> None:
+    def set(self, data: dict[str, Any], merge: bool = False) -> None:
         # Firestore stores what it is given; round-tripping through JSON here
         # keeps the fake honest about the fact that a stored value is data, not
         # a live reference to the caller's list.
-        self._store[self._path] = json.loads(json.dumps(data))
+        data = json.loads(json.dumps(data))
+        if merge:
+            # Top-level merge only, which is all the callers use. Real Firestore
+            # merges nested maps key by key; nothing here writes a partial map,
+            # so faking the deeper behaviour would only invite relying on it.
+            self._store.setdefault(self._path, {}).update(data)
+        else:
+            self._store[self._path] = data
 
     def delete(self) -> None:
         self._store.pop(self._path, None)
@@ -70,9 +77,15 @@ class FakeDb:
 
 @pytest.fixture
 def fake_db(monkeypatch: pytest.MonkeyPatch) -> FakeDb:
-    """Patches `session_store.db` so the module talks to an in-memory store."""
-    from agent import session_store
+    """Points every module that reaches Firestore at one in-memory store.
+
+    `session_store` and `approval_store` share the same document on purpose
+    (the transcript and the pending approval live side by side), so they must
+    share the same fake or the tests would not see them interfere.
+    """
+    from agent import approval_store, session_store
 
     db = FakeDb()
     monkeypatch.setattr(session_store, "db", lambda: db)
+    monkeypatch.setattr(approval_store, "db", lambda: db)
     return db

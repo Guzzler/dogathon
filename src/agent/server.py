@@ -7,14 +7,16 @@ service is the *only* thing standing between an anonymous caller and any foster'
 journey. A body-supplied id would let anyone who knows a uid read and write that
 person's record; the token is what makes "this is my journey" checkable.
 
-The live `Agent` and its approval queue still live in memory per instance --
-an approval is someone waiting mid-request, which can't be handed across a
-process boundary anyway. The message transcript itself is durable: it's
-persisted to Firestore (`session_store.py`) after every turn and reloaded
-when a foster's session is rebuilt, so a Cloud Run restart or redeploy no
-longer erases their conversation. `--min-instances=1 --max-instances=1`
-(`deploy-backend.yml`) is still pinned -- that was a correctness fix for the
-approval queue, not a durability one, and stays until that queue moves too.
+The live `Agent` still lives in memory per instance, but nothing a second
+instance needs to reach does any more. The message transcript is persisted to
+Firestore (`session_store.py`) after every turn and reloaded when a session is
+rebuilt; the approval handoff is a polled field on that same document
+(`approval_store.py`) rather than a `queue.Queue` a request thread blocks on,
+so an `/approve` landing on a different instance than the parked `/chat` now
+resolves it. `--min-instances=1 --max-instances=1` (`deploy-backend.yml`) is
+still pinned: the pin was the mitigation for that split brain and comes out
+only after this has been watched working in production, deliberately as its
+own change.
 """
 
 from __future__ import annotations
@@ -22,7 +24,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import queue
 import re
 import threading
 import time
@@ -37,7 +38,7 @@ from fastapi.responses import StreamingResponse
 from firebase_admin import auth as firebase_auth
 from pydantic import BaseModel
 
-from . import session_store
+from . import approval_store, session_store
 from .builtin import registry
 from .current_foster import set_current_foster
 from .firestore_client import _ensure_app
@@ -122,10 +123,14 @@ SESSION_TTL_SECONDS = 3600
 
 @dataclass
 class Session:
-    """One foster's conversation, plus the approval slot that turn is waiting on."""
+    """One foster's live conversation.
+
+    The approval slot used to live here as a `queue.Queue[bool]`. It now lives
+    in Firestore (`approval_store.py`) so a decision can reach a thread parked
+    in another instance -- see PH-8 in docs/initiatives/production-hardening.md.
+    """
 
     agent: Agent
-    approvals: "queue.Queue[bool]" = field(default_factory=queue.Queue)
     last_used: float = field(default_factory=time.monotonic)
 
 
@@ -213,7 +218,22 @@ def _take_chat_token(foster_id: str) -> bool:
         return True
 
 
-def _build_agent(foster_id: str, approvals: "queue.Queue[bool]") -> Agent:
+def _await_approval(foster_id: str, tool_name: str) -> bool:
+    """Park this turn until a human answers, via shared state rather than memory.
+
+    A Firestore failure while *asking* is not a reason to run a dangerous tool
+    unasked, so it declines -- the foster sees "the human declined this action"
+    and can retry, which is the safe direction to fail.
+    """
+    try:
+        request_id = approval_store.request(foster_id, tool_name)
+    except Exception:
+        logging.exception("could not record an approval request for %s", foster_id)
+        return False
+    return approval_store.wait(foster_id, request_id)
+
+
+def _build_agent(foster_id: str) -> Agent:
     # Pinning the id in the system prompt is what stops the agent falling back to
     # the "annie" tool defaults and reading somebody else's journey.
     system = (
@@ -225,7 +245,7 @@ def _build_agent(foster_id: str, approvals: "queue.Queue[bool]") -> Agent:
     return Agent(
         _registry,
         system=system,
-        approve=lambda name, args: approvals.get(timeout=300),
+        approve=lambda name, args: _await_approval(foster_id, name),
     )
 
 
@@ -237,12 +257,11 @@ def _session(foster_id: str) -> Session:
 
         session = _sessions.get(foster_id)
         if session is None:
-            approvals: "queue.Queue[bool]" = queue.Queue()
-            agent = _build_agent(foster_id, approvals)
+            agent = _build_agent(foster_id)
             # Rebuilding after an eviction, a restart or a redeploy: pick the
             # conversation back up instead of starting the foster over.
             agent.messages = session_store.load(foster_id)
-            session = Session(agent=agent, approvals=approvals)
+            session = Session(agent=agent)
             _sessions[foster_id] = session
             while len(_sessions) > MAX_SESSIONS:
                 _sessions.popitem(last=False)
@@ -464,7 +483,14 @@ def highlights(req: HighlightsRequest) -> dict[str, Any]:
 def approve(req: ApprovalRequest, foster_id: str = Depends(require_foster_id)) -> dict[str, bool]:
     # This is the release valve for the dangerous (writing) tools, so it needs the same
     # door as /chat -- otherwise an attacker triggers a write and approves it themselves.
-    _session(foster_id).approvals.put(req.approved)
+    #
+    # Deliberately does NOT touch _session(): the thread waiting on this decision may
+    # be in another instance, and building a session here just to reach a queue was
+    # the old shape. Writing the decision to Firestore is the whole job.
+    if not approval_store.resolve(foster_id, req.approved):
+        # A double-tap, or an answer to something that already timed out. Not an
+        # error for the caller -- there is nothing for them to do differently.
+        logging.info("approval for %s had nothing pending", foster_id)
     return {"ok": True}
 
 
@@ -474,6 +500,9 @@ def reset(
     foster_id: str = Depends(require_foster_id),
 ) -> dict[str, bool]:
     _session(foster_id).agent.reset()
+    # clear() removes the whole document, pendingApproval included, so a turn parked
+    # on an approval sees its request vanish and declines rather than waiting out the
+    # full timeout against a conversation that no longer exists.
     session_store.clear(foster_id)
     return {"ok": True}
 
