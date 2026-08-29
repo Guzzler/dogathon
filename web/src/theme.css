@@ -628,3 +628,24 @@ input,textarea,select{font-family:inherit}
   0%{transform:translateX(-100%)}
   100%{transform:translateX(330%)}
 }
+
+/* ---------- shelter side (RS-2) ----------
+   Deliberately outside .shell/.phone: staff work is desk-shaped, so this is responsive from
+   the start rather than capped at the foster journey's 430px. See ShelterLayout.tsx. */
+.shelter{
+  min-height:100dvh;background:var(--cream);
+  display:flex;flex-direction:column;align-items:center;
+}
+.shelter .screen{width:100%;max-width:960px;flex:1 0 auto}
+.shelter h1{font-family:var(--display);font-size:26px;margin:0 0 6px}
+.shelter__header{padding-top:32px;padding-bottom:8px}
+/* The access states are short and centered; the dashboard is a top-aligned document. */
+.shelter__message{
+  justify-content:center;align-items:flex-start;gap:14px;
+  max-width:560px;padding-top:40px;padding-bottom:40px;
+}
+.shelter__message .btn{margin-top:6px}
+@media (min-width:768px){
+  .shelter h1{font-size:32px}
+  .shelter__header{padding-top:48px}
+}

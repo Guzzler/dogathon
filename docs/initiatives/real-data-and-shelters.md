@@ -63,6 +63,11 @@ scales past one shelter.
   … (M3)" comment intact. Nothing has moved here since 2026-08-25 — the four
   merges in between (#27, #28, #29, #30) were all production-hardening or
   docs. The queue below is unchanged and still accurate.
+  **Updated again 2026-08-28 (RS-2):** the "no `shelters/{id}` document has
+  actually been created" half is **no longer true** — `shelters/sfspca-mission`
+  now exists in production Firestore with the repo owner's uid in `staffUids`,
+  so `isStaff()` finally evaluates against something. The `dogs` write rule is
+  still `if false`; that's RS-6's to change, not RS-2's.
 
 **Doc size watch (2026-08-28):** this file is ~350 lines, against the
 README's ~400-line archive threshold, and it is the only doc close to it. The
@@ -201,42 +206,9 @@ couldn't express at all.
 
 ### The items
 
-- **RS-2 (rescoped 2026-08-26) — staff resolution, the `/shelter` route
-  shell, and the gate.** No application list and no dog editing yet. This
-  item is purely: a staff member can reach a shelter surface that knows who
-  they are, and a non-staff visitor is told so clearly.
-  - Seed the first `shelters/{id}` document by hand — id
-    **`sfspca-mission`** (settled by RS-3; matches `data/dogs.json` and
-    `scripts/shelters/sfspca.py`'s `CAMPUS["id"]`), shape
-    `{ name, address, staffUids: [<a test uid>] }` per
-    `shelter-integration.md`. Until it exists every rule check evaluates
-    against nothing. `shelters/{id}` is `allow write: if false` on purpose —
-    create it from the Firebase console or an Admin-SDK one-off, not from the
-    client, and say which in the ledger row.
-  - Add `useStaffShelters()` in `web/src/hooks/` implementing the
-    array-contains query above. Return a discriminated result —
-    `{ state: "loading" | "notStaff" | "error" | "staff", shelters }` — so
-    callers can't accidentally collapse "not staff" into "error".
-  - Route: `/shelter` as a **sibling** of the foster
-    `<Route element={<Layout/>}>` in `App.tsx`, not nested inside it. That
-    route *is* the phone frame (`.shell > .phone`, `max-width:430px`), so
-    nesting would trap the dashboard inside it. Give it its own
-    `ShelterLayout`.
-  - Gate with a `StaffGate` mirroring the existing `AuthGate`/
-    `OnboardingGate` pattern in `App.tsx`: `loading` → the existing
-    `<Boot/>`; signed out → `SignInView` (reuse it, don't build a second
-    sign-in); `notStaff` → plain copy, "This is the shelter side of Pawthway.
-    Your account isn't on a shelter's staff list," and a link back to `/`;
-    `error` → a retry.
-  - **Discoverability is deliberately none.** No tab, no link from the foster
-    app — staff reach `/shelter` by URL. A visible entry point is a decision
-    for after a real shelter is using it (see "The part that's a
-    conversation" below).
-  - Verify: a uid in `staffUids` reaches the shell; a signed-in uid that
-    isn't gets the "not staff" copy rather than a blank screen or a spinner;
-    a signed-out visitor to `/shelter` gets sign-in and lands back on
-    `/shelter` afterwards. Check all three at 390px wide and at 1440px.
-- **RS-5 (gated on RS-2) — the application list and review.** The shelter's
+- **RS-2 — shipped 2026-08-28.** See Ledger for the full account, including
+  which two of its three verification states are still unconfirmed live.
+- **RS-5 (was gated on RS-2; ungated 2026-08-28) — the application list and review.** The shelter's
   actual inbox: `where("shelterId", "==", <their id>)`, newest first.
   - Row: foster name (`fosterName` is denormalised onto the application for
     exactly this), dog name, `status`, age of the application.
@@ -351,3 +323,35 @@ future run doesn't mistake the passage of time for progress.)*
   the hash fallback — the fix still mattered for RS-2's `isStaff(shelterId)`
   matching a real `shelters/{id}` doc, just not for the reason originally
   written down.
+- 2026-08-28 — RS-2 — PR #__ — Staff resolution, the `/shelter` route shell,
+  and the gate. `web/src/hooks/useStaffShelters.ts` runs the
+  `array-contains` query from the section above and returns the discriminated
+  `loading | notStaff | error | staff` result the task asked for; a
+  `StaffShelterProvider`/`useMyShelters` context hands the resolved shelters
+  to the screens behind the gate so they don't re-run the query that just let
+  them through. `StaffGate` in `App.tsx` maps those states to `<Boot/>` /
+  `SignInView` / `ShelterNotStaffView` / `ShelterErrorView`, and `/shelter`
+  is a **sibling** of the foster `<Route element={<Layout/>}>`, with its own
+  `ShelterLayout` outside the 430px `.phone` cap. `theme.css` gained a
+  `.shelter` block (tokens only, no literals). **Seeded the first
+  `shelters/{id}` doc via the Firestore REST API with a `gcloud` access
+  token, not the Admin SDK** — the repo has no local ADC configured, and the
+  REST path was the honest way to do the same one-off write without
+  interactive `gcloud auth application-default login`; the equivalent
+  Admin-SDK script is committed as `scripts/seed_shelter_staff.py` so the
+  write is reproducible and reviewable rather than existing only as a curl
+  someone ran once. Seeded `{ name: "SF SPCA Mission Campus", address:
+  "201 Alabama St, San Francisco", staffUids: [<the repo owner's uid>] }`.
+  **Verification is partial, and this line is the open item, not a
+  discharged disclaimer** (per the README's 2026-08-28 standing lesson):
+  verified live in a dev-server browser that a **signed-out** visit to
+  `/shelter` renders `SignInView` on the `/shelter` URL, that `.shelter`
+  resolves outside the phone frame, and that there's no horizontal overflow
+  at 390px or 1440px; `npm run build`, `npm run test` (28/28) and
+  `npm run lint` (9 warnings, unchanged from the pre-existing baseline) all
+  green. **Not verified live: the `staff` and `notStaff` states** — both need
+  a real Google popup sign-in, which an unattended run can't drive. The
+  cheapest confirmation is a human signing in as the seeded uid on the
+  deployed app and opening `/shelter` (expect the dashboard), then any other
+  account (expect the "isn't on a shelter's staff list" copy). `plan` should
+  treat that as a named check on its next run rather than assuming it works.
