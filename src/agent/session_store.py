@@ -23,11 +23,50 @@ from typing import Any
 
 from .firestore_client import db
 
-# Keeps the stored document bounded for a long-running conversation; a
-# foster who needs earlier context can just re-ask. Each turn appends
-# roughly two entries (a user message and an assistant reply, more with
-# tool calls), so 40 is a starting guess at ~20 turns, not a measured cap.
+# Two bounds in one number. It keeps the stored document from growing without
+# limit, and -- since `server._stream` applies `trim()` to the live
+# `Agent.messages` at the end of every turn -- it also bounds what gets re-sent
+# to the model each turn on a warm instance. That second half is the one that
+# costs money: before PH-10 nothing trimmed the in-memory list, so the cap only
+# bit across a restart. Each turn appends roughly two entries (a user message
+# and an assistant reply, more with tool calls), so 40 is a starting guess at
+# ~20 turns, not a measured cap.
 MAX_STORED_MESSAGES = 40
+
+
+def _starts_clean_turn(message: dict[str, Any]) -> bool:
+    """True if a transcript beginning at this message is one the API will accept.
+
+    That means a `user` message that isn't the *result* half of a tool call --
+    a transcript opening with a `tool_result` refers to a `tool_use` block that
+    is no longer there, and the API rejects it.
+    """
+    if message.get("role") != "user":
+        return False
+    content = message.get("content")
+    if not isinstance(content, list):
+        return True  # a plain string user message
+    return not any(
+        isinstance(block, dict) and block.get("type") == "tool_result" for block in content
+    )
+
+
+def trim(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The most recent turns, cut where the API can still parse the result.
+
+    A blind `messages[-MAX:]` is wrong and fails *intermittently*: cut between
+    an assistant's `tool_use` block and the matching `tool_result` and the next
+    request 400s. So the cut point walks backwards to the nearest message that
+    starts a clean turn. If there is no such message, keep everything -- over-
+    keeping costs tokens, under-keeping breaks the conversation.
+    """
+    if len(messages) <= MAX_STORED_MESSAGES:
+        return messages
+    cut = len(messages) - MAX_STORED_MESSAGES
+    for idx in range(cut, -1, -1):
+        if _starts_clean_turn(messages[idx]):
+            return messages[idx:]
+    return messages
 
 
 def _doc(foster_id: str):
@@ -50,7 +89,7 @@ def load(foster_id: str) -> list[dict[str, Any]]:
 
 def save(foster_id: str, messages: list[dict[str, Any]]) -> None:
     """Overwrite the stored transcript, trimmed to the most recent turns."""
-    trimmed = messages[-MAX_STORED_MESSAGES:]
+    trimmed = trim(messages)
     # merge=True because this document is shared: `approval_store.py` keeps the
     # pending-approval field on it, and a plain set() here would delete a request
     # a turn elsewhere is parked on.

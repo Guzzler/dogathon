@@ -346,6 +346,13 @@ def _stream(message: str, session: Session, foster_id: str, model: str) -> Itera
         # Persist even on failure: whatever turns did complete before the
         # error should still survive a restart.
         try:
+            # Trim the *live* list too, not just the stored copy. This instance
+            # stays warm (--min-instances=1), so without this a long conversation
+            # is re-sent to the API in full on every turn -- the one cost that
+            # scales with conversation length. Done here rather than in `loop.py`
+            # because the CLI shares that code and has no stored transcript to
+            # stay consistent with.
+            session.agent.messages = session_store.trim(session.agent.messages)
             session_store.save(foster_id, session.agent.messages)
         except Exception:
             logging.exception("failed to persist agent session for %s", foster_id)
