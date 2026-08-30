@@ -46,7 +46,7 @@ behind a settled decision; read this file for what is open.
   `firestore.rules:12-18` on 2026-08-29, the "Becomes isStaff(shelter_id) … (M3)"
   comment intact. That is RS-6's to change, nobody else's.
 - **`firestore.indexes.json` deploys, and the `applications` composite index
-  (`shelterId` ASC, `createdAt` DESC) exists** — RS-7 (PR #__) wired the target,
+  (`shelterId` ASC, `createdAt` DESC) exists** — RS-7 (PR #38, #39) wired the target,
   RS-9 supplied the IAM grant it needed, run 33243275175 deployed it green, and
   `gcloud firestore indexes composite list` reports it `READY`. RS-5's query has a
   serving index to run against.
@@ -365,7 +365,7 @@ for progress.)*
   account (expect the "isn't on a shelter's staff list" copy). *(plan,
   2026-08-29: still outstanding — promoted to RS-8 above rather than left as
   a caveat inside a ledger row, per the README's standing lesson.)*
-- 2026-08-29 — RS-7 — PR #__ — `firestore.indexes.json` now actually deploys.
+- 2026-08-29 — RS-7 — PR #38 — `firestore.indexes.json` now actually deploys.
   One token in one line: `deploy-frontend.yml`'s deploy command went from
   `--only hosting,firestore:rules` to `--only hosting,firestore:rules,firestore:indexes`.
   The workflow already triggered on the file and already authenticated with a service
@@ -388,7 +388,7 @@ for progress.)*
   README's standing lesson is about, and the follow-up row is easy to read as being
   about something else. What is genuinely confirmed: the target now runs (it did not
   before). What is not: that any index exists. That is RS-9, and it blocks RS-5.
-- 2026-08-29 — RS-7 (follow-up) — PR #__ — Split `firestore:indexes` out of the
+- 2026-08-29 — RS-7 (follow-up) — PR #39 — Split `firestore:indexes` out of the
   combined deploy command into its own step **after** hosting and rules. RS-7 added it
   to the one-line target list; the first real run of that (33240631397) died with
   `HTTP Error: 403, The caller does not have permission` on the `applications` index
