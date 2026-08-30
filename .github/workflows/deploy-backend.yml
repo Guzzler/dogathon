@@ -47,6 +47,14 @@ jobs:
       # change, made after this has been watched working in production for a while, not
       # a side effect of the PR that made it safe. When it goes, raise it in one small
       # PR and watch /health's active_sessions across instances.
+      #
+      # !! Raising --max-instances means raising MAX_CLOUD_RUN_INSTANCES in
+      # !! src/agent/server.py to the same number, in the same PR. The chat rate
+      # !! limit is a per-process token bucket, so N instances means N buckets: the
+      # !! ceiling a foster actually gets is CHAT_REQUESTS_PER_MINUTE times the
+      # !! instance count. server.py divides the budget by this number so that
+      # !! ceiling stays put; raising the flag alone quietly multiplies spend
+      # !! instead. See PH-11 in docs/initiatives/production-hardening.md.
       # --min-instances=1 keeps that single instance warm, so a cold start doesn't land
       # in the middle of someone's first message.
       - name: Deploy to Cloud Run
