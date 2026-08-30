@@ -125,7 +125,9 @@ three items below all come out of the section above, which was written by readin
 something to queue. PH-10 and PH-11 are prerequisites for PH-13; PH-12 is
 independent and cheap.
 
-- **PH-10 (2026-08-29) — the transcript cap only bites across a restart.**
+- **PH-10 — shipped 2026-08-30.** See the Ledger. (Original item kept below
+  for the reasoning it carries.)
+- ~~**PH-10 (2026-08-29) — the transcript cap only bites across a restart.**~~
   `session_store.save()` trims to `MAX_STORED_MESSAGES = 40`; nothing trims
   `Agent.messages` in memory, so on the warm instance `--min-instances=1` keeps
   alive, a long conversation is re-sent to the API in full every turn. Make the
@@ -345,3 +347,26 @@ verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
   lifted is an approval issued against one instance being answered against another.
   Also not exercised end-to-end: a real dangerous-tool approval through the browser UI,
   which needs a signed-in foster and a live Anthropic key.
+- 2026-08-30 — PH-10 — PR #__ — `session_store.trim()` is now the one place the
+  40-message bound is applied, and `server._stream`'s `finally` applies it to the
+  **live** `session.agent.messages` before saving, not just to the stored copy.
+  Before this, `--min-instances=1` kept an instance warm and nothing trimmed the
+  in-memory list, so a long conversation was re-sent to the API in full on every
+  turn — the cap was a persistence bound wearing a spend bound's clothes. The trim
+  is boundary-aware as the item required: it walks **backwards** from the blind cut
+  point to the nearest message that starts a clean turn (a `user` message carrying
+  no `tool_result` block), and keeps everything if no such message exists —
+  over-keeping costs tokens, under-keeping sends the API a `tool_result` whose
+  `tool_use` is gone and 400s the next message. Put in `session_store` rather than
+  `loop.py` per the item: the CLI shares `loop.py` and has no stored transcript to
+  stay consistent with. `MAX_STORED_MESSAGES`' comment now says it is both bounds.
+  Verified: **unit cases only** — no real over-length conversation was exercised,
+  which needs a live Anthropic key and ~20 turns. Four new tests in
+  `tests/test_session_store.py` (24 backend tests total, green locally): a
+  transcript under the bound returned unchanged; a 62-message transcript whose
+  blind `[-40:]` cut provably lands on a `tool_result` (the test asserts the
+  fixture still reproduces that, so it can't rot into passing vacuously) trimmed to
+  the clean boundary two messages earlier instead; a pathological transcript with
+  no clean boundary keeping everything; and `save()` storing the boundary trim. Ran
+  the negative direction as the item asked — restoring the blind slice fails
+  exactly those three, passes the other 21.
