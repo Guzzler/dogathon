@@ -176,10 +176,31 @@ def require_foster_id(authorization: str | None = Header(default=None)) -> str:
     return foster_id
 
 
-# Per-instance, and Cloud Run runs several: the real ceiling is this times the
-# instance count. It's a brake on one signed-in foster hammering the model, not a
-# quota -- anything that has to hold exactly needs shared state (Firestore, Redis).
-CHAT_REQUESTS_PER_MINUTE = 20
+# The rate limit is a brake on one signed-in foster hammering the model, not an
+# exact quota -- anything that has to hold exactly needs shared state.
+#
+# It is also *per-process*, and that is the whole reason these are two constants
+# instead of one. Cloud Run routes a foster's requests to whichever instance is
+# free, so each instance keeps its own bucket and the ceiling a foster actually
+# experiences is the per-instance number times the instance count. Dividing the
+# budget up front is what stops raising --max-instances from silently multiplying
+# spend (PH-11).
+#
+# The trade is deliberate: a foster whose requests all happen to land on one
+# instance is throttled at the divided number rather than the budget. That is the
+# safe direction to be wrong in, and it is why the split is a fixed division
+# rather than anything cleverer -- see PH-11 in
+# docs/initiatives/production-hardening.md for the option that wasn't taken (a
+# Firestore-backed bucket, correct at any instance count, costing a read+write per
+# chat request).
+#
+# !! MAX_CLOUD_RUN_INSTANCES must equal --max-instances in
+# !! .github/workflows/deploy-backend.yml. Changing one without the other is the
+# !! bug this arrangement exists to make visible. There is a matching note next to
+# !! the flag itself, because that is where someone will change the number.
+CHAT_REQUESTS_PER_MINUTE_BUDGET = 20
+MAX_CLOUD_RUN_INSTANCES = 1
+CHAT_REQUESTS_PER_MINUTE = max(1, CHAT_REQUESTS_PER_MINUTE_BUDGET // MAX_CLOUD_RUN_INSTANCES)
 _REFILL_PER_SECOND = CHAT_REQUESTS_PER_MINUTE / 60
 
 
