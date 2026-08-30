@@ -216,7 +216,8 @@ independent and cheap.
     currently no test of the rate limiter at all. Plus, for (a) only, that two
     independent bucket holders share one Firestore counter.
 
-- **PH-12 (2026-08-29) — pin the foster-isolation invariant with a test.**
+- **PH-12 — shipped 2026-08-30.** See the Ledger. (Original item kept below.)
+- ~~**PH-12 (2026-08-29) — pin the foster-isolation invariant with a test.**~~
   `CLAUDE.md` says outright that `current_foster` must stay a ContextVar set
   inside the streaming generator and *"don't simplify it back to a global"*, and
   that the per-foster `Agent`/session split exists so one foster's questions
@@ -427,3 +428,27 @@ verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
   throttle another; and an idle bucket is evicted rather than accumulating per
   visitor. Plus an assertion that the division itself exists, so deleting the tie
   between the two constants breaks a test rather than a bill.
+- 2026-08-30 — PH-12 — PR #__ — `tests/test_foster_isolation.py`, 4 tests (34
+  backend tests total, green locally), pinning the two invariants `CLAUDE.md`
+  asserts in prose and nothing enforced. (1) Two concurrent `_stream` generators
+  for different foster ids each read their **own** id back from `current_foster()`
+  while the other is mid-stream. Driven in two real threads with a
+  `threading.Barrier`, deliberately: FastAPI iterates a sync generator in a
+  threadpool worker, so it is the per-thread context that keeps two streams apart
+  — a plain generator does *not* get its own context, so interleaving two of them
+  in one thread would have proved nothing and passed against a global. The barrier
+  is what makes it a real test: without it each thread sets and reads before the
+  other runs, and a global passes. (2) A companion from the other end: two streams
+  persist their transcripts to their own `fosters/{uid}/agentSession/current` and
+  neither leaks into the other. (3) `_session("a")` and `_session("b")` return
+  distinct `Session`s, distinct `Agent`s and distinct `messages` lists, and the
+  same foster keeps theirs. (4) Evicting one session leaves the other's agent and
+  transcript untouched, and the evicted one comes back rebuilt and empty rather
+  than sharing.
+  **Ran the negative direction in both cases, as the item required.** Replacing the
+  ContextVar in `current_foster.py` with a module-level variable fails test (1)
+  and only test (1). Making `_session()` hand everyone the first existing session —
+  the "one shared Agent" simplification — fails (3) and (4). Both restored after.
+  No production code was changed: `_build_agent` is monkeypatched in the fixture so
+  no Anthropic client is constructed, and PH-9's `fake_db` covers Firestore. Nothing
+  in `server.py` was refactored for testability, per the item.
