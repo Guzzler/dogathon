@@ -123,13 +123,20 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **The first archive exists as of
-2026-08-29**: `archive/real-data-and-shelters-2026-08-29.md`, holding that
-doc's settled M1/M2/M4 narrative. The pattern that worked: snapshot the whole
-doc verbatim into the archive so nothing is lost, then compress the settled
-sections in the working doc to one dated line each that points at the archive
-for the reasoning. Archives are append-only — if something in one turns out to
-be wrong, correct the working doc and say so there.
+snapshot) rather than let it grow unbounded. **Two archives exist as of
+2026-08-29**: `archive/real-data-and-shelters-2026-08-29.md` (that doc's settled
+M1/M2/M4 narrative) and `archive/production-hardening-2026-08-29.md` (its settled
+PH-1..PH-6 narrative and ledger rows). The pattern that worked both times, and is
+now the convention: snapshot the whole doc verbatim into the archive so nothing
+is lost, then compress the settled sections in the working doc to one dated line
+each that points at the archive for the reasoning. Archives are append-only — if
+something in one turns out to be wrong, correct the working doc and say so there.
+
+The trigger is worth applying at the moment a run's own edits push a doc past
+~400, not on the next run. production-hardening crossed it *because of* the
+2026-08-29 queue refill, and archiving in the same PR is what kept the working
+doc at 347 lines instead of letting a 420-line version merge and get noticed
+later.
 
 ## Ledger convention
 
@@ -150,7 +157,12 @@ opening the PR, better — but don't block a merge on it. The convention is
 working as designed: PH-5 was the only outstanding placeholder on 2026-08-28
 and was backfilled to #29 that run; on 2026-08-29 all three of that week's
 shipped items carried one and were backfilled together — DC-6 → #32,
-PH-7 → #33, RS-2 → #34.
+PH-7 → #33, RS-2 → #34. Later the same day a second execute run added four more,
+backfilled on the following plan run — PH-9 → #36, PH-8 → #37, RS-7 → #38, and
+RS-7's follow-up → #39. Four placeholders from one run is the most so far and
+still cost one `gh pr list` to resolve, so the convention is holding; if it ever
+stops being cheap, the fix is execute amending its own row after opening the PR,
+not plan guessing.
 
 **A standing lesson from 2026-08-28, worth generalising past the one bug.**
 DC-1 shipped with its verification recorded honestly as *"verified locally on

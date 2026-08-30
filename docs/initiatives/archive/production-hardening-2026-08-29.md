@@ -1,3 +1,8 @@
+<!-- Verbatim snapshot of docs/initiatives/production-hardening.md as it stood on
+2026-08-29, taken when the working doc crossed the README's ~400-line archive
+threshold. Append-only: if something here turns out to be wrong, correct the
+working doc and say so there, don't edit this file. -->
+
 # Production hardening
 
 The security hole is closed (PR #9) and spend has a ceiling (PR #7). What's
@@ -6,20 +11,39 @@ true, or loses something a real person would mind losing. None of it is
 visible in a demo. All of it matters the first time a real dog goes home
 with a real foster.
 
-## H1 — session state survives a restart (PH-3, PH-8) — settled
+## H1 — transcript is durable (PH-3); approval channel is too (PH-8)
 
-Both halves of a foster's agent session now live in Firestore on
-`fosters/{uid}/agentSession/current`: the transcript as a `messagesJson` string
-(`session_store.py`, PH-3, PR #23) and the approval handoff as a polled
-`pendingApproval` map (`approval_store.py`, PH-8, PR #37). A redeploy no longer
-drops a conversation, and a decision written by any instance reaches a thread
-parked in any other. Full reasoning — including why the transcript is a JSON
-string rather than a native array, and the three deliberate behaviour changes
-PH-8 made beyond its literal task — is in the [archive](archive/production-hardening-2026-08-29.md).
+`src/agent/server.py` keeps one in-memory `Agent` per foster uid. `deploy-backend.yml` pins
+`--min-instances=1 --max-instances=1`, which was a **correctness** fix (a
+second instance could swallow an `/approve` that a `/chat` elsewhere was
+blocked on — see the comment above the flag in the workflow) not a cost one.
 
-What that deliberately leaves open is the `--min-instances=1 --max-instances=1`
-pin, which is now *removable* and has not been removed. The next section is this
-run's answer to what removing it actually costs.
+**Resolved 2026-08-25 (PH-3):** `session_store.py` persists `Agent.messages`
+to `fosters/{uid}/agentSession/current` (`messagesJson`, a JSON string field
+— `content` blocks are lists of dicts, so this sidesteps any question about
+how deep Firestore lets map-nested arrays go) after every completed turn in
+`_stream`, and `_session()` loads it back when rebuilding a foster's
+session. Trimmed to the last 40 stored messages (~20 turns, a starting
+guess) on write. A redeploy or restart no longer drops a foster's
+conversation.
+
+**Resolved 2026-08-29 (PH-8).** The paragraph that used to sit here described
+`Session.approvals` as a `queue.Queue[bool]` a request thread blocks on — a
+blocked thread being unserializable, and a second instance having no way to
+hand it a `bool`. That is no longer the shape. `src/agent/approval_store.py`
+writes a `pendingApproval` map onto the same
+`fosters/{uid}/agentSession/current` document PH-3 created and **polls** it at
+one read per second up to the same 300-second ceiling; `/approve` writes the
+decision and no longer touches the in-memory session at all. A decision written
+by any instance reaches a thread parked in any other.
+
+**What that leaves open, deliberately.** The `--min-instances=1
+--max-instances=1` pin is now *removable* and has **not been removed** — it
+comes out as its own small change once this has been watched working in
+production, not as a side effect of the PR that made it safe. Until then the
+backend is still a single point of failure, and that is a choice rather than a
+constraint. `deploy-backend.yml`'s comment says the same thing at the point
+someone would actually edit the flag.
 
 ## What lifting the instance pin actually costs (answered 2026-08-29)
 
@@ -63,24 +87,37 @@ hits, and one dangerous-tool approval issued in one browser and answered such
 that the parked turn resumes. That last one is the actual claim PH-8 made and the
 only thing that proves it. Written up as PH-13 under "Needs a human" below.
 
-## The notification that doesn't notify — honest, still not capable (PH-1)
+## The notification that doesn't notify — fixed (PH-1, PR #19)
 
-`src/agent/builtin/adoption.py:66` returns
-`"notified_shelter": arcade_tools.available()` instead of a hardcoded `True`
-(PR #19), and the system prompt tells the model to say plainly when nobody was
-notified. **Still open, deliberately: nothing actually notifies a shelter.** The
-fix made the tool honest, not capable. A real notification path is downstream of
-M3 in `real-data-and-shelters.md` — a shelter with an account and an application
-list is the thing worth notifying — so it is not queued here. Background in the
-[archive](archive/production-hardening-2026-08-29.md).
+**Resolved 2026-08-24, re-verified 2026-08-25.**
+`src/agent/builtin/adoption.py:66` now reads
+`"notified_shelter": arcade_tools.available()` — confirmed by grep against
+`main`, not taken from the ledger's word.
+
+The original problem, kept for context: the tool flipped `dogs/{id}.status`
+and returned a hardcoded `notified_shelter: True`, while Arcade isn't
+configured in production (`GET /health` reports `"arcade_available": false`),
+so there was no Gmail/Slack path and nobody was notified. With SF SPCA's real
+dogs in the roster (PR #6) that was no longer a white lie about demo data.
+
+**Still open, deliberately:** nothing actually notifies a shelter. The fix
+made the tool honest, not capable. A real notification path is downstream of
+M3 in `real-data-and-shelters.md` (a shelter with an account and an
+application list is the thing worth notifying), so it is not queued here.
 
 ## Account deletion and export — both shipped
 
-`deleteAccount()` (PH-2, PR #20) and `exportAccountData()` (PH-6, PR #28), both
-in `web/src/auth.ts` and surfaced in `AccountSheet.tsx` for signed-in users;
-guests have "Start fresh on this device". The export deliberately excludes
+**Deletion resolved 2026-08-24 (PH-2, PR #20):** `deleteAccount()` in
+`web/src/auth.ts`, surfaced in `AccountSheet.tsx` behind a confirm step for
+signed-in users. Verified present on `main` 2026-08-25.
+
+**Export resolved 2026-08-26 (PH-6):** `exportAccountData()` in
+`web/src/auth.ts` builds a JSON blob of `fosters/{uid}`, its `careLog`
+subcollection, and `applications` rows (queried by `fosterId`), triggered
+via a "Download my data" button in `AccountSheet.tsx` beside the delete
+button, signed-in users only. Deliberately excludes
 `fosters/{uid}/agentSession/current` — the agent's own reasoning, not
-foster-given data. Details in the [archive](archive/production-hardening-2026-08-29.md).
+foster-given data, and already no-client-write in rules.
 
 ## No error tracking
 
@@ -237,23 +274,64 @@ independent and cheap.
 
 ## Ledger
 
-*(Rows for PH-1 through PH-6 are compressed to one line each below; each one's
-full text, including what shipped smaller than queued and why, is preserved
-verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
-
-- 2026-08-24 — PH-1 — PR #19 — `send_adoption_profile_to_shelter` returns
-  `notified_shelter: arcade_tools.available()` instead of a hardcoded `True`.
-- 2026-08-24 — PH-2 — PR #20 — Client-side `deleteAccount()`: careLog docs, then
-  `fosters/{uid}`, then the Auth user. No rules change needed.
-- 2026-08-25 — PH-3 — PR #23 — `session_store.py` persists the transcript as a
-  `messagesJson` string, trimmed to 40 on write; `_stream` saves, `/reset` deletes.
-- 2026-08-26 — PH-4 — PR #27 — `"strict": true` made explicit in
-  `web/tsconfig.app.json`. A pin, not a fix — TypeScript 6 already defaulted it on.
-- 2026-08-26 — PH-6 — PR #28 — `exportAccountData()` builds a JSON blob of the
-  foster doc, its careLog, and its `applications` rows. No new dependency.
-- 2026-08-26 — PH-5 — PR #29 — `migrateGuestData()` copies localStorage guest
-  state into `fosters/{uid}` on first sign-in. Shipped smaller than queued: there
-  is no anonymous Auth session to `linkWithCredential`. **Not verified live.**
+- 2026-08-24 — PH-1 — PR #19 — `send_adoption_profile_to_shelter` now
+  returns `notified_shelter: arcade_tools.available()` instead of a
+  hardcoded `True`; `PAWTHWAY_SYSTEM` tells the model to say plainly when
+  nobody was notified. Did the smaller return-value + prompt fix, not a
+  new notification path (that stays open if Arcade gets configured later).
+- 2026-08-24 — PH-2 — PR #20 — Client-side account deletion: `deleteAccount()`
+  in `web/src/auth.ts` deletes the `careLog` subcollection docs, then
+  `fosters/{uid}`, then the Firebase Auth user (re-prompting Google sign-in
+  once on `auth/requires-recent-login`). Wired into `AccountSheet.tsx`
+  behind a "Delete account" button + confirm step, signed-in users only —
+  guests already have "Start fresh on this device". No rules change needed;
+  `firestore.rules` already lets the owner write/delete their own doc and
+  subcollection. Went client-side per the task's own fallback (no admin
+  panel exists to host a `DELETE /account` endpoint).
+- 2026-08-25 — PH-3 — PR #23 — `src/agent/session_store.py` persists
+  `Agent.messages` (loop.py now dumps assistant content blocks to plain
+  dicts at append time, not raw SDK objects, so the list stays JSON-safe
+  throughout) as a `messagesJson` string on
+  `fosters/{uid}/agentSession/current`, trimmed to the last 40 messages on
+  write. `_session()` loads it on rebuild; `_stream` saves it in a `finally`
+  after each turn; `/reset` deletes the doc. Added an owner-read/
+  no-client-write rule for the subcollection in `firestore.rules`. Did not
+  touch `--max-instances=1` or the approval queue — out of scope per the
+  correction above.
+- 2026-08-26 — PH-4 — PR #27 — Added `"strict": true` explicitly to
+  `web/tsconfig.app.json`'s `compilerOptions`, per the doc's own corrected
+  premise: TypeScript 6 (`~6.0.2` in `package.json`) already defaults
+  `strict` on, so this was a one-line pin against a silent future
+  regression, not a codebase-wide cleanup. Verified `0 errors` from
+  `./node_modules/.bin/tsc -p tsconfig.app.json --noEmit` both before and
+  after the change, `npm run build`, `npm run lint` (no new warnings beyond
+  the pre-existing ones), and `npm run test` (28/28) all green.
+- 2026-08-26 — PH-6 — PR #28 — `exportAccountData()` in `web/src/auth.ts`
+  builds a JSON blob of `fosters/{uid}`, its `careLog` subcollection, and
+  `applications` rows (queried `where("fosterId", "==", uid)` — no
+  composite index needed, single equality filter). Delivered via a
+  `Blob` + object-URL `<a download>` click, no new dependency. Wired into
+  `AccountSheet.tsx` as a "Download my data" button beside "Delete
+  account", signed-in users only. Excludes
+  `fosters/{uid}/agentSession/current` per the task's own instruction.
+- 2026-08-26 — PH-5 — PR #29 — `migrateGuestData()` in `web/src/auth.ts`,
+  called from `signInWithGoogle()` when `wasGuest()` was true before the
+  guest flag is cleared. Copies the localStorage `Foster` and care-log
+  entries into the new `fosters/{uid}` doc, then `clearGuestData()`.
+  **Shipped smaller than queued, and for a real reason:** the task said to
+  "use `linkWithCredential`/`linkWithPopup` on the existing anonymous local
+  session where possible" — there is no such session. A Pawthway guest has
+  no Firebase Auth user at all (anonymous auth is never called; see
+  `localMode.ts` and the README's "browsing doesn't require an account"
+  decision), so credential linking has nothing to link and the task's own
+  fallback — "where the guest state is purely client-side, copy it into the
+  new `fosters/{uid}` doc" — is the whole job. Guarded two ways: skips if
+  `fosters/{uid}` already exists (returning user's real data wins over a
+  stale local guest doc on a shared device) and skips if the local foster
+  still equals `BLANK_FOSTER` (nothing worth migrating). Care-log entries
+  are re-written sequentially with a fresh `serverTimestamp()` rather than
+  the local `created_at`, preserving order. **Not verified live** — needs a
+  real Google sign-in against the deployed app; build/lint/test green only.
 - 2026-08-28 — PH-7 (commit-shaped half only) — PR #33 — `GET /health` in
   `src/agent/server.py` now also reports `firestore_reachable`: a
   `_firestore_reachable()` helper does the cheapest possible round trip
