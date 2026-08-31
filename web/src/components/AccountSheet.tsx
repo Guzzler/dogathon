@@ -2,7 +2,8 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  AUTH_AVAILABLE, deleteAccount, exportAccountData, signInWithGoogle, signOutOfPawthway,
+  AccountDeletionError, AUTH_AVAILABLE, deleteAccount, exportAccountData, signInWithGoogle,
+  signOutOfPawthway,
 } from "../auth";
 import { clearGuestData } from "../lib/localMode";
 import type { Session } from "../lib/session";
@@ -29,8 +30,15 @@ export function AccountSheet({ session, onClose }: { session: Session; onClose: 
   async function removeAccount() {
     setDeleting(true);
     setDeleteError(null);
+    // An AccountDeletionError already carries copy written for a foster to read (e.g. the
+    // agent transcript couldn't be cleared, so nothing was deleted). Anything else is a raw
+    // Firebase error — a dismissed re-auth popup, most likely — and keeps the old fallback.
     try { await deleteAccount(); onClose(); }
-    catch { setDeleteError("Couldn't delete your account — try signing in again first."); }
+    catch (err) {
+      setDeleteError(err instanceof AccountDeletionError
+        ? err.message
+        : "Couldn't delete your account — try signing in again first.");
+    }
     finally { setDeleting(false); }
   }
 

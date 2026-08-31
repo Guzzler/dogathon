@@ -6,6 +6,10 @@ import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where,
 } from "firebase/firestore";
 import { firebaseApp, firestore } from "./firebase";
+// api.ts imports `auth` back out of this module, so these two form a cycle. It's safe
+// because neither side reads the other at module-evaluation time — `authHeader()` reads
+// `auth` when a request is made, and `resetChat` is called from inside deleteAccount().
+import { resetChat } from "./api";
 import { BLANK_FOSTER, clearGuestData, readLocalCareLog, readLocalFoster, LOCAL_MODE } from "./lib/localMode";
 import { clearGuest, setSession, wasGuest } from "./lib/session";
 
@@ -82,14 +86,59 @@ export async function signOutOfPawthway(): Promise<void> {
 }
 
 /**
+ * A deletion failure whose message is already written for a foster to read, so the sheet can
+ * render it directly. Same idea as `ChatError` in api.ts, and the reason the sheet doesn't
+ * just print every caught error: a dismissed re-auth popup surfaces as
+ * `auth/popup-closed-by-user`, which is not copy anyone should see.
+ */
+export class AccountDeletionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AccountDeletionError";
+  }
+}
+
+/**
  * Permanently deletes the signed-in foster's data and their Auth account. Firestore rules
  * only let the owner delete their own `fosters/{uid}` doc and `careLog` subcollection, so
- * this is a plain client-side delete rather than a backend endpoint. Google-auth users can
- * have a stale session (`auth/requires-recent-login`) — re-prompt once, then retry.
+ * this is mostly a plain client-side delete rather than a backend endpoint. Google-auth users
+ * can have a stale session (`auth/requires-recent-login`) — re-prompt once, then retry.
+ *
+ * The one part the client can't reach is `fosters/{uid}/agentSession/current`: deleting a
+ * document does not delete its subcollections, and that one is `allow write: if false`, so
+ * only the Admin SDK can clear it. `POST /reset` is that path, and it goes first — see below.
  */
 export async function deleteAccount(): Promise<void> {
   if (!auth?.currentUser) throw new Error("Not signed in.");
   const uid = auth.currentUser.uid;
+
+  // Before anything else, because /reset is authenticated with an ID token and after
+  // deleteUser() there is no user to mint one from — and the deleteUser retry path below
+  // re-authenticates with a popup, which a token minted earlier isn't guaranteed to survive.
+  //
+  // What's at stake if this is skipped: agentSession/current is a verbatim `messagesJson`
+  // dump of everything the foster typed (their dog's medical detail on Care Plan, pickup
+  // logistics on Match), and once the uid stops existing nothing can ever read it back —
+  // the read rule is request.auth.uid == uid. It would be a permanent orphan holding a
+  // deleted person's words.
+  //
+  // Skipped when there's no backend to ask, the same LOCAL_MODE condition the rest of the
+  // app branches on. (A signed-in user implies Firebase is configured, so this is belt and
+  // braces rather than a live path — but it's the app's existing answer to the question.)
+  if (!LOCAL_MODE) {
+    try {
+      await resetChat();
+    } catch {
+      // Deliberately fatal, and deliberately not silent. Carrying on would delete the Auth
+      // user and strand the transcript unreachable forever; swallowing it would tell someone
+      // their data is gone when it isn't. Naming what failed lets them retry when the
+      // backend is back, which does clear it.
+      throw new AccountDeletionError(
+        "Couldn't delete your saved conversations with the assistant, so nothing was deleted. " +
+        "The assistant service may be starting up — try again in a few minutes.",
+      );
+    }
+  }
 
   const careLog = await getDocs(collection(firestore, "fosters", uid, "careLog"));
   await Promise.all(careLog.docs.map((entry) => deleteDoc(entry.ref)));
@@ -114,7 +163,9 @@ export async function deleteAccount(): Promise<void> {
  *
  * Deliberately excludes `fosters/{uid}/agentSession/current`: it's a `messagesJson` dump of
  * the agent's own reasoning, already no-client-write in firestore.rules, not data the foster
- * gave us.
+ * gave us. That line is about *export* only — what someone is entitled to a copy of and what
+ * has to be destroyed on request are different questions, and `deleteAccount()` above answers
+ * the second one by clearing that document through the backend.
  */
 export async function exportAccountData(): Promise<void> {
   if (!auth?.currentUser) throw new Error("Not signed in.");
