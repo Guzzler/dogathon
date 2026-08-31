@@ -347,7 +347,7 @@ verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
   5 new tests (13 total in `web/src/auth.test.ts`), three negative directions run:
   dropping `status: "withdrawn"`, adding `fosterId` to the payload, and moving the
   whole block after `deleteUser()` each fail exactly the test that names them.
-- 2026-08-30 — PH-16 — PR #__ — `firestore.rules`'s foster branch on
+- 2026-08-30 — PH-16 — PR #49 — `firestore.rules`'s foster branch on
   `applications` now also requires `fosterId`, `shelterId`, `dogId`, `createdAt` and
   `checklist` to equal their existing values, so a withdraw can no longer smuggle in
   a `checklist` rewrite (undoing a shelter's ticks) or a `shelterId` rewrite (moving
