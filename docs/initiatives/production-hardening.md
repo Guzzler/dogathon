@@ -213,34 +213,11 @@ specific respect, so do not reorder them.
   through `POST /reset` before it touches anything else, and refuses to delete the
   rest if it can't. See the Ledger, including which half was only unit-tested.
 
-- **PH-15 (2026-08-30) — redact the foster's name off their applications on
-  delete.** Per the decision recorded above: the shelter's copy of an
-  application survives, the deleted person's name does not.
-  - In `deleteAccount()`, before deleting the Auth user, query
-    `applications where fosterId == uid` — the same query
-    `exportAccountData()` already runs at `web/src/auth.ts:125` — and for each
-    row write `fosterName: "(deleted account)"` and `status: "withdrawn"`.
-  - **`status: "withdrawn"` is not optional and not a nicety**: it is what makes
-    the write pass `firestore.rules:49-51`'s foster branch, which allows an
-    update only when the resulting status is `withdrawn`. A redaction that
-    leaves the status alone is `permission-denied`. It is also the honest
-    status — nobody is going to review an application from an account that no
-    longer exists.
-  - Leave `fosterId` in place. It is a uid that now resolves to nothing, and it
-    is what makes the row's own history legible; scrubbing it would leave the
-    shelter with a record whose provenance can't be established. If a later
-    decision disagrees, that is a decision to write into this doc, not a
-    judgment call to make inside the deletion path.
-  - Do **not** add `allow delete` to `applications` to make this simpler. The
-    reasoning is in the section above; hard-deleting a row a shelter may be
-    mid-review on is the failure this shape exists to avoid.
-  - Verify: with the rules as they stand, a client write that sets `fosterName`
-    and `status: "withdrawn"` on one's own application succeeds, and the same
-    write without the status change is denied. Run it for real against the
-    deployed project as a test account rather than reasoning about it — RS-5's
-    section in `real-data-and-shelters.md` is a live example of a rules
-    question that could only be settled by running it. Record the answer in
-    this doc.
+- **PH-15 — shipped 2026-08-30.** `deleteAccount()` redacts `fosterName` to
+  `"(deleted account)"` and sets `status: "withdrawn"` on every application the
+  deleted foster opened, before the Auth user goes. **The live rules check the item
+  asked for could not be run and is now PH-15b under "Needs a human"** — read that
+  before treating this as verified end to end.
 
 - **PH-16 (2026-08-30, sequenced after PH-15) — the foster branch of
   `applications`'s update rule pins nothing.** `firestore.rules:49-51` allows a
@@ -265,6 +242,23 @@ specific respect, so do not reorder them.
     deployed project. Do not widen anything else while you are in this file.
 
 ### Needs a human, not a queue item
+
+- **PH-15b (2026-08-30) — run PH-15's redaction write against the deployed
+  project.** PH-15 shipped; its verification did not. The item asked for the write
+  to be run for real as a test-account foster, and an unattended run has no way to
+  do it: the frontend's only sign-in is a Google popup, the Firestore emulator needs
+  a JRE that isn't installed on this machine, and the two ways to get an ID token
+  without a popup — creating a test account, or minting a custom token off the
+  service-account key — are both off-limits to this loop. What was done instead is a
+  close read of `firestore.rules:49-51`, which says the write should pass: the foster
+  branch needs `resource.data.fosterId == request.auth.uid` (true — it's their own
+  row) and `request.resource.data.status == "withdrawn"` (true — the merged
+  post-write document carries it). That is a reading, not a result.
+  Signed in as a test foster with at least one application, from the browser console
+  on `https://pawthway-hackathon.web.app`, confirm both directions: the
+  `{ fosterName, status: "withdrawn" }` write succeeds, and the same write without
+  the status change comes back `permission-denied`. **Record the answer here.**
+  This is also PH-16's regression check, so doing them together is one errand.
 
 - **PH-13 (2026-08-29) — lift the instance pin, once PH-10 and PH-11 land.**
   Raise `--max-instances` from 1 to **2** in `deploy-backend.yml` (leave
@@ -392,3 +386,22 @@ verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
   dropping the `resetChat()` call fails 3 of them, and moving it after `deleteUser()`
   fails the same 3. Not exercised against a real signed-in account, which needs a
   Google popup this run can't drive.
+- 2026-08-30 — PH-15 — PR #48 — `deleteAccount()` now queries
+  `applications where fosterId == uid` — the query `exportAccountData()` already
+  runs — and writes `fosterName: "(deleted account)"` plus `status: "withdrawn"` to
+  each row. Redact, not delete, and no `allow delete` rule added: an application has
+  two legitimate owners, and a row vanishing out from under a staff member mid-review
+  is the failure the shape exists to avoid. `fosterId` deliberately stays. Placed
+  *before* every deletion, not merely before `deleteUser()`, for a reason the item
+  didn't state and this run found: after `deleteUser()` the redaction is impossible
+  **forever**, because the foster branch of the update rule needs
+  `resource.data.fosterId == request.auth.uid` and that uid never signs in again — so
+  a row still carrying the name at that point carries it permanently. Same argument
+  as PH-14's transcript, so it fails the same way: a failed redaction is fatal, an
+  `AccountDeletionError` says nothing was deleted, and nothing was. **The live rules
+  check the item asked for was not run** — no popup-free way to hold a foster's ID
+  token here, and no JRE for the Firestore emulator; it is written up as PH-15b under
+  "Needs a human" with the exact two-direction check, rather than quietly dropped.
+  5 new tests (13 total in `web/src/auth.test.ts`), three negative directions run:
+  dropping `status: "withdrawn"`, adding `fosterId` to the payload, and moving the
+  whole block after `deleteUser()` each fail exactly the test that names them.
