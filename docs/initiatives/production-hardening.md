@@ -21,47 +21,28 @@ What that deliberately leaves open is the `--min-instances=1 --max-instances=1`
 pin, which is now *removable* and has not been removed. The next section is this
 run's answer to what removing it actually costs.
 
-## What lifting the instance pin actually costs (answered 2026-08-29)
+## What lifting the instance pin actually costs — answered 2026-08-29, discharged 2026-08-30
 
-PH-8 left the pin removable and said it comes out "once this has been watched
-working in production." That is not an exit condition — nothing in this loop can
-watch, and a gate no run can evaluate stalls forever while looking like a plan.
-So: what is *actually* still per-process, read out of `server.py` on 2026-08-29
-rather than reasoned from PH-8's summary. Two things, and only one of them is a
-real objection.
+PH-8 left the `--min-instances=1 --max-instances=1` pin removable and gated its
+removal on "once this has been watched working in production", which is not an
+exit condition any run of this loop can evaluate. Replacing it meant reading
+`server.py` for what is *actually* still per-process. Two things were, and both
+have now shipped: the in-memory rate limiter, which silently became a 20N spend
+ceiling at N instances (PH-11, and the decision is the next section), and — found
+while checking the other one — a live transcript that nothing ever trimmed, so
+the 40-message cap only bit across a restart and the warm instance the pin keeps
+alive re-sent an unbounded conversation every turn (PH-10). The residual race,
+two concurrent turns for the same foster on different instances losing one turn
+to a last-write-wins, needs two devices and is accepted.
 
-**(1) The chat rate limit is per-process, and it is the spend guard.**
-`_buckets` / `_take_chat_token` (`src/agent/server.py:182-215`) is an in-memory
-token bucket, `CHAT_REQUESTS_PER_MINUTE = 20` per foster. With N instances the
-effective ceiling is 20N, because Cloud Run routes a foster's requests to
-whichever instance is free. This initiative's opening line is *"spend has a
-ceiling"*; raising `--max-instances` to 4 quietly multiplies that ceiling by four
-with nothing in the repo saying so. This is the thing to settle **before** the
-pin moves, not after. → PH-11.
-
-**(2) The in-memory `Agent` is fine multi-instance — but checking it exposed a
-different bug.** `_session()` rebuilds a missing session from
-`session_store.load()`, and `save()` is `merge=True`, so a second instance picks
-the conversation up correctly. The residual race — two concurrent turns for the
-*same* foster on different instances, last write winning and losing one turn —
-needs two tabs or two devices, and is acceptable. What is **not** acceptable, and
-is a bug today under the pin rather than a consequence of lifting it:
-`session_store.save()` trims to `MAX_STORED_MESSAGES = 40`, and **nothing ever
-trims `Agent.messages` in memory.** Confirmed by grep — `messages[` appears
-exactly once in `src/agent/`, in `session_store.save`. So the 40-message cap only
-bites across a restart. On the warm instance `--min-instances=1` deliberately
-keeps alive, a foster's transcript grows without bound and the whole of it is
-re-sent to the API on every turn, which is the one cost that scales with
-conversation length. The cap is a persistence bound masquerading as a spend
-bound. → PH-10.
-
-**The concrete exit condition, replacing "watched working in production":**
-PH-10 and PH-11 ship; then `--max-instances` goes to **2** (not unbounded) in one
-small PR, `--min-instances=1` stays; then a human confirms the two things that
-only exist multi-instance — `/health`'s `active_sessions` differing between two
-hits, and one dangerous-tool approval issued in one browser and answered such
-that the parked turn resumes. That last one is the actual claim PH-8 made and the
-only thing that proves it. Written up as PH-13 under "Needs a human" below.
+**The concrete exit condition that replaced it:** PH-10 and PH-11 ship — they
+have — then `--max-instances` goes to **2** (not unbounded, `--min-instances=1`
+unchanged) in one small PR, and a human confirms the two things that only exist
+multi-instance: `/health`'s `active_sessions` differing across two hits, and one
+approval issued in one browser answered such that the parked turn resumes. That
+second one is PH-8's actual claim and has never been observed. It is PH-13 under
+"Needs a human" below, and it is the only thing now standing between here and
+lifting the pin.
 
 ## What the rate limit means with more than one instance (decided 2026-08-30, PH-11)
 
@@ -108,13 +89,84 @@ M3 in `real-data-and-shelters.md` — a shelter with an account and an applicati
 list is the thing worth notifying — so it is not queued here. Background in the
 [archive](archive/production-hardening-2026-08-29.md).
 
-## Account deletion and export — both shipped
+## Account deletion and export — shipped, and deletion is incomplete
 
 `deleteAccount()` (PH-2, PR #20) and `exportAccountData()` (PH-6, PR #28), both
 in `web/src/auth.ts` and surfaced in `AccountSheet.tsx` for signed-in users;
-guests have "Start fresh on this device". The export deliberately excludes
-`fosters/{uid}/agentSession/current` — the agent's own reasoning, not
-foster-given data. Details in the [archive](archive/production-hardening-2026-08-29.md).
+guests have "Start fresh on this device". Details in the
+[archive](archive/production-hardening-2026-08-29.md).
+
+### What deletion misses, and why nobody noticed (found 2026-08-30)
+
+Read against `main` this run rather than taken from the ledger row.
+`deleteAccount()` (`web/src/auth.ts:90-108`) deletes the `careLog` docs, then
+`fosters/{uid}`, then the Auth user. Two things it gave the app are still there
+afterwards, and in both cases the reason is structural rather than an oversight
+someone can just patch in the same function.
+
+**(1) The agent transcript survives, and becomes unreachable.** Deleting a
+Firestore document does not delete its subcollections, so
+`fosters/{uid}/agentSession/current` — a `messagesJson` dump of the whole
+conversation — outlives the account. It is not the agent's private scratchpad:
+it contains, verbatim, everything the foster typed, which on the Care Plan
+surface is their dog's medical detail and on the Match surface is pickup
+logistics. And once the Auth user is gone it can never be reached again from
+the client: the read rule is `request.auth.uid == uid`, and that uid will not
+exist a second time. It is a permanent orphan holding a deleted person's words.
+
+The export's docstring says agentSession is excluded because it is *"the agent's
+own reasoning, not data the foster gave us."* That is a defensible line for
+**export** and the wrong line for **deletion**, and the distinction is worth
+stating because the same sentence reads as settling both: what someone is
+entitled to receive a copy of and what has to be destroyed on request are
+different questions, and the second one is wider.
+
+The fix is small and already exists: `agentSession/{doc}` is
+`allow write: if false`, so only the Admin SDK can clear it, and `POST /reset`
+(`src/agent/server.py:525`) does exactly that — `session_store.clear()` deletes
+the whole document, `pendingApproval` included. It is authenticated by the
+foster's own ID token and already wired into the frontend as `resetChat()`.
+So this is a call-ordering fix, not new machinery. → PH-14.
+
+**(2) The `applications` rows survive, carrying the deleted person's name.**
+`exportAccountData()` queries them (`fosterId == uid`); `deleteAccount()` never
+touches them, and each row carries `fosterName`, denormalised onto the
+application precisely so a shelter can read it without a lookup. There is also
+no way to remove them: `match /applications/{applicationId}` has `read`,
+`create` and `update` rules and **no `delete` rule at all**, so a client delete
+is denied by the default-deny at the bottom of the file.
+
+## What happens to an application when its foster deletes their account (decided 2026-08-30)
+
+**Redact, don't delete.** The row stays; `fosterName` becomes
+`"(deleted account)"` and `status` becomes `withdrawn`. → PH-15.
+
+The absent `delete` rule turns out to be right, so the fix is not to add one.
+An application is not the foster's private data — it is a record of a
+relationship with a shelter, the one document in the schema with two legitimate
+owners. Hard-deleting it makes a row vanish out from under a staff member who
+may be mid-review, which is the same failure RS-6 already decided against for
+retiring a dog ("a status change, **not** a delete — a dog someone is
+mid-application on must not vanish out from under them"). The shelter keeps the
+fact that an application existed and was withdrawn; it loses the name, which is
+the part that belongs to a person who asked to be forgotten.
+
+**The redaction is possible today only because the update rule is loose**, and
+that is not a happy accident to build on quietly. `firestore.rules:49-51`'s
+foster branch permits an update whenever the *resulting* status is `withdrawn`
+and constrains nothing else — so a single write can set the status and rewrite
+`fosterName` in the same breath. It can also rewrite `checklist`, `createdAt`
+or `shelterId`, and rewriting `shelterId` drops a withdrawn application into
+another shelter's inbox, since RS-5's query filters on exactly that field. So
+the same read produces a hardening item and the mechanism the redaction rides
+on, which is why PH-16 pins the other fields and deliberately leaves
+`fosterName` free. Tightening it without that carve-out would close the hole
+and break deletion in the same PR.
+
+**Not in scope, and stated so it doesn't get re-derived:** a shelter-side view
+of a withdrawn, redacted application is RS-5's problem, not this one's. It
+already has to render `withdrawn` as a status; `"(deleted account)"` is just a
+name it displays.
 
 ## No error tracking
 
@@ -136,108 +188,108 @@ applies to the backend, with a foster on the other end of it. → PH-7.
 
 ## Two smaller ones — both resolved
 
-- **Guest→account migration — resolved 2026-08-26 (PH-5, PR #29).** A guest is
-  pure `localStorage` with no Firebase Auth session, so there was never anything
-  to `linkWithCredential`; `migrateGuestData()` in `web/src/auth.ts` copies the
-  local `Foster` and care log into `fosters/{uid}` on first sign-in, only when
-  that doc doesn't already exist. The README's "already decided" list keeps the
-  corrected framing so it isn't re-derived.
-- **`tsconfig.app.json` strictness — resolved 2026-08-26 (PH-4, PR #27).**
-  `"strict": true` is now explicit. It was already on: `package.json` pins
-  `typescript: ~6.0.2` and TypeScript 6 defaults it true, verified by running the
-  repo's own compiler (0 errors both ways). The one-liner is a pin against a
-  silent future regression, not a fix.
-  *(When re-checking, use `./node_modules/.bin/tsc` — `npx tsc` resolves to an
-  unrelated `tsc@2.0.4` that prints a banner and exits 1 without compiling.)*
+- **Guest→account migration — 2026-08-26 (PH-5, PR #29).** A guest is pure
+  `localStorage` with no Firebase Auth session, so there was never anything to
+  `linkWithCredential`; `migrateGuestData()` copies the local `Foster` and care log
+  into `fosters/{uid}` on first sign-in, only when that doc doesn't already exist.
+  The README's "already decided" list carries the corrected framing.
+- **`tsconfig.app.json` strictness — 2026-08-26 (PH-4, PR #27).** `"strict": true`
+  made explicit. It was already on (TypeScript 6 defaults it), so this is a pin
+  against a silent future regression, not a fix. *(When re-checking, use
+  `./node_modules/.bin/tsc` — `npx tsc` resolves to an unrelated `tsc@2.0.4` that
+  prints a banner and exits 1 without compiling.)*
 
 ## Task queue
 
-**Refilled 2026-08-29.** PH-8 and PH-9 both shipped in the same execute run,
-which emptied this queue entirely — the first time that has happened here. The
-three items below all come out of the section above, which was written by reading
-`server.py` and `session_store.py` against `main` rather than by hunting for
-something to queue. PH-10 and PH-11 are prerequisites for PH-13; PH-12 is
-independent and cheap.
+**Refilled 2026-08-30.** PH-10, PH-11 and PH-12 all shipped in one execute run
+(PRs #43, #44, #45), emptying this queue for the second time. The three items
+below come out of the section directly above, which was written by reading
+`web/src/auth.ts`, `firestore.rules` and `server.py` against `main` — not by
+looking for something to queue. They are one finding split three ways, and the
+sequence matters: PH-16 tightens a rule that PH-15 needs to stay loose in one
+specific respect, so do not reorder them.
 
-- **PH-10 — shipped 2026-08-30.** See the Ledger. (Original item kept below
-  for the reasoning it carries.)
-- ~~**PH-10 (2026-08-29) — the transcript cap only bites across a restart.**~~
-  `session_store.save()` trims to `MAX_STORED_MESSAGES = 40`; nothing trims
-  `Agent.messages` in memory, so on the warm instance `--min-instances=1` keeps
-  alive, a long conversation is re-sent to the API in full every turn. Make the
-  live list obey the same bound as the stored one.
-  - The trim belongs where the turn ends (`server._stream`'s existing `finally`,
-    which already calls `session_store.save`), **not** inside `loop.py`'s request
-    path — the CLI (`src/agent/cli.py`) shares that code and has no stored
-    transcript to be consistent with.
-  - **A blind `messages[-40:]` is wrong and will 400 the API.** A trim that cuts
-    between an assistant `tool_use` block and its matching `tool_result` sends a
-    transcript Anthropic rejects, and it will do so intermittently rather than
-    always. Trim to a boundary: walk back from the cut point to the nearest
-    message that starts a clean turn (a `user` message carrying no
-    `tool_result`) and keep from there. If that scan finds nothing, keep **more**
-    than 40 rather than fewer — over-keeping costs money, under-keeping breaks
-    the conversation.
-  - Fix the comment on `MAX_STORED_MESSAGES` in the same PR: it currently
-    describes a persistence bound and will now be both.
-  - Verify: add tests to `tests/test_session_store.py` (PH-9's harness — no
-    emulator, no network) covering a trim that would otherwise split a
-    `tool_use`/`tool_result` pair, a transcript already under the bound being
-    left alone, and the boundary-scan-finds-nothing case keeping more rather than
-    fewer. `uv run pytest` green. Say in the ledger row whether you exercised a
-    real over-length conversation or only the unit cases.
+- **PH-14 (2026-08-30) — deletion has to reach the transcript, and only the
+  backend can.** `deleteAccount()` (`web/src/auth.ts:90`) must call
+  `resetChat()` (`web/src/api.ts:77`) **before** `deleteUser()`, so
+  `fosters/{uid}/agentSession/current` is gone rather than orphaned.
+  - Order is the whole item: `resetChat()` sends
+    `Authorization: Bearer <getIdToken()>`, and after `deleteUser()` there is no
+    user to mint a token from. Put the call before the careLog loop — the
+    existing `deleteUser` retry path already re-authenticates with a popup, and
+    a token minted before that is not guaranteed to survive it.
+  - **A failure here must not be silent, and must not be fatal either.** If
+    `/reset` throws (backend down, cold start past the fetch timeout), the
+    right behaviour is to surface it and let the person choose: deleting the
+    Auth user anyway leaves an unreachable document, and refusing to delete
+    traps someone who wants out because a service they never heard of is
+    unavailable. Suggested shape: catch it, and rethrow a message naming what
+    could not be deleted and that retrying later will clear it — so the caller
+    in `AccountSheet.tsx` renders it through whatever it already does with a
+    thrown error. Do **not** `catch {}` it.
+  - Nothing in `firestore.rules` changes. `agentSession/{doc}` stays
+    `allow write: if false`; the deletion goes through the Admin SDK, which is
+    the point.
+  - Skip the call when the agent backend isn't configured — the same condition
+    the rest of the app already uses for that, rather than a new one.
+  - Verify: a `tests/`-side test is not available for frontend code here, so do
+    it in `web/src/` with the existing vitest setup — assert `resetChat` is
+    called before `deleteUser`, and that a throwing `resetChat` means
+    `deleteUser` is never called. Plus `npm run build`/`test`/`lint` green. Say
+    in the ledger row whether you exercised this against a real signed-in
+    account or only the unit cases; the honest answer is probably the latter,
+    and that is fine as long as it is written down.
 
-- **PH-11 — shipped 2026-08-30, option (b).** The decision and its reasoning are
-  in "What the rate limit means with more than one instance" above; see the
-  Ledger for what shipped. (Original item kept below.)
-- ~~**PH-11 (2026-08-29) — decide what the rate limit means with more than one
-  instance.**~~ `_take_chat_token` (`server.py:182-215`) is per-process, so
-  `CHAT_REQUESTS_PER_MINUTE = 20` becomes 20N once the pin lifts. Two honest
-  options; pick one, implement it, and **write the choice and the reason into
-  this doc**, because the recorded decision is as much the deliverable as the
-  code.
-  - *(a) Move the bucket to Firestore*, alongside the approval field, in the
-    shape `approval_store.py` already established. Correct at any instance count.
-    Costs a read+write per chat request, real but small next to the model call in
-    the same turn.
-  - *(b) Keep it in memory and divide the constant* by the maximum instance
-    count, with a comment tying the two numbers together so raising one without
-    the other is visibly wrong. Cheaper, and defensible while max-instances is a
-    small fixed number — but it over-throttles a foster whose requests all land
-    on one instance.
-  - Do **not** pick a third option that removes the limit. A recommendation, if
-    you want one: (b) is the right size for max-instances=2, but only if the
-    comment lives in `deploy-backend.yml` next to the flag as well as in
-    `server.py`, since that is where someone will change the number.
-  - Do not touch `--min-instances` / `--max-instances` in this PR. That is PH-13
-    and it is a human's.
-  - Verify: a test in `tests/` that the bucket refuses the 21st request in a
-    minute and admits one after refill (drive the clock, don't sleep) — there is
-    currently no test of the rate limiter at all. Plus, for (a) only, that two
-    independent bucket holders share one Firestore counter.
+- **PH-15 (2026-08-30) — redact the foster's name off their applications on
+  delete.** Per the decision recorded above: the shelter's copy of an
+  application survives, the deleted person's name does not.
+  - In `deleteAccount()`, before deleting the Auth user, query
+    `applications where fosterId == uid` — the same query
+    `exportAccountData()` already runs at `web/src/auth.ts:125` — and for each
+    row write `fosterName: "(deleted account)"` and `status: "withdrawn"`.
+  - **`status: "withdrawn"` is not optional and not a nicety**: it is what makes
+    the write pass `firestore.rules:49-51`'s foster branch, which allows an
+    update only when the resulting status is `withdrawn`. A redaction that
+    leaves the status alone is `permission-denied`. It is also the honest
+    status — nobody is going to review an application from an account that no
+    longer exists.
+  - Leave `fosterId` in place. It is a uid that now resolves to nothing, and it
+    is what makes the row's own history legible; scrubbing it would leave the
+    shelter with a record whose provenance can't be established. If a later
+    decision disagrees, that is a decision to write into this doc, not a
+    judgment call to make inside the deletion path.
+  - Do **not** add `allow delete` to `applications` to make this simpler. The
+    reasoning is in the section above; hard-deleting a row a shelter may be
+    mid-review on is the failure this shape exists to avoid.
+  - Verify: with the rules as they stand, a client write that sets `fosterName`
+    and `status: "withdrawn"` on one's own application succeeds, and the same
+    write without the status change is denied. Run it for real against the
+    deployed project as a test account rather than reasoning about it — RS-5's
+    section in `real-data-and-shelters.md` is a live example of a rules
+    question that could only be settled by running it. Record the answer in
+    this doc.
 
-- **PH-12 — shipped 2026-08-30.** See the Ledger. (Original item kept below.)
-- ~~**PH-12 (2026-08-29) — pin the foster-isolation invariant with a test.**~~
-  `CLAUDE.md` says outright that `current_foster` must stay a ContextVar set
-  inside the streaming generator and *"don't simplify it back to a global"*, and
-  that the per-foster `Agent`/session split exists so one foster's questions
-  can't surface in another's transcript. Both are correctness properties with a
-  privacy consequence, and **neither has a test** — now cheap to add, since PH-9
-  built the harness.
-  - Two tests, using PH-9's `tests/conftest.py` fake and no network: (1) two
-    concurrent `_stream` generators for different foster ids each read back their
-    *own* id from `current_foster` while the other is mid-stream — this is the
-    one that fails if someone converts it to a module global, which is the entire
-    point; (2) `_session("a")` and `_session("b")` return distinct `Agent`
-    objects with distinct `messages` lists, and evicting one doesn't disturb the
-    other.
-  - Stub the model call — this tests the plumbing around it. Do **not** refactor
-    `server.py` to make it testable; if a test can only be written by changing
-    production code, write down what blocked you and stop, the way PH-9 did.
-  - Verify: both tests fail if you temporarily replace the ContextVar with a
-    module-level variable, and pass on `main`'s shape. Say in the ledger row that
-    you actually ran the negative direction — a test that has never been seen
-    failing is DC-1's lesson repeating.
+- **PH-16 (2026-08-30, sequenced after PH-15) — the foster branch of
+  `applications`'s update rule pins nothing.** `firestore.rules:49-51` allows a
+  foster to update their own application whenever the *result* has
+  `status == "withdrawn"`, and constrains no other field. So one write can set
+  the status and simultaneously rewrite `checklist` (undoing a shelter's ticks),
+  `createdAt`, or `shelterId` — the last of which moves the document into a
+  different shelter's inbox, since RS-5's query filters on exactly that field.
+  Low severity, entirely real, and cheap to close.
+  - Pin `fosterId`, `shelterId`, `dogId`, `createdAt` and `checklist` to their
+    existing values on the foster branch
+    (`request.resource.data.X == resource.data.X`).
+  - **Leave `fosterName` free to change.** That is deliberate and it is PH-15's
+    redaction path — pinning it would make the previous item impossible. Say so
+    in a comment in the rules file, or the next person to tighten this will
+    close it and break deletion without knowing.
+  - The staff branch is out of scope: staff moving an application forward is
+    supposed to write the checklist.
+  - Verify: as a test-account foster, a withdraw-plus-name-redaction write still
+    succeeds (PH-15's path — this is the regression that matters), and a
+    withdraw write that also changes `shelterId` is now denied. Both against the
+    deployed project. Do not widen anything else while you are in this file.
 
 ### Needs a human, not a queue item
 
@@ -294,161 +346,55 @@ verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
 - 2026-08-26 — PH-5 — PR #29 — `migrateGuestData()` copies localStorage guest
   state into `fosters/{uid}` on first sign-in. Shipped smaller than queued: there
   is no anonymous Auth session to `linkWithCredential`. **Not verified live.**
-- 2026-08-28 — PH-7 (commit-shaped half only) — PR #33 — `GET /health` in
-  `src/agent/server.py` now also reports `firestore_reachable`: a
-  `_firestore_reachable()` helper does the cheapest possible round trip
-  (`db().collection("dogs").limit(1).stream()`, at most one document, against
-  a collection that's `allow read: if true` regardless) and returns `False`
-  on any exception rather than raising, logging via `logging.exception` the
-  same way the two existing failure points already do. `active_sessions` was
-  already present (added in `ab86b82`, before this doc described it as
-  missing — the doc's "already reports arcade_available" premise undercounted
-  what was there). Did **not** do the alerting half: creating a live Cloud
-  Logging log-based alert policy and notification channel is a real,
-  hard-to-reverse change to shared GCP infrastructure (cost/quota
-  implications, sends real email) that an unattended run shouldn't take on
-  its own judgment — the task's own escape hatch ("stop and say so in the PR
-  rather than half-doing it") is what this is invoking. `gcloud` is
-  authenticated against `pawthway-hackathon` in this environment if a human
-  wants to run the `logging` alert-policy commands directly; PH-8 stays
-  gated until that half lands. Verified: forced the failure path locally
-  (no ADC configured here) and confirmed `_firestore_reachable()` returns
-  `False` without raising —
-  `{'anthropic_key_set': False, 'arcade_available': False,
-  'firestore_reachable': False, 'tool_count': 14, 'active_sessions': 0}`;
-  `uv run python -c "import agent.server"` and `compileall` both clean. Did
-  not curl the deployed `/health` post-merge — left as a spot-check for
-  whoever reads this ledger row next, since doing so isn't blocking.
-- 2026-08-29 — PH-9 — PR #36 — Backend test harness: `pytest>=8.0` as a
-  `[dependency-groups] dev` entry in `pyproject.toml` (regenerated `uv.lock` in
-  the same commit so `uv sync --locked` stays clean), a `[tool.pytest.ini_options]
-  testpaths = ["tests"]` so discovery doesn't walk `web/`, and a `Test` step
-  running `uv run pytest` appended to `ci.yml`'s `backend` job — the import and
-  compileall steps kept, not replaced, since they cover `scripts/` and the CLI.
-  12 tests, all runnable with no ADC, no `ANTHROPIC_API_KEY` and no network:
-  `tests/test_session_store.py` covers the save/load round trip through nested
-  `content` blocks, that the transcript is stored as a single `messagesJson`
-  **string** field, that the 40-message trim keeps the **newest** 40 (the
-  assertion PH-9 called out — keeping the oldest would be silent and very
-  confusing), corrupt-JSON tolerance, `clear()`, and overwrite-not-append;
-  `tests/test_health.py` covers `GET /health`'s exact key set with
-  `_firestore_reachable` patched both ways via `TestClient`, that `/health`
-  needs no `Authorization` header, that `tool_count` matches the import-time
-  registry, and — one addition beyond the queued list — that `POST /chat`
-  without a token is still 401, pinning PR #9's auth check so it can't be
-  refactored away quietly. `tests/conftest.py` holds a ~60-line in-memory
-  Firestore fake (`document`/`get`/`set`/`delete`) that `session_store.db` is
-  monkeypatched onto. **No emulator, no Anthropic mock, no refactor for
-  testability**, per the item's own instruction. Verified: `uv run pytest` green
-  locally (12 passed) and in CI, `uv sync --locked` clean, and the new step was
-  confirmed able to turn the `backend` job **red** by pushing a deliberately
-  broken assertion to this branch and reading the failure back off the real
-  Actions run before reverting it — the `backend` job went red at the `Test`
-  step in run 33240237512, then green again in the run on the revert.
+- 2026-08-28 — PH-7 (commit-shaped half only) — PR #33 — `GET /health` also
+  reports `firestore_reachable` via a cheapest-possible round trip that returns
+  `False` rather than raising. Did **not** do the alerting half — creating a live
+  GCP alert policy is a hard-to-reverse infrastructure change an unattended run
+  declined on purpose; that half is PH-7b under "Needs a human". Verified against
+  the failure path only. Full row in the
+  [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
+- 2026-08-29 — PH-9 — PR #36 — The backend test harness: `pytest` as a dev
+  dependency group, `testpaths = ["tests"]`, a `Test` step appended to `ci.yml`'s
+  `backend` job, and 12 tests over `session_store` and `/health` that need no ADC,
+  no API key and no network — plus a ~60-line in-memory Firestore fake in
+  `conftest.py`. No emulator and no refactor for testability. Verified the new step
+  can turn the job red by pushing a deliberately broken assertion and reading it
+  back off a real Actions run. Full row in the
+  [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
 - 2026-08-29 — PH-8 — PR #37 — The approval handoff moved from an in-process
-  `queue.Queue[bool]` to a polled Firestore field. New `src/agent/approval_store.py`:
-  `request()` writes a `pendingApproval` map (`requestId`, `tool`, `decision`,
-  `requestedAt`) onto `fosters/{uid}/agentSession/current` with `merge=True`,
-  `wait()` polls it once a second against the same 300s ceiling, `resolve()` writes
-  the decision, `clear()` nulls the field. `Session.approvals` is gone;
-  `_build_agent` now closes over `_await_approval(foster_id, name)`; `/approve` calls
-  `approval_store.resolve()` and **no longer touches `_session()`** — building a
-  session just to reach a queue was the old shape, and the thread waiting may be in
-  another instance. Went with the poll over a real-time listener exactly as the item
-  suggested: a listener is a second concurrency model inside a thread that is already
-  blocking, and 300 document reads for the worst case is a rounding error next to the
-  model call in the same turn. **Three deliberate changes beyond the literal task.**
-  (1) A timeout now returns `False` (declined) instead of letting `queue.Empty`
-  escape — the old behaviour aborted the stream leaving an assistant `tool_use`
-  block with no matching `tool_result`, which the next request would send back to the
-  API; declining keeps the transcript well-formed. (2) `session_store.save()` now uses
-  `merge=True`, because a plain `set()` on the shared document would delete a
-  `pendingApproval` a turn is parked on. (3) A Firestore failure while *recording* the
-  request declines rather than proceeding — an unaskable question is not a yes.
-  No rules change: both sides run server-side through the Admin SDK, so
-  `agentSession/{doc}` stays owner-read / no-client-write. **The instance pins were not
-  touched**, per the item's own instruction; `deploy-backend.yml`'s comment now says the
-  pin is removable, why, and that lifting it is its own change.
-  Verified — and this line distinguishes what was exercised from what was reasoned
-  about, per the item's request. **Exercised**, in 8 new tests in
-  `tests/test_approval_store.py` (20 backend tests total, green locally and in CI):
-  two approvals in one session both resolving; an unanswered approval waiting the full
-  300s and then declining (driven through an injected clock, so the test doesn't sleep);
-  a request whose document vanishes underneath it — the `/reset` and restart case —
-  declining immediately rather than waiting out the ceiling; a stale request not
-  consuming a newer request's answer; a double-tapped `/approve` reporting nothing
-  pending; a decision arriving mid-poll being picked up promptly; a transient Firestore
-  error not deciding the question in either direction; and the transcript and the
-  approval sharing one document without clobbering each other. **Reasoned about only:**
-  the actual two-instance case — it cannot be observed while `--max-instances=1`
-  stands, which is the deliberate ordering, and the thing to watch when the pin is
-  lifted is an approval issued against one instance being answered against another.
-  Also not exercised end-to-end: a real dangerous-tool approval through the browser UI,
-  which needs a signed-in foster and a live Anthropic key.
-- 2026-08-30 — PH-10 — PR #__ — `session_store.trim()` is now the one place the
-  40-message bound is applied, and `server._stream`'s `finally` applies it to the
-  **live** `session.agent.messages` before saving, not just to the stored copy.
-  Before this, `--min-instances=1` kept an instance warm and nothing trimmed the
-  in-memory list, so a long conversation was re-sent to the API in full on every
-  turn — the cap was a persistence bound wearing a spend bound's clothes. The trim
-  is boundary-aware as the item required: it walks **backwards** from the blind cut
-  point to the nearest message that starts a clean turn (a `user` message carrying
-  no `tool_result` block), and keeps everything if no such message exists —
-  over-keeping costs tokens, under-keeping sends the API a `tool_result` whose
-  `tool_use` is gone and 400s the next message. Put in `session_store` rather than
-  `loop.py` per the item: the CLI shares `loop.py` and has no stored transcript to
-  stay consistent with. `MAX_STORED_MESSAGES`' comment now says it is both bounds.
-  Verified: **unit cases only** — no real over-length conversation was exercised,
-  which needs a live Anthropic key and ~20 turns. Four new tests in
-  `tests/test_session_store.py` (24 backend tests total, green locally): a
-  transcript under the bound returned unchanged; a 62-message transcript whose
-  blind `[-40:]` cut provably lands on a `tool_result` (the test asserts the
-  fixture still reproduces that, so it can't rot into passing vacuously) trimmed to
-  the clean boundary two messages earlier instead; a pathological transcript with
-  no clean boundary keeping everything; and `save()` storing the boundary trim. Ran
-  the negative direction as the item asked — restoring the blind slice fails
-  exactly those three, passes the other 21.
-- 2026-08-30 — PH-11 — PR #__ — Took **option (b)**: `CHAT_REQUESTS_PER_MINUTE` is
-  now derived, `max(1, CHAT_REQUESTS_PER_MINUTE_BUDGET // MAX_CLOUD_RUN_INSTANCES)`,
-  with the budget (20, what a foster gets across the whole service) separated from
-  the instance count it is divided by. The recorded decision — including why (a),
-  the Firestore-backed bucket, lost, and the condition under which to revisit it —
-  is the section "What the rate limit means with more than one instance" above, and
-  is as much the deliverable as the code per the item. Matching `!!` comment blocks
-  sit in `src/agent/server.py` and next to `--max-instances` in
-  `deploy-backend.yml`, since the flag is where the number actually gets changed.
-  **No numeric change today**: `--max-instances` is still 1, so the division is by
-  1; PH-13 raises both together. `--min-instances`/`--max-instances` untouched, per
-  the item. Verified: 6 new tests in `tests/test_rate_limit.py` (30 backend tests
-  total, green locally) — there was previously no test of the rate limiter at all.
-  They drive `time.monotonic` by hand rather than sleeping: the full burst is
-  admitted and the next request refused; a refused foster is admitted again after
-  exactly one token's worth of refill and then refused again; the bucket doesn't
-  refill past full after an hour idle; one foster exhausting their bucket doesn't
-  throttle another; and an idle bucket is evicted rather than accumulating per
-  visitor. Plus an assertion that the division itself exists, so deleting the tie
-  between the two constants breaks a test rather than a bill.
-- 2026-08-30 — PH-12 — PR #__ — `tests/test_foster_isolation.py`, 4 tests (34
-  backend tests total, green locally), pinning the two invariants `CLAUDE.md`
-  asserts in prose and nothing enforced. (1) Two concurrent `_stream` generators
-  for different foster ids each read their **own** id back from `current_foster()`
-  while the other is mid-stream. Driven in two real threads with a
-  `threading.Barrier`, deliberately: FastAPI iterates a sync generator in a
-  threadpool worker, so it is the per-thread context that keeps two streams apart
-  — a plain generator does *not* get its own context, so interleaving two of them
-  in one thread would have proved nothing and passed against a global. The barrier
-  is what makes it a real test: without it each thread sets and reads before the
-  other runs, and a global passes. (2) A companion from the other end: two streams
-  persist their transcripts to their own `fosters/{uid}/agentSession/current` and
-  neither leaks into the other. (3) `_session("a")` and `_session("b")` return
-  distinct `Session`s, distinct `Agent`s and distinct `messages` lists, and the
-  same foster keeps theirs. (4) Evicting one session leaves the other's agent and
-  transcript untouched, and the evicted one comes back rebuilt and empty rather
-  than sharing.
-  **Ran the negative direction in both cases, as the item required.** Replacing the
-  ContextVar in `current_foster.py` with a module-level variable fails test (1)
-  and only test (1). Making `_session()` hand everyone the first existing session —
-  the "one shared Agent" simplification — fails (3) and (4). Both restored after.
-  No production code was changed: `_build_agent` is monkeypatched in the fixture so
-  no Anthropic client is constructed, and PH-9's `fake_db` covers Firestore. Nothing
-  in `server.py` was refactored for testability, per the item.
+  `queue.Queue[bool]` to a polled `pendingApproval` field on
+  `fosters/{uid}/agentSession/current` (`approval_store.py`), so a decision written
+  by any instance reaches a turn parked in any other. Three deliberate changes
+  beyond the literal task, each of which is a fail-closed choice: a timeout now
+  declines rather than letting `queue.Empty` escape and strand a `tool_use` with no
+  `tool_result`; `session_store.save()` became `merge=True` so it can't delete an
+  approval a turn is parked on; and a Firestore failure while recording the request
+  declines, because an unaskable question is not a yes. 8 tests, clock injected
+  rather than slept. The two-instance case is reasoned about, not exercised — it
+  can't be, under the pin. Full row in the
+  [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
+- 2026-08-30 — PH-10 — PR #43 — `session_store.trim()` is the one place the
+  40-message bound is applied, and `_stream`'s `finally` now applies it to the
+  **live** `agent.messages`, not just the stored copy — before this the cap was a
+  persistence bound wearing a spend bound's clothes, and the warm instance re-sent a
+  whole growing transcript every turn. The trim walks backwards to a clean turn
+  boundary and keeps everything if there isn't one, because under-keeping 400s the
+  API. Verified on unit cases only (4 new tests, negative direction run). Full row in
+  the [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
+- 2026-08-30 — PH-11 — PR #44 — Option (b): `CHAT_REQUESTS_PER_MINUTE` is derived
+  from a per-foster budget divided by `MAX_CLOUD_RUN_INSTANCES`, with matching `!!`
+  comments in `server.py` and next to `--max-instances` in `deploy-backend.yml`. The
+  recorded decision is the section "What the rate limit means with more than one
+  instance" above and was as much the deliverable as the code. No numeric change
+  today — the division is by 1. 6 tests, the first the rate limiter has ever had,
+  driving `time.monotonic` by hand. Full row in the
+  [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
+- 2026-08-30 — PH-12 — PR #45 — `tests/test_foster_isolation.py` pins the two
+  invariants `CLAUDE.md` asserts in prose and nothing enforced: `current_foster` as a
+  per-context value, and one `Agent`/session per foster. Driven in two real threads
+  with a `threading.Barrier` — deliberately, since a plain generator shares its
+  caller's context and interleaving two in one thread would have passed against a
+  global and proved nothing. Ran both negative directions: a module-level variable
+  fails test (1) and only test (1); a shared `Agent` fails (3) and (4). No production
+  code changed. Full row in the
+  [ledger archive](archive/production-hardening-ledger-2026-08-30.md).

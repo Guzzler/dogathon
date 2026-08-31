@@ -123,14 +123,27 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **Two archives exist as of
-2026-08-29**: `archive/real-data-and-shelters-2026-08-29.md` (that doc's settled
-M1/M2/M4 narrative) and `archive/production-hardening-2026-08-29.md` (its settled
-PH-1..PH-6 narrative and ledger rows). The pattern that worked both times, and is
-now the convention: snapshot the whole doc verbatim into the archive so nothing
+snapshot) rather than let it grow unbounded. **Four archives exist as of
+2026-08-30**, two per initiative: `real-data-and-shelters-2026-08-29.md` (that
+doc's settled M1/M2/M4 narrative) and `production-hardening-2026-08-29.md` (its
+settled PH-1..PH-6 narrative and rows), then
+`production-hardening-ledger-2026-08-30.md` (PH-7..PH-12's rows) and
+`real-data-and-shelters-ledger-2026-08-30.md` (M1 through RS-9's rows).
+The pattern that worked all three times, and is
+now the convention: snapshot verbatim into the archive so nothing
 is lost, then compress the settled sections in the working doc to one dated line
 each that points at the archive for the reasoning. Archives are append-only — if
 something in one turns out to be wrong, correct the working doc and say so there.
+
+**The 2026-08-30 pair narrows the pattern usefully, so it's worth recording.** The
+first two archived *narrative* — settled prose that had stopped being read. The
+second two archived only **ledger rows**, because that is where the growth
+actually was: both docs went back over 400 within a day or two of their first
+archive, and almost none of the regrowth was stale prose. execute writes long,
+genuinely valuable rows (PH-8's is 40 lines and every one of them earns its
+place), so the ledger is now the first place to look when a doc is over, not the
+last. Compress a row to its decision, its surprises, and what was verified versus
+reasoned about; the archive keeps the rest.
 
 The trigger is worth applying at the moment a run's own edits push a doc past
 ~400, not on the next run. production-hardening crossed it *because of* the
@@ -162,7 +175,10 @@ backfilled on the following plan run — PH-9 → #36, PH-8 → #37, RS-7 → #3
 RS-7's follow-up → #39. Four placeholders from one run is the most so far and
 still cost one `gh pr list` to resolve, so the convention is holding; if it ever
 stops being cheap, the fix is execute amending its own row after opening the PR,
-not plan guessing.
+not plan guessing. *(2026-08-30: three more — PH-10 → #43, PH-11 → #44,
+PH-12 → #45 — backfilled at the same moment those rows were moved into the
+ledger archive, which is the cheapest time to do it: the rows were being
+rewritten anyway.)*
 
 **A standing lesson from 2026-08-28, worth generalising past the one bug.**
 DC-1 shipped with its verification recorded honestly as *"verified locally on
