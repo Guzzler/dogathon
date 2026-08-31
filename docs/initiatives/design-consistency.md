@@ -136,7 +136,10 @@ touched the token surface.
   `origin/main...HEAD` diff" — DC-6 shipped the fix that makes that diff
   actually resolve (fetch-depth 0, verified from a real Actions run per its
   ledger row), so this is now buildable against a working diff.
-- **DC-5 (2026-08-26) — let the foster side breathe on a wide screen.** The
+- **DC-5 `[large]` (2026-08-26; marked large 2026-08-31) — let the foster side
+  breathe on a wide screen. A complete execute run.** It touches CSS across several
+  files and three breakpoints, which is exactly the shape that kept losing to
+  single-file items under the old ordering. The
   direct consequence of the device-agnostic decision recorded above. Today
   `.phone` is `max-width:430px` at every viewport, so a 1440px browser shows
   a 430px column on a gradient. Make the foster journey responsive **without

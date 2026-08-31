@@ -179,7 +179,24 @@ in one execute run (PRs #47, #48, #49). Two of the three left something for a pe
 rather than claiming a verification they couldn't run: PH-15b under "Needs a human"
 is the single errand that discharges both.
 
-### Needs a human, not a queue item
+### Needs a human — PARKED, not pending
+
+**Read this before adding to the list below (2026-08-31).** These accumulate faster
+than anyone clears them: PH-15 and PH-16 generated PH-15b on the very run that
+shipped them. Per the README's "nobody uses this app yet" section, they are
+**parked** — there are no users for whom the unverified behaviour is broken, and
+several will answer themselves once RS-5 builds a surface that exercises the same
+rules. They get cleared in one sitting when there is a real shelter and real data.
+Do not queue them, and do not read the length of this list as debt.
+
+**PH-7c — DONE 2026-08-31.** The one that was cheap enough to just do, because it
+needed no sign-in: `curl https://pawthway-agent-674869365762.us-central1.run.app/health`
+returns `{"anthropic_key_set":true,"arcade_available":false,"firestore_reachable":true,
+"tool_count":14,"active_sessions":0}`. **`firestore_reachable` is `true` in
+production** — the assertion PR #33 left untested inside its own health endpoint is
+now a result. `active_sessions: 0` is consistent with the single pinned instance
+having no live conversations.
+
 
 - **PH-15b (2026-08-30) — run PH-15's redaction write against the deployed
   project.** PH-15 shipped; its verification did not. The item asked for the write
@@ -228,13 +245,13 @@ is the single errand that discharges both.
   [`docs/runbook-gcp.md`](../runbook-gcp.md)** — that file now exists (RS-9 wrote
   the first entry into it), so this needs a section, not a new doc.
   Out of scope even then: uptime checks, a status page, Sentry, instance pins.
-- **PH-7c — spot-check the deployed `/health`.** Thirty seconds, still never
-  done: `curl https://<the Cloud Run agent URL>/health` and confirm
-  `firestore_reachable` is `true` in production. PR #33 verified only the
-  *failure* path (no ADC in that environment). Until someone looks, "Firestore is
-  reachable from the backend" is an untested assertion inside a health endpoint,
-  which is slightly worse than not having the field. PH-13 wants a `/health` hit
-  too — doing them together is one errand, not two.
+- ~~**PH-7c — spot-check the deployed `/health`.**~~ **Done 2026-08-31 — the
+  result is recorded at the top of this section.** PR #33 had verified only the
+  *failure* path (no ADC in that environment), leaving "Firestore is reachable
+  from the backend" as an untested assertion inside a health endpoint. It is now
+  a measured `true`. PH-13 still wants a `/health` hit, but for a different
+  reason (two instances reporting different `active_sessions`), so that half is
+  not discharged by this.
 
 ## Ledger
 
