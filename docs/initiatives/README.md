@@ -42,30 +42,75 @@ is the source of truth — read it, don't assume this paragraph still holds.
 
 ## Active initiatives (priority order)
 
-1. [`production-hardening.md`](production-hardening.md) — the trust and
-   correctness debt that undermines everything else if it ships to a real
-   foster first: a tool that claims to notify a shelter and doesn't, agent
-   sessions that don't survive a deploy, no way for someone to delete their
-   data. Ranked first because these are silent failures — nothing crashes,
-   the app just lies or loses state, and nobody notices until a real person
-   is affected.
-2. [`real-data-and-shelters.md`](real-data-and-shelters.md) — the actual
-   growth path: move applications out of the private foster document into
-   something a shelter can query, give shelters an account, and keep the dog
-   roster current at near-zero ongoing cost. This is the direct build-out of
-   the two evidence docs, and it's what turns "an app with fake data" into
-   "an app one real shelter actually uses."
-3. [`design-consistency.md`](design-consistency.md) — keeping the visual
-   language coherent as more surfaces get built, ideally enforced by
-   something CI checks rather than something plan has to remember to look
-   for. Ranked last only because it's ongoing hygiene, not a one-time
-   unblock — but its first task queue item is concrete and worth doing soon:
-   a live incident (PR #11, cited in that doc) is the reason it exists at
-   all, not a hypothetical. *(2026-08-28 flagged DC-6 as the most urgent item
-   across all three docs, because the guard this initiative produced had been
-   failing open on every run since it merged. **DC-6 shipped 2026-08-28,
-   PR #32**, verified from real Actions runs in both directions — so that
-   flag is discharged and the ordinary ranking applies again.)*
+**Re-ranked 2026-08-31.** `production-hardening` held the top slot from
+2026-08-24, when it was genuinely the emergency: an unauthenticated agent, no
+spend ceiling, sessions that died on deploy. All of that is now shipped. What
+the ranking produced afterwards was a treadmill — PH is an endless source of
+small, tidy, headlessly-verifiable items, and because execute works the queues
+top-down, those items consumed every run. The evidence is unambiguous: of the
+ten code PRs from #36 to #49, **eight were production-hardening** and the other
+two were RS-7, a one-line deploy-target fix plus its follow-up. Over the same
+week, RS-5 — the shelter's application inbox, ungated since 2026-08-28 — was
+never started. On 2026-08-30 plan queued three fresh PH items and execute spent
+its entire next run on them (#47, #48, #49), pushing RS-5 to a fifth idle day.
+
+Nothing was wrong with any individual item. The ordering was wrong. So:
+
+1. [`real-data-and-shelters.md`](real-data-and-shelters.md) — the actual growth
+   path, and now the top priority: the shelter's application inbox, the
+   add/retire-a-dog surface, and keeping the roster current at near-zero cost.
+   This is what turns "an app with fake data" into "an app one real shelter
+   actually uses", and it is the only one of the three whose items are the
+   product rather than the scaffolding around it.
+2. [`design-consistency.md`](design-consistency.md) — keeping the visual
+   language coherent as more surfaces get built, ideally enforced by something
+   CI checks rather than something plan has to remember to look for. Promoted
+   above production-hardening because DC-5 (letting the foster side breathe on a
+   wide screen) is real product work on a surface people actually see, and
+   because a live incident (PR #11) is why this doc exists at all.
+3. [`production-hardening.md`](production-hardening.md) — the trust and
+   correctness debt: a tool that claims to notify a shelter and doesn't, and the
+   verification errands that keep accumulating. Still genuinely valuable, still
+   not urgent — the silent failures it was ranked first for (the auth hole, the
+   uncapped spend, sessions lost on deploy, an account deletion that left data
+   behind) have all shipped. **Take from this doc when the two above have
+   nothing open**, or when something here is a prerequisite for something there.
+
+## How big a queue item should be
+
+The ranking above fixes *what* gets built. This fixes *how much*.
+
+- An item may be marked **`[large]`** — a whole screen, a whole flow, a
+  milestone. execute treats one `[large]` item as a **complete run**: many files,
+  no line budget, shipped as one coherent PR rather than split into pieces that
+  leave the repo half-working.
+- **At least one open `[large]` item should exist across the three docs at all
+  times**, sitting at the top of the highest-priority doc's queue. If plan can't
+  name one, that is a finding to write down, not a reason to queue four small
+  ones.
+- Three small PRs is not a better run than one real screen. The old rule ("up to
+  3 per run, under ~400 lines") optimised for what is easy to finish and easy to
+  verify unattended, which is exactly how the treadmill above formed.
+
+## Nobody uses this app yet, and that changes what is worth doing
+
+There are no shelter partners, no real fosters, and — checked directly on
+2026-08-31 via the Admin API — **zero documents in the `applications`
+collection**. Two consequences that plan should apply rather than re-derive:
+
+- **Building beats confirming.** An item whose value is *verifying* something
+  already built ranks below one that *builds* the next missing surface. There is
+  no user for whom the unverified thing is currently broken.
+- **Verification gates that need a signed-in human are parked, not queued.**
+  RS-8, PH-13 and PH-15b are all of this shape, and they accumulate faster than
+  anyone clears them — PH-15 and PH-16 generated PH-15b on the same run that
+  shipped them. Park them under "Needs a human" with a note, and stop treating
+  the growing pile as a to-do list. When there is a real shelter and real data,
+  these get cleared in one sitting, and several of them will have answered
+  themselves by then.
+- One that was cheap enough to just do: **PH-7c is discharged** — `/health` on
+  the deployed Cloud Run agent returns `firestore_reachable: true` (checked
+  2026-08-31). It needed no sign-in, which is precisely why it was clearable.
 
 ## What's already decided, so plan doesn't re-litigate it
 

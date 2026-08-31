@@ -177,42 +177,66 @@ taken by the M4 drift check, which is unrelated and independent of these.)
   (`shelterId` ASC, `createdAt` DESC) is in `firestore.indexes.json`. See the
   Ledger — including which half of the verification is still outstanding.
 
-- **RS-5 (ungated 2026-08-28; sequenced after RS-7, and unblocked 2026-08-29 when
-  RS-9's IAM grant let the index deploy) — the application list and review.** The
-  index hazard is discharged: `applications` (`shelterId` ASC, `createdAt` DESC)
-  is deployed. The `||`-rule list-query hazard below is **not** — that one still
-  has to be answered by running the query as the seeded staff uid before any UI
-  is written. The shelter's actual inbox:
+- **RS-5 `[large]` — the shelter's application inbox. This item is a complete
+  execute run.** Ungated since 2026-08-28 and unstarted ever since, because it
+  kept losing every run to smaller, tidier items; the README's 2026-08-31
+  re-rank exists to stop that. Take the whole run on it, span as many files as
+  it needs, ship one coherent PR. The index hazard is discharged (RS-9): the
+  `applications` composite index is `READY`. The shelter's inbox is
   `where("shelterId", "==", <their id>)`, newest first.
-  - **Before writing any UI**, settle the remaining hazard from the design section
-    above (the index one is done — see RS-9): the `||`-rule list-query question
-    must be answered by actually running the query as the seeded staff uid. Record the answer in this doc. If the query
-    is denied, stop and write down the options — do **not** widen
-    `firestore.rules` to make it pass.
+
+  **The blocking precondition is removed, and here is what replaces it.** This
+  item used to say the `||`-rule list-query question had to be answered by
+  running the query as the seeded staff uid *before any UI is written*. That
+  gate held the item still for four days, and it was never clearable by this
+  loop: the only sign-in is a Google popup. Worse, it wouldn't have worked
+  anyway — the `applications` collection has **zero documents** (checked
+  2026-08-31), and Firestore evaluates a `list` rule *per candidate document*, so
+  the query would have come back clean while proving nothing. A test that passes
+  because it never ran is the README's standing lesson, not a verification.
+
+  So: **build the screen, and make the rules question answer itself as part of
+  building it.**
+  - **Seed fixtures first, in the same PR.** Add
+    `scripts/seed_test_applications.py`, modelled on the committed
+    `scripts/seed_shelter_staff.py`, writing 2–3 `applications` rows for
+    `sfspca-mission` against real dog ids from `data/dogs.json` — varied
+    `status`, a real `createdAt`, an obviously-fake `fosterName` such as
+    `"Test Foster (fixture)"` so nobody mistakes one for a real person. Commit
+    the script; it makes the write reproducible instead of a one-off curl.
+  - **Then the query tells you the answer.** With rows present, the inbox either
+    renders them or comes back `permission-denied` — which *is* the `||`-rule
+    result, obtained by building rather than by ceremony. Write whichever
+    happened into this doc. If it is denied, stop at that point, write down the
+    options, and do **not** widen `firestore.rules` to make it pass.
   - Row: foster name (`fosterName` is denormalised onto the application for
-    exactly this), dog name, `status`, age of the application.
+    exactly this), dog name, `status`, age of the application. A `withdrawn` row
+    whose name reads `"(deleted account)"` is a real state now (PH-15) — render
+    it, don't special-case it away.
   - Detail: the `checklist`, with `owner: "shelter"` items tickable and the
     foster's own items read-only — `web/src/checklists.ts` already carries
     `owner`, so filter on it rather than re-listing ids. Status moves
-    `submitted → in_review → approved | declined`. `withdrawn` is the
-    foster's to set, not the shelter's (`firestore.rules:49-51`).
-  - States, all four required: loading; **empty** ("No applications yet" —
-    the expected state for a real shelter on day one, not an error);
-    populated; error with retry. The error state must distinguish
-    `failed-precondition` (an index still building — retry genuinely helps)
-    from `permission-denied` (retry never helps), because after RS-7 those are
-    the two realistic failures and they want different copy.
-  - Use the shelters already resolved by `useMyShelters` (RS-2's context) —
-    don't re-run the `array-contains` query that already let this screen
-    through the gate.
+    `submitted → in_review → approved | declined`. `withdrawn` is the foster's to
+    set, not the shelter's (`firestore.rules:49-51`).
+  - States, all four required: loading; **empty** ("No applications yet" — the
+    expected state for a real shelter on day one, not an error); populated; error
+    with retry. The error state must distinguish `failed-precondition` (an index
+    still building — retry genuinely helps) from `permission-denied` (retry never
+    helps); those are the two realistic failures and they want different copy.
+  - Built responsive and outside the 430px `.phone` frame, per RS-2's
+    `ShelterLayout` and the device-agnostic decision. Tokens only, no colour
+    literals — the DC-6 guard is live and will fail the build.
+  - Use the shelters already resolved by `useMyShelters` (RS-2's context) — don't
+    re-run the `array-contains` query that already let this screen through the
+    gate.
   - Do **not** write back to `fosters/{uid}`. The application document is the
-    source of truth for status/checklist/pickup per `shelter-integration.md`;
-    the foster's read-through fields are M2's deferred migration, not this
-    item's job.
-  - Verify: staff at `sfspca-mission` see only their own shelter's
-    applications; ticking a shelter-owned item persists; a foster-owned item
-    isn't tickable from this side. Say in the ledger row which of these you
-    exercised against real data and which you only reasoned about.
+    source of truth for status/checklist/pickup per `shelter-integration.md`; the
+    foster's read-through fields are M2's deferred migration, not this item's job.
+  - Verify what can be verified without a popup sign-in: `npm run build`, `test`,
+    `lint` green; the screen renders its empty and error states; the seeded rows
+    are present in Firestore. The signed-in staff path stays unverified until
+    there is a human to drive it — say so plainly in the ledger row rather than
+    implying more, and do not let that stop the item shipping.
 - **RS-6 (gated on RS-5) — add and retire a dog.** The second source adapter
   from M3: manual entry proving the pipeline works for a shelter that isn't
   SF SPCA, with no scraping.
@@ -287,10 +311,16 @@ shelter, per the section below.
   wanting one is a smell. Use a human's own `gcloud` credentials, which is what
   happened.
 
-- **RS-8 — confirm RS-2's `staff` and `notStaff` states on the deployed app.**
+- **RS-8 — PARKED 2026-08-31, not pending. Confirm RS-2's `staff` and `notStaff`
+  states on the deployed app.**
   Two of RS-2's three states have never been seen working, because both need a
   real Google popup sign-in. Not queued for execute, which cannot drive one.
-  Sharang (or Eesha): sign in as the uid seeded in `shelters/sfspca-mission` and
+  Parked rather than pending, per the README's "nobody uses this app yet" section:
+  there are no shelter partners and no users, so this confirms behaviour nobody is
+  currently blocked by. It gets cleared in one sitting alongside PH-13 and PH-15b
+  when there is a real shelter — and RS-5 will likely have answered half of it by
+  then, since building the inbox exercises the same gate. Do not re-queue it.
+  When the time comes: sign in as the uid seeded in `shelters/sfspca-mission` and
   open `https://pawthway-hackathon.web.app/shelter` — expect the staff
   dashboard shell; then sign in with any other account and expect the "isn't on
   a shelter's staff list" copy. Two minutes, and RS-5 is being built on the
