@@ -371,7 +371,7 @@ verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
   fails test (1) and only test (1); a shared `Agent` fails (3) and (4). No production
   code changed. Full row in the
   [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
-- 2026-08-30 — PH-14 — PR #__ — `deleteAccount()` calls `resetChat()` first, so
+- 2026-08-30 — PH-14 — PR #47 — `deleteAccount()` calls `resetChat()` first, so
   `fosters/{uid}/agentSession/current` is cleared by the Admin SDK while an ID token
   can still be minted — before the careLog loop, not just before `deleteUser()`, since
   the `auth/requires-recent-login` retry re-authenticates with a popup mid-way. Two
