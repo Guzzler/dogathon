@@ -46,9 +46,27 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && request.resource.data.fosterId == request.auth.uid
                     && request.resource.data.status == "submitted";
+      // The foster branch is deliberately narrow: withdrawing your own application, and
+      // nothing else. Requiring only the resulting status let a single write set it *and*
+      // rewrite `checklist` (undoing a shelter's ticks), `createdAt`, or `shelterId` -- the
+      // last of which drops the row into another shelter's inbox, since the staff-side list
+      // query filters on exactly that field. The staff branch is untouched: staff moving an
+      // application forward is supposed to write the checklist.
+      //
+      // !! `fosterName` is deliberately NOT pinned, and must stay that way. Account deletion
+      // !! redacts it to "(deleted account)" through this same branch -- see deleteAccount()
+      // !! in web/src/auth.ts (PH-15). Pinning it would close a hole and break deletion in
+      // !! the same change, and there would be no way to remove a deleted person's name from
+      // !! a shelter's inbox afterwards: this branch needs their uid, which never signs in
+      // !! again.
       allow update: if isStaff(resource.data.shelterId)
                     || (resource.data.fosterId == request.auth.uid
-                        && request.resource.data.status == "withdrawn");
+                        && request.resource.data.status == "withdrawn"
+                        && request.resource.data.fosterId == resource.data.fosterId
+                        && request.resource.data.shelterId == resource.data.shelterId
+                        && request.resource.data.dogId == resource.data.dogId
+                        && request.resource.data.createdAt == resource.data.createdAt
+                        && request.resource.data.checklist == resource.data.checklist);
     }
 
     // staffUids is what lets the rules above express "is this person staff here" without a

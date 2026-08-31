@@ -123,12 +123,15 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **Four archives exist as of
-2026-08-30**, two per initiative: `real-data-and-shelters-2026-08-29.md` (that
+snapshot) rather than let it grow unbounded. **Five archives exist as of
+2026-08-30**: `real-data-and-shelters-2026-08-29.md` (that
 doc's settled M1/M2/M4 narrative) and `production-hardening-2026-08-29.md` (its
 settled PH-1..PH-6 narrative and rows), then
 `production-hardening-ledger-2026-08-30.md` (PH-7..PH-12's rows) and
-`real-data-and-shelters-ledger-2026-08-30.md` (M1 through RS-9's rows).
+`real-data-and-shelters-ledger-2026-08-30.md` (M1 through RS-9's rows), then
+`production-hardening-deletion-2026-08-30.md` (the account-deletion finding that
+produced PH-14/15/16, archived by execute in PH-16's own PR the moment its edits
+crossed the line — which is the trigger working as written).
 The pattern that worked all three times, and is
 now the convention: snapshot verbatim into the archive so nothing
 is lost, then compress the settled sections in the working doc to one dated line

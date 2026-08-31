@@ -89,84 +89,34 @@ M3 in `real-data-and-shelters.md` — a shelter with an account and an applicati
 list is the thing worth notifying — so it is not queued here. Background in the
 [archive](archive/production-hardening-2026-08-29.md).
 
-## Account deletion and export — shipped, and deletion is incomplete
+## Account deletion and export — shipped, and deletion now reaches everything
 
 `deleteAccount()` (PH-2, PR #20) and `exportAccountData()` (PH-6, PR #28), both
 in `web/src/auth.ts` and surfaced in `AccountSheet.tsx` for signed-in users;
 guests have "Start fresh on this device". Details in the
 [archive](archive/production-hardening-2026-08-29.md).
 
-### What deletion misses, and why nobody noticed (found 2026-08-30)
+### What deletion left behind, and what an application does about it — archived 2026-08-30
 
-Read against `main` this run rather than taken from the ledger row.
-`deleteAccount()` (`web/src/auth.ts:90-108`) deletes the `careLog` docs, then
-`fosters/{uid}`, then the Auth user. Two things it gave the app are still there
-afterwards, and in both cases the reason is structural rather than an oversight
-someone can just patch in the same function.
+Reading `deleteAccount()`, `firestore.rules` and `server.py` against `main` on
+2026-08-30 turned up two things a deleted account left behind, and both were
+structural rather than an oversight to patch in place:
 
-**(1) The agent transcript survives, and becomes unreachable.** Deleting a
-Firestore document does not delete its subcollections, so
-`fosters/{uid}/agentSession/current` — a `messagesJson` dump of the whole
-conversation — outlives the account. It is not the agent's private scratchpad:
-it contains, verbatim, everything the foster typed, which on the Care Plan
-surface is their dog's medical detail and on the Match surface is pickup
-logistics. And once the Auth user is gone it can never be reached again from
-the client: the read rule is `request.auth.uid == uid`, and that uid will not
-exist a second time. It is a permanent orphan holding a deleted person's words.
+- **The agent transcript** (`fosters/{uid}/agentSession/current`) survived, because
+  deleting a document doesn't delete its subcollections — a verbatim dump of
+  everything the foster typed, unreachable forever once the uid stopped existing.
+  Shipped as PH-14: `POST /reset` clears it through the Admin SDK, and the call goes
+  first, while an ID token can still be minted.
+- **The `applications` rows** survived carrying `fosterName`, with no `delete` rule to
+  remove them. The decision was **redact, don't delete** — the absent delete rule is
+  right, because an application is a two-owner record and must not vanish out from
+  under a staff member mid-review. Shipped as PH-15 (`"(deleted account)"` +
+  `status: "withdrawn"`) and PH-16 (pin the other fields, leave `fosterName` free).
 
-The export's docstring says agentSession is excluded because it is *"the agent's
-own reasoning, not data the foster gave us."* That is a defensible line for
-**export** and the wrong line for **deletion**, and the distinction is worth
-stating because the same sentence reads as settling both: what someone is
-entitled to receive a copy of and what has to be destroyed on request are
-different questions, and the second one is wider.
-
-The fix is small and already exists: `agentSession/{doc}` is
-`allow write: if false`, so only the Admin SDK can clear it, and `POST /reset`
-(`src/agent/server.py:525`) does exactly that — `session_store.clear()` deletes
-the whole document, `pendingApproval` included. It is authenticated by the
-foster's own ID token and already wired into the frontend as `resetChat()`.
-So this is a call-ordering fix, not new machinery. → PH-14.
-
-**(2) The `applications` rows survive, carrying the deleted person's name.**
-`exportAccountData()` queries them (`fosterId == uid`); `deleteAccount()` never
-touches them, and each row carries `fosterName`, denormalised onto the
-application precisely so a shelter can read it without a lookup. There is also
-no way to remove them: `match /applications/{applicationId}` has `read`,
-`create` and `update` rules and **no `delete` rule at all**, so a client delete
-is denied by the default-deny at the bottom of the file.
-
-## What happens to an application when its foster deletes their account (decided 2026-08-30)
-
-**Redact, don't delete.** The row stays; `fosterName` becomes
-`"(deleted account)"` and `status` becomes `withdrawn`. → PH-15.
-
-The absent `delete` rule turns out to be right, so the fix is not to add one.
-An application is not the foster's private data — it is a record of a
-relationship with a shelter, the one document in the schema with two legitimate
-owners. Hard-deleting it makes a row vanish out from under a staff member who
-may be mid-review, which is the same failure RS-6 already decided against for
-retiring a dog ("a status change, **not** a delete — a dog someone is
-mid-application on must not vanish out from under them"). The shelter keeps the
-fact that an application existed and was withdrawn; it loses the name, which is
-the part that belongs to a person who asked to be forgotten.
-
-**The redaction is possible today only because the update rule is loose**, and
-that is not a happy accident to build on quietly. `firestore.rules:49-51`'s
-foster branch permits an update whenever the *resulting* status is `withdrawn`
-and constrains nothing else — so a single write can set the status and rewrite
-`fosterName` in the same breath. It can also rewrite `checklist`, `createdAt`
-or `shelterId`, and rewriting `shelterId` drops a withdrawn application into
-another shelter's inbox, since RS-5's query filters on exactly that field. So
-the same read produces a hardening item and the mechanism the redaction rides
-on, which is why PH-16 pins the other fields and deliberately leaves
-`fosterName` free. Tightening it without that carve-out would close the hole
-and break deletion in the same PR.
-
-**Not in scope, and stated so it doesn't get re-derived:** a shelter-side view
-of a withdrawn, redacted application is RS-5's problem, not this one's. It
-already has to render `withdrawn` as a status; `"(deleted account)"` is just a
-name it displays.
+The full reasoning — including why export and deletion are different questions, and
+why `applications`'s update rule must stay loose about `fosterName` specifically — is
+in the [archive](archive/production-hardening-deletion-2026-08-30.md). Read it before
+tightening that rule.
 
 ## No error tracking
 
@@ -219,27 +169,15 @@ specific respect, so do not reorder them.
   asked for could not be run and is now PH-15b under "Needs a human"** — read that
   before treating this as verified end to end.
 
-- **PH-16 (2026-08-30, sequenced after PH-15) — the foster branch of
-  `applications`'s update rule pins nothing.** `firestore.rules:49-51` allows a
-  foster to update their own application whenever the *result* has
-  `status == "withdrawn"`, and constrains no other field. So one write can set
-  the status and simultaneously rewrite `checklist` (undoing a shelter's ticks),
-  `createdAt`, or `shelterId` — the last of which moves the document into a
-  different shelter's inbox, since RS-5's query filters on exactly that field.
-  Low severity, entirely real, and cheap to close.
-  - Pin `fosterId`, `shelterId`, `dogId`, `createdAt` and `checklist` to their
-    existing values on the foster branch
-    (`request.resource.data.X == resource.data.X`).
-  - **Leave `fosterName` free to change.** That is deliberate and it is PH-15's
-    redaction path — pinning it would make the previous item impossible. Say so
-    in a comment in the rules file, or the next person to tighten this will
-    close it and break deletion without knowing.
-  - The staff branch is out of scope: staff moving an application forward is
-    supposed to write the checklist.
-  - Verify: as a test-account foster, a withdraw-plus-name-redaction write still
-    succeeds (PH-15's path — this is the regression that matters), and a
-    withdraw write that also changes `shelterId` is now denied. Both against the
-    deployed project. Do not widen anything else while you are in this file.
+- **PH-16 — shipped 2026-08-30.** The foster branch of `applications`'s update
+  rule now pins `fosterId`, `shelterId`, `dogId`, `createdAt` and `checklist`;
+  `fosterName` stays free, with a `!!` comment saying why. Its allow/deny check
+  needs a signed-in foster and is folded into PH-15b below.
+
+**This queue is empty again as of 2026-08-30** — PH-14, PH-15 and PH-16 all shipped
+in one execute run (PRs #47, #48, #49). Two of the three left something for a person
+rather than claiming a verification they couldn't run: PH-15b under "Needs a human"
+is the single errand that discharges both.
 
 ### Needs a human, not a queue item
 
@@ -258,7 +196,11 @@ specific respect, so do not reorder them.
   on `https://pawthway-hackathon.web.app`, confirm both directions: the
   `{ fosterName, status: "withdrawn" }` write succeeds, and the same write without
   the status change comes back `permission-denied`. **Record the answer here.**
-  This is also PH-16's regression check, so doing them together is one errand.
+  PH-16 then added the other half of the same errand, and it is the regression that
+  matters: with the tightened rule live, the redaction write must *still* succeed
+  (that is PH-15's path riding on the deliberately-unpinned `fosterName`), and a
+  withdraw write that also changes `shelterId` must now be denied. Four writes, one
+  console session.
 
 - **PH-13 (2026-08-29) — lift the instance pin, once PH-10 and PH-11 land.**
   Raise `--max-instances` from 1 to **2** in `deploy-backend.yml` (leave
@@ -405,3 +347,20 @@ verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
   5 new tests (13 total in `web/src/auth.test.ts`), three negative directions run:
   dropping `status: "withdrawn"`, adding `fosterId` to the payload, and moving the
   whole block after `deleteUser()` each fail exactly the test that names them.
+- 2026-08-30 — PH-16 — PR #__ — `firestore.rules`'s foster branch on
+  `applications` now also requires `fosterId`, `shelterId`, `dogId`, `createdAt` and
+  `checklist` to equal their existing values, so a withdraw can no longer smuggle in
+  a `checklist` rewrite (undoing a shelter's ticks) or a `shelterId` rewrite (moving
+  the row into another shelter's inbox, which RS-5's query filters on). `fosterName`
+  is deliberately left free and carries a `!!` comment block saying so and naming
+  PH-15 — pinning it would have closed this hole and broken account deletion in the
+  same change, permanently, since this branch needs a uid that never signs in again.
+  Staff branch untouched. **Verified as far as it can be without a signed-in foster:**
+  `firebase deploy --only firestore:rules --dry-run` compiles the file against
+  Google's own rules compiler and reports success — and the negative direction was run
+  too, deliberately breaking the new clause and watching the same command reject it
+  with `[E] 69:77 - Unexpected ')'`. That proves it *compiles*, not that it
+  allows and denies the right writes; that half is PH-15b. Worth knowing generally:
+  CI never touches `firestore.rules`, so a rules typo is invisible until
+  `deploy-frontend.yml` runs on merge — the dry run is the only pre-merge check there
+  is, and it needs a logged-in `firebase` CLI.
