@@ -209,36 +209,9 @@ looking for something to queue. They are one finding split three ways, and the
 sequence matters: PH-16 tightens a rule that PH-15 needs to stay loose in one
 specific respect, so do not reorder them.
 
-- **PH-14 (2026-08-30) — deletion has to reach the transcript, and only the
-  backend can.** `deleteAccount()` (`web/src/auth.ts:90`) must call
-  `resetChat()` (`web/src/api.ts:77`) **before** `deleteUser()`, so
-  `fosters/{uid}/agentSession/current` is gone rather than orphaned.
-  - Order is the whole item: `resetChat()` sends
-    `Authorization: Bearer <getIdToken()>`, and after `deleteUser()` there is no
-    user to mint a token from. Put the call before the careLog loop — the
-    existing `deleteUser` retry path already re-authenticates with a popup, and
-    a token minted before that is not guaranteed to survive it.
-  - **A failure here must not be silent, and must not be fatal either.** If
-    `/reset` throws (backend down, cold start past the fetch timeout), the
-    right behaviour is to surface it and let the person choose: deleting the
-    Auth user anyway leaves an unreachable document, and refusing to delete
-    traps someone who wants out because a service they never heard of is
-    unavailable. Suggested shape: catch it, and rethrow a message naming what
-    could not be deleted and that retrying later will clear it — so the caller
-    in `AccountSheet.tsx` renders it through whatever it already does with a
-    thrown error. Do **not** `catch {}` it.
-  - Nothing in `firestore.rules` changes. `agentSession/{doc}` stays
-    `allow write: if false`; the deletion goes through the Admin SDK, which is
-    the point.
-  - Skip the call when the agent backend isn't configured — the same condition
-    the rest of the app already uses for that, rather than a new one.
-  - Verify: a `tests/`-side test is not available for frontend code here, so do
-    it in `web/src/` with the existing vitest setup — assert `resetChat` is
-    called before `deleteUser`, and that a throwing `resetChat` means
-    `deleteUser` is never called. Plus `npm run build`/`test`/`lint` green. Say
-    in the ledger row whether you exercised this against a real signed-in
-    account or only the unit cases; the honest answer is probably the latter,
-    and that is fine as long as it is written down.
+- **PH-14 — shipped 2026-08-30.** `deleteAccount()` clears the agent transcript
+  through `POST /reset` before it touches anything else, and refuses to delete the
+  rest if it can't. See the Ledger, including which half was only unit-tested.
 
 - **PH-15 (2026-08-30) — redact the foster's name off their applications on
   delete.** Per the decision recorded above: the shelter's copy of an
@@ -398,3 +371,24 @@ verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
   fails test (1) and only test (1); a shared `Agent` fails (3) and (4). No production
   code changed. Full row in the
   [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
+- 2026-08-30 — PH-14 — PR #__ — `deleteAccount()` calls `resetChat()` first, so
+  `fosters/{uid}/agentSession/current` is cleared by the Admin SDK while an ID token
+  can still be minted — before the careLog loop, not just before `deleteUser()`, since
+  the `auth/requires-recent-login` retry re-authenticates with a popup mid-way. Two
+  things shipped beyond the literal task, both because the "surface it to the caller"
+  half didn't work as written: `AccountSheet.removeAccount()` was discarding every
+  thrown error and rendering one fixed string, so a rethrown message reached nobody;
+  it now renders the message when it's an `AccountDeletionError` (a new class, same
+  idea as `ChatError`) and keeps the old copy otherwise — because printing every
+  caught error would show a foster `auth/popup-closed-by-user` from a dismissed
+  re-auth popup. Deliberately fatal on failure: nothing is deleted and the copy says
+  so, rather than deleting the Auth user and stranding the transcript unreachable
+  forever. `auth.ts` now imports `api.ts`, which imports `auth.ts` back — a real cycle,
+  safe because neither side reads the other at module-evaluation time, and noted in a
+  comment so nobody "fixes" it. No rules change; `agentSession/{doc}` stays
+  `allow write: if false`. **Verified on unit cases only** — 5 tests in the repo's
+  first `web/src/auth.test.ts`, with the whole Firebase surface faked, recording the
+  order calls happen in rather than that they happened. Ran both negative directions:
+  dropping the `resetChat()` call fails 3 of them, and moving it after `deleteUser()`
+  fails the same 3. Not exercised against a real signed-in account, which needs a
+  Google popup this run can't drive.
