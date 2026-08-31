@@ -3,7 +3,8 @@ import {
   signInWithPopup, signOut, type Auth,
 } from "firebase/auth";
 import {
-  addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where,
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc,
+  updateDoc, where,
 } from "firebase/firestore";
 import { firebaseApp, firestore } from "./firebase";
 // api.ts imports `auth` back out of this module, so these two form a cycle. It's safe
@@ -99,6 +100,13 @@ export class AccountDeletionError extends Error {
 }
 
 /**
+ * What a deleted foster's name becomes on the applications a shelter can still see. Written
+ * into `fosterName`, which is denormalised onto the application precisely so a shelter can
+ * read it without a lookup — which is also why deleting the account has to reach it.
+ */
+const REDACTED_FOSTER_NAME = "(deleted account)";
+
+/**
  * Permanently deletes the signed-in foster's data and their Auth account. Firestore rules
  * only let the owner delete their own `fosters/{uid}` doc and `careLog` subcollection, so
  * this is mostly a plain client-side delete rather than a backend endpoint. Google-auth users
@@ -138,6 +146,37 @@ export async function deleteAccount(): Promise<void> {
         "The assistant service may be starting up — try again in a few minutes.",
       );
     }
+  }
+
+  // Also before deleting the Auth user, and for the same reason as the transcript above:
+  // afterwards this becomes impossible forever. The foster branch of `applications`'s update
+  // rule needs `resource.data.fosterId == request.auth.uid`, and that uid never signs in
+  // again — so a row that still carries the name at that point carries it permanently.
+  //
+  // Redact, don't delete. An application isn't the foster's private data; it's a record of a
+  // relationship with two legitimate owners, and hard-deleting it makes a row vanish out from
+  // under a staff member who may be mid-review. The shelter keeps the fact that an
+  // application existed and was withdrawn, and loses the name — the part that belongs to the
+  // person who asked to be forgotten. `fosterId` stays: it's a uid that now resolves to
+  // nothing, and it's what keeps the row's own provenance legible.
+  //
+  // `status: "withdrawn"` is load-bearing, not a nicety. `firestore.rules` lets a foster
+  // update their own application only when the *resulting* status is "withdrawn", so a
+  // redaction that left the status alone would be permission-denied. It's also the honest
+  // status: nobody is going to review an application from an account that no longer exists.
+  try {
+    const applications = await getDocs(
+      query(collection(firestore, "applications"), where("fosterId", "==", uid)),
+    );
+    await Promise.all(applications.docs.map((application) => updateDoc(application.ref, {
+      fosterName: REDACTED_FOSTER_NAME,
+      status: "withdrawn",
+    })));
+  } catch {
+    throw new AccountDeletionError(
+      "Couldn't remove your name from the foster applications you've sent, so nothing was " +
+      "deleted. Check your connection and try again.",
+    );
   }
 
   const careLog = await getDocs(collection(firestore, "fosters", uid, "careLog"));

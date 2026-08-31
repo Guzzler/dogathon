@@ -11,11 +11,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * happened. Everything below the module boundary is faked; there is no emulator here.
  */
 const calls: string[] = [];
+const updates: { path: string; data: Record<string, unknown> }[] = [];
 
 const currentUser = { uid: "foster-1" };
 const fakeAuth: { currentUser: typeof currentUser | null } = { currentUser };
 
 let resetChatFails = false;
+let updateFails = false;
 
 vi.mock("./firebase", () => ({ firebaseApp: {}, firestore: {} }));
 
@@ -54,6 +56,8 @@ vi.mock("firebase/auth", () => ({
   deleteUser: vi.fn(async () => { calls.push("deleteUser"); }),
 }));
 
+const fakeDoc = (path: string) => ({ id: path.split("/").pop(), ref: { path }, data: () => ({}) });
+
 vi.mock("firebase/firestore", () => ({
   addDoc: vi.fn(),
   collection: (_db: unknown, ...path: string[]) => ({ path: path.join("/") }),
@@ -62,11 +66,20 @@ vi.mock("firebase/firestore", () => ({
   getDoc: vi.fn(),
   getDocs: vi.fn(async (ref: { path: string }) => {
     calls.push(`read:${ref.path}`);
-    return { docs: [{ id: "e1", ref: { path: `${ref.path}/e1` }, data: () => ({}) }] };
+    // Two applications, so "for each row" is actually exercised rather than assumed.
+    if (ref.path === "applications") {
+      return { docs: [fakeDoc("applications/a1"), fakeDoc("applications/a2")] };
+    }
+    return { docs: [fakeDoc(`${ref.path}/e1`)] };
   }),
-  query: vi.fn(),
+  query: (ref: { path: string }) => ref,
   serverTimestamp: vi.fn(),
   setDoc: vi.fn(),
+  updateDoc: vi.fn(async (ref: { path: string }, data: Record<string, unknown>) => {
+    calls.push(`update:${ref.path}`);
+    if (updateFails) throw new Error("permission-denied");
+    updates.push({ path: ref.path, data });
+  }),
   where: vi.fn(),
 }));
 
@@ -76,7 +89,9 @@ const { deleteUser } = await import("firebase/auth");
 describe("deleteAccount", () => {
   beforeEach(() => {
     calls.length = 0;
+    updates.length = 0;
     resetChatFails = false;
+    updateFails = false;
     fakeAuth.currentUser = currentUser;
     vi.mocked(deleteUser).mockClear();
   });
@@ -115,5 +130,48 @@ describe("deleteAccount", () => {
 
     await expect(deleteAccount()).rejects.toThrow("Not signed in.");
     expect(calls).toEqual([]);
+  });
+
+  /**
+   * The shelter's copy of an application survives a deletion — it's a two-owner record, and
+   * a row vanishing out from under a staff member mid-review is the failure this shape
+   * avoids. What must not survive is the name denormalised onto it.
+   */
+  describe("the applications a shelter can still see", () => {
+    it("redacts the name off every one of them, not just the first", async () => {
+      await deleteAccount();
+
+      expect(updates.map((u) => u.path)).toEqual(["applications/a1", "applications/a2"]);
+      for (const update of updates) expect(update.data.fosterName).toBe("(deleted account)");
+    });
+
+    it("withdraws them, which is the only reason the write passes the rules at all", async () => {
+      await deleteAccount();
+
+      // firestore.rules lets a foster update their own application only when the *resulting*
+      // status is "withdrawn". Redacting without it is permission-denied, not a tidier write.
+      for (const update of updates) expect(update.data.status).toBe("withdrawn");
+    });
+
+    it("leaves fosterId alone, so the row's provenance stays legible to the shelter", async () => {
+      await deleteAccount();
+
+      for (const update of updates) expect(update.data).not.toHaveProperty("fosterId");
+    });
+
+    it("redacts before the Auth user goes, since afterwards the rule can never pass", async () => {
+      await deleteAccount();
+
+      expect(calls.indexOf("update:applications/a2")).toBeLessThan(calls.indexOf("deleteUser"));
+    });
+
+    it("deletes nothing at all if the redaction fails", async () => {
+      updateFails = true;
+
+      await expect(deleteAccount()).rejects.toThrow(AccountDeletionError);
+      await expect(deleteAccount()).rejects.toThrow(/nothing was deleted/);
+      expect(deleteUser).not.toHaveBeenCalled();
+      expect(calls.filter((c) => c.startsWith("delete:"))).toEqual([]);
+    });
   });
 });
