@@ -386,7 +386,7 @@ verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
   dropping the `resetChat()` call fails 3 of them, and moving it after `deleteUser()`
   fails the same 3. Not exercised against a real signed-in account, which needs a
   Google popup this run can't drive.
-- 2026-08-30 — PH-15 — PR #__ — `deleteAccount()` now queries
+- 2026-08-30 — PH-15 — PR #48 — `deleteAccount()` now queries
   `applications where fosterId == uid` — the query `exportAccountData()` already
   runs — and writes `fosterName: "(deleted account)"` plus `status: "withdrawn"` to
   each row. Redact, not delete, and no `allow delete` rule added: an application has
