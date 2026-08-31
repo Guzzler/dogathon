@@ -69,9 +69,10 @@ touched the token surface.
 
 ## Task queue
 
-- **DC-2 (2026-08-24; re-verified open again 2026-08-29 — `grep -rn sidekickTheme web/src/`
-  returns exactly one line, `brand.ts:24`, its own `export`, so it is still
-  defined, still unused, and still unmarked).** Remove `sidekickTheme` from `brand.ts`, or if
+- **DC-2 (2026-08-24; re-verified open again 2026-08-30 — `grep -rn sidekickTheme web/src/`
+  still returns exactly one line, `brand.ts:24`, its own `export`, so it is still
+  defined, still unused, and still unmarked. Third consecutive run confirming this;
+  it is the oldest open item across all three docs, and it is a one-line change).** Remove `sidekickTheme` from `brand.ts`, or if
   there's a reason to keep it (a rollback reference, a second-brand plan
   nobody's written down) turn it into a one-line comment explaining why an
   unused theme object is still there, so it stops looking like a
