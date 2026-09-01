@@ -14,7 +14,7 @@ import { PublicAdoptionView } from "./phases/postfoster/PublicAdoptionView";
 import { SignInView } from "./phases/auth/SignInView";
 import { DemoIntroView, demoIntroSeen } from "./phases/auth/DemoIntroView";
 import { ShelterLayout } from "./phases/shelter/ShelterLayout";
-import { ShelterHomeView } from "./phases/shelter/ShelterHomeView";
+import { ShelterApplicationsView } from "./phases/shelter/ShelterApplicationsView";
 import { ShelterNotStaffView, ShelterErrorView } from "./phases/shelter/ShelterAccessViews";
 import { useSession } from "./hooks/useSession";
 import { useFoster } from "./hooks/useFoster";
@@ -129,5 +129,5 @@ function GateOutlet() {
 }
 
 function ShelterGateOutlet() {
-  return <StaffGate><ShelterHomeView /></StaffGate>;
+  return <StaffGate><ShelterApplicationsView /></StaffGate>;
 }
