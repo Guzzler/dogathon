@@ -649,3 +649,54 @@ input,textarea,select{font-family:inherit}
   .shelter h1{font-size:32px}
   .shelter__header{padding-top:48px}
 }
+
+/* ---------- shelter: the application inbox (RS-5) ----------
+   Master/detail. Side by side from 900px, stacked below it -- a staff member approving one
+   application from their phone is a real case, per the device-agnostic decision. */
+.shelter__state{padding-top:28px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.shelter__state h2{font-size:22px}
+.shelter__switch{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.shelter__chip{
+  border:1px solid var(--line);background:var(--card);color:var(--ink-2);
+  border-radius:100px;padding:6px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+}
+.shelter__chip.is-on{background:var(--coral-soft);border-color:var(--coral);color:var(--coral-dk)}
+
+.shelter__split{display:grid;grid-template-columns:1fr;gap:18px;padding-top:18px;padding-bottom:40px}
+@media (min-width:900px){
+  .shelter__split{grid-template-columns:minmax(280px,360px) 1fr;gap:24px;align-items:start}
+}
+
+.shelter__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.shelter__row{
+  width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:13px 15px;font:inherit;text-align:left;cursor:pointer;
+}
+.shelter__row.is-on{border-color:var(--coral);box-shadow:var(--shadow)}
+.shelter__row-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.shelter__row-main strong{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shelter__row-meta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+
+.shelter__pill{
+  display:inline-block;border-radius:100px;padding:2px 10px;
+  font-size:11.5px;font-weight:800;letter-spacing:.04em;
+  background:var(--cream-2);color:var(--ink-2);
+}
+.shelter__pill--submitted{background:var(--coral-soft);color:var(--coral-dk)}
+.shelter__pill--in_review{background:var(--butter-soft);color:var(--ink-2)}
+.shelter__pill--approved{background:var(--sage-soft);color:var(--sage)}
+.shelter__pill--declined,.shelter__pill--withdrawn{background:var(--cream-2);color:var(--ink-3)}
+
+.shelter__detail{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:20px;display:flex;flex-direction:column;gap:10px;
+}
+.shelter__detail h3{margin-top:8px}
+.shelter__detail-head h2{font-size:22px}
+.shelter__checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.shelter__check{display:flex;align-items:center;gap:10px;font-size:14.5px;cursor:pointer}
+.shelter__check input{width:18px;height:18px;accent-color:var(--coral);cursor:pointer}
+.shelter__check.is-locked{color:var(--ink-3);cursor:default}
+.shelter__actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:2px}
+.shelter__failed{color:var(--coral-dk);font-size:13px;font-weight:700;margin-top:4px}

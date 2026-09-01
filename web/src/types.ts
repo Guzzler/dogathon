@@ -153,6 +153,13 @@ export interface Application {
   status: ApplicationStatus;
   checklist: ChecklistItem[];
   pickup: Pickup | null;
+  /**
+   * Written with `serverTimestamp()`, so it reads back as a Firestore `Timestamp` -- narrowed
+   * here to the one method the UI calls rather than importing the SDK's type into a file the
+   * pure helpers and their tests also import. It is briefly `null` on the local echo of a
+   * write the server hasn't stamped yet, which is why the shelter inbox sorts defensively.
+   */
+  createdAt?: { toMillis(): number } | null;
 }
 
 export interface Foster {

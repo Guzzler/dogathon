@@ -1,0 +1,117 @@
+import type { Application, ApplicationStatus, ChecklistItem } from "../types";
+import { checklistOwner } from "../checklists";
+
+/**
+ * The pure half of the shelter's application inbox: labels, transitions, ordering and the
+ * error copy. Deliberately imports no Firebase -- everything here is unit-testable without a
+ * project config, which is why it lives beside `applications.ts` rather than inside it.
+ */
+
+export const STATUS_LABELS: Record<ApplicationStatus, string> = {
+  submitted: "New",
+  in_review: "In review",
+  approved: "Approved",
+  declined: "Declined",
+  withdrawn: "Withdrawn",
+};
+
+/**
+ * What a staff member may move an application to. `withdrawn` is absent on purpose: it's the
+ * foster's own action, and `firestore.rules`' foster branch is the only place it's set. A
+ * withdrawn row is terminal from the shelter's side, so it offers nothing.
+ */
+export function staffTransitions(status: ApplicationStatus): ApplicationStatus[] {
+  if (status === "withdrawn") return [];
+  return (["in_review", "approved", "declined"] as ApplicationStatus[]).filter((s) => s !== status);
+}
+
+/** A withdrawn application is a record, not a task -- nothing on it is the shelter's to change. */
+export function isActionable(status: ApplicationStatus): boolean {
+  return status !== "withdrawn";
+}
+
+const DAY = 86_400_000;
+
+/** "Today" / "3 days ago" / "2 weeks ago" -- how old the application is, not a precise date. */
+export function applicationAge(createdAtMs: number | null, nowMs: number): string {
+  if (createdAtMs === null) return "Just now";
+  const days = Math.floor((nowMs - createdAtMs) / DAY);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 14) return `${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 9) return `${weeks} weeks ago`;
+  const months = Math.floor(days / 30);
+  return months === 1 ? "1 month ago" : `${months} months ago`;
+}
+
+export function createdAtMillis(app: Application): number | null {
+  // `serverTimestamp()` reads back null on the local echo before the server stamps it.
+  return app.createdAt ? app.createdAt.toMillis() : null;
+}
+
+/**
+ * Newest first, matching the `shelterId ASC, createdAt DESC` composite index the query uses.
+ * Applied again client-side so a row whose `createdAt` hasn't been stamped yet (or a
+ * `LOCAL_MODE`-shaped record with none at all) still lands somewhere sensible -- at the top,
+ * since an unstamped write is by definition the most recent one.
+ */
+export function byNewest(a: Application, b: Application): number {
+  const at = createdAtMillis(a);
+  const bt = createdAtMillis(b);
+  if (at === null && bt === null) return 0;
+  if (at === null) return -1;
+  if (bt === null) return 1;
+  return bt - at;
+}
+
+/**
+ * Splits the application's checklist the way the Match view already splits the foster's:
+ * on `ChecklistItem.owner`, falling back to `checklistOwner(id)` for records seeded before
+ * that field existed.
+ */
+export function splitByOwner(checklist: ChecklistItem[]): {
+  shelter: ChecklistItem[];
+  foster: ChecklistItem[];
+} {
+  const shelter: ChecklistItem[] = [];
+  const foster: ChecklistItem[] = [];
+  for (const item of checklist) {
+    ((item.owner ?? checklistOwner(item.id)) === "shelter" ? shelter : foster).push(item);
+  }
+  return { shelter, foster };
+}
+
+export interface InboxError {
+  title: string;
+  body: string;
+  retryable: boolean;
+}
+
+/**
+ * The two failures that actually happen here want opposite advice, so they get different copy.
+ * `failed-precondition` is a composite index still building -- it resolves on its own and a
+ * retry genuinely helps. `permission-denied` means the rules refused this query for this
+ * account; retrying it will refuse identically forever.
+ */
+export function inboxError(code: string | undefined): InboxError {
+  if (code === "failed-precondition") {
+    return {
+      title: "Applications aren't ready yet.",
+      body: "The database is still building the index this list needs. It usually takes a few minutes — try again shortly.",
+      retryable: true,
+    };
+  }
+  if (code === "permission-denied") {
+    return {
+      title: "You don't have access to these applications.",
+      body: "Your account isn't authorised to read this shelter's applications. Retrying won't change that — ask whoever set up your staff account.",
+      retryable: false,
+    };
+  }
+  return {
+    title: "Couldn't load applications.",
+    body: "Something went wrong reaching the database. Check your connection and try again.",
+    retryable: true,
+  };
+}
