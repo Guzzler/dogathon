@@ -168,8 +168,8 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **Five archives exist as of
-2026-08-30**: `real-data-and-shelters-2026-08-29.md` (that
+snapshot) rather than let it grow unbounded. **Six archives exist as of
+2026-08-31**: `real-data-and-shelters-2026-08-29.md` (that
 doc's settled M1/M2/M4 narrative) and `production-hardening-2026-08-29.md` (its
 settled PH-1..PH-6 narrative and rows), then
 `production-hardening-ledger-2026-08-30.md` (PH-7..PH-12's rows) and
@@ -192,6 +192,17 @@ genuinely valuable rows (PH-8's is 40 lines and every one of them earns its
 place), so the ledger is now the first place to look when a doc is over, not the
 last. Compress a row to its decision, its surprises, and what was verified versus
 reasoned about; the archive keeps the rest.
+
+**2026-08-31 — the sixth, and the first where compressing was not enough.**
+`real-data-and-shelters.md` was at 397 before this run, which then added a whole
+new design answer plus RS-10. Archiving RS-9's narrative
+(`archive/real-data-and-shelters-2026-08-31.md`) and compressing four settled
+sections — "where this stands", the shared decisions, RS-8, and RS-5's account of
+its own retired gate — bought back roughly 60 lines and the doc still landed at
+**421**. Recorded rather than hidden: it is the highest-priority doc, it carries
+the only two open `[large]` items in the repo, and trimming further would have
+meant cutting a live item's spec. The next run that touches it should archive the
+Ledger, now the largest settled block in it.
 
 The trigger is worth applying at the moment a run's own edits push a doc past
 ~400, not on the next run. production-hardening crossed it *because of* the

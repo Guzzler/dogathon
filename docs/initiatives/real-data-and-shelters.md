@@ -24,47 +24,41 @@ section as they stood are preserved verbatim in
 and compressed to one line each below. Read the archive for the reasoning
 behind a settled decision; read this file for what is open.
 
-## Where this actually stands (re-verified against `main` 2026-08-29)
+## Where this actually stands (re-verified against `main` 2026-08-31)
 
-- **The offline import pipeline is built, for one shelter, with a manual
-  trigger on purpose.** `scripts/import_dogs.py` + `scripts/shelters/sfspca.py`
-  + `data/enrichment.json` → `data/dogs.json`, reviewed and committed, never
-  fetched at runtime; `--plan` diffs before writing and the real push replaces
-  rather than appends (PR #13). `.github/workflows/import-dogs.yml` runs it via
-  `workflow_dispatch` only — *"the roster should change when someone decides it
-  should, not because a file moved."* Extend this pattern; don't replace it.
+Each line below was checked by reading the file named in it this run, not
+carried over from the previous wording.
+
+- **The offline import pipeline is built, for one shelter, with a manual trigger
+  on purpose.** `scripts/import_dogs.py` + `scripts/shelters/sfspca.py` +
+  `data/enrichment.json` → `data/dogs.json`, reviewed and committed, never fetched
+  at runtime; `--plan` diffs before writing and the real push replaces rather than
+  appends (PR #13). `import-dogs.yml` is `workflow_dispatch` only — *"the roster
+  should change when someone decides it should, not because a file moved."* Extend
+  this pattern; don't replace it.
 - **The roster is one shelter deep.** Every dog carries
-  `shelter_id: "sfspca-mission"`. `web/src/lib/shelters.ts` lists six orgs; the
-  other five (`acc`, `muttville`, `coppers`, `wonder`, `rocket`) have zero dogs
-  and no import path — decorative until M3. The id `"sfspca-mission"` is
-  canonical everywhere and guarded by `web/src/lib/shelters.test.ts`.
-- **`shelters/sfspca-mission` now exists** in production Firestore with the repo
-  owner's uid in `staffUids` (RS-2, PR #34), so `isStaff()` finally evaluates
-  against a real document. `scripts/seed_shelter_staff.py` makes that write
-  reproducible.
+  `shelter_id: "sfspca-mission"`. `web/src/lib/shelters.ts` lists **six** orgs
+  (counted this run); the other five have zero dogs and no import path —
+  decorative until M3. `shelters.test.ts` guards the canonical id.
+- **`shelters/sfspca-mission` exists** in production Firestore with the repo
+  owner's uid in `staffUids` (RS-2, PR #34), so `isStaff()` evaluates against a
+  real document. `scripts/seed_shelter_staff.py` makes that write reproducible.
 - **`match /dogs/{dogId}` is still `allow write: if false`** — re-read at
-  `firestore.rules:12-18` on **2026-08-30**, the "Becomes isStaff(shelter_id) … (M3)"
+  `firestore.rules:12-18` on 2026-08-31, the "Becomes isStaff(shelter_id) … (M3)"
   comment intact. That is RS-6's to change, nobody else's.
-- **`applications`'s rules are about to be touched from the other side.** Reading
-  `deleteAccount()` on 2026-08-30 turned up that the foster branch of
-  `match /applications/{applicationId}`'s update rule
-  (`firestore.rules:49-51`) pins no fields beyond the resulting status, so a
-  withdraw write can also rewrite `checklist` — or `shelterId`, which is the field
-  RS-5's inbox query filters on. PH-15 and PH-16 in
-  [`production-hardening.md`](production-hardening.md) are the fix. RS-5 doesn't
-  depend on them and shouldn't wait, but **whoever picks up RS-5 should read those
-  two items first**: they are the other party editing this collection's rules, and
-  the `withdrawn` + redacted-`fosterName` row PH-15 produces is a state RS-5's list
-  has to render.
-- **`firestore.indexes.json` deploys, and the `applications` composite index
-  (`shelterId` ASC, `createdAt` DESC) exists** — RS-7 (PR #38, #39) wired the target,
-  RS-9 supplied the IAM grant it needed, run 33243275175 deployed it green, and
-  `gcloud firestore indexes composite list` reports it `READY`. RS-5's query has a
-  serving index to run against.
-- **RS-2's `staff` and `notStaff` states are still unverified live.** Named as a
-  check for this run by RS-2's own ledger row; still outstanding, because both
-  need a real Google popup sign-in that an unattended run cannot drive. Carried
-  forward deliberately rather than quietly dropped — see RS-8.
+- **`applications`'s update rule is now tight, and one field is deliberately
+  loose.** PH-15 and PH-16 shipped (PRs #48, #49): the foster branch pins
+  `fosterId`, `shelterId`, `dogId`, `createdAt` and `checklist`, leaving
+  `fosterName` free so account deletion can redact it. Read
+  `firestore.rules:45-62` before touching that branch. Two consequences for RS-5:
+  a `withdrawn` row whose `fosterName` reads `"(deleted account)"` is a state the
+  inbox has to render, and the `shelterId` its query filters on can no longer be
+  rewritten out from under it.
+- **The `applications` composite index (`shelterId` ASC, `createdAt` DESC) is
+  `READY`** — RS-7 (PRs #38, #39) wired the deploy target, RS-9 supplied the IAM
+  grant. RS-5's query has a serving index to run against.
+- **The `applications` collection has zero documents** (checked 2026-08-31). RS-5
+  seeds its own fixtures; see its item.
 
 ## Milestones (compressed; full narrative in the archive)
 
@@ -92,60 +86,81 @@ behind a settled decision; read this file for what is open.
   a second automated source before the manual path is proven just adds a second
   thing that can drift.
 
-## The design question this run answered: RS-5's query has two ways to fail, and neither shows up before runtime
+## The design question this run answered: after RS-5 ships, the shelter's ticks are invisible to the foster
 
-RS-5 wants the shelter's inbox — `where("shelterId", "==", <their id>)`,
-**newest first**. That innocuous "newest first" is the whole problem, and
-checking it turned up a repo-wide gap.
+**The approval checklist exists twice, and nothing joins the two copies.** Read
+off `main` on 2026-08-31, not inferred:
 
-**(1) It needs a composite index, and this repo has never needed one before.**
-One equality filter plus an `orderBy` on a *different* field
-(`createdAt desc`) is precisely the shape Firestore cannot serve from its
-automatic single-field indexes. It fails at runtime with `failed-precondition`
-and a console link — not at build time, not in CI, not in any test. Every
-Firestore query shipped so far has been a single equality with no ordering
-(PH-6's export query, RS-2's `array-contains`), which is why nothing has hit
-this yet.
+- `web/src/lib/applications.ts:27` seeds `applications/{id}.checklist` from
+  `DEFAULT_APPROVAL_CHECKLIST` at create time. RS-5 has staff tick the
+  `owner: "shelter"` items on **that** copy.
+- `web/src/phases/match/MatchView.tsx:48,60,64` reads and writes
+  `fosters/{uid}.approvalChecklist` through `patchFoster()`. So does
+  `SavedView.tsx:157` (the Applications timeline) and the agent's
+  `update_checklist` (`src/agent/builtin/foster.py:42`).
 
-**(2) `firestore.indexes.json` is wired up everywhere except the one place that
-matters.** Verified 2026-08-29 by reading the file and the workflow, not by
-assuming:
+Nothing syncs them, and RS-5's own instructions correctly say *"do not write
+back to `fosters/{uid}`"*. So the day RS-5 ships, a staff member ticking "Home
+environment check" changes nothing any foster can see — the badge, the timeline
+and the pickup gate all keep reading the foster's private copy, which only
+`DemoShelterPanel` (the deliberately-ugly demo widget) ever moves. The drift runs
+both ways: the foster's own ticks never reach the application, so the inbox RS-5
+builds will show every foster-owned step permanently unticked.
 
-- `firebase.json` declares `"firestore": { "indexes": "firestore.indexes.json" }`.
-- `firestore.indexes.json` is `{"indexes": [], "fieldOverrides": []}` and has
-  been untouched since the initial commit (`git log` on that path returns
-  exactly one commit, `7288418`).
-- `.github/workflows/deploy-frontend.yml:10-11` **triggers** the deploy on
-  changes to `firestore.rules` *and* `firestore.indexes.json` —
-- …but the deploy command at `:69` is
-  `firebase deploy --only hosting,firestore:rules`. **`firestore:indexes` is
-  not in the target list.**
+This is not a reason to delay RS-5. It is the item immediately after it, and
+deciding it now stops RS-5 from being built in a shape that has to be undone.
 
-So a composite index committed to that file would be diffed, reviewed, merged,
-and would trigger a deploy that silently does not deploy it. This is the same
-shape of failure as DC-3's inert token guard: a mechanism that looks wired up,
-reports success, and has never done its job — the difference being that nobody
-has noticed here because no query has needed it yet. RS-5 is the first one that
-will. That's RS-7 below, and it lands before RS-5.
+**Decided: split by `owner`, one writer per field. Not a mirror, not the full
+migration.** `ChecklistItem` already carries `owner: "foster" | "shelter"`
+(`web/src/checklists.ts:5-8`), and that field is the seam:
 
-*(This whole section retires to a Ledger line once RS-7 and RS-5 have shipped —
-it is long because it is live, not because it is history. Working core is ~295
-lines against the README's ~250 guidance; that is where the slack goes back.)*
+- **Shelter-owned items live on `applications/{id}.checklist`** and are written
+  only by staff. The foster's Match view *reads* them from there.
+- **Foster-owned items stay on `fosters/{uid}.approvalChecklist`** and are
+  written only by the foster. The shelter's inbox reads them from the
+  application only once the foster side starts mirroring its own ticks — until
+  then the inbox shows them as the shelter's copy has them, and should say the
+  foster's steps are tracked foster-side rather than render four permanent
+  blanks as if nothing had happened.
+- **Displayed list = foster-owned from the foster doc + shelter-owned from the
+  application.** Every field has exactly one writer, so there is no
+  last-write-wins across two documents and no transaction to get right.
 
-**(3) A hazard for RS-5 to test, not a conclusion.** `applications`'s read rule
-is an `||` —
-`resource.data.fosterId == request.auth.uid || isStaff(resource.data.shelterId)`
-(`firestore.rules:41-44`). Rules are not filters: a `list` query is allowed only
-if the engine can *prove* it safe from the query's own constraints. The staff
-branch pins `shelterId` via the `where` clause and should be provable (the same
-reasoning that made RS-2's `array-contains` work with no rules change), but the
-`fosterId` branch is unconstrained in this query, and an unprovable disjunct
-inside an `||` is a classic way a "should be fine" query comes back
-`permission-denied`. There is no emulator configured in `firebase.json`, so this
-cannot be settled offline — **run the query for real before building the UI on
-top of it, and do not widen `firestore.rules` if it fails.** If it fails, the fix
-is a narrower rule shape or a differently-shaped query, and that is a decision to
-write down here, not to paper over.
+**Why not the two obvious alternatives.**
+
+- *A two-way mirror* (both sides write both docs) is out on the rules alone:
+  PH-16 just pinned `checklist` on the foster branch of `applications`'s update
+  rule for exactly this reason, and unpinning it to enable a mirror would undo a
+  hole that was closed six PRs ago. It is also last-write-wins by construction.
+- *Making the application the sole source of truth* — which
+  `firestore.rules:37-39`'s own comment calls the end state, with the foster's
+  fields as "read-through convenience" — **is** right eventually, and is M2's
+  deferred migration. It touches `MatchView`, `SavedView`, `foster.py`'s agent
+  tool, and every guest/`LOCAL_MODE` path where no application document exists
+  at all. That is a migration, not a follow-up, and doing it before one real
+  shelter has ever used the inbox is building the general case for a caller that
+  doesn't exist. The `owner` split is compatible with it: it is the first half.
+
+**Three things this leaves for whoever builds it, all checked, none blocking.**
+
+1. *Which application.* A foster can have several. The lookup is
+   `where("fosterId","==",uid)` + `where("dogId","==",matchedDogId)` — two
+   equality filters and no `orderBy`, which Firestore serves from its automatic
+   single-field indexes. **No composite index, unlike RS-5.**
+2. *The same `||`-rule hazard as RS-5, mirrored.* `applications`'s read rule
+   (`firestore.rules:41-44`) is `fosterId == uid || isStaff(shelterId)`. This
+   query pins the `fosterId` branch and leaves `isStaff` unprovable — the exact
+   shape RS-5 is about to answer from the other side. Whatever RS-5 finds
+   applies here, so this item genuinely is gated on it rather than nominally.
+3. *The agent can still tick a shelter step.* `update_checklist` in
+   `src/agent/builtin/foster.py` writes `approvalChecklist` wholesale and knows
+   nothing about `owner`. Under this split that is a write to a field the foster
+   doc no longer owns. Constrain it to foster-owned ids in the same PR.
+
+*(The section this replaces — RS-5's composite-index hazard, in two parts — is
+discharged: RS-7 put `firestore:indexes` in the deploy target and RS-9 got the
+index to `READY`. Both are in the Ledger. What was live in it and stays live is
+hazard (3) below, restated as (2) above.)*
 
 ## Task queue
 
@@ -158,17 +173,14 @@ taken by the M4 drift check, which is unrelated and independent of these.)
 
 ### Decisions that apply to all three (Sharang, 2026-08-26)
 
-- **Both sides are device-agnostic.** The shelter side is desk-shaped work, so
-  it is built responsive and does **not** live inside the 430px `.phone` frame —
-  while still being genuinely usable on a phone, because a staff member
-  approving one application from their pocket is a real case. The foster side
-  becoming responsive is a separate item (DC-5 in `design-consistency.md`).
-- **Staff-ness is resolved by query, never by a document read.** Shipped that
-  way in RS-2; the derivation (why `getDoc` collapses "not staff" and "no such
-  shelter" into one indistinguishable `permission-denied`, and why
-  `where("staffUids", "array-contains", uid)` needs no rules change) is in the
-  archive. Don't re-derive it, and don't "fix" it by loosening
-  `firestore.rules`.
+- **Both sides are device-agnostic.** The shelter side is desk-shaped work, built
+  responsive and **outside** the 430px `.phone` frame — while staying usable on a
+  phone, because a staff member approving one application from their pocket is a
+  real case. The foster side is DC-5 in `design-consistency.md`, separately.
+- **Staff-ness is resolved by query, never a document read.** Shipped that way in
+  RS-2; the derivation is in the
+  [2026-08-29 archive](archive/real-data-and-shelters-2026-08-29.md). Don't
+  re-derive it, and don't "fix" it by loosening `firestore.rules`.
 
 ### The items
 
@@ -185,15 +197,14 @@ taken by the M4 drift check, which is unrelated and independent of these.)
   `applications` composite index is `READY`. The shelter's inbox is
   `where("shelterId", "==", <their id>)`, newest first.
 
-  **The blocking precondition is removed, and here is what replaces it.** This
-  item used to say the `||`-rule list-query question had to be answered by
-  running the query as the seeded staff uid *before any UI is written*. That
-  gate held the item still for four days, and it was never clearable by this
-  loop: the only sign-in is a Google popup. Worse, it wouldn't have worked
-  anyway — the `applications` collection has **zero documents** (checked
-  2026-08-31), and Firestore evaluates a `list` rule *per candidate document*, so
-  the query would have come back clean while proving nothing. A test that passes
-  because it never ran is the README's standing lesson, not a verification.
+  **The blocking precondition is removed.** This item used to require running the
+  `||`-rule list query as the seeded staff uid before any UI was written. That
+  gate held the item still for four days and was never clearable by this loop —
+  the only sign-in is a Google popup — and it would have proved nothing anyway:
+  `applications` has zero documents, and Firestore evaluates a `list` rule *per
+  candidate document*, so the query would have come back clean over an empty
+  collection. A test that passes because it never ran is the README's standing
+  lesson, not a verification.
 
   So: **build the screen, and make the rules question answer itself as part of
   building it.**
@@ -257,6 +268,39 @@ taken by the M4 drift check, which is unrelated and independent of these.)
     without breaking an existing application; staff at one shelter cannot
     write a dog carrying another shelter's `shelter_id` — the rules should
     reject that, so test it rather than assuming.
+- **RS-10 (2026-08-31; gated on RS-5) — join the two approval checklists by
+  `owner`.** The design section above is the spec and the reasoning; this is the
+  work. Today `applications/{id}.checklist` and `fosters/{uid}.approvalChecklist`
+  are two unjoined copies, so RS-5's inbox and the foster's Match view cannot see
+  each other's ticks. Split by `ChecklistItem.owner` — one writer per field —
+  rather than mirroring or migrating.
+  - Add `web/src/hooks/useApplication.ts`: `where("fosterId","==",uid)` +
+    `where("dogId","==",matchedDogId)`. Two equalities, no `orderBy`, **no
+    composite index needed** — do not add one to `firestore.indexes.json`.
+  - `MatchView.tsx` composes its list: `owner: "foster"` entries from
+    `foster.approvalChecklist`, `owner: "shelter"` entries from the application's
+    `checklist`. Use `checklistOwner(id)` (`web/src/checklists.ts:13`) for records
+    predating the field, same as it does today. Foster ticks keep going through
+    `patchFoster()`; nothing here writes `applications`.
+  - **The badge and the pickup gate are the payoff, and they are different
+    gates** (`CLAUDE.md`, "Match: who owns which approval step"). "Shelter
+    approved you as a foster" now tracks real shelter action; pickup still
+    unlocks on the whole list. Don't collapse them.
+  - **No application, no change.** Guests and `LOCAL_MODE` have no
+    `applications` row, and `DemoShelterPanel` must keep working — fall back to
+    the foster doc's shelter-owned entries exactly as today.
+  - Constrain `update_checklist` in `src/agent/builtin/foster.py` to foster-owned
+    ids in the same PR: it writes `approvalChecklist` wholesale and would
+    otherwise tick a step the foster doc no longer owns.
+  - `SavedView.tsx:157`'s Applications timeline reads the same field and must not
+    disagree with Match — route it through the same composition, don't duplicate
+    it.
+  - Verify: `npm run build`/`test`/`lint` green; a unit test over the composition
+    covering all four cases (no application, foster-only ticks, shelter-only
+    ticks, both); in `LOCAL_MODE` the Demo Shelter panel still moves the badge.
+    The signed-in two-party path needs a real shelter account and stays
+    unverified — say so in the ledger row.
+
 - **RS-4 (2026-08-26) — the weekly drift check.** The M4 bullet above *is* the
   spec; the archive carries the full reasoning. Add a weekly `schedule:` trigger
   to `.github/workflows/import-dogs.yml` alongside the existing
@@ -287,44 +331,23 @@ shelter, per the section below.
 
 ### Needs a human, not a queue item
 
-- **RS-9 — DONE 2026-08-29, by Sharang, in-session.** Kept here rather than
-  deleted because the sequence is worth not re-deriving. RS-7's target ran and was
-  refused: `403, The caller does not have permission` (run 33240631397) — the deploy
-  service account had `roles/datastore.user`, which reads and writes documents but
-  cannot create composite indexes. Sharang granted
-  **`roles/datastore.indexAdmin`** to
-  `github-deploy@pawthway-hackathon.iam.gserviceaccount.com` and asked for it to be
-  applied in-session; the invocation is in the runbook note below. Re-ran
-  `deploy-frontend.yml` (run 33243275175): the `Deploy Firestore indexes` step is
-  green and logs *"deployed indexes in firestore.indexes.json successfully for
-  (default) database"*. Then waited out the asynchronous build and confirmed the
-  index actually **serves** — `gcloud firestore indexes composite list` went
-  `CREATING` → `READY` for `shelterId, createdAt, __name__` on the `(default)`
-  database. That last check is the one this initiative kept saying was outstanding;
-  it is now done, and by reading the index's real state rather than a deploy's exit
-  code. **RS-5 is unblocked.**
-
-  For the record, since "pull the key from GitHub and do it" was the first idea:
-  **a GitHub Actions secret cannot be read back.** `gh secret list` returns names
-  only — that's GitHub's design, not a permissions problem — so there is no path
-  where CI's `GCP_SA_KEY` gets pulled down to do a one-off admin action, and
-  wanting one is a smell. Use a human's own `gcloud` credentials, which is what
-  happened.
+- **RS-9 — DONE 2026-08-29, by Sharang, in-session.** The `applications`
+  composite index is `READY`; RS-5 is unblocked. RS-7's deploy had failed
+  `403` because the deploy service account could write documents but not create
+  indexes, and Sharang granted `roles/datastore.indexAdmin` (invocation in
+  [`docs/runbook-gcp.md`](../runbook-gcp.md)). Full account, including why CI's
+  `GCP_SA_KEY` cannot be read back out of GitHub by design, in the
+  [2026-08-31 archive](archive/real-data-and-shelters-2026-08-31.md).
 
 - **RS-8 — PARKED 2026-08-31, not pending. Confirm RS-2's `staff` and `notStaff`
-  states on the deployed app.**
-  Two of RS-2's three states have never been seen working, because both need a
-  real Google popup sign-in. Not queued for execute, which cannot drive one.
-  Parked rather than pending, per the README's "nobody uses this app yet" section:
-  there are no shelter partners and no users, so this confirms behaviour nobody is
-  currently blocked by. It gets cleared in one sitting alongside PH-13 and PH-15b
-  when there is a real shelter — and RS-5 will likely have answered half of it by
-  then, since building the inbox exercises the same gate. Do not re-queue it.
-  When the time comes: sign in as the uid seeded in `shelters/sfspca-mission` and
-  open `https://pawthway-hackathon.web.app/shelter` — expect the staff
-  dashboard shell; then sign in with any other account and expect the "isn't on
-  a shelter's staff list" copy. Two minutes, and RS-5 is being built on the
-  assumption that it works. Record the result here when done.
+  states on the deployed app.** Both need a real Google popup sign-in, which no
+  unattended run can drive, and per the README's "nobody uses this app yet"
+  section they gate behaviour nobody is currently blocked by. RS-5 will likely
+  answer half of it in passing, since building the inbox exercises the same gate.
+  Do not re-queue. When there is a human: sign in as the uid seeded in
+  `shelters/sfspca-mission`, open `https://pawthway-hackathon.web.app/shelter`,
+  expect the staff dashboard shell; then any other account, expect the "isn't on a
+  shelter's staff list" copy. Two minutes. Record the result here.
 
 ## The part that's a conversation, not a PR
 
@@ -339,7 +362,8 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status as of 2026-08-29: still no evidence this conversation has happened —
+*(Status as of 2026-08-31: re-checked this run, still no evidence this
+conversation has happened —
 no commit, no doc edit from Sharang, no note anywhere in the repo. Re-checked,
 not carried over. Recorded so a future run doesn't mistake the passage of time
 for progress.)*
