@@ -6,7 +6,7 @@ import { useDogs } from "../../hooks/useDogs";
 import { PickupScheduler } from "../../components/PickupScheduler";
 import { DemoShelterPanel } from "../../components/DemoShelterPanel";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_PREP_CHECKLIST, checklistOwner } from "../../checklists";
-import { normalizeDog, dogPhoto } from "../../lib/dog";
+import { normalizeDog, thumbBackground } from "../../lib/dog";
 import { downloadIcs } from "../../lib/calendar";
 import { DEMO_MODE } from "../../lib/demoMode";
 import type { ChecklistItem, Pickup } from "../../types";
@@ -86,7 +86,7 @@ export function MatchView() {
       <div className="scroll pad" style={{ paddingTop: 6, paddingBottom: 34, display: "flex", flexDirection: "column", gap: 14 }}>
         {/* Dog header */}
         <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="row" style={{ gap: 13 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 17, flexShrink: 0, background: `var(--cream-2) url(${dogPhoto(dog, 300, 300)}) center/cover` }} />
+          <div style={{ width: 56, height: 56, borderRadius: 17, flexShrink: 0, background: thumbBackground(dog, 300, 300) }} />
           <div style={{ minWidth: 0 }}>
             <h2 style={{ fontSize: 20 }}>You matched with {dog.name}!</h2>
             <p className="muted" style={{ marginTop: 2 }}>{dog.shelter.name}</p>

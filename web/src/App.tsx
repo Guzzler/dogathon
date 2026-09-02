@@ -15,6 +15,8 @@ import { SignInView } from "./phases/auth/SignInView";
 import { DemoIntroView, demoIntroSeen } from "./phases/auth/DemoIntroView";
 import { ShelterLayout } from "./phases/shelter/ShelterLayout";
 import { ShelterApplicationsView } from "./phases/shelter/ShelterApplicationsView";
+import { ShelterRosterView } from "./phases/shelter/ShelterRosterView";
+import { ShelterNav } from "./phases/shelter/ShelterNav";
 import { ShelterNotStaffView, ShelterErrorView } from "./phases/shelter/ShelterAccessViews";
 import { useSession } from "./hooks/useSession";
 import { useFoster } from "./hooks/useFoster";
@@ -102,7 +104,12 @@ export default function App() {
       {/* A sibling of the foster Layout, not nested inside it: Layout *is* the 430px phone
           frame, which would trap a desk-shaped dashboard. See ShelterLayout's own comment. */}
       <Route path="shelter" element={<ShelterLayout />}>
-        <Route index element={<ShelterGateOutlet />} />
+        {/* The gate is a pathless parent, so both shelter screens sit behind one
+            useStaffShelters subscription and share the nav it renders. */}
+        <Route element={<ShelterGateOutlet />}>
+          <Route index element={<ShelterApplicationsView />} />
+          <Route path="dogs" element={<ShelterRosterView />} />
+        </Route>
       </Route>
     </Routes>
   );
@@ -129,5 +136,5 @@ function GateOutlet() {
 }
 
 function ShelterGateOutlet() {
-  return <StaffGate><ShelterApplicationsView /></StaffGate>;
+  return <StaffGate><ShelterNav /><Outlet /></StaffGate>;
 }

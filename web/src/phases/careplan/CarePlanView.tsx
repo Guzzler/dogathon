@@ -4,7 +4,7 @@ import { DemoCarePanel } from "../../components/DemoCarePanel";
 import { useDogs } from "../../hooks/useDogs";
 import { useFoster } from "../../hooks/useFoster";
 import { useCareSchedule, useJournal } from "../../hooks/useJournal";
-import { normalizeDog, dogPhoto } from "../../lib/dog";
+import { normalizeDog, dogPhotoOrNull } from "../../lib/dog";
 import { DEMO_MODE } from "../../lib/demoMode";
 import type { Dog } from "../../types";
 import {
@@ -45,7 +45,7 @@ function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
     pickupDate,
     medicalFlags: d.needs ?? [],
     backstory: d.notes,
-    photoUrl: dogPhoto(d, 600, 600),
+    photoUrl: dogPhotoOrNull(d, 600, 600) ?? undefined,
   };
 }
 

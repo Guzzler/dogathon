@@ -1,7 +1,7 @@
 import type { CareLogEntry, Foster } from "../types";
 import type { JournalEntry, Milestone, ScheduleBlock } from "../phases/careplan/types";
 import { medicalSummary, seedMilestones } from "../phases/careplan/data";
-import { ENERGY_WORD, dogPhoto, sizeLabel, type RichDog } from "./dog";
+import { ENERGY_WORD, dogPhotoOrNull, sizeLabel, type RichDog } from "./dog";
 
 /**
  * The adoption page's content, with a source for every field.
@@ -64,8 +64,12 @@ export function buildAdoptionProfile(
     }));
 
   // The carousel opens on the shelter's own photo, then everything the foster added.
+  // A dog with no shelter photo simply has no shelter slide -- a stand-in photograph of a
+  // different animal on the page a stranger reads to decide about this one is exactly what
+  // "nothing on this page is invented" rules out.
+  const shelterPhoto = dogPhotoOrNull(dog, 700, 700);
   const photos = [
-    { url: dogPhoto(dog, 700, 700), date: "From the shelter", source: "shelter" as const },
+    ...(shelterPhoto ? [{ url: shelterPhoto, date: "From the shelter", source: "shelter" as const }] : []),
     ...journalPhotos,
   ];
 

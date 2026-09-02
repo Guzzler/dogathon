@@ -7,7 +7,10 @@ from typing import Any
 from ..firestore_client import db
 from ..tools import tool
 
-STATUSES = ("available", "foster", "medical_hold", "adopted", "ready_for_adoption")
+# "retired" is what a shelter sets from the roster form (RS-6) when a dog should stop being
+# listed for a reason the other values would misstate. Kept in sync with DogStatus in
+# web/src/types.ts.
+STATUSES = ("available", "foster", "medical_hold", "adopted", "ready_for_adoption", "retired")
 
 COLLECTION = "dogs"
 
@@ -21,7 +24,7 @@ def list_dogs(status: str = "", max_weight_lbs: int = 0, good_with_kids: bool = 
     """List dogs in the shelter roster, optionally filtered.
 
     Args:
-        status: Keep only this status: available, foster, medical_hold, adopted, or ready_for_adoption.
+        status: Keep only this status: available, foster, medical_hold, adopted, ready_for_adoption, or retired.
         max_weight_lbs: Keep only dogs at or under this weight. 0 means no limit.
         good_with_kids: If true, keep only dogs cleared to live with children.
     """
@@ -54,7 +57,7 @@ def update_dog(dog_id: str, status: str = "", notes: str = "") -> dict:
 
     Args:
         dog_id: The dog's id, for example d-001.
-        status: New status: available, foster, medical_hold, adopted, or ready_for_adoption.
+        status: New status: available, foster, medical_hold, adopted, ready_for_adoption, or retired.
         notes: Replacement notes text. Omit to leave the existing notes alone.
     """
     if status and status not in STATUSES:

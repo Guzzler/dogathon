@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, useMotionValue, useTransform } from "motion/react";
-import { dogPhoto, type RichDog } from "../lib/dog";
+import { dogPhotoOrNull, type RichDog } from "../lib/dog";
 import { distanceMi } from "../lib/matching";
 
 type Props = {
@@ -122,6 +122,7 @@ export function CardShell({ dog, me, score, behind }: {
   dog: RichDog; me: { lat: number; lng: number }; score: number; behind?: boolean;
 }) {
   const miles = distanceMi(me, dog.shelter);
+  const photo = dogPhotoOrNull(dog, 800, 1000);
   return (
     <div style={{
       position: "absolute", inset: 0, borderRadius: 28, overflow: "hidden", background: "var(--cream-2)",
@@ -129,8 +130,14 @@ export function CardShell({ dog, me, score, behind }: {
       transform: behind ? "scale(.93) translateY(14px)" : undefined,
       opacity: behind ? .55 : 1, pointerEvents: behind ? "none" : undefined,
     }}>
-      <img src={dogPhoto(dog, 800, 1000)} alt={dog.name} draggable={false}
-        style={{ width: "100%", height: "100%", objectFit: "cover", userSelect: "none" }} />
+      {/* A dog with no photo gets an empty tile, never a stand-in of some other animal --
+          see dogPhotoOrNull(). */}
+      {photo ? (
+        <img src={photo} alt={dog.name} draggable={false}
+          style={{ width: "100%", height: "100%", objectFit: "cover", userSelect: "none" }} />
+      ) : (
+        <div className="photo-empty" aria-label={`No photo of ${dog.name} yet`} role="img">🐾</div>
+      )}
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(28,20,15,.86) 0%, rgba(28,20,15,.34) 32%, transparent 58%)" }} />
 
       {/* the card behind shows artwork only — its text would collide with the top card mid-swipe */}

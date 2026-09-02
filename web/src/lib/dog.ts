@@ -20,6 +20,14 @@ export interface RichDog extends Dog {
 
 export const sizeFromWeight = (lbs: number): DogSize => (lbs < 25 ? "small" : lbs <= 45 ? "medium" : "large");
 
+/**
+ * Provenance for a dog a shelter typed in through the RS-6 form, the counterpart of the
+ * scraper's `source: "sfspca"`. It lives here rather than next to the form because
+ * `dogPhotoOrNull()` below is the thing that has to branch on it, and a form module importing
+ * this one is the direction that doesn't make a cycle.
+ */
+export const MANUAL_SOURCE = "shelter-manual";
+
 /** Rough energy guess for records seeded before `energy_level` existed. */
 function guessEnergy(d: Dog): number {
   if (d.age_years >= 8) return 0;
@@ -81,8 +89,27 @@ function parseLegacyLength(text: string | undefined): number | null {
   return /month/i.test(text) ? Math.round(avg * 4.345) : Math.round(avg);
 }
 
-/** A real photo when the source gave us one, otherwise the placedog stand-in. */
-export const dogPhoto = (d: RichDog, w = 800, h = 1000) => d.photos[0] ?? photoUrl(d.photoId, w, h);
+/**
+ * A real photo, or `null` when there genuinely isn't one (RS-6).
+ *
+ * The placedog stand-in is fine for the seeded demo roster -- it is obviously scenery. It is
+ * not fine for a dog a shelter typed in by hand: a stock photograph of some *other* animal on
+ * a real adoptable record is indistinguishable from a photo the staff member believes they
+ * supplied, which is exactly the "unknown is not a claim" failure. Provenance is what
+ * separates the two cases, so the fallback is keyed on `source`.
+ */
+export const dogPhotoOrNull = (d: RichDog, w = 800, h = 1000): string | null =>
+  d.photos[0] ?? (d.source === MANUAL_SOURCE ? null : photoUrl(d.photoId, w, h));
+
+/**
+ * Inline background for a square thumbnail, so the five call sites that render one don't each
+ * have to branch on the no-photo case. Falls back to the flat cream tile, which reads as an
+ * empty slot rather than as a picture.
+ */
+export function thumbBackground(d: RichDog, w = 300, h = 300): string {
+  const url = dogPhotoOrNull(d, w, h);
+  return url ? `var(--cream-2) url(${url}) center/cover` : "var(--cream-2)";
+}
 
 export const photoUrl = (n: number, w = 800, h = 1000) => `https://placedog.net/${w}/${h}?id=${n}`;
 export const sizeLabel = (s: DogSize) => ({ small: "Small", medium: "Medium", large: "Large" }[s]);

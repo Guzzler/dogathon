@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { AnimatePresence, motion } from "motion/react";
-import { dogPhoto, type RichDog } from "../lib/dog";
+import { thumbBackground, type RichDog } from "../lib/dog";
 import { distanceMi } from "../lib/matching";
 
 /** Single paw, drawn rather than the two-paw 🐾 emoji. */
@@ -151,7 +151,7 @@ export default function MapView({ dogs, me, scoreOf, onOpen }: {
               <button key={d.id} onClick={() => onOpen(d.id)} style={{ flexShrink: 0, width: 108, textAlign: "left" }}>
                 <div style={{
                   position: "relative", width: 108, height: 108, borderRadius: 17, overflow: "hidden",
-                  background: `var(--cream-2) url(${dogPhoto(d, 300, 300)}) center/cover`,
+                  background: thumbBackground(d, 300, 300),
                 }}>
                   <span style={{
                     position: "absolute", top: 6, right: 6, padding: "3px 7px", borderRadius: 100,

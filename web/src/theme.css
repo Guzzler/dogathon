@@ -700,3 +700,54 @@ input,textarea,select{font-family:inherit}
 .shelter__check.is-locked{color:var(--ink-3);cursor:default}
 .shelter__actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:2px}
 .shelter__failed{color:var(--coral-dk);font-size:13px;font-weight:700;margin-top:4px}
+
+/* ---------- shelter roster (RS-6) ----------
+   Add and retire a dog. Same 960px document column as the inbox; the form is a plain
+   stacked layout that reflows to two or three columns where there's room. */
+.shelter__nav{
+  width:100%;max-width:960px;display:flex;gap:6px;
+  padding:20px 20px 0;box-sizing:border-box;
+}
+.shelter__tab{
+  padding:8px 14px;border-radius:999px;font-size:13.5px;font-weight:800;
+  color:var(--ink-3);text-decoration:none;border:1.5px solid transparent;
+}
+.shelter__tab.is-on{background:var(--coral-soft);border-color:var(--coral);color:var(--coral-dk)}
+.shelter__roster{display:flex;flex-direction:column;gap:20px;padding-top:18px;padding-bottom:40px;align-items:flex-start}
+.shelter__roster > section{width:100%}
+.shelter__section{font-family:var(--display);font-size:19px;margin:0 0 10px}
+.shelter__dog{
+  display:flex;align-items:center;gap:12px;width:100%;
+  padding:10px 12px;border-radius:var(--r-md);background:var(--card);border:1px solid var(--line);
+}
+.shelter__dog-photo{
+  width:56px;height:56px;border-radius:15px;flex-shrink:0;
+  background:var(--cream-2) center/cover;
+}
+/* The no-photo tile: flat, glyphic, obviously not a photograph. A stand-in picture of some
+   other animal would be indistinguishable from a photo the staff member thinks they added. */
+.shelter__dog-photo.is-empty,.photo-empty{
+  display:flex;align-items:center;justify-content:center;
+  background:var(--cream-2);color:var(--ink-3);font-size:22px;
+}
+.photo-empty{width:100%;height:100%;font-size:44px}
+.shelter__dog-main{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.shelter__dog-main strong{font-size:15px}
+.shelter__pill--dog{background:var(--cream-2);color:var(--ink-3);align-self:flex-start}
+.shelter__form{
+  display:flex;flex-direction:column;gap:12px;width:100%;
+  padding:18px;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line);
+}
+.shelter__form-row{display:flex;flex-wrap:wrap;gap:12px}
+.shelter__form-row .shelter__field{flex:1 1 160px}
+.shelter__field{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.shelter__field .muted{font-size:12px}
+.shelter__label{font-weight:800;font-size:13px;color:var(--ink-2)}
+.shelter__field input,.shelter__field select,.shelter__field textarea{
+  font:inherit;font-size:14.5px;color:var(--ink);
+  padding:9px 11px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--cream);
+}
+.shelter__field.has-error input,.shelter__field.has-error select,.shelter__field.has-error textarea{
+  border-color:var(--coral);
+}
+.shelter__error{color:var(--coral-dk);font-size:12px;font-weight:700}

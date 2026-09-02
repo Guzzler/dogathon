@@ -11,10 +11,22 @@ service cloud.firestore {
 
     match /dogs/{dogId} {
       allow read: if true;
-      // Dog status/adoption profile only changes via the agent backend
-      // (Admin SDK bypasses these rules), not directly from the client.
-      // Becomes isStaff(shelter_id) once a shelter can edit its own roster (M3).
-      allow write: if false;
+      // RS-6 (M3): a shelter's own staff may add and retire that shelter's own dogs.
+      // This is the one deliberate, scoped relaxation of what used to be a blanket
+      // `allow write: if false` -- nothing else about dogs changed. The agent backend
+      // still writes status/adoption_profile through the Admin SDK, which bypasses these
+      // rules entirely and is unaffected either way.
+      allow create: if isStaff(request.resource.data.shelter_id);
+      // shelter_id is pinned across an update, so staff at one shelter can neither move a
+      // dog into another shelter's roster nor take over one they don't already own: the
+      // isStaff() check reads the *stored* shelter_id, and the equality stops the write
+      // from changing it afterwards.
+      allow update: if isStaff(resource.data.shelter_id)
+                    && request.resource.data.shelter_id == resource.data.shelter_id;
+      // Retiring is a status change, never a delete. A foster mid-application resolves
+      // their dog by id from three separate phases, so deleting it strands them with no
+      // route back -- the same reason scripts/import_dogs.py keeps a matched stale dog.
+      allow delete: if false;
     }
 
     match /fosters/{uid} {
