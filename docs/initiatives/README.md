@@ -112,6 +112,23 @@ collection**. Two consequences that plan should apply rather than re-derive:
   the deployed Cloud Run agent returns `firestore_reachable: true` (checked
   2026-08-31). It needed no sign-in, which is precisely why it was clearable.
 
+## The `[large]` slot, and an empty queue that stays empty (2026-09-01)
+
+Both rules above got exercised on the same run, so the outcome is worth recording
+rather than re-derived.
+
+- **`real-data-and-shelters.md` had no `[large]` item at all** after RS-5 shipped —
+  the only one in the repo was DC-5, sitting in the *second*-priority doc, which is
+  not what this README asks for. RS-6 (add and retire a dog: a rules change, a form,
+  a status transition, and the foster-side consequences of both) was already that
+  size and merely wasn't labelled. It is now marked `[large]` and sits at the top of
+  the top doc's queue. The lesson is that the `[large]` slot is usually a **labelling**
+  gap, not a missing item — look for the item that is already big before inventing one.
+- **`production-hardening.md`'s queue is empty and was deliberately left empty.** It
+  is the lowest-priority doc, the two above it hold four open items including the
+  `[large]` one, and PH is the doc whose refills produced the treadmill the re-rank
+  exists to stop. An empty third queue is the ranking working, not a gap to fill.
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
@@ -194,15 +211,20 @@ last. Compress a row to its decision, its surprises, and what was verified versu
 reasoned about; the archive keeps the rest.
 
 **2026-08-31 — the sixth, and the first where compressing was not enough.**
-`real-data-and-shelters.md` was at 397 before this run, which then added a whole
-new design answer plus RS-10. Archiving RS-9's narrative
-(`archive/real-data-and-shelters-2026-08-31.md`) and compressing four settled
-sections — "where this stands", the shared decisions, RS-8, and RS-5's account of
-its own retired gate — bought back roughly 60 lines and the doc still landed at
-**421**. Recorded rather than hidden: it is the highest-priority doc, it carries
-the only two open `[large]` items in the repo, and trimming further would have
-meant cutting a live item's spec. The next run that touches it should archive the
-Ledger, now the largest settled block in it.
+`real-data-and-shelters.md` was at 397 before that run, which then added a whole new
+design answer plus RS-10; archiving RS-9's narrative and compressing four settled
+sections bought back roughly 60 lines and the doc still landed at **421**. It was
+recorded rather than hidden, with the instruction that the next run to touch it should
+archive the Ledger.
+
+**2026-09-01 — that instruction was followed, and it worked.** The seventh archive
+(`archive/real-data-and-shelters-2026-09-01.md`) took both the Ledger through RS-5 and
+the 2026-08-31 checklist-join design answer, which had become RS-10's duplicated spec
+rather than live reasoning. The doc went 390 → 356 *while* gaining a new design section
+and a new queue bullet. Two things generalise. **The ledger really was the growth**, as
+the 2026-08-30 pair predicted: RS-5's row alone was 24 lines. And **a design answer stops
+earning its length the moment its queue item restates it** — compress it to the decision
+plus a pointer at exactly that point, not later.
 
 The trigger is worth applying at the moment a run's own edits push a doc past
 ~400, not on the next run. production-hardening crossed it *because of* the

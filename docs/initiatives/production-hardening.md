@@ -179,6 +179,15 @@ in one execute run (PRs #47, #48, #49). Two of the three left something for a pe
 rather than claiming a verification they couldn't run: PH-15b under "Needs a human"
 is the single errand that discharges both.
 
+**Still empty on 2026-09-01, and deliberately so.** This doc is now third of three, the
+two above it hold four open items including the repo's only `[large]` one (RS-6), and
+this is the doc whose refills produced the treadmill the 2026-08-31 re-rank exists to
+stop. Nothing here is broken for anyone: the notification gap (PH-1) is honest and
+gated on M3, and everything else outstanding is a verification errand parked below.
+Refilling this queue would take the next execute run away from the shelter surface
+again, which is the one mistake this loop has already made twice. Take from here when
+`real-data-and-shelters.md` and `design-consistency.md` have nothing open.
+
 ### Needs a human — PARKED, not pending
 
 **Read this before adding to the list below (2026-08-31).** These accumulate faster
