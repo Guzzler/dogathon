@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
-import { normalizeDog, dogPhoto, type RichDog } from "../../lib/dog";
+import { normalizeDog, thumbBackground, type RichDog } from "../../lib/dog";
 import { scoreDog } from "../../lib/matching";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
@@ -122,7 +122,7 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
     <motion.div layout initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: i * .05 }}
       className="card" style={{ padding: 13, marginBottom: 12, borderRadius: 22 }}>
       <button onClick={() => navigate(`/dog/${d.id}`)} style={{ display: "flex", gap: 13, alignItems: "center", width: "100%", textAlign: "left" }}>
-        <div style={{ width: 68, height: 68, borderRadius: 17, flexShrink: 0, background: `var(--cream-2) url(${dogPhoto(d, 300, 300)}) center/cover` }} />
+        <div style={{ width: 68, height: 68, borderRadius: 17, flexShrink: 0, background: thumbBackground(d, 300, 300) }} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div className="row">
             <span style={{ fontWeight: 800, fontSize: 16 }}>{d.name}</span>
@@ -164,7 +164,7 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
     <motion.div layout initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
       className="card" style={{ padding: 15, borderRadius: 22 }}>
       <button onClick={() => navigate(`/dog/${d.id}`)} style={{ display: "flex", gap: 13, alignItems: "center", width: "100%", textAlign: "left" }}>
-        <div style={{ width: 58, height: 58, borderRadius: 16, flexShrink: 0, background: `var(--cream-2) url(${dogPhoto(d, 300, 300)}) center/cover` }} />
+        <div style={{ width: 58, height: 58, borderRadius: 16, flexShrink: 0, background: thumbBackground(d, 300, 300) }} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontWeight: 800, fontSize: 16 }}>{d.name}</div>
           <div className="muted" style={{ marginTop: 2 }}>{d.shelter.short} · 🗓️ {win.total}</div>

@@ -36,6 +36,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from shelters import enrich as enrich_mod   # noqa: E402
 from shelters import sfspca                 # noqa: E402
 
+# Mirrors MANUAL_SOURCE in web/src/lib/dog.ts -- the provenance a dog carries when a shelter
+# typed it in through the roster form (RS-6) rather than this scrape producing it.
+MANUAL_SOURCE = "shelter-manual"
+
 DOGS_JSON = ROOT / "data" / "dogs.json"
 ENRICHMENT = ROOT / "data" / "enrichment.json"
 RAW = ROOT / "data" / "shelter_descriptions.json"
@@ -117,8 +121,17 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
     collection = client.collection("dogs")
 
     new_ids = {d["id"] for d in dogs}
-    existing_ids = {doc.id for doc in collection.list_documents()}
-    stale_ids = existing_ids - new_ids
+    # Read the documents rather than just their ids: `source` is what tells this import's own
+    # records apart from a shelter's hand-entered ones (below).
+    existing = {snap.id: (snap.to_dict() or {}) for snap in collection.stream()}
+    stale_ids = set(existing) - new_ids
+
+    # Never delete a dog a shelter typed in through the roster form (RS-6). Replace-not-append
+    # is about this scrape owning its own rows -- a hand-entered dog is a *different source*,
+    # not a stale copy of one of ours, and by construction it never appears in the scrape, so
+    # every import would otherwise wipe the shelter's own roster the moment they added to it.
+    hand_entered = {i for i in stale_ids if existing[i].get("source") == MANUAL_SOURCE}
+    stale_ids -= hand_entered
 
     # Never delete a dog someone is partway through fostering. Match, Care Plan and Post
     # Foster all resolve the dog by `matchedDogId`, so removing it drops that foster onto a
@@ -132,9 +145,11 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
     spoken_for = stale_ids & matched
     stale_ids -= spoken_for
 
-    print(f"\nfirestore plan  ({len(existing_ids)} docs live now)")
+    print(f"\nfirestore plan  ({len(existing)} docs live now)")
     print(f"  write   {len(dogs)}")
     print(f"  delete  {len(stale_ids)}" + (f"  {sorted(stale_ids)[:6]}" if stale_ids else ""))
+    if hand_entered:
+        print(f"  keep    {len(hand_entered)} entered by a shelter, not by this import: {sorted(hand_entered)}")
     if spoken_for:
         print(f"  keep    {len(spoken_for)} stale but matched to a foster: {sorted(spoken_for)}")
 

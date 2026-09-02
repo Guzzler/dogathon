@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
-import { ENERGY_WORD, normalizeDog, dogPhoto, sizeLabel } from "../../lib/dog";
+import { ENERGY_WORD, normalizeDog, dogPhotoOrNull, sizeLabel } from "../../lib/dog";
 import { distanceMi, matchReasons, scoreDog, useMyLocation } from "../../lib/matching";
 import { activeApplication, applicationStage } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
@@ -60,12 +60,18 @@ export function DogDetailView() {
     navigate("/match");
   };
 
+  const photo = dogPhotoOrNull(dog, 800, 900);
+
   return (
     <div className="screen">
       <div className="scroll">
         <div style={{ position: "relative", height: 340, flexShrink: 0 }}>
-          <img src={dogPhoto(dog, 800, 900)} alt={dog.name}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          {photo ? (
+            <img src={photo} alt={dog.name}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <div className="photo-empty" aria-label={`No photo of ${dog.name} yet`} role="img">🐾</div>
+          )}
           <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, var(--cream) 0%, var(--cream) 9%, rgba(255,247,241,0) 46%)" }} />
           <button className="iconbtn" onClick={() => navigate(-1)}
             style={{ position: "absolute", top: 16, left: 20, background: "rgba(255,255,255,.95)" }}>←</button>

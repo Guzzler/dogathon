@@ -52,7 +52,19 @@ export interface HealthInfo {
   tool_count: number;
 }
 
-export type DogStatus = "available" | "foster" | "medical_hold" | "adopted" | "ready_for_adoption";
+/**
+ * `retired` is what a shelter sets when a dog should stop being listed for a reason the
+ * other values would misstate -- pulled, transferred, or placed somewhere this app didn't
+ * see (RS-6). Writing "adopted" instead would be a claim about a real animal that nobody
+ * actually made, which is the failure `CLAUDE.md`'s "unknown is not a claim" describes.
+ */
+export type DogStatus =
+  | "available"
+  | "foster"
+  | "medical_hold"
+  | "adopted"
+  | "ready_for_adoption"
+  | "retired";
 
 export type DogSize = "small" | "medium" | "large";
 

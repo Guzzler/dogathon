@@ -43,9 +43,11 @@ carried over from the previous wording.
 - **`shelters/sfspca-mission` exists** in production Firestore with the repo
   owner's uid in `staffUids` (RS-2, PR #34), so `isStaff()` evaluates against a
   real document. `scripts/seed_shelter_staff.py` makes that write reproducible.
-- **`match /dogs/{dogId}` is still `allow write: if false`** — re-read at
-  `firestore.rules:12-18` on 2026-08-31, the "Becomes isStaff(shelter_id) … (M3)"
-  comment intact. That is RS-6's to change, nobody else's.
+- **`match /dogs/{dogId}` is no longer `allow write: if false`** — RS-6 (2026-09-01) split it
+  into `create: isStaff(request.resource.data.shelter_id)`, `update: isStaff(resource.data.shelter_id)
+  && shelter_id unchanged`, and `delete: if false`. That was the one relaxation M3 called for
+  and it is spent; nothing else about dogs changed, and the pinned `shelter_id` on update is
+  what stops staff at one shelter reaching another's roster.
 - **`applications`'s update rule is now tight, and one field is deliberately
   loose.** PH-15 and PH-16 shipped (PRs #48, #49): the foster branch pins
   `fosterId`, `shelterId`, `dogId`, `createdAt` and `checklist`, leaving
@@ -104,7 +106,19 @@ rejected alternatives and the three hazards it leaves for whoever builds it are 
 [2026-09-01 archive](archive/real-data-and-shelters-2026-09-01.md); the operative spec
 is RS-10 in the queue below.
 
-## The design question this run answered: where a hand-entered dog's photo comes from
+## Where a hand-entered dog's photo comes from — decided 2026-08-31, built 2026-09-01 (RS-6)
+
+**Decided: the form takes a photo URL, written into the same `photo_urls` the scraper writes.
+No uploads.** Firebase Storage is not in this stack (a new SDK surface, a new rules file, a new
+deploy target); every dog on the site today is already a hotlinked third-party image, so a
+pasted link introduces no practice the app isn't doing. The consequence that mattered most is
+built and unit-tested: **the placedog fallback must not fire for a hand-entered dog**, because
+a stock photo of some other animal on a real adoptable record is indistinguishable from a photo
+the staff member believes they supplied. `dogPhotoOrNull()` keys that on `source`. Uploads, if
+ever wanted, are their own item — a `storage` block, rules scoped by `isStaff`, a size cap and
+a deletion path — not a widening of RS-6. The full reasoning as first written:
+
+<details><summary>Original design note (2026-08-31)</summary>
 
 RS-6 lets a staff member add a dog by hand, and its spec says the form should mirror
 what `scripts/shelters/sfspca.py`'s `to_dog()` produces, so that a typed dog and a
@@ -148,6 +162,8 @@ needs a `storage` block in `firebase.json`, rules scoped by `isStaff`, a size an
 content-type cap, and a deletion path for when a dog is retired. None of that belongs
 in the PR that first lets a shelter add a dog.
 
+</details>
+
 ## Task queue
 
 RS-2's original scope — "shelter sign-in, application list, and add/retire a
@@ -170,33 +186,11 @@ taken by the M4 drift check, which is unrelated and independent of these.)
 
 ### The items
 
-- **RS-6 `[large]` (ungated 2026-08-31 — RS-5 shipped; marked large 2026-09-01) — add
-  and retire a dog. A complete execute run.** The second source adapter
-  from M3: manual entry proving the pipeline works for a shelter that isn't
-  SF SPCA, with no scraping.
-  - This is the item that changes `match /dogs/{dogId}`'s
-    `allow write: if false` to `isStaff(request.resource.data.shelter_id)`,
-    per the sketch already in `shelter-integration.md`. That is a
-    **deliberate, scoped** relaxation of a rule that exists for a reason — it
-    is not licence to widen anything else. The read rule, the agent's
-    Admin-SDK path, and every other rule stay exactly as they are.
-  - "Retire" is a status change, **not** a delete — a dog someone is
-    mid-application on must not vanish out from under them.
-  - Form fields mirror what `scripts/shelters/sfspca.py`'s `to_dog()` already
-    produces, so a hand-entered dog and a scraped one are the same shape
-    downstream. `shelter_id` comes from the staff member's own shelter, never
-    typed.
-  - **Photos: a URL field, not an upload.** The design section above is the reasoning —
-    Storage isn't in this stack, and the scraper's own `photo_urls` is already a list of
-    external links. Write the entered URL into `photo_urls` so a typed dog is the same
-    shape as a scraped one, and render a neutral empty tile — never the placedog
-    fallback — when it is blank.
-  - Verify: a dog added through the form appears in foster-side discovery
-    with the right shelter card; retiring it removes it from discovery
-    without breaking an existing application; staff at one shelter cannot
-    write a dog carrying another shelter's `shelter_id` — the rules should
-    reject that, so test it rather than assuming. A dog saved with the photo
-    field left blank must render the empty tile, not a placedog stand-in.
+- **RS-6 — shipped 2026-09-01.** Add and retire a dog, at `/shelter/dogs`. The Ledger row is
+  the full account, including the two things it turned up that the spec hadn't seen (the
+  importer would have deleted every hand-entered dog, and `DogStatus` had no honest value for
+  "retired") and the one half it could not verify. **M3's third surface is now built**, so the
+  milestone's remaining work is the checklist join (RS-10), not another screen.
 
 - **RS-10 (ungated 2026-08-31 — RS-5 shipped) — join the two approval checklists by
   `owner`.** The design section above is the spec and the reasoning; this is the
@@ -292,6 +286,15 @@ shelter, per the section below.
   **not** licence to widen `firestore.rules`. The unattended run could script this but not run
   it: writing to production Firestore is blocked for a session with nobody present to approve it.
 
+- **RS-6b — NEEDS A HUMAN, 2026-09-01. Exercise the new `dogs` write rule once, signed in.**
+  Do it in the same sitting as RS-5b and RS-8; it is the same sign-in. Open
+  `https://pawthway-hackathon.web.app/shelter/dogs` as the uid in `shelters/sfspca-mission` and
+  (1) add a dog with the photo field blank — it should appear in foster-side Discovery with the
+  SF SPCA card and a paw tile, not a placedog photo; (2) retire it — it should leave Discovery
+  and stay readable by id; (3) from the console, try `updateDoc` on that dog with a different
+  `shelter_id` and confirm `permission-denied`. **Write down what happened.** A denial anywhere
+  in (1) or (2) is a finding to queue, never licence to widen `firestore.rules`.
+
 - **RS-8 — PARKED 2026-08-31, not pending. Confirm RS-2's `staff` and `notStaff`
   states on the deployed app.** Both need a real Google popup sign-in, which no
   unattended run can drive, and per the README's "nobody uses this app yet"
@@ -354,3 +357,28 @@ supersedes the [2026-08-30 one](archive/real-data-and-shelters-ledger-2026-08-30
   things honestly unverified:** the fixture write was refused by the unattended run's own
   safety classifier, so `applications` is still empty and the `||`-rule question the item
   was meant to settle by building is still open — see RS-5b.
+- 2026-09-01 — RS-6 `[large]` — PR #__ — **Add and retire a dog**, at `/shelter/dogs`, behind
+  the same staff gate as the inbox. `match /dogs/{dogId}`'s blanket `allow write: if false`
+  became `create: isStaff(request.resource.data.shelter_id)` + `update: isStaff(resource.data.shelter_id)`
+  with `shelter_id` pinned across the write + `delete: if false`. `useShelterDogs` is one
+  equality on `shelter_id` and no `orderBy`, so **no new index**; the pure half is
+  `web/src/lib/shelterDog.ts` (16 unit tests, no Firebase import), the writes are
+  `shelterRoster.ts`. Two things the spec hadn't seen, both fixed here because leaving either
+  would have made the feature wrong rather than incomplete:
+  **(1) `scripts/import_dogs.py` would have deleted every hand-entered dog** on its next real
+  run — replace-not-append computed staleness as "not in this scrape", and a manually entered
+  dog is by construction never in the scrape. It now reads each doc's `source` and keeps
+  `shelter-manual` rows, alongside the existing matched-foster exemption.
+  **(2) `DogStatus` had no honest value for "retired."** Writing `adopted` to hide a dog would
+  be a claim about a real animal nobody made, so `retired` was added to the union and to
+  `src/agent/builtin/shelter.py`'s `STATUSES`. `rosterAction()` deliberately offers no relist
+  for an `adopted` dog — that is not a checkbox to reopen.
+  Photos landed as the design section decided: a URL into `photo_urls`, and `dogPhotoOrNull()`
+  returns `null` for a `shelter-manual` dog with none, so all seven photo call sites render an
+  empty tile instead of a placedog stand-in of a different animal. **Unverified, honestly:**
+  every check that needs a signed-in staff account — the form writing, retire removing a dog
+  from Discovery, the rules refusing another shelter's `shelter_id` — could not be run,
+  because a Google popup sign-in is not drivable unattended and this session is refused
+  production Firestore writes for the same reason RS-5b is parked. Build, tests, lint and the
+  design-token guard are green; the rules change itself was never exercised against the
+  emulator or production. That belongs with RS-5b and RS-8 as one sitting for a human.
