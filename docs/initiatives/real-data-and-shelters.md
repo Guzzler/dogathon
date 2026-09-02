@@ -24,7 +24,7 @@ section as they stood are preserved verbatim in
 and compressed to one line each below. Read the archive for the reasoning
 behind a settled decision; read this file for what is open.
 
-## Where this actually stands (re-verified against `main` 2026-08-31)
+## Where this actually stands (re-verified against `main` 2026-09-01)
 
 Each line below was checked by reading the file named in it this run, not
 carried over from the previous wording.
@@ -87,81 +87,66 @@ carried over from the previous wording.
   a second automated source before the manual path is proven just adds a second
   thing that can drift.
 
-## The design question this run answered: after RS-5 ships, the shelter's ticks are invisible to the foster
+## Settled 2026-08-31 — RS-10's spec: split the two approval checklists by `owner`
 
-**The approval checklist exists twice, and nothing joins the two copies.** Read
-off `main` on 2026-08-31, not inferred:
+`applications/{id}.checklist` (written by staff, RS-5) and
+`fosters/{uid}.approvalChecklist` (written by the foster and by the agent) are two
+unjoined copies of the same list, so neither side can see the other's ticks. The
+decision: **split by `ChecklistItem.owner`, one writer per field** — shelter-owned
+items live on the application, foster-owned ones stay on the foster document, and
+each view composes the displayed list out of both. Not a mirror (PH-16 pinned
+`checklist` on the foster branch of the update rule precisely to stop that, and a
+mirror is last-write-wins by construction) and not the full migration to the
+application as sole source of truth — that is M2's deferred work and it touches every
+guest/`LOCAL_MODE` path where no application document exists at all. The `owner` split
+is the first half of that migration, not a detour around it. Full reasoning, the two
+rejected alternatives and the three hazards it leaves for whoever builds it are in the
+[2026-09-01 archive](archive/real-data-and-shelters-2026-09-01.md); the operative spec
+is RS-10 in the queue below.
 
-- `web/src/lib/applications.ts:27` seeds `applications/{id}.checklist` from
-  `DEFAULT_APPROVAL_CHECKLIST` at create time. RS-5 has staff tick the
-  `owner: "shelter"` items on **that** copy.
-- `web/src/phases/match/MatchView.tsx:48,60,64` reads and writes
-  `fosters/{uid}.approvalChecklist` through `patchFoster()`. So does
-  `SavedView.tsx:157` (the Applications timeline) and the agent's
-  `update_checklist` (`src/agent/builtin/foster.py:42`).
+## The design question this run answered: where a hand-entered dog's photo comes from
 
-Nothing syncs them, and RS-5's own instructions correctly say *"do not write
-back to `fosters/{uid}`"*. So the day RS-5 ships, a staff member ticking "Home
-environment check" changes nothing any foster can see — the badge, the timeline
-and the pickup gate all keep reading the foster's private copy, which only
-`DemoShelterPanel` (the deliberately-ugly demo widget) ever moves. The drift runs
-both ways: the foster's own ticks never reach the application, so the inbox RS-5
-builds will show every foster-owned step permanently unticked.
+RS-6 lets a staff member add a dog by hand, and its spec says the form should mirror
+what `scripts/shelters/sfspca.py`'s `to_dog()` produces, so that a typed dog and a
+scraped one are the same shape downstream. That holds for every field except one, and
+it was unanswered: **there is nowhere for a photo to go.** Read off `main` this run,
+not inferred:
 
-This is not a reason to delay RS-5. It is the item immediately after it, and
-deciding it now stops RS-5 from being built in a shape that has to be undone.
+- `Dog` carries `photo_urls?: string[]` — "real photos from the source"
+  (`web/src/types.ts:89`) — and every row in `data/dogs.json` holds an external CDN
+  link (`g.petango.com/…`), hotlinked, never copied.
+- `dogPhoto()` (`web/src/lib/dog.ts:85`) falls back to
+  `https://placedog.net/800/1000?id=<n>` when `photo_urls` is empty.
+- **Firebase Storage is not in this stack.** `storageBucket` is passed through in
+  `web/src/firebase.ts:9` only because it arrives in the config blob; nothing calls
+  `getStorage`, `firebase.json` has no `storage` block, and there are no storage rules
+  to deploy. Adding uploads is not a form field — it is a new SDK surface, a new rules
+  file, a new deploy target, and a new class of thing staff can put into the project.
 
-**Decided: split by `owner`, one writer per field. Not a mirror, not the full
-migration.** `ChecklistItem` already carries `owner: "foster" | "shelter"`
-(`web/src/checklists.ts:5-8`), and that field is the seam:
+**Decided: the form takes a photo URL — the same field the scraper already writes. No
+uploads in RS-6.** A hand-entered dog and a scraped one are then genuinely identical
+downstream, which is the entire point of RS-6 as "the second source adapter". It costs
+nothing to build and nothing to run, and it introduces no practice the app isn't
+already doing: every dog on the site today is a hotlinked third-party image.
 
-- **Shelter-owned items live on `applications/{id}.checklist`** and are written
-  only by staff. The foster's Match view *reads* them from there.
-- **Foster-owned items stay on `fosters/{uid}.approvalChecklist`** and are
-  written only by the foster. The shelter's inbox reads them from the
-  application only once the foster side starts mirroring its own ticks — until
-  then the inbox shows them as the shelter's copy has them, and should say the
-  foster's steps are tracked foster-side rather than render four permanent
-  blanks as if nothing had happened.
-- **Displayed list = foster-owned from the foster doc + shelter-owned from the
-  application.** Every field has exactly one writer, so there is no
-  last-write-wins across two documents and no transaction to get right.
+Two consequences, both accepted on purpose:
 
-**Why not the two obvious alternatives.**
+- A pasted URL can rot, and loading it leaks the viewer's IP to whoever serves it.
+  Both are already true of all 19 committed dogs. Validate the shape (`https`, and an
+  `<img>` that fails falls back to the no-photo state rather than a broken-image
+  icon); don't try to solve permanence.
+- **The placedog fallback must not fire for a hand-entered dog.** A stock photo of
+  some other animal on a real adoptable dog is exactly the "unknown is not a claim"
+  failure `CLAUDE.md` describes, and it is worse on a shelter-entered record than on a
+  seeded one, because the staff member who typed it will reasonably read a photo
+  appearing as "mine uploaded". RS-6 ships a real empty state — a neutral,
+  obviously-not-a-photograph tile — for a dog with no `photo_urls`, and leaves the
+  placedog path exactly where it is for the seeded roster.
 
-- *A two-way mirror* (both sides write both docs) is out on the rules alone:
-  PH-16 just pinned `checklist` on the foster branch of `applications`'s update
-  rule for exactly this reason, and unpinning it to enable a mirror would undo a
-  hole that was closed six PRs ago. It is also last-write-wins by construction.
-- *Making the application the sole source of truth* — which
-  `firestore.rules:37-39`'s own comment calls the end state, with the foster's
-  fields as "read-through convenience" — **is** right eventually, and is M2's
-  deferred migration. It touches `MatchView`, `SavedView`, `foster.py`'s agent
-  tool, and every guest/`LOCAL_MODE` path where no application document exists
-  at all. That is a migration, not a follow-up, and doing it before one real
-  shelter has ever used the inbox is building the general case for a caller that
-  doesn't exist. The `owner` split is compatible with it: it is the first half.
-
-**Three things this leaves for whoever builds it, all checked, none blocking.**
-
-1. *Which application.* A foster can have several. The lookup is
-   `where("fosterId","==",uid)` + `where("dogId","==",matchedDogId)` — two
-   equality filters and no `orderBy`, which Firestore serves from its automatic
-   single-field indexes. **No composite index, unlike RS-5.**
-2. *The same `||`-rule hazard as RS-5, mirrored.* `applications`'s read rule
-   (`firestore.rules:41-44`) is `fosterId == uid || isStaff(shelterId)`. This
-   query pins the `fosterId` branch and leaves `isStaff` unprovable — the exact
-   shape RS-5 is about to answer from the other side. Whatever RS-5 finds
-   applies here, so this item genuinely is gated on it rather than nominally.
-3. *The agent can still tick a shelter step.* `update_checklist` in
-   `src/agent/builtin/foster.py` writes `approvalChecklist` wholesale and knows
-   nothing about `owner`. Under this split that is a write to a field the foster
-   doc no longer owns. Constrain it to foster-owned ids in the same PR.
-
-*(The section this replaces — RS-5's composite-index hazard, in two parts — is
-discharged: RS-7 put `firestore:indexes` in the deploy target and RS-9 got the
-index to `READY`. Both are in the Ledger. What was live in it and stays live is
-hazard (3) below, restated as (2) above.)*
+**If uploads are wanted later, that is its own item and not a widening of RS-6.** It
+needs a `storage` block in `firebase.json`, rules scoped by `isStaff`, a size and
+content-type cap, and a deletion path for when a dog is retired. None of that belongs
+in the PR that first lets a shelter add a dog.
 
 ## Task queue
 
@@ -185,19 +170,8 @@ taken by the M4 drift check, which is unrelated and independent of these.)
 
 ### The items
 
-- **RS-7 — shipped 2026-08-29.** `firestore:indexes` is now in
-  `deploy-frontend.yml`'s deploy target and the `applications` composite index
-  (`shelterId` ASC, `createdAt` DESC) is in `firestore.indexes.json`. See the
-  Ledger — including which half of the verification is still outstanding.
-
-- **RS-5 — shipped 2026-08-31.** The shelter's application inbox is live at `/shelter`; the
-  Ledger row is the full account, including the one thing it could not verify. **The `||`-rule
-  question it was designed to answer by building is still open**, because the fixture write was
-  refused by the unattended run's safety classifier and `applications` is therefore still
-  empty — see "Needs a human" below. That does not gate RS-6 or RS-10: both were gated on RS-5
-  shipping, and it shipped.
-
-- **RS-6 (ungated 2026-08-31 — RS-5 shipped) — add and retire a dog.** The second source adapter
+- **RS-6 `[large]` (ungated 2026-08-31 — RS-5 shipped; marked large 2026-09-01) — add
+  and retire a dog. A complete execute run.** The second source adapter
   from M3: manual entry proving the pipeline works for a shelter that isn't
   SF SPCA, with no scraping.
   - This is the item that changes `match /dogs/{dogId}`'s
@@ -212,11 +186,18 @@ taken by the M4 drift check, which is unrelated and independent of these.)
     produces, so a hand-entered dog and a scraped one are the same shape
     downstream. `shelter_id` comes from the staff member's own shelter, never
     typed.
+  - **Photos: a URL field, not an upload.** The design section above is the reasoning —
+    Storage isn't in this stack, and the scraper's own `photo_urls` is already a list of
+    external links. Write the entered URL into `photo_urls` so a typed dog is the same
+    shape as a scraped one, and render a neutral empty tile — never the placedog
+    fallback — when it is blank.
   - Verify: a dog added through the form appears in foster-side discovery
     with the right shelter card; retiring it removes it from discovery
     without breaking an existing application; staff at one shelter cannot
     write a dog carrying another shelter's `shelter_id` — the rules should
-    reject that, so test it rather than assuming.
+    reject that, so test it rather than assuming. A dog saved with the photo
+    field left blank must render the empty tile, not a placedog stand-in.
+
 - **RS-10 (ungated 2026-08-31 — RS-5 shipped) — join the two approval checklists by
   `owner`.** The design section above is the spec and the reasoning; this is the
   work. Today `applications/{id}.checklist` and `fosters/{uid}.approvalChecklist`
@@ -278,6 +259,18 @@ taken by the M4 drift check, which is unrelated and independent of these.)
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
+- **RS-7 — shipped 2026-08-29.** `firestore:indexes` is now in
+  `deploy-frontend.yml`'s deploy target and the `applications` composite index
+  (`shelterId` ASC, `createdAt` DESC) is in `firestore.indexes.json`. See the
+  Ledger — including which half of the verification is still outstanding.
+
+- **RS-5 — shipped 2026-08-31.** The shelter's application inbox is live at `/shelter`; the
+  Ledger row is the full account, including the one thing it could not verify. **The `||`-rule
+  question it was designed to answer by building is still open**, because the fixture write was
+  refused by the unattended run's safety classifier and `applications` is therefore still
+  empty — see "Needs a human" below. That does not gate RS-6 or RS-10: both were gated on RS-5
+  shipping, and it shipped.
+
 ### Needs a human, not a queue item
 
 - **RS-9 — DONE 2026-08-29, by Sharang, in-session.** The `applications`
@@ -330,61 +323,34 @@ for progress.)*
 
 ## Ledger
 
-*(Rows through RS-9 are compressed to one line each. The full text of every one of them --
-including RS-7's in-place correction of its own verification claim, and RS-2's account of why
-its verification was only partial -- is preserved verbatim in the
-[2026-08-31 ledger archive](archive/real-data-and-shelters-ledger-2026-08-31.md), which
-supersedes the [2026-08-30 one](archive/real-data-and-shelters-ledger-2026-08-30.md) it
-already contained.)*
+*(Every row through RS-5 is compressed to one line. Their full text — including RS-7's
+in-place correction of its own verification claim, RS-2's account of why its verification
+was only partial, and RS-5's long entry on the two things it could not verify — is preserved
+verbatim across the [2026-09-01 archive](archive/real-data-and-shelters-2026-09-01.md) and
+the [2026-08-31 ledger archive](archive/real-data-and-shelters-ledger-2026-08-31.md), which
+supersedes the [2026-08-30 one](archive/real-data-and-shelters-ledger-2026-08-30.md).)*
 
 - 2026-08-24 — M1 — PRs #6, #13, #14 — offline SF SPCA import, reviewed descriptions,
   diff-before-write, replace-not-append.
 - 2026-08-24 — RS-1 — PR #21 — `applications/{id}` and `shelters/{id}` rules in
-  `shelter-integration.md`'s shape, plus `createApplication()` from both apply sites. Left
-  `fosters/{uid}`'s read-through fields alone; seeded no shelter document.
+  `shelter-integration.md`'s shape, plus `createApplication()` from both apply sites.
 - 2026-08-25 — RS-3 — PR #24 — SF SPCA's id corrected to `"sfspca-mission"`, two dead orgs
-  removed, `shelters.test.ts` added as the guard. Corrected a stale claim: the mismatch
-  mattered for `isStaff()`, never for browsing.
+  removed, `shelters.test.ts` added as the guard.
 - 2026-08-28 — RS-2 — PR #34 — Staff resolution by `array-contains` query, the `/shelter`
-  route as a sibling of the foster layout with its own `ShelterLayout`, and the first
-  `shelters/{id}` document seeded via `scripts/seed_shelter_staff.py`. **Verification partial
-  on purpose** — the `staff`/`notStaff` states need a real popup sign-in; now RS-8.
+  route with its own `ShelterLayout`, first `shelters/{id}` document seeded. Verification
+  partial on purpose — now RS-8, parked.
 - 2026-08-29 — RS-7 — PR #38 — `firestore.indexes.json` now actually deploys, plus the
-  `applications` composite index. This row's original verification sentence was wrong and is
-  corrected in place in the archive.
+  `applications` composite index.
 - 2026-08-29 — RS-7 (follow-up) — PR #39 — `firestore:indexes` split into its own step after
-  hosting and rules, deliberately not `continue-on-error`, so a missing IAM grant stops taking
-  the site down with it.
+  hosting and rules, so a missing IAM grant stops taking the site down with it.
 - 2026-08-29 — RS-9 — no PR (an IAM change) — `roles/datastore.indexAdmin` granted to the
-  deploy service account; the `applications` index reached **`READY`**, confirmed by reading
-  the index's real state rather than a deploy's exit code. Invocation in
+  deploy service account; the `applications` index reached **`READY`**. Invocation in
   [`docs/runbook-gcp.md`](../runbook-gcp.md).
-- 2026-08-31 — RS-5 — PR #__ — **The shelter's application inbox.** `/shelter` now renders it
-  instead of RS-2's "coming soon" placeholder (`ShelterHomeView.tsx` is deleted, not orphaned).
-  `useShelterApplications` runs `where("shelterId","==",id)` + `orderBy("createdAt","desc")` —
-  exactly the composite index RS-7/RS-9 got to `READY` — one shelter at a time rather than an
-  `in` over all of them, because a single equality is the shape the rules engine can prove
-  safe for a list; staff at several shelters get a switcher. All four required states are
-  built, and the error state splits `failed-precondition` (an index still building, retry
-  helps) from `permission-denied` (retry never helps) with different copy, per the item.
-  Master/detail, side by side from 900px and stacked below it, tokens only.
-  - **The pure half is `web/src/lib/applicationView.ts`** — labels, transitions, age, the
-    owner split, the error copy — deliberately importing no Firebase, so all of it is unit
-    tested (`applicationView.test.ts`, 8 cases) without a project config.
-  - `staffTransitions()` never offers `withdrawn`, and offers nothing at all on a withdrawn
-    row: that status is the foster's alone under the foster branch of the update rule, so a
-    button for it would only fail the write. A `"(deleted account)"` row (PH-15) renders as
-    itself rather than being special-cased away.
-  - Writes `applications/{id}` only. `fosters/{uid}.approvalChecklist` is untouched, so the
-    foster's own steps show read-only with a line saying they're tracked foster-side — the
-    join is RS-10, and this screen is built in the shape that item expects.
-  - **Two things are honestly unverified, and neither was skipped by choice.**
-    `scripts/seed_test_applications.py` is committed and `--dry-run` verified, but the real
-    write was refused by the unattended run's own safety classifier, so the `applications`
-    collection is still empty. That means **the `||`-rule question this item was supposed to
-    answer by building is still open** — the query has never run against a document. It now
-    needs only a human with credentials: run the seed script, open `/shelter` signed in as the
-    uid in `shelters/sfspca-mission`, and record whether rows render or the query comes back
-    `permission-denied`. Do **not** widen `firestore.rules` to make it pass.
-    Verified: `npm run build`, `npm test` (45 passing), `npm run lint` (no new warnings),
-    `compileall` on the seed script.
+- 2026-08-31 — RS-5 — PR #52 — **The shelter's application inbox**, live at `/shelter`,
+  replacing RS-2's placeholder. `useShelterApplications` runs one shelter's
+  `where("shelterId","==",id)` + `orderBy("createdAt","desc")` against the RS-7/RS-9 index;
+  the pure half is `web/src/lib/applicationView.ts`, unit tested in 8 cases without needing
+  a Firebase config. Writes `applications/{id}` only — the checklist join is RS-10. **Two
+  things honestly unverified:** the fixture write was refused by the unattended run's own
+  safety classifier, so `applications` is still empty and the `||`-rule question the item
+  was meant to settle by building is still open — see RS-5b.
