@@ -63,6 +63,11 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   `setApplicationStatus()` has exactly one caller (the shelter inbox) and no foster surface reads
   `status`; `SavedView`'s withdraw never writes `withdrawn`. Read off the files this run — the
   finding and its decision are the design section below, the work is RS-11.
+- **2026-09-02 — the checklist halves are joined; the status round trip is not.** RS-10 shipped
+  `composeApprovalChecklist()` and `useApplication.ts`, so the shelter's ticks on
+  `applications/{id}.checklist` now reach the foster's Match view and Saved timeline. The
+  application's **`status`** still goes nowhere on the foster side and `withdrawn` is still never
+  written by the withdraw button — that is RS-11, now ungated and the only `[large]` item here.
 - **The `applications` collection still has zero documents.** RS-5 shipped the seed script
   (`scripts/seed_test_applications.py`, committed and dry-run verified) but could not run the
   real write — see RS-5b under "Needs a human".
@@ -93,22 +98,16 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   a second automated source before the manual path is proven just adds a second
   thing that can drift.
 
-## Settled 2026-08-31 — RS-10's spec: split the two approval checklists by `owner`
+## Settled 2026-08-31, built 2026-09-02 — RS-10: the two approval checklists join by `owner`
 
-`applications/{id}.checklist` (written by staff, RS-5) and
-`fosters/{uid}.approvalChecklist` (written by the foster and by the agent) are two
-unjoined copies of the same list, so neither side can see the other's ticks. The
-decision: **split by `ChecklistItem.owner`, one writer per field** — shelter-owned
-items live on the application, foster-owned ones stay on the foster document, and
-each view composes the displayed list out of both. Not a mirror (PH-16 pinned
-`checklist` on the foster branch of the update rule precisely to stop that, and a
-mirror is last-write-wins by construction) and not the full migration to the
-application as sole source of truth — that is M2's deferred work and it touches every
-guest/`LOCAL_MODE` path where no application document exists at all. The `owner` split
-is the first half of that migration, not a detour around it. Full reasoning, the two
-rejected alternatives and the three hazards it leaves for whoever builds it are in the
-[2026-09-01 archive](archive/real-data-and-shelters-2026-09-01.md); the operative spec
-is RS-10 in the queue below.
+**One writer per field.** Shelter-owned items live on `applications/{id}.checklist`, foster-owned
+ones stay on `fosters/{uid}.approvalChecklist`, and each view composes the displayed list out of
+both — not a mirror (PH-16 pinned `checklist` on the foster branch precisely to stop that, and a
+mirror is last-write-wins by construction) and not the full migration to the application as sole
+source of truth, which is M2's deferred work. The `owner` split is that migration's first half.
+Shipped as `composeApprovalChecklist()`; the full original spec, its two rejected alternatives
+and its three hazards are in the
+[RS-10 archive](archive/real-data-and-shelters-rs10-2026-09-02.md).
 
 ## Where a hand-entered dog's photo comes from — settled 2026-08-31, built 2026-09-01 (RS-6)
 
@@ -189,46 +188,16 @@ taken by the M4 drift check, which is unrelated and independent of these.)
   is built**, so the milestone's remaining work is the two round trips between the sides —
   RS-10 (checklist) and RS-11 (status) — not another screen.
 
-- **RS-10 `[large]` (ungated 2026-08-31 — RS-5 shipped; marked large 2026-09-02) — join the
-  two approval checklists by `owner`. A complete execute run.** It was already this size and
-  merely unlabelled — a hook, both foster views composed from two sources, an agent tool
-  constrained, and a four-case test — which is the same labelling gap RS-6 had (README,
-  "The `[large]` slot"). It is the only `[large]` item in the top-priority doc. The design section above is the spec and the reasoning; this is the
-  work. Today `applications/{id}.checklist` and `fosters/{uid}.approvalChecklist`
-  are two unjoined copies, so RS-5's inbox and the foster's Match view cannot see
-  each other's ticks. Split by `ChecklistItem.owner` — one writer per field —
-  rather than mirroring or migrating.
-  - Add `web/src/hooks/useApplication.ts`: `where("fosterId","==",uid)` +
-    `where("dogId","==",matchedDogId)`. Two equalities, no `orderBy`, **no
-    composite index needed** — do not add one to `firestore.indexes.json`.
-  - `MatchView.tsx` composes its list: `owner: "foster"` entries from
-    `foster.approvalChecklist`, `owner: "shelter"` entries from the application's
-    `checklist`. Use `checklistOwner(id)` (`web/src/checklists.ts:13`) for records
-    predating the field, same as it does today. Foster ticks keep going through
-    `patchFoster()`; nothing here writes `applications`.
-  - **The badge and the pickup gate are the payoff, and they are different
-    gates** (`CLAUDE.md`, "Match: who owns which approval step"). "Shelter
-    approved you as a foster" now tracks real shelter action; pickup still
-    unlocks on the whole list. Don't collapse them.
-  - **No application, no change.** Guests and `LOCAL_MODE` have no
-    `applications` row, and `DemoShelterPanel` must keep working — fall back to
-    the foster doc's shelter-owned entries exactly as today.
-  - Constrain `update_checklist` in `src/agent/builtin/foster.py` to foster-owned
-    ids in the same PR: it writes `approvalChecklist` wholesale and would
-    otherwise tick a step the foster doc no longer owns.
-  - `SavedView.tsx:157`'s Applications timeline reads the same field and must not
-    disagree with Match — route it through the same composition, don't duplicate
-    it.
-  - Verify: `npm run build`/`test`/`lint` green; a unit test over the composition
-    covering all four cases (no application, foster-only ticks, shelter-only
-    ticks, both); in `LOCAL_MODE` the Demo Shelter panel still moves the badge.
-    The signed-in two-party path needs a real shelter account and stays
-    unverified — say so in the ledger row.
+- **RS-10 `[large]` — shipped 2026-09-02 (PR #__); Ledger row is the full account.** The design
+  section above is the compressed decision; the spec and queue item are archived verbatim in
+  [`archive/real-data-and-shelters-rs10-2026-09-02.md`](archive/real-data-and-shelters-rs10-2026-09-02.md).
+  It ungates RS-11, which now sits at the top of this queue.
 
-- **RS-11 (2026-09-02) — GATED on RS-10 shipping — close the application round trip in both
+- **RS-11 `[large]` (2026-09-02; ungated 2026-09-02 — RS-10 shipped) — close the application round trip in both
   directions.** The design section above is the reasoning and the two things this must not do;
-  this is the work. Gated only because it reads through `web/src/hooks/useApplication.ts`, which
-  RS-10 builds — check that file exists before starting, don't rebuild it.
+  this is the work. It reads through `web/src/hooks/useApplication.ts`, which RS-10 built — use it,
+  don't rebuild it, and compose the checklist through `composeApprovalChecklist()` rather than
+  reaching at either raw list. It is the only `[large]` item in this doc.
   - **Foster sees the decision.** `MatchView.tsx` and `SavedView.tsx`'s `AppliedCard` read
     `application.status` alongside the composed checklist. `approved` and `declined` are the two
     that change what is on screen; `submitted`/`in_review` render as they do today. Put the
@@ -394,3 +363,28 @@ supersedes the [2026-08-30 one](archive/real-data-and-shelters-ledger-2026-08-30
   not be run unattended; the rules change was never exercised against the emulator or production.
   That is RS-6b. Full row in the
   [2026-09-02 archive](archive/real-data-and-shelters-2026-09-02.md).
+- 2026-09-02 — RS-10 `[large]` — PR #__ — **The two approval checklists join by `owner`**, one
+  writer per field. `composeApprovalChecklist()` (`web/src/lib/applicationView.ts`) overlays the
+  shelter's `done` from `applications/{id}.checklist` onto the foster document's list, and
+  `web/src/hooks/useApplication.ts` fetches it with `fosterId ==` + `dogId ==` — two equalities,
+  **no `orderBy`, no new index**, exactly as specced. `MatchView` and `SavedView`'s `AppliedCard`
+  both read the composed list, so the badge and the Applications timeline can't disagree.
+  `update_checklist` in `src/agent/builtin/foster.py` now raises on a shelter-owned approval id.
+  **The one hazard the spec named and the build had to solve concretely:** MatchView wrote its
+  toggles from the same array it rendered, which after composition would have mirrored the
+  shelter's ticks into `fosters/{uid}` — the last-write-wins failure the design explicitly rules
+  out. It now keeps `stored` (writable) and `approval` (displayable) as separate values; if you
+  edit that file, don't collapse them back.
+  **Two judgement calls not in the spec.** A shelter-owned item present on the application but
+  absent from the foster document is **appended** rather than dropped — a step the shelter is
+  tracking and the foster cannot see is the exact failure this join removes. And
+  `DemoShelterPanel` now renders only when there is **no** application: with a real one, its
+  writes land in a field this screen no longer reads, and a fake dashboard silently doing nothing
+  is worse than no dashboard.
+  **Verified:** `npm run build`/`test`/`lint` green, no new lint warnings; 7 new unit tests over
+  the composition covering the four cases the item named plus legacy `owner`-less records,
+  the append case, and non-mutation; `import agent.server` plus the owner-resolution table
+  exercised directly. **Unverified, honestly:** the two-party signed-in path — staff ticking a
+  step on `/shelter` and a foster seeing it move — needs a real shelter account and a real
+  `applications` document, and neither exists yet (RS-5b). Nothing in this PR was exercised
+  against production Firestore.

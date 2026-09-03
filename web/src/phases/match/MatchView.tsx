@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
+import { useApplication } from "../../hooks/useApplication";
 import { useDogs } from "../../hooks/useDogs";
 import { PickupScheduler } from "../../components/PickupScheduler";
 import { DemoShelterPanel } from "../../components/DemoShelterPanel";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_PREP_CHECKLIST, checklistOwner } from "../../checklists";
+import { composeApprovalChecklist } from "../../lib/applicationView";
 import { normalizeDog, thumbBackground } from "../../lib/dog";
 import { downloadIcs } from "../../lib/calendar";
 import { DEMO_MODE } from "../../lib/demoMode";
@@ -17,6 +19,8 @@ export function MatchView() {
   const navigate = useNavigate();
   const { foster, loading } = useFoster();
   const { dogs } = useDogs();
+  // The shelter's own ticks live on the application, not here -- see composeApprovalChecklist.
+  const { application } = useApplication(foster?.matchedDogId);
 
   const raw = dogs.find((d) => d.id === foster?.matchedDogId);
   const dog = raw ? normalizeDog(raw) : null;
@@ -45,7 +49,12 @@ export function MatchView() {
     );
   }
 
-  const approval = foster.approvalChecklist ?? DEFAULT_APPROVAL_CHECKLIST;
+  // `stored` is what this screen may write; `approval` is what it may show. Keeping them
+  // separate is the whole point of RS-10: composing the shelter's ticks in and then writing
+  // the composed list back would mirror their copy into ours, which the rules and the design
+  // both forbid.
+  const stored = foster.approvalChecklist ?? DEFAULT_APPROVAL_CHECKLIST;
+  const approval = composeApprovalChecklist(stored, application?.checklist ?? null);
   const prep = foster.prepChecklist ?? DEFAULT_PREP_CHECKLIST;
   const ownerOf = (i: ChecklistItem) => i.owner ?? checklistOwner(i.id);
   const yourSteps = approval.filter((i) => ownerOf(i) === "foster");
@@ -56,11 +65,11 @@ export function MatchView() {
   const activeIdx = foster.pickup ? 3 : approved ? 2 : 1;
 
   function setApprovalItem(id: string, done: boolean) {
-    const items = approval.map((i) => (i.id === id ? { ...i, done } : i));
+    const items = stored.map((i) => (i.id === id ? { ...i, done } : i));
     patchFoster({ approvalChecklist: items });
   }
   function setAllShelterItems(done: boolean) {
-    const items = approval.map((i) => ((i.owner ?? checklistOwner(i.id)) === "shelter" ? { ...i, done } : i));
+    const items = stored.map((i) => ((i.owner ?? checklistOwner(i.id)) === "shelter" ? { ...i, done } : i));
     patchFoster({ approvalChecklist: items });
   }
   function togglePrep(id: string, done: boolean) {
@@ -187,7 +196,10 @@ export function MatchView() {
         </button>
       </div>
 
-      {DEMO_MODE && (
+      {/* Only where nothing real is driving the shelter's side. With an application present
+          those ticks come from staff, and the panel would write into a field this screen no
+          longer reads -- a fake dashboard silently doing nothing is worse than no panel. */}
+      {DEMO_MODE && !application && (
         <DemoShelterPanel items={shelterSteps} onToggle={setApprovalItem} onSetAll={setAllShelterItems} />
       )}
     </div>
