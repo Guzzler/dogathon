@@ -24,10 +24,10 @@ section as they stood are preserved verbatim in
 and compressed to one line each below. Read the archive for the reasoning
 behind a settled decision; read this file for what is open.
 
-## Where this actually stands (re-verified against `main` 2026-09-01)
+## Where this actually stands (verified against `main`; each line dated by the run that checked it)
 
-Each line below was checked by reading the file named in it this run, not
-carried over from the previous wording.
+Nothing here is carried over from a previous wording — a line is re-read or it is re-dated.
+Unless a bullet says otherwise it was last confirmed **2026-09-01**.
 
 - **The offline import pipeline is built, for one shelter, with a manual trigger
   on purpose.** `scripts/import_dogs.py` + `scripts/shelters/sfspca.py` +
@@ -59,6 +59,10 @@ carried over from the previous wording.
 - **The `applications` composite index (`shelterId` ASC, `createdAt` DESC) is
   `READY`** — RS-7 (PRs #38, #39) wired the deploy target, RS-9 supplied the IAM
   grant. RS-5's query has a serving index to run against.
+- **2026-09-02 — the `applications` round trip is one-way in both directions.**
+  `setApplicationStatus()` has exactly one caller (the shelter inbox) and no foster surface reads
+  `status`; `SavedView`'s withdraw never writes `withdrawn`. Read off the files this run — the
+  finding and its decision are the design section below, the work is RS-11.
 - **The `applications` collection still has zero documents.** RS-5 shipped the seed script
   (`scripts/seed_test_applications.py`, committed and dry-run verified) but could not run the
   real write — see RS-5b under "Needs a human".
@@ -106,64 +110,59 @@ rejected alternatives and the three hazards it leaves for whoever builds it are 
 [2026-09-01 archive](archive/real-data-and-shelters-2026-09-01.md); the operative spec
 is RS-10 in the queue below.
 
-## Where a hand-entered dog's photo comes from — decided 2026-08-31, built 2026-09-01 (RS-6)
+## Where a hand-entered dog's photo comes from — settled 2026-08-31, built 2026-09-01 (RS-6)
 
-**Decided: the form takes a photo URL, written into the same `photo_urls` the scraper writes.
-No uploads.** Firebase Storage is not in this stack (a new SDK surface, a new rules file, a new
-deploy target); every dog on the site today is already a hotlinked third-party image, so a
-pasted link introduces no practice the app isn't doing. The consequence that mattered most is
-built and unit-tested: **the placedog fallback must not fire for a hand-entered dog**, because
-a stock photo of some other animal on a real adoptable record is indistinguishable from a photo
-the staff member believes they supplied. `dogPhotoOrNull()` keys that on `source`. Uploads, if
-ever wanted, are their own item — a `storage` block, rules scoped by `isStaff`, a size cap and
-a deletion path — not a widening of RS-6. The full reasoning as first written:
+**The form takes a photo URL, written into the same `photo_urls` the scraper writes. No
+uploads.** Firebase Storage is not in this stack, and every dog on the site is already a
+hotlinked third-party image, so a pasted link introduces no practice the app isn't doing. The
+consequence that mattered is built and unit-tested: `dogPhotoOrNull()` keys off `source`, so
+**the placedog fallback never fires for a hand-entered dog** — a stock photo of some other
+animal on a real adoptable record is indistinguishable from one the staff member believes they
+supplied. Uploads, if ever wanted, are their own item (a `storage` block, rules scoped by
+`isStaff`, a size cap, a deletion path), not a widening of RS-6. Full original reasoning in the
+[2026-09-02 archive](archive/real-data-and-shelters-2026-09-02.md).
 
-<details><summary>Original design note (2026-08-31)</summary>
+## Settled 2026-09-02 — the application document is written by both sides and read by only one each
 
-RS-6 lets a staff member add a dog by hand, and its spec says the form should mirror
-what `scripts/shelters/sfspca.py`'s `to_dog()` produces, so that a typed dog and a
-scraped one are the same shape downstream. That holds for every field except one, and
-it was unanswered: **there is nowhere for a photo to go.** Read off `main` this run,
-not inferred:
+RS-5 gave staff an inbox that can move an application to `approved` or `declined`, and RS-6 gave
+them a roster. Reading both against `main` this run turned up something neither item claimed and
+neither is a bug in: **`applications/{id}` is a two-owner record whose round trip is missing in
+both directions.**
 
-- `Dog` carries `photo_urls?: string[]` — "real photos from the source"
-  (`web/src/types.ts:89`) — and every row in `data/dogs.json` holds an external CDN
-  link (`g.petango.com/…`), hotlinked, never copied.
-- `dogPhoto()` (`web/src/lib/dog.ts:85`) falls back to
-  `https://placedog.net/800/1000?id=<n>` when `photo_urls` is empty.
-- **Firebase Storage is not in this stack.** `storageBucket` is passed through in
-  `web/src/firebase.ts:9` only because it arrives in the config blob; nothing calls
-  `getStorage`, `firebase.json` has no `storage` block, and there are no storage rules
-  to deploy. Adding uploads is not a form field — it is a new SDK surface, a new rules
-  file, a new deploy target, and a new class of thing staff can put into the project.
+- **The shelter's decision never reaches the foster.** `setApplicationStatus()` has exactly one
+  caller — `ShelterApplicationsView.tsx:260` — and `ApplicationStatus` is read on the shelter
+  side only (`web/src/lib/applicationView.ts`). Grep the foster surfaces and the word `declined`
+  does not appear. `MatchView.tsx:55` and `SavedView.tsx:158` both derive their status from
+  `foster.approvalChecklist` alone, so a declined foster goes on seeing *"⏳ Waiting for
+  approval"* and a pickup scheduler for a dog they will not get, indefinitely. That is the app
+  telling a foster something untrue about a real animal — `production-hardening.md`'s framing,
+  on `real-data-and-shelters.md`'s surface.
+- **The foster's withdrawal never reaches the shelter.** `SavedView.tsx:163`'s `withdraw` clears
+  `matchedDogId` and `phase` on the foster document and stops. It never writes
+  `status: "withdrawn"` — so the row stays live in the shelter's inbox forever, and a staff
+  member reviews an application nobody is waiting on. The rules branch built for exactly this
+  (PH-16's deliberately-narrow foster branch, `firestore.rules:57-62`) has **one** caller today,
+  and it is account deletion (`auth.ts:173`), not the withdraw button.
 
-**Decided: the form takes a photo URL — the same field the scraper already writes. No
-uploads in RS-6.** A hand-entered dog and a scraped one are then genuinely identical
-downstream, which is the entire point of RS-6 as "the second source adapter". It costs
-nothing to build and nothing to run, and it introduces no practice the app isn't
-already doing: every dog on the site today is a hotlinked third-party image.
+**Decision: this is one flow, and it is a separate item from RS-10, not a widening of it.** Both
+halves need `useApplication.ts`, which RS-10 builds, so RS-11 is gated on RS-10 shipping rather
+than merged into it. Merging them would produce a single PR touching the hook, both foster
+views, the shelter inbox, the agent tool and the rules-adjacent withdraw path at once — the
+shape that leaves the repo half-working if it stalls. Sequencing beats bundling here precisely
+*because* both items are large.
 
-Two consequences, both accepted on purpose:
+Two things the build must not do, decided here so RS-11 doesn't re-open them:
 
-- A pasted URL can rot, and loading it leaks the viewer's IP to whoever serves it.
-  Both are already true of all 19 committed dogs. Validate the shape (`https`, and an
-  `<img>` that fails falls back to the no-photo state rather than a broken-image
-  icon); don't try to solve permanence.
-- **The placedog fallback must not fire for a hand-entered dog.** A stock photo of
-  some other animal on a real adoptable dog is exactly the "unknown is not a claim"
-  failure `CLAUDE.md` describes, and it is worse on a shelter-entered record than on a
-  seeded one, because the staff member who typed it will reasonably read a photo
-  appearing as "mine uploaded". RS-6 ships a real empty state — a neutral,
-  obviously-not-a-photograph tile — for a dog with no `photo_urls`, and leaves the
-  placedog path exactly where it is for the seeded roster.
-
-**If uploads are wanted later, that is its own item and not a widening of RS-6.** It
-needs a `storage` block in `firebase.json`, rules scoped by `isStaff`, a size and
-content-type cap, and a deletion path for when a dog is retired. None of that belongs
-in the PR that first lets a shelter add a dog.
-
-</details>
-
+- **`declined` is not a phase change.** Do not auto-clear `matchedDogId` or push the foster back
+  to `discovery` on a decline. A person finding out they were turned down for a specific dog
+  should read it as a sentence on the screen they were already on, and choose to move on
+  themselves — silently teleporting them to the swipe feed is the app deciding how they feel
+  about it. `activeApplication()`'s one-foster-at-a-time block (`web/src/lib/foster.ts`) is what
+  needs to release, and it should release on the *declined status*, not on a mutation.
+- **The withdraw write must be best-effort, and the local clear must not depend on it.** A guest
+  or `LOCAL_MODE` foster has no `applications` row at all, and a signed-in one may have a write
+  refused. `withdraw` clearing the foster document is the part the user asked for; the
+  application update is the part the shelter needs. Fire the second, don't block the first on it.
 ## Task queue
 
 RS-2's original scope — "shelter sign-in, application list, and add/retire a
@@ -186,14 +185,15 @@ taken by the M4 drift check, which is unrelated and independent of these.)
 
 ### The items
 
-- **RS-6 — shipped 2026-09-01.** Add and retire a dog, at `/shelter/dogs`. The Ledger row is
-  the full account, including the two things it turned up that the spec hadn't seen (the
-  importer would have deleted every hand-entered dog, and `DogStatus` had no honest value for
-  "retired") and the one half it could not verify. **M3's third surface is now built**, so the
-  milestone's remaining work is the checklist join (RS-10), not another screen.
+- **RS-6 — shipped 2026-09-01 (PR #54); Ledger row is the full account.** **M3's third surface
+  is built**, so the milestone's remaining work is the two round trips between the sides —
+  RS-10 (checklist) and RS-11 (status) — not another screen.
 
-- **RS-10 (ungated 2026-08-31 — RS-5 shipped) — join the two approval checklists by
-  `owner`.** The design section above is the spec and the reasoning; this is the
+- **RS-10 `[large]` (ungated 2026-08-31 — RS-5 shipped; marked large 2026-09-02) — join the
+  two approval checklists by `owner`. A complete execute run.** It was already this size and
+  merely unlabelled — a hook, both foster views composed from two sources, an agent tool
+  constrained, and a four-case test — which is the same labelling gap RS-6 had (README,
+  "The `[large]` slot"). It is the only `[large]` item in the top-priority doc. The design section above is the spec and the reasoning; this is the
   work. Today `applications/{id}.checklist` and `fosters/{uid}.approvalChecklist`
   are two unjoined copies, so RS-5's inbox and the foster's Match view cannot see
   each other's ticks. Split by `ChecklistItem.owner` — one writer per field —
@@ -225,6 +225,35 @@ taken by the M4 drift check, which is unrelated and independent of these.)
     The signed-in two-party path needs a real shelter account and stays
     unverified — say so in the ledger row.
 
+- **RS-11 (2026-09-02) — GATED on RS-10 shipping — close the application round trip in both
+  directions.** The design section above is the reasoning and the two things this must not do;
+  this is the work. Gated only because it reads through `web/src/hooks/useApplication.ts`, which
+  RS-10 builds — check that file exists before starting, don't rebuild it.
+  - **Foster sees the decision.** `MatchView.tsx` and `SavedView.tsx`'s `AppliedCard` read
+    `application.status` alongside the composed checklist. `approved` and `declined` are the two
+    that change what is on screen; `submitted`/`in_review` render as they do today. Put the
+    status strings in `web/src/lib/applicationView.ts` — `STATUS_LABEL` is already there and is
+    the shelter's copy of the same vocabulary; don't write a second one.
+  - **A declined application replaces the checklist and the pickup scheduler**, on both surfaces,
+    with a plain statement of what happened and one way forward (browse other dogs). Per the
+    design section: **do not** clear `matchedDogId` or change `phase` — release
+    `activeApplication()` (`web/src/lib/foster.ts`) on the declined status instead, so the foster
+    can apply elsewhere without being moved anywhere they didn't ask to go. That function is the
+    one-foster-at-a-time block and is read by both apply paths; changing it is the load-bearing
+    edit in this item.
+  - **Withdraw writes back.** `SavedView.tsx:163`'s `withdraw` also calls
+    `setApplicationStatus(id, "withdrawn")`. Best-effort: `catch` and continue, and clear the
+    foster document regardless — a guest/`LOCAL_MODE` foster has no application row at all.
+    `firestore.rules:57-62`'s foster branch already permits exactly this write and nothing else
+    (PH-16); **no rules change is needed or allowed here.**
+  - **The inbox already handles `withdrawn`** (`staffTransitions()` returns nothing for it) —
+    verify that, don't rebuild it.
+  - Verify: `npm run build`/`test`/`lint` green; unit tests over the four statuses the foster
+    side now renders, plus one asserting a declined application leaves `matchedDogId` intact
+    while `activeApplication()` returns null; in `LOCAL_MODE` withdraw still works with no
+    application document present. The two-party signed-in path needs a real shelter account —
+    say so in the ledger row rather than implying it was exercised.
+
 - **RS-4 (2026-08-26) — the weekly drift check.** The M4 bullet above *is* the
   spec; the archive carries the full reasoning. Add a weekly `schedule:` trigger
   to `.github/workflows/import-dogs.yml` alongside the existing
@@ -253,17 +282,10 @@ taken by the M4 drift check, which is unrelated and independent of these.)
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
-- **RS-7 — shipped 2026-08-29.** `firestore:indexes` is now in
-  `deploy-frontend.yml`'s deploy target and the `applications` composite index
-  (`shelterId` ASC, `createdAt` DESC) is in `firestore.indexes.json`. See the
-  Ledger — including which half of the verification is still outstanding.
-
-- **RS-5 — shipped 2026-08-31.** The shelter's application inbox is live at `/shelter`; the
-  Ledger row is the full account, including the one thing it could not verify. **The `||`-rule
-  question it was designed to answer by building is still open**, because the fixture write was
-  refused by the unattended run's safety classifier and `applications` is therefore still
-  empty — see "Needs a human" below. That does not gate RS-6 or RS-10: both were gated on RS-5
-  shipping, and it shipped.
+- **RS-7 (PR #38/#39) and RS-5 (PR #52) — shipped; see the Ledger.** RS-5's one open question
+  (whether the `||` read rule actually serves the staff list query) is still open, because the
+  fixture write was refused unattended and `applications` is still empty — RS-5b under "Needs a
+  human". It gates nothing here.
 
 ### Needs a human, not a queue item
 
@@ -357,28 +379,18 @@ supersedes the [2026-08-30 one](archive/real-data-and-shelters-ledger-2026-08-30
   things honestly unverified:** the fixture write was refused by the unattended run's own
   safety classifier, so `applications` is still empty and the `||`-rule question the item
   was meant to settle by building is still open — see RS-5b.
-- 2026-09-01 — RS-6 `[large]` — PR #__ — **Add and retire a dog**, at `/shelter/dogs`, behind
-  the same staff gate as the inbox. `match /dogs/{dogId}`'s blanket `allow write: if false`
-  became `create: isStaff(request.resource.data.shelter_id)` + `update: isStaff(resource.data.shelter_id)`
-  with `shelter_id` pinned across the write + `delete: if false`. `useShelterDogs` is one
-  equality on `shelter_id` and no `orderBy`, so **no new index**; the pure half is
-  `web/src/lib/shelterDog.ts` (16 unit tests, no Firebase import), the writes are
-  `shelterRoster.ts`. Two things the spec hadn't seen, both fixed here because leaving either
-  would have made the feature wrong rather than incomplete:
-  **(1) `scripts/import_dogs.py` would have deleted every hand-entered dog** on its next real
-  run — replace-not-append computed staleness as "not in this scrape", and a manually entered
-  dog is by construction never in the scrape. It now reads each doc's `source` and keeps
-  `shelter-manual` rows, alongside the existing matched-foster exemption.
-  **(2) `DogStatus` had no honest value for "retired."** Writing `adopted` to hide a dog would
-  be a claim about a real animal nobody made, so `retired` was added to the union and to
-  `src/agent/builtin/shelter.py`'s `STATUSES`. `rosterAction()` deliberately offers no relist
-  for an `adopted` dog — that is not a checkbox to reopen.
-  Photos landed as the design section decided: a URL into `photo_urls`, and `dogPhotoOrNull()`
-  returns `null` for a `shelter-manual` dog with none, so all seven photo call sites render an
-  empty tile instead of a placedog stand-in of a different animal. **Unverified, honestly:**
-  every check that needs a signed-in staff account — the form writing, retire removing a dog
-  from Discovery, the rules refusing another shelter's `shelter_id` — could not be run,
-  because a Google popup sign-in is not drivable unattended and this session is refused
-  production Firestore writes for the same reason RS-5b is parked. Build, tests, lint and the
-  design-token guard are green; the rules change itself was never exercised against the
-  emulator or production. That belongs with RS-5b and RS-8 as one sitting for a human.
+- 2026-09-01 — RS-6 `[large]` — PR #54 — **Add and retire a dog**, at `/shelter/dogs`, behind the
+  same staff gate as the inbox. `match /dogs/{dogId}`'s blanket `allow write: if false` became
+  `create: isStaff(request.resource.data.shelter_id)` + `update: isStaff(resource.data.shelter_id)`
+  with `shelter_id` pinned across the write + `delete: if false`. `useShelterDogs` is one equality
+  and no `orderBy`, so **no new index**. Two things the spec hadn't seen, both fixed here because
+  leaving either would have made the feature wrong rather than incomplete: **the importer would
+  have deleted every hand-entered dog** (replace-not-append computes staleness as "not in this
+  scrape", which a typed dog never is — it now keeps `source: shelter-manual` rows), and
+  **`DogStatus` had no honest value for "retired"** (writing `adopted` would be a claim about a
+  real animal nobody made, so `retired` was added to the union and to the agent's `STATUSES`).
+  **Unverified, honestly:** every check needing a signed-in staff account — the form writing,
+  retire removing a dog from Discovery, the rules refusing another shelter's `shelter_id` — could
+  not be run unattended; the rules change was never exercised against the emulator or production.
+  That is RS-6b. Full row in the
+  [2026-09-02 archive](archive/real-data-and-shelters-2026-09-02.md).

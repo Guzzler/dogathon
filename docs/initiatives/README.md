@@ -124,6 +124,11 @@ rather than re-derived.
   size and merely wasn't labelled. It is now marked `[large]` and sits at the top of
   the top doc's queue. The lesson is that the `[large]` slot is usually a **labelling**
   gap, not a missing item — look for the item that is already big before inventing one.
+  **2026-09-02 repeated it exactly.** RS-6 shipped, taking the only `[large]` item in the top
+  doc with it, and the next one was again already in the queue and unlabelled: RS-10 (a hook,
+  both foster views composed from two sources, an agent tool constrained, a four-case test).
+  Twice running, the answer was a label rather than an invention. Treat "there is no `[large]`
+  item" as a prompt to re-read the queue before writing anything new.
 - **`production-hardening.md`'s queue is empty and was deliberately left empty.** It
   is the lowest-priority doc, the two above it hold four open items including the
   `[large]` one, and PH is the doc whose refills produced the treadmill the re-rank
@@ -216,6 +221,14 @@ design answer plus RS-10; archiving RS-9's narrative and compressing four settle
 sections bought back roughly 60 lines and the doc still landed at **421**. It was
 recorded rather than hidden, with the instruction that the next run to touch it should
 archive the Ledger.
+
+**2026-09-02 — the eighth**
+(`archive/real-data-and-shelters-2026-09-02.md`) narrows the rule one more notch. That run's own
+edits would have taken the doc to roughly 490, so it archived in the same PR, and what it took
+was RS-6's photo-source design answer *and* RS-6's 26-line ledger row — both of which had been
+restated by the thing they produced (the shipped code, and each other). The generalisation:
+**after a `[large]` item ships, its design answer and its ledger row are two tellings of one
+story**, and the working doc only needs the shorter one.
 
 **2026-09-01 — that instruction was followed, and it worked.** The seventh archive
 (`archive/real-data-and-shelters-2026-09-01.md`) took both the Ledger through RS-5 and
