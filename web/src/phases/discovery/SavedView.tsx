@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
+import { useApplication } from "../../hooks/useApplication";
 import { useDogs } from "../../hooks/useDogs";
 import { normalizeDog, thumbBackground, type RichDog } from "../../lib/dog";
 import { scoreDog } from "../../lib/matching";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
+import { composeApprovalChecklist } from "../../lib/applicationView";
 import { createApplication } from "../../lib/applications";
 import { fosterDocId } from "../../lib/session";
 
@@ -151,10 +153,13 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
 function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }) {
   const navigate = useNavigate();
   const { foster } = useFoster();
+  const { application } = useApplication(d.id);
 
-  // Progress mirrors the Match phase's own checklist rather than inventing a second source.
+  // Progress mirrors the Match phase's own checklist rather than inventing a second source --
+  // including the join, so this timeline and the Match view can't disagree about whether the
+  // shelter has finished its half.
   const win = fosterWindow(d.fosterWeeks, d.fosterLength, foster?.pickup?.date);
-  const approval = foster?.approvalChecklist ?? [];
+  const approval = composeApprovalChecklist(foster?.approvalChecklist ?? [], application?.checklist ?? null);
   const approved = approval.length > 0 && approval.every(c => c.done);
   const activeIdx = foster?.pickup ? 3 : approved ? 2 : 1;
 

@@ -115,3 +115,46 @@ export function inboxError(code: string | undefined): InboxError {
     retryable: true,
   };
 }
+
+/**
+ * Joins the two copies of the approval checklist into the one list a foster's screens show.
+ *
+ * `fosters/{uid}.approvalChecklist` and `applications/{id}.checklist` are separate documents
+ * with separate writers, and RS-10 keeps them that way: **one writer per field**, split on
+ * `ChecklistItem.owner`. The foster (and the agent) own the `foster` entries; shelter staff
+ * own the `shelter` entries and write them on the application. Neither side ever writes the
+ * other's copy, so there is nothing here that can be lost to a last-write-wins mirror.
+ *
+ * Ordering follows the foster document, since that is what the Match view has always
+ * rendered. A shelter-owned item that exists only on the application (defaults drifting
+ * between the two writers) is appended rather than dropped -- a step the shelter is tracking
+ * and the foster cannot see is exactly the failure this join exists to remove.
+ *
+ * `null` means no application document: guests, `LOCAL_MODE`, and any foster whose record
+ * predates the collection. Those fall back to the foster document alone, which is what the
+ * Demo Shelter panel drives.
+ */
+export function composeApprovalChecklist(
+  fosterList: ChecklistItem[],
+  applicationList: ChecklistItem[] | null,
+): ChecklistItem[] {
+  if (!applicationList) return fosterList;
+
+  const ownerOf = (i: ChecklistItem) => i.owner ?? checklistOwner(i.id);
+  const fromShelter = new Map<string, ChecklistItem>();
+  for (const item of applicationList) {
+    if (ownerOf(item) === "shelter") fromShelter.set(item.id, item);
+  }
+
+  const composed = fosterList.map((item) => {
+    if (ownerOf(item) !== "shelter") return item;
+    const shelterCopy = fromShelter.get(item.id);
+    if (!shelterCopy) return item;
+    fromShelter.delete(item.id);
+    // The foster document's label wins so the wording on screen can't change under the
+    // foster mid-review; only the shelter's `done` is authoritative.
+    return { ...item, done: shelterCopy.done, owner: "shelter" as const };
+  });
+
+  return [...composed, ...fromShelter.values()];
+}

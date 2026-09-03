@@ -44,6 +44,18 @@ CHECKLISTS = {
     "care": ("careChecklist", DEFAULT_CARE_CHECKLIST),
 }
 
+# The approval checklist has two owners and one writer per field (RS-10): the foster's own
+# steps live here on `fosters/{uid}`, the shelter's live on `applications/{id}.checklist` and
+# are written by staff. This tool writes `approvalChecklist` wholesale, so without the guard
+# below it would tick -- or silently un-tick -- a step this document no longer owns, and the
+# foster's screen would show a shelter approval nobody at the shelter gave.
+APPROVAL_OWNERS = {i["id"]: i["owner"] for i in DEFAULT_APPROVAL_CHECKLIST}
+
+
+def _approval_owner(item: dict) -> str:
+    """Records seeded before `owner` existed fall back to the default's, same as the web app."""
+    return item.get("owner") or APPROVAL_OWNERS.get(item.get("id", ""), "foster")
+
 
 def _ref(foster_id: str):
     return db().collection(COLLECTION).document(foster_id)
@@ -134,6 +146,10 @@ def update_checklist(foster_id: str = "", checklist: str = "prep", item_id: str 
         checklist: Which checklist: "approval", "prep", or "care".
         item_id: The checklist item's id, e.g. "crate" or "vet-visit".
         done: Whether the item is now done.
+
+    On the "approval" checklist only the foster's own steps can be changed
+    here; the shelter's steps (home check, reference check) are theirs to
+    mark and this will refuse them.
     """
     foster_id = resolve(foster_id)
     if checklist not in CHECKLISTS:
@@ -146,6 +162,11 @@ def update_checklist(foster_id: str = "", checklist: str = "prep", item_id: str 
     found = False
     for item in items:
         if item["id"] == item_id:
+            if checklist == "approval" and _approval_owner(item) == "shelter":
+                raise PermissionError(
+                    f"{item_id!r} is the shelter's step, not the foster's -- only shelter "
+                    "staff can mark it done, from their own dashboard."
+                )
             item["done"] = done
             found = True
     if not found:
