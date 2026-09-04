@@ -8,8 +8,8 @@ import { normalizeDog, thumbBackground, type RichDog } from "../../lib/dog";
 import { scoreDog } from "../../lib/matching";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
-import { composeApprovalChecklist } from "../../lib/applicationView";
-import { createApplication } from "../../lib/applications";
+import { approvalBadge, approvalDecision, composeApprovalChecklist } from "../../lib/applicationView";
+import { createApplication, setApplicationStatus } from "../../lib/applications";
 import { fosterDocId } from "../../lib/session";
 
 const STAGES = ["Applied", "Under review", "Approved", "Pickup"];
@@ -20,6 +20,9 @@ export function SavedView() {
   const { dogs, loading: dogsLoading } = useDogs();
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") === "applied" ? "applied" : "saved";
+  // The shelter's verdict on the dog they're already matched to -- the one thing that can
+  // release the one-foster-at-a-time block without the foster going anywhere.
+  const { application: activeApp } = useApplication(foster?.matchedDogId);
 
   if (loading || dogsLoading) return <p className="pw-loading">Loading…</p>;
 
@@ -31,7 +34,7 @@ export function SavedView() {
   const liked = (foster?.likedDogIds ?? []).map(byId).filter(Boolean) as RichDog[];
   const matched = foster?.matchedDogId ? byId(foster.matchedDogId) : null;
   const saved = liked.filter(d => d.id !== foster?.matchedDogId);
-  const active = activeApplication(foster);
+  const active = activeApplication(foster, activeApp?.status);
   const activeDog = active ? byId(active.dogId) : null;
 
   return (
@@ -162,8 +165,29 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
   const approval = composeApprovalChecklist(foster?.approvalChecklist ?? [], application?.checklist ?? null);
   const approved = approval.length > 0 && approval.every(c => c.done);
   const activeIdx = foster?.pickup ? 3 : approved ? 2 : 1;
+  const decision = approvalDecision(application?.status);
+  const declined = decision === "declined";
+  const badge = approvalBadge(decision, d.shelter.short, {
+    tone: approved ? "sage" : "butter",
+    label: approved ? "✓ Approved — schedule pickup" : "⏳ Waiting for approval",
+  });
 
-  const withdraw = () => patchFoster({ matchedDogId: null, phase: "discovery" });
+  // Best-effort by design: the status write is the shelter's copy of the same fact, and a
+  // foster who can't reach it (offline, `LOCAL_MODE`, guest, or simply no application row)
+  // must still be able to withdraw. So it is tried first -- while the id is still in hand --
+  // and the local clear happens either way. `firestore.rules`' foster branch already permits
+  // exactly this one field and nothing else (PH-16); it needs no rules change.
+  const withdraw = async () => {
+    if (application) {
+      try {
+        await setApplicationStatus(application.id, "withdrawn");
+      } catch {
+        // The shelter's inbox keeps a live row it shouldn't. Losing the foster's own ability
+        // to move on is the worse of the two failures.
+      }
+    }
+    await patchFoster({ matchedDogId: null, phase: "discovery" });
+  };
 
   return (
     <motion.div layout initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
@@ -177,33 +201,45 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
       </button>
 
       <div className="row" style={{ gap: 7, marginTop: 12, flexWrap: "wrap" }}>
-        <span className={`chip ${approved ? "sage" : "butter"}`} style={{ fontWeight: 800 }}>
-          {approved ? "✓ Approved — schedule pickup" : "⏳ Waiting for approval"}
-        </span>
-        {win.started && <span className="chip coral" style={{ fontWeight: 800 }}>⏳ {win.leftLabel}</span>}
+        <span className={`chip ${badge.tone}`} style={{ fontWeight: 800 }}>{badge.label}</span>
+        {!declined && win.started && <span className="chip coral" style={{ fontWeight: 800 }}>⏳ {win.leftLabel}</span>}
       </div>
 
-      <div className="tl">
-        {STAGES.map((label, n) => (
-          <div key={label} className="tl-step" data-done={n < activeIdx} data-now={n === activeIdx}>
-            <span className="tl-dot">{n < activeIdx ? "✓" : ""}</span>
-            <small>{label}</small>
+      {declined ? (
+        <>
+          <p className="muted" style={{ marginTop: 14, lineHeight: 1.5 }}>
+            {d.shelter.short} decided not to move forward with this one. You're free to apply
+            for another dog whenever you're ready — nothing else is holding you here.
+          </p>
+          <button className="btn sm" style={{ width: "100%", marginTop: 12 }} onClick={() => navigate("/discovery")}>
+            Browse other dogs
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="tl">
+            {STAGES.map((label, n) => (
+              <div key={label} className="tl-step" data-done={n < activeIdx} data-now={n === activeIdx}>
+                <span className="tl-dot">{n < activeIdx ? "✓" : ""}</span>
+                <small>{label}</small>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <p className="muted" style={{ marginTop: 14, lineHeight: 1.5 }}>
-        {approved
-          ? `${d.shelter.short} approved you. Finish home prep and lock in a pickup time.`
-          : `${d.shelter.short} works through the approval checklist with you — open Match to see what's outstanding.`}
-      </p>
+          <p className="muted" style={{ marginTop: 14, lineHeight: 1.5 }}>
+            {approved
+              ? `${d.shelter.short} approved you. Finish home prep and lock in a pickup time.`
+              : `${d.shelter.short} works through the approval checklist with you — open Match to see what's outstanding.`}
+          </p>
 
-      <button className="btn sm" style={{ width: "100%", marginTop: 12 }} onClick={onOpenMatch}>
-        Open Match checklist
-      </button>
-      <button className="btn ghost sm" style={{ width: "100%", marginTop: 4 }} onClick={withdraw}>
-        Withdraw application
-      </button>
+          <button className="btn sm" style={{ width: "100%", marginTop: 12 }} onClick={onOpenMatch}>
+            Open Match checklist
+          </button>
+          <button className="btn ghost sm" style={{ width: "100%", marginTop: 4 }} onClick={withdraw}>
+            Withdraw application
+          </button>
+        </>
+      )}
     </motion.div>
   );
 }

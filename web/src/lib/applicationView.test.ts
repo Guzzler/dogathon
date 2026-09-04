@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   applicationAge,
+  approvalBadge,
+  approvalDecision,
+  releasesFoster,
   byNewest,
   composeApprovalChecklist,
   inboxError,
@@ -155,5 +158,75 @@ describe("composeApprovalChecklist", () => {
       { id: "home-check", label: "Home environment check", done: true, owner: "shelter" },
     ]);
     expect(JSON.stringify(fosterList)).toBe(before);
+  });
+});
+
+/**
+ * RS-11: the foster's four readings of one application. The case that forced the precedence
+ * to exist is `declined` over a fully-ticked checklist -- the old code showed
+ * "✓ Approved — schedule pickup" there, which is the app inviting someone to book a pickup
+ * for a dog they were refused.
+ */
+describe("approvalDecision", () => {
+  it("resolves the shelter's bookkeeping statuses to no decision at all", () => {
+    expect(approvalDecision("submitted")).toBe(null);
+    expect(approvalDecision("in_review")).toBe(null);
+  });
+
+  it("surfaces the three statuses that are news for the foster", () => {
+    expect(approvalDecision("approved")).toBe("approved");
+    expect(approvalDecision("declined")).toBe("declined");
+    expect(approvalDecision("withdrawn")).toBe("withdrawn");
+  });
+
+  it("never reads absence as a decline", () => {
+    // A guest, a LOCAL_MODE foster and every record predating the collection have no
+    // application document. All of them fall through to today's checklist-derived behaviour.
+    expect(approvalDecision(null)).toBe(null);
+    expect(approvalDecision(undefined)).toBe(null);
+  });
+});
+
+describe("releasesFoster", () => {
+  it("frees the foster once the application is over, either way", () => {
+    expect(releasesFoster("declined")).toBe(true);
+    expect(releasesFoster("withdrawn")).toBe(true);
+  });
+
+  it("keeps the one-foster-at-a-time block while the application is live", () => {
+    expect(releasesFoster("submitted")).toBe(false);
+    expect(releasesFoster("in_review")).toBe(false);
+    // Approved is the most live an application gets -- that dog is spoken for.
+    expect(releasesFoster("approved")).toBe(false);
+    expect(releasesFoster(null)).toBe(false);
+  });
+});
+
+describe("approvalBadge", () => {
+  const waiting = { tone: "butter", label: "⏳ Waiting for approval" } as const;
+
+  it("leaves each surface its own checklist-derived badge while nothing is decided", () => {
+    expect(approvalBadge(null, "SF SPCA", waiting)).toEqual(waiting);
+    expect(approvalBadge(null, "SF SPCA", { tone: "sage", label: "✓ Approved — schedule pickup" }))
+      .toEqual({ tone: "sage", label: "✓ Approved — schedule pickup" });
+  });
+
+  it("replaces a fully-ticked checklist's badge when the shelter declined", () => {
+    const ticked = { tone: "sage", label: "✓ Approved — schedule pickup" } as const;
+    expect(approvalBadge(approvalDecision("declined"), "SF SPCA", ticked)).toEqual({
+      tone: "coral",
+      label: "SF SPCA couldn't approve this application",
+    });
+  });
+
+  it("replaces the badge on approval without claiming anything about the checklist", () => {
+    expect(approvalBadge("approved", "SF SPCA", waiting)).toEqual({
+      tone: "sage",
+      label: "✓ SF SPCA approved your application",
+    });
+  });
+
+  it("says who withdrew, since the foster did it themselves", () => {
+    expect(approvalBadge("withdrawn", "SF SPCA", waiting).label).toBe("You withdrew this application");
   });
 });

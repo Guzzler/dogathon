@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fosterWindow } from "./foster";
+import { activeApplication, fosterWindow } from "./foster";
+import type { Foster } from "../types";
 
 /**
  * fosterWindow() is the one function whose answer changes on its own overnight, which is
@@ -55,5 +56,45 @@ describe("fosterWindow", () => {
   it("keeps progress inside 0–1 once the window is overrun", () => {
     expect(windowOn(at(2026, 3, 15), "2026-03-15").progress).toBe(0);
     expect(windowOn(at(2026, 5, 20), "2026-03-15").progress).toBe(1);
+  });
+});
+
+/**
+ * The one-foster-at-a-time block, now that the shelter can end an application without the
+ * foster touching anything. The point of the whole RS-11 change is the last case: a declined
+ * foster is free to apply elsewhere *and* still has `matchedDogId`, because moving them off
+ * the screen they were on is not the app's decision to make.
+ */
+describe("activeApplication", () => {
+  const matched = { matchedDogId: "dog-1", phase: "match" } as Foster;
+
+  it("blocks while the application is live, whatever the shelter has it marked as", () => {
+    expect(activeApplication(matched, "submitted")).toEqual({ dogId: "dog-1", phase: "match" });
+    expect(activeApplication(matched, "in_review")).toEqual({ dogId: "dog-1", phase: "match" });
+    expect(activeApplication(matched, "approved")).toEqual({ dogId: "dog-1", phase: "match" });
+  });
+
+  it("blocks when there is no application document at all", () => {
+    // A guest, LOCAL_MODE, or a record predating the collection. Absence is not a decision.
+    expect(activeApplication(matched, null)).toEqual({ dogId: "dog-1", phase: "match" });
+    expect(activeApplication(matched, undefined)).toEqual({ dogId: "dog-1", phase: "match" });
+  });
+
+  it("releases the block on a declined application without moving the foster", () => {
+    expect(activeApplication(matched, "declined")).toBe(null);
+    // The record itself is untouched: still matched, still in the match phase, so the
+    // Applications tab can say what happened instead of silently emptying.
+    expect(matched.matchedDogId).toBe("dog-1");
+    expect(matched.phase).toBe("match");
+  });
+
+  it("releases the block on a withdrawn application", () => {
+    expect(activeApplication(matched, "withdrawn")).toBe(null);
+  });
+
+  it("still returns nothing when there is no match or the journey is finished", () => {
+    expect(activeApplication(null, "submitted")).toBe(null);
+    expect(activeApplication({ matchedDogId: null, phase: "match" } as Foster, "submitted")).toBe(null);
+    expect(activeApplication({ matchedDogId: "dog-1", phase: "complete" } as Foster, "approved")).toBe(null);
   });
 });

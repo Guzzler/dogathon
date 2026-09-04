@@ -1,4 +1,5 @@
-import type { Foster } from "../types";
+import type { ApplicationStatus, Foster } from "../types";
+import { releasesFoster } from "./applicationView";
 
 /**
  * A foster who has never answered the questionnaire has no intake. Older records were
@@ -17,11 +18,27 @@ export type ActiveApplication = { dogId: string; phase: "match" | "care_plan" };
 /**
  * One foster dog at a time: while an application is in review, or a dog is actually in
  * their care, applying for another is blocked. A finished journey frees them up again.
+ *
+ * `status` is the shelter's own verdict on that dog, from `applications/{id}` -- pass the
+ * status of the application for `foster.matchedDogId`, or `null` where there is no
+ * application document at all (a guest, `LOCAL_MODE`, or any record predating the
+ * collection). A declined or withdrawn application releases the block, because holding
+ * someone to a commitment the other side already refused is the app being wrong on purpose.
+ * It deliberately does **not** clear `matchedDogId` or move the phase; the foster stays where
+ * they are, with the record of what happened, and is simply free to apply elsewhere.
+ *
+ * The second argument is required rather than optional. Both call sites gate a different
+ * screen off the same answer, and an overload some paths pass and others don't is exactly
+ * the shape that leaves a foster blocked on one screen and free on the other.
  */
-export function activeApplication(foster: Foster | null): ActiveApplication | null {
+export function activeApplication(
+  foster: Foster | null,
+  status: ApplicationStatus | null | undefined,
+): ActiveApplication | null {
   if (!foster?.matchedDogId) return null;
   if (foster.phase === "complete") return null;
   if (foster.phase !== "match" && foster.phase !== "care_plan") return null;
+  if (releasesFoster(status)) return null;
   return { dogId: foster.matchedDogId, phase: foster.phase };
 }
 

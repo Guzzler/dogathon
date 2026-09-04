@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
+import { useApplication } from "../../hooks/useApplication";
 import { ENERGY_WORD, normalizeDog, dogPhotoOrNull, sizeLabel } from "../../lib/dog";
 import { distanceMi, matchReasons, scoreDog, useMyLocation } from "../../lib/matching";
 import { activeApplication, applicationStage } from "../../lib/foster";
@@ -16,6 +17,9 @@ export function DogDetailView() {
   const { foster } = useFoster();
   const { dogs, loading } = useDogs();
   const { pos } = useMyLocation();
+  // Keyed to the dog they're already matched to, not the one on screen: this is what decides
+  // whether the one-foster-at-a-time block still applies, and a declined application lifts it.
+  const { application: activeApp } = useApplication(foster?.matchedDogId);
   const [contact, setContact] = useState(false);
   const [needsAccount, setNeedsAccount] = useState(false);
 
@@ -28,7 +32,7 @@ export function DogDetailView() {
   const score = scoreDog(dog, foster?.intake);
   const reasons = matchReasons(dog, foster?.intake);
   const saved = (foster?.likedDogIds ?? []).includes(dog.id);
-  const active = activeApplication(foster);
+  const active = activeApplication(foster, activeApp?.status);
   const blocked = !!active && active.dogId !== dog.id;
   const isThisOne = active?.dogId === dog.id;
   const activeDogName = active ? dogs.find(d => d.id === active.dogId)?.name ?? "your foster dog" : "";
