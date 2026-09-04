@@ -158,3 +158,79 @@ export function composeApprovalChecklist(
 
   return [...composed, ...fromShelter.values()];
 }
+
+/* ---------- the foster's side of the same document (RS-11) ---------- */
+
+/**
+ * What the foster is told, once the shelter has actually decided.
+ *
+ * `null` is the important value: it means *no decision yet*, and every screen falls back to
+ * what it derived from the checklist before this existed. `submitted` and `in_review` resolve
+ * to `null` on purpose -- they are the shelter's own bookkeeping, not news for the foster --
+ * and so does a missing application, which is the state of every guest, every `LOCAL_MODE`
+ * foster and every record written before the collection existed. **Absence must never render
+ * as a decline.**
+ */
+export type ApprovalDecision = "declined" | "withdrawn" | "approved" | null;
+
+/**
+ * Precedence is `declined` > `withdrawn` > `approved` > checklist-derived, and it is a
+ * precedence rather than a mapping because the checklist and the status answer different
+ * questions: the checklist says whether the paperwork is finished, `status` says whether the
+ * shelter said yes. A shelter can decide before the boxes are ticked, and a foster can tick
+ * every box on an application that was never accepted -- which is the case that renders wrong
+ * without this: a fully-ticked checklist on a declined application used to read
+ * "✓ Approved — schedule pickup", inviting someone to book a pickup for a dog they were refused.
+ */
+export function approvalDecision(status: ApplicationStatus | null | undefined): ApprovalDecision {
+  if (status === "declined") return "declined";
+  if (status === "withdrawn") return "withdrawn";
+  if (status === "approved") return "approved";
+  return null;
+}
+
+/**
+ * Whether a status frees the foster from the one-foster-at-a-time block (`activeApplication`).
+ *
+ * A declined application is over, so continuing to block is the app holding someone to a
+ * commitment the other side already refused. A withdrawn one is over by their own choice.
+ * Neither clears `matchedDogId` or moves the phase: releasing the block lets them apply
+ * elsewhere without being relocated to a screen they didn't ask for, and the record of what
+ * happened stays on the Applications tab until they do.
+ */
+export function releasesFoster(status: ApplicationStatus | null | undefined): boolean {
+  const d = approvalDecision(status);
+  return d === "declined" || d === "withdrawn";
+}
+
+export interface ApprovalBadge {
+  /** Matches the `.chip` modifiers in theme.css. */
+  tone: "sage" | "butter" | "coral";
+  label: string;
+}
+
+/**
+ * The one badge both foster surfaces show, with the decision layered over whatever each
+ * screen worked out from its checklist.
+ *
+ * The surfaces disagree about the fallback and that is deliberate, so they pass their own:
+ * Match tracks only the *shelter-owned* steps ("has the shelter finished its review"), the
+ * Saved timeline tracks the whole list ("can a pickup be booked"). Once `status` is decided,
+ * the decision is the outcome and it wins on both.
+ */
+export function approvalBadge(
+  decision: ApprovalDecision,
+  shelterShort: string,
+  fallback: ApprovalBadge,
+): ApprovalBadge {
+  switch (decision) {
+    case "declined":
+      return { tone: "coral", label: `${shelterShort} couldn't approve this application` };
+    case "withdrawn":
+      return { tone: "butter", label: "You withdrew this application" };
+    case "approved":
+      return { tone: "sage", label: `✓ ${shelterShort} approved your application` };
+    default:
+      return fallback;
+  }
+}

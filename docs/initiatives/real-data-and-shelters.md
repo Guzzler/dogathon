@@ -69,6 +69,10 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   `applications/{id}.checklist` now reach the foster's Match view and Saved timeline. The
   application's **`status`** still goes nowhere on the foster side and `withdrawn` is still never
   written by the withdraw button — that is RS-11, now ungated and the only `[large]` item here.
+- **2026-09-03 — the round trip is closed; the design section below is now a description of
+  shipped code.** RS-11 landed `approvalDecision()` / `releasesFoster()` / `approvalBadge()` and
+  threaded the application's status into `activeApplication()`. What is *not* closed is that no
+  human has ever driven it end to end, because there is still no `applications` row (RS-5b).
 - **2026-09-03 — three signals now mean "approved", and RS-11 has to rank them.** Confirmed off
   `MatchView.tsx:62-65` and `SavedView.tsx:161-164`: `shelterApproved` (shelter-owned items done)
   drives the badge, `approved` (all items, both owners) drives the pickup scheduler and both
@@ -200,46 +204,11 @@ taken by the M4 drift check, which is unrelated and independent of these.)
   [`archive/real-data-and-shelters-rs10-2026-09-02.md`](archive/real-data-and-shelters-rs10-2026-09-02.md).
   It ungates RS-11, which now sits at the top of this queue.
 
-- **RS-11 `[large]` (2026-09-02; ungated 2026-09-02 — RS-10 shipped) — close the application round trip in both
-  directions.** The design section above is the reasoning and the two things this must not do;
-  this is the work. It reads through `web/src/hooks/useApplication.ts`, which RS-10 built — use it,
-  don't rebuild it, and compose the checklist through `composeApprovalChecklist()` rather than
-  reaching at either raw list. It is the only `[large]` item in this doc.
-  - **Foster sees the decision.** `MatchView.tsx` and `SavedView.tsx`'s `AppliedCard` read
-    `application.status` alongside the composed checklist. `approved` and `declined` are the two
-    that change what is on screen; `submitted`/`in_review` render as they do today. Put the
-    status strings in `web/src/lib/applicationView.ts` — the export is `STATUS_LABELS`, plural
-    (checked 2026-09-03; earlier wordings here said `STATUS_LABEL`), and it is the shelter's copy
-    of the same vocabulary; don't write a second one.
-  - **Follow the precedence the design section above settles**, and don't invent a fourth reading
-    of "approved": `declined` > `withdrawn` > `approved` > checklist-derived, with **no application
-    document falling through to today's behaviour**. Specifically, `status === "approved"` replaces
-    the Match badge but does **not** unlock the pickup scheduler — that stays gated on the full
-    composed checklist (`approved` in `MatchView.tsx:64`, `SavedView.tsx:163`), and neither status
-    may tick anyone's boxes.
-  - **A declined application replaces the checklist and the pickup scheduler**, on both surfaces,
-    with a plain statement of what happened and one way forward (browse other dogs). Per the
-    design section: **do not** clear `matchedDogId` or change `phase` — release
-    `activeApplication()` (`web/src/lib/foster.ts`) on the declined status instead, so the foster
-    can apply elsewhere without being moved anywhere they didn't ask to go. That function is the
-    one-foster-at-a-time block and is read by both apply paths; changing it is the load-bearing
-    edit in this item. **It currently takes `(foster: Foster | null)` and nothing else**
-    (`web/src/lib/foster.ts:21-26`, read 2026-09-03), so releasing it on a status means threading
-    the application — or its status — into every call site. Decide that signature once and change
-    all callers in the same commit; a second overload that some paths use and others don't is the
-    shape that puts a foster back under the block on one screen and not the other.
-  - **Withdraw writes back.** `SavedView.tsx:163`'s `withdraw` also calls
-    `setApplicationStatus(id, "withdrawn")`. Best-effort: `catch` and continue, and clear the
-    foster document regardless — a guest/`LOCAL_MODE` foster has no application row at all.
-    `firestore.rules:57-62`'s foster branch already permits exactly this write and nothing else
-    (PH-16); **no rules change is needed or allowed here.**
-  - **The inbox already handles `withdrawn`** (`staffTransitions()` returns nothing for it) —
-    verify that, don't rebuild it.
-  - Verify: `npm run build`/`test`/`lint` green; unit tests over the four statuses the foster
-    side now renders, plus one asserting a declined application leaves `matchedDogId` intact
-    while `activeApplication()` returns null; in `LOCAL_MODE` withdraw still works with no
-    application document present. The two-party signed-in path needs a real shelter account —
-    say so in the ledger row rather than implying it was exercised.
+- **RS-11 `[large]` — shipped 2026-09-03 (PR #__); Ledger row is the full account.** The
+  round trip is closed in both directions: the foster reads `application.status` through the
+  precedence the design section above settles, and withdrawing writes `withdrawn` back.
+  **This doc now has no open `[large]` item** — see the README's `[large]` slot rule before
+  inventing one; RS-4 is the only thing left in this queue.
 
 - **RS-4 (2026-08-26) — the weekly drift check.** The M4 bullet above *is* the
   spec; the archive carries the full reasoning. Add a weekly `schedule:` trigger
@@ -392,3 +361,26 @@ supersedes the [2026-08-30 one](archive/real-data-and-shelters-ledger-2026-08-30
   when there is no application. **Unverified, honestly:** the two-party signed-in path needs a real
   shelter account and a real `applications` row, and neither exists (RS-5b). Full row in the
   [2026-09-03 archive](archive/real-data-and-shelters-2026-09-03.md).
+- 2026-09-03 — RS-11 `[large]` — PR #__ — **The application round trip closes in both directions.**
+  The foster now reads `application.status`: `approvalDecision()` collapses five statuses to the
+  three that are news plus `null`, and `approvalBadge()` layers that over each surface's own
+  checklist-derived badge (Match tracks shelter-owned steps, Saved tracks the whole list — they
+  keep disagreeing on purpose, and the decision wins on both). A declined application replaces the
+  checklist and the scheduler on both surfaces with what happened and one way forward. Withdrawing
+  from `SavedView` now calls `setApplicationStatus(id, "withdrawn")` before the local clear,
+  best-effort inside a `catch` — **no rules change**; PH-16's foster branch already permitted
+  exactly that field.
+  **The load-bearing edit was the signature**, as the queue item predicted: `activeApplication()`
+  is now `(foster, status)` with the second argument **required**, not optional. An optional one
+  would have let `DogDetailView` and `SavedView` disagree about whether a declined foster is still
+  blocked, which is the one bug this item exists to prevent — so both call sites gained a
+  `useApplication(foster?.matchedDogId)` keyed to the *matched* dog rather than the dog on screen.
+  Two things the spec didn't specify, decided here: `withdrawn` releases the block as well as
+  `declined` (an application the foster ended is no more live than one the shelter ended), and a
+  declined foster gets **no** button that clears `matchedDogId` — applying elsewhere overwrites it,
+  and the design section forbids moving them, so "Browse other dogs" just navigates.
+  13 new unit tests over the four statuses, absence, and the declined-with-matchedDogId-intact case.
+  **Unverified, honestly:** exactly what RS-10's row said, for the same reason — the two-party
+  signed-in path needs a real shelter account and a real `applications` row, and neither exists
+  (RS-5b). Nothing here was exercised against a live document; the pure layer and the call-site
+  wiring are what the tests cover.

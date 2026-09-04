@@ -7,7 +7,7 @@ import { useDogs } from "../../hooks/useDogs";
 import { PickupScheduler } from "../../components/PickupScheduler";
 import { DemoShelterPanel } from "../../components/DemoShelterPanel";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_PREP_CHECKLIST, checklistOwner } from "../../checklists";
-import { composeApprovalChecklist } from "../../lib/applicationView";
+import { approvalBadge, approvalDecision, composeApprovalChecklist } from "../../lib/applicationView";
 import { normalizeDog, thumbBackground } from "../../lib/dog";
 import { downloadIcs } from "../../lib/calendar";
 import { DEMO_MODE } from "../../lib/demoMode";
@@ -63,6 +63,14 @@ export function MatchView() {
   const shelterApproved = shelterSteps.length > 0 && shelterSteps.every((i) => i.done);
   const approved = approval.length > 0 && approval.every((i) => i.done);
   const activeIdx = foster.pickup ? 3 : approved ? 2 : 1;
+  // The shelter's verdict, which is a different question from "is the paperwork finished".
+  // It replaces the badge, and `declined` replaces the whole screen below it -- but it never
+  // unlocks the scheduler and never ticks anybody's boxes. See approvalDecision().
+  const decision = approvalDecision(application?.status);
+  const badge = approvalBadge(decision, dog.shelter.short, {
+    tone: shelterApproved ? "sage" : "butter",
+    label: shelterApproved ? "✓ Shelter approved you as a foster" : "⏳ Waiting on shelter review",
+  });
 
   function setApprovalItem(id: string, done: boolean) {
     const items = stored.map((i) => (i.id === id ? { ...i, done } : i));
@@ -104,19 +112,22 @@ export function MatchView() {
 
         {/* Approval badge + timeline */}
         <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: .05 }} className="card" style={{ padding: 15 }}>
-          <div className={`chip ${shelterApproved ? "sage" : "butter"}`} style={{ fontWeight: 800 }}>
-            {shelterApproved ? "✓ Shelter approved you as a foster" : "⏳ Waiting on shelter review"}
-          </div>
-          <div className="tl">
-            {STAGES.map((label, n) => (
-              <div key={label} className="tl-step" data-done={n < activeIdx} data-now={n === activeIdx}>
-                <span className="tl-dot">{n < activeIdx ? "✓" : ""}</span>
-                <small>{label}</small>
-              </div>
-            ))}
-          </div>
+          <div className={`chip ${badge.tone}`} style={{ fontWeight: 800 }}>{badge.label}</div>
+          {decision !== "declined" && (
+            <div className="tl">
+              {STAGES.map((label, n) => (
+                <div key={label} className="tl-step" data-done={n < activeIdx} data-now={n === activeIdx}>
+                  <span className="tl-dot">{n < activeIdx ? "✓" : ""}</span>
+                  <small>{label}</small>
+                </div>
+              ))}
+            </div>
+          )}
         </motion.div>
 
+        {decision === "declined" ? (
+          <DeclinedNotice dogName={dog.name} shelterShort={dog.shelter.short} onBrowse={() => navigate("/discovery")} />
+        ) : (<>
         <ChecklistSection title="Your steps" items={yourSteps} onToggle={setApprovalItem} />
         <ChecklistSection title={`What ${dog.shelter.short} handles`} items={shelterSteps} locked />
         <ChecklistSection title="Get ready at home" items={prep} onToggle={togglePrep} />
@@ -194,6 +205,7 @@ export function MatchView() {
         >
           I've got {dog.name} → start Care Plan
         </button>
+        </>)}
       </div>
 
       {/* Only where nothing real is driving the shelter's side. With an application present
@@ -203,6 +215,32 @@ export function MatchView() {
         <DemoShelterPanel items={shelterSteps} onToggle={setApprovalItem} onSetAll={setAllShelterItems} />
       )}
     </div>
+  );
+}
+
+/**
+ * What a declined application replaces the checklist and the scheduler with: what happened,
+ * and one way forward. Deliberately not a dead end and deliberately not a relocation -- the
+ * foster is still on this screen, still matched to this dog on their own record, and free to
+ * apply elsewhere because `activeApplication()` has released them.
+ */
+function DeclinedNotice({ dogName, shelterShort, onBrowse }: {
+  dogName: string;
+  shelterShort: string;
+  onBrowse: () => void;
+}) {
+  return (
+    <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+      className="card" style={{ padding: 18, textAlign: "center" }}>
+      <div style={{ fontSize: 34 }}>💛</div>
+      <h3 style={{ marginTop: 10 }}>{shelterShort} said no this time</h3>
+      <p className="sub" style={{ marginTop: 8, fontSize: 14 }}>
+        They've decided not to move forward with your application for {dogName}. It isn't a
+        judgement on you as a foster — shelters weigh a lot of things, and most of them are
+        about the dog. You can apply for another dog right away.
+      </p>
+      <button className="btn" style={{ marginTop: 18 }} onClick={onBrowse}>Browse other dogs</button>
+    </motion.div>
   );
 }
 
