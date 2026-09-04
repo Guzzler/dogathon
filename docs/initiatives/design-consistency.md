@@ -214,3 +214,25 @@ queued work.
   `::error::` message (run 33223963302); then reverted it and confirmed the
   job **passed** with no `fatal: ... no merge base` line in the log (run
   33224005057).
+
+- 2026-09-04 — DC (shelter side, unqueued — reported by Sharang while reviewing the demo) —
+  PR #__ — **The shelter surfaces now read as the same product as the foster journey.** The
+  root cause was the collision this doc exists for: `ShelterLayout` renders inside `.screen`,
+  so `.screen .btn` — the phone's `width:100%`, 100px-radius, thumb-sized primary action —
+  landed on every shelter button. That was not cosmetic. At `width:100%` a Retire button's
+  flex basis becomes the entire row, which starved `.shelter__dog-main` to **0px**, so each
+  dog's breed and age rendered *underneath* the button and names wrapped mid-word. Measured on
+  the deployed page before the fix: Retire 806px, meta column 0px; after: 71px and 275px.
+  Beyond the bug, a pass to close the gap with the foster app: a real sticky header (paw +
+  wordmark + a `SHELTER` role marker, mirroring `.topbar`) instead of two links floating on
+  bare ground; native OS checkboxes replaced with the phone's own rounded sage tick; detail
+  section headings demoted from `h3`-weight titles to coral eyebrows; the app's soft `--shadow`
+  on cards; the 19-dog roster two-up above 760px with name / breed·age / status on two tight
+  lines instead of three; and status actions given hierarchy, since three identical outline
+  buttons made *decline* look as routine as *mark in review*.
+  **Two traps worth recording.** `.shelter .btn` and `.screen .btn` have equal specificity, so
+  the shelter rules only win by sitting *below* them in `theme.css` — don't reorder that file.
+  And `align-self:center` on the shared button rule reads fine in a row and silently centres
+  "Add a dog" mid-page in a column; it was caught in preview and removed.
+  Verified by injecting the exact rules over the live deployed page and measuring, not by eye.
+

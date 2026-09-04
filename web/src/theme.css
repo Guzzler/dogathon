@@ -667,13 +667,17 @@ input,textarea,select{font-family:inherit}
   .shelter__split{grid-template-columns:minmax(280px,360px) 1fr;gap:24px;align-items:start}
 }
 
-.shelter__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.shelter__list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+/* The roster is a table of nineteen dogs; the inbox list is a rail beside a detail pane.
+   Same class, opposite needs -- so only the roster goes two-up. */
+@media(min-width:760px){.shelter__roster .shelter__list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .shelter__row{
   width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;
   background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);
   padding:13px 15px;font:inherit;text-align:left;cursor:pointer;
 }
-.shelter__row.is-on{border-color:var(--coral);box-shadow:var(--shadow)}
+.shelter__row:hover{border-color:var(--cream-3,var(--line));background:var(--cream-2)}
+.shelter__row.is-on{border-color:var(--coral);background:var(--card);box-shadow:var(--shadow)}
 .shelter__row-main{display:flex;flex-direction:column;gap:3px;min-width:0}
 .shelter__row-main strong{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .shelter__row-meta{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
@@ -690,36 +694,99 @@ input,textarea,select{font-family:inherit}
 
 .shelter__detail{
   background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
-  padding:20px;display:flex;flex-direction:column;gap:10px;
+  box-shadow:var(--shadow);
+  padding:22px;display:flex;flex-direction:column;gap:10px;
 }
-.shelter__detail h3{margin-top:8px}
+/* Eyebrows, matching the foster app's `.eyebrow`: these label a group, they aren't titles. */
+.shelter__detail h3{
+  margin:14px 0 2px;font-family:var(--body,inherit);
+  font-size:11.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--coral-dk);
+}
+.shelter__detail-head{padding-bottom:4px;border-bottom:1px solid var(--line)}
 .shelter__detail-head h2{font-size:22px}
 .shelter__checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
 .shelter__check{display:flex;align-items:center;gap:10px;font-size:14.5px;cursor:pointer}
-.shelter__check input{width:18px;height:18px;accent-color:var(--coral);cursor:pointer}
+.shelter__check input{
+  appearance:none;-webkit-appearance:none;margin:0;flex-shrink:0;
+  width:21px;height:21px;border-radius:7px;border:2px solid var(--line);background:#fff;
+  display:grid;place-items:center;cursor:pointer;transition:background .12s ease,border-color .12s ease;
+}
+.shelter__check input:hover{border-color:var(--sage)}
+.shelter__check input:checked{background:var(--sage);border-color:var(--sage)}
+.shelter__check input:checked::after{content:'✓';color:#fff;font-size:12px;font-weight:800;line-height:1}
+.shelter__check input:focus-visible{outline:2px solid var(--coral);outline-offset:2px}
+.shelter__check:has(input:checked) span{opacity:.55;text-decoration:line-through}
 .shelter__check.is-locked{color:var(--ink-3);cursor:default}
-.shelter__actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:2px}
+.shelter__actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:4px}
+/* A decline is a real, hard-to-unsay answer to a person -- it reads as its own thing,
+   not as another neutral option in a row of three. */
+.shelter .btn.shelter__action--declined{color:var(--coral-dk);border-color:var(--coral-soft)}
+.shelter .btn.shelter__action--declined:hover:not(:disabled){background:var(--coral-soft)}
 .shelter__failed{color:var(--coral-dk);font-size:13px;font-weight:700;margin-top:4px}
 
 /* ---------- shelter roster (RS-6) ----------
    Add and retire a dog. Same 960px document column as the inbox; the form is a plain
    stacked layout that reflows to two or three columns where there's room. */
-.shelter__nav{
-  width:100%;max-width:960px;display:flex;gap:6px;
-  padding:20px 20px 0;box-sizing:border-box;
+/* A real header, not two links on bare ground. Mirrors the foster app's `.topbar` -- paw,
+   wordmark, then the surface's own controls -- so both halves of the product open the same way. */
+.shelter__bar{
+  width:100%;position:sticky;top:0;z-index:20;
+  background:color-mix(in srgb, var(--cream) 88%, transparent);
+  backdrop-filter:saturate(1.4) blur(10px);
+  border-bottom:1px solid var(--line);
 }
+.shelter__bar-in{
+  width:100%;max-width:960px;margin:0 auto;box-sizing:border-box;
+  display:flex;align-items:center;gap:12px;padding:12px 24px;
+}
+.shelter__brand{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.shelter__brand-role{
+  font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);padding-left:11px;margin-left:2px;border-left:1px solid var(--line);
+}
+.shelter__nav{display:flex;gap:4px;margin-left:auto}
 .shelter__tab{
-  padding:8px 14px;border-radius:999px;font-size:13.5px;font-weight:800;
-  color:var(--ink-3);text-decoration:none;border:1.5px solid transparent;
+  padding:7px 13px;border-radius:10px;font-size:13.5px;font-weight:800;
+  color:var(--ink-3);text-decoration:none;border:1px solid transparent;
+  transition:background .14s ease,color .14s ease;
 }
+.shelter__tab:hover{background:var(--cream-2);color:var(--ink-2)}
 .shelter__tab.is-on{background:var(--coral-soft);border-color:var(--coral);color:var(--coral-dk)}
+@media (max-width:520px){
+  .shelter__brand-role{display:none}
+  .shelter__bar-in{padding:10px 16px;gap:8px}
+  .shelter .pad{padding:0 16px}
+}
+/* ---------- shelter buttons ----------
+   The shelter shell renders inside `.screen` (see the ancestry: .shelter > .screen >
+   .shelter__roster), so `.screen .btn` -- the phone's full-width, 100px-radius, thumb-sized
+   primary action -- was landing on every button over here. That is exactly the collision
+   CLAUDE.md warns about, and it was not merely ugly: at `width:100%` a Retire button's flex
+   basis becomes the whole row, which starved `.shelter__dog-main` to 0px and hid each dog's
+   breed and age underneath the button.
+
+   Desk-shaped surfaces want a button sized for a table row, not for a thumb. Scoped to
+   `.shelter` so the foster journey's buttons are untouched; equal specificity to
+   `.screen .btn`, so these must stay *below* it in source order to win. */
+.shelter .btn{
+  width:auto;flex-shrink:0;
+  padding:9px 15px;border-radius:11px;
+  font-size:13.5px;font-weight:800;
+  box-shadow:none;
+}
+.shelter .btn.outline{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.shelter .btn:disabled{opacity:.45}
+
 .shelter__roster{display:flex;flex-direction:column;gap:20px;padding-top:18px;padding-bottom:40px;align-items:flex-start}
 .shelter__roster > section{width:100%}
 .shelter__section{font-family:var(--display);font-size:19px;margin:0 0 10px}
 .shelter__dog{
-  display:flex;align-items:center;gap:12px;width:100%;
+  display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;
   padding:10px 12px;border-radius:var(--r-md);background:var(--card);border:1px solid var(--line);
+  transition:box-shadow .14s ease,border-color .14s ease;
 }
+.shelter__dog:hover{box-shadow:var(--shadow);border-color:var(--cream-2)}
 .shelter__dog-photo{
   width:56px;height:56px;border-radius:15px;flex-shrink:0;
   background:var(--cream-2) center/cover;
@@ -731,9 +798,10 @@ input,textarea,select{font-family:inherit}
   background:var(--cream-2);color:var(--ink-3);font-size:22px;
 }
 .photo-empty{width:100%;height:100%;font-size:44px}
-.shelter__dog-main{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
-.shelter__dog-main strong{font-size:15px}
-.shelter__pill--dog{background:var(--cream-2);color:var(--ink-3);align-self:flex-start}
+.shelter__dog-main{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;min-width:0;flex:1}
+.shelter__dog-main strong{font-size:15px;flex-basis:100%}
+.shelter__dog-main .shelter__failed{flex-basis:100%}
+.shelter__pill--dog{background:var(--cream-2);color:var(--ink-3)}
 .shelter__form{
   display:flex;flex-direction:column;gap:12px;width:100%;
   padding:18px;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line);
