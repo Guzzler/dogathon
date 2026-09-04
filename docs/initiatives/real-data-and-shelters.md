@@ -384,3 +384,16 @@ supersedes the [2026-08-30 one](archive/real-data-and-shelters-ledger-2026-08-30
   signed-in path needs a real shelter account and a real `applications` row, and neither exists
   (RS-5b). Nothing here was exercised against a live document; the pure layer and the call-site
   wiring are what the tests cover.
+- 2026-09-03 — RS-11 (follow-up) — PR #__ — **The two RS-11 screens a walkthrough can't reach are
+  now rendered in a test.** Driving the app end to end (guest → onboarding → apply → shelter ticks →
+  pickup → Care Plan, in `LOCAL_MODE` against the committed roster) exercises exactly **one** of the
+  four statuses — absence — because `status` only ever arrives from Firestore and a guest journey has
+  no application document. It did confirm two things off the queue item: absence renders as
+  "⏳ Waiting on shelter review" rather than a decline, and withdraw still works with no application
+  row (`matchedDogId` cleared, no console error). `MatchView.test.tsx` covers the rest with
+  `renderToStaticMarkup` and three mocked hooks — **no jsdom, no new dependency**, following
+  `lib/markdown.test.tsx`. Six cases; the two that matter are a declined application removing the
+  scheduler and the Care Plan hand-off, and an `approved` status leaving `🔒 Schedule pickup` locked.
+  **Both were negative-controlled** — neutering `approvalDecision`'s declined branch fails exactly
+  the two declined cases, and letting `approved` unlock the scheduler fails exactly that one — so
+  they are not passing vacuously. Still unverified: the two-party signed-in path (RS-5b).
