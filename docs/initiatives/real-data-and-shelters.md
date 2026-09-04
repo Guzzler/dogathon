@@ -78,9 +78,10 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   drives the badge, `approved` (all items, both owners) drives the pickup scheduler and both
   timelines, and `application.status` is read on the foster side nowhere at all. The precedence is
   the design section below; the work stays RS-11.
-- **The `applications` collection still has zero documents.** RS-5 shipped the seed script
-  (`scripts/seed_test_applications.py`, committed and dry-run verified) but could not run the
-  real write — see RS-5b under "Needs a human".
+- **2026-09-04 — `applications` is no longer empty, and the read rule is proven.** Three
+  `fixture-` rows written with Sharang present; the inbox renders them signed in as staff, and
+  both staff writes (a checklist tick, `Mark approved`) succeed. RS-5b is discharged; the
+  README's "zero documents in the `applications` collection" line is now stale.
 
 ## Milestones (compressed; full narrative in the archive)
 
@@ -253,7 +254,21 @@ shelter, per the section below.
   `GCP_SA_KEY` cannot be read back out of GitHub by design, in the
   [2026-08-31 archive](archive/real-data-and-shelters-2026-08-31.md).
 
-- **RS-5b — NEEDS A HUMAN, 2026-08-31. Seed the fixtures and settle the `||`-rule question.**
+- **RS-5b — DONE 2026-09-04, with Sharang present. The `||` rule serves the staff list query.**
+  Sharang ran `gcloud auth application-default login` and signed in to the deployed app; the
+  session then wrote the three fixtures with `scripts/seed_test_applications.py` and opened
+  `https://pawthway-hackathon.web.app/shelter` as the uid in `shelters/sfspca-mission`.
+  **All three rows rendered** — no `permission-denied` — so the staff branch of `applications`'s
+  read rule does serve `where("shelterId","==",id)` + `orderBy("createdAt","desc")` against the
+  RS-7/RS-9 index. The `(deleted account)` fixture renders as an ordinary withdrawn row, which
+  is the PH-15 redaction state the inbox was built to handle and had never actually been shown.
+  Ticking a shelter-owned item and pressing **Mark approved** both wrote successfully, so the
+  staff *update* branch works too. `applications` now holds three `fixture-`-prefixed documents
+  in production; they have fixed ids, so re-running the seeder resets them rather than
+  duplicating, and nothing but a manual delete removes them.
+  *The old text of this item, for reference:*
+
+- **RS-5b (original) — Seed the fixtures and settle the `||`-rule question.**
   Two commands and one sign-in, and it retires the last open question under RS-5:
   `GOOGLE_CLOUD_PROJECT=pawthway-hackathon uv run python scripts/seed_test_applications.py`
   (committed, `--dry-run` first if you want to see the three rows), then open
@@ -264,7 +279,16 @@ shelter, per the section below.
   **not** licence to widen `firestore.rules`. The unattended run could script this but not run
   it: writing to production Firestore is blocked for a session with nobody present to approve it.
 
-- **RS-6b — NEEDS A HUMAN, 2026-09-01. Exercise the new `dogs` write rule once, signed in.**
+- **RS-6b — PARTIALLY DONE 2026-09-04; the write half is still open.** In the same signed-in
+  sitting as RS-5b: `/shelter/dogs` loaded and listed all **19** SF SPCA dogs for the staff
+  account, and the add-a-dog form renders and accepts input — so the staff *read* path over
+  `dogs` works. **Not exercised, and still needing a human:** actually submitting the form
+  (a real write to the live `dogs` collection that fosters would see in Discovery), retiring a
+  dog, and the console `updateDoc` test that a different `shelter_id` is refused. The session
+  deliberately filled the form and stopped rather than write a real animal into the production
+  roster without being asked to. The three checks below are what remains.
+
+- **RS-6b (remaining) — the `dogs` write rule, signed in.**
   Do it in the same sitting as RS-5b and RS-8; it is the same sign-in. Open
   `https://pawthway-hackathon.web.app/shelter/dogs` as the uid in `shelters/sfspca-mission` and
   (1) add a dog with the photo field blank — it should appear in foster-side Discovery with the
@@ -397,3 +421,9 @@ supersedes the [2026-08-30 one](archive/real-data-and-shelters-ledger-2026-08-30
   **Both were negative-controlled** — neutering `approvalDecision`'s declined branch fails exactly
   the two declined cases, and letting `approved` unlock the scheduler fails exactly that one — so
   they are not passing vacuously. Still unverified: the two-party signed-in path (RS-5b).
+- 2026-09-04 — RS-5b — no PR (a production fixture write + a signed-in check) — **The staff
+  branch of `applications`'s read rule serves the list query.** Three fixtures seeded, all three
+  render at `/shelter`, and both staff write paths succeed. This was the question RS-5 shipped
+  without being able to answer, and it could not be answered against an empty collection because
+  Firestore evaluates a list rule per candidate document.
+
