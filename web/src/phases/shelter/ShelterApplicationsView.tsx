@@ -255,7 +255,10 @@ function ApplicationDetail({ application }: { application: Application }) {
             <button
               key={next}
               type="button"
-              className="btn outline"
+              // Approving is the decision this screen exists to make, so it carries the
+              // primary weight; declining is deliberate but quiet, and "in review" is
+              // bookkeeping. Three identical buttons made all three look equally routine.
+              className={`btn ${next === "approved" ? "" : "outline"} shelter__action--${next}`}
               disabled={busy}
               onClick={() => run(() => setApplicationStatus(application.id, next))}
             >
