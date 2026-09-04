@@ -129,6 +129,9 @@ rather than re-derived.
   both foster views composed from two sources, an agent tool constrained, a four-case test).
   Twice running, the answer was a label rather than an invention. Treat "there is no `[large]`
   item" as a prompt to re-read the queue before writing anything new.
+- **2026-09-03 repeated it a third time, and the label was already right.** RS-10 shipped and
+  RS-11 was already marked `[large]` and already at the top of the top doc — nothing needed
+  labelling or inventing. Three runs in a row, the `[large]` slot was filled by reading the queue.
 - **`production-hardening.md`'s queue is empty and was deliberately left empty.** It
   is the lowest-priority doc, the two above it hold four open items including the
   `[large]` one, and PH is the doc whose refills produced the treadmill the re-rank
@@ -190,8 +193,9 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **Six archives exist as of
-2026-08-31**: `real-data-and-shelters-2026-08-29.md` (that
+snapshot) rather than let it grow unbounded. **Eleven archives exist as of
+2026-09-03** (counted off `docs/initiatives/archive/`, not carried over). The six that
+established the convention: `real-data-and-shelters-2026-08-29.md` (that
 doc's settled M1/M2/M4 narrative) and `production-hardening-2026-08-29.md` (its
 settled PH-1..PH-6 narrative and rows), then
 `production-hardening-ledger-2026-08-30.md` (PH-7..PH-12's rows) and
@@ -229,6 +233,16 @@ was RS-6's photo-source design answer *and* RS-6's 26-line ledger row — both o
 restated by the thing they produced (the shipped code, and each other). The generalisation:
 **after a `[large]` item ships, its design answer and its ledger row are two tellings of one
 story**, and the working doc only needs the shorter one.
+
+**2026-09-03 — the eleventh, and it took both kinds at once.** RS-10 shipped, so its
+design section *and* its 22-line ledger row were the two tellings the 2026-09-02 rule names —
+except the design section had already been compressed, so what was actually redundant was the
+**round-trip section for RS-11, an item that has not shipped yet**. Its two "must not do" rules
+were quoted word for word inside RS-11's own queue entry, which is the 2026-09-01 trigger
+("a design answer stops earning its length the moment its queue item restates it") firing
+*before* the build rather than after. The generalisation: the restating thing can be the queue
+item, not only the shipped code, so check the queue entry against the design section the run you
+write it, not the run it ships.
 
 **2026-09-01 — that instruction was followed, and it worked.** The seventh archive
 (`archive/real-data-and-shelters-2026-09-01.md`) took both the Ledger through RS-5 and
