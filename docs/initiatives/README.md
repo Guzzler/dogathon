@@ -94,9 +94,12 @@ The ranking above fixes *what* gets built. This fixes *how much*.
 
 ## Nobody uses this app yet, and that changes what is worth doing
 
-There are no shelter partners, no real fosters, and — checked directly on
-2026-08-31 via the Admin API — **zero documents in the `applications`
-collection**. Two consequences that plan should apply rather than re-derive:
+There are no shelter partners and no real fosters. The "zero documents in the
+`applications` collection" that used to anchor this section **is no longer true** —
+RS-5b seeded three `fixture-` rows on 2026-09-04 with Sharang present, and a real staff
+account read and wrote them. That changes one thing and not the other: a verification
+that needed a document to exist is now cheap, but there is still nobody using this app.
+Two consequences that plan should apply rather than re-derive:
 
 - **Building beats confirming.** An item whose value is *verifying* something
   already built ranks below one that *builds* the next missing surface. There is
@@ -132,6 +135,16 @@ rather than re-derived.
 - **2026-09-03 repeated it a third time, and the label was already right.** RS-10 shipped and
   RS-11 was already marked `[large]` and already at the top of the top doc — nothing needed
   labelling or inventing. Three runs in a row, the `[large]` slot was filled by reading the queue.
+- **2026-09-04 broke the streak, and the exception is as instructive as the rule.** RS-11
+  shipped and the top doc's queue held exactly one item — RS-4, a workflow trigger that is
+  small by construction. Re-reading it produced nothing `[large]`, because there genuinely was
+  nothing: M3's three surfaces and both round trips are built. The item came instead from
+  **verifying a claim in the other direction** — PH-1 has said since 2026-08-24 that a real
+  notification path is "downstream of M3", and M3 finished while nobody re-read that sentence.
+  Reading `adoption.py` against the shipped shelter dashboard turned an old gated note into
+  RS-12. So the generalisation gains a second half: **read the queue first, and when it is
+  genuinely empty of big work, re-read the notes that were gated on something that has since
+  shipped.** A parked item whose gate opened is the cheapest place a `[large]` one hides.
 - **`production-hardening.md`'s queue is empty and was deliberately left empty.** It
   is the lowest-priority doc, the two above it hold four open items including the
   `[large]` one, and PH is the doc whose refills produced the treadmill the re-rank
@@ -193,7 +206,16 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **Eleven archives exist as of
+snapshot) rather than let it grow unbounded. **Thirteen archives exist as of
+2026-09-04** — that run archived from *two* docs in one PR, which is a first.
+`production-hardening-ledger-2026-09-04.md` took PH-14/15/16's three rows, 55 lines of entirely
+load-bearing text, after this run's own PH-1 edits carried that doc to 410; it came back to 372.
+`real-data-and-shelters-2026-09-04.md` took three settled design sections at once
+plus RS-11's two ledger rows and RS-5b's superseded original — and the doc still landed at
+**412**, over the threshold, which is recorded here rather than hidden, as 2026-08-31's 421 was.
+The reason is the same both times: a run that archives *and* adds a `[large]` item plus a design
+answer is net-positive on lines even after cutting 100. The next run to touch this doc should
+archive the Ledger, which is again where the growth is.) Previously **eleven as of
 2026-09-03** (counted off `docs/initiatives/archive/`, not carried over). The six that
 established the convention: `real-data-and-shelters-2026-08-29.md` (that
 doc's settled M1/M2/M4 narrative) and `production-hardening-2026-08-29.md` (its

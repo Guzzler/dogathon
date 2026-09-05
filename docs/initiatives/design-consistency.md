@@ -216,7 +216,7 @@ queued work.
   33224005057).
 
 - 2026-09-04 — DC (shelter side, unqueued — reported by Sharang while reviewing the demo) —
-  PR #__ — **The shelter surfaces now read as the same product as the foster journey.** The
+  PR #60 — **The shelter surfaces now read as the same product as the foster journey.** The
   root cause was the collision this doc exists for: `ShelterLayout` renders inside `.screen`,
   so `.screen .btn` — the phone's `width:100%`, 100px-radius, thumb-sized primary action —
   landed on every shelter button. That was not cosmetic. At `width:100%` a Retire button's
