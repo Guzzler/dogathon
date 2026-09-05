@@ -39,7 +39,7 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   this pattern; don't replace it.
 - **The roster is one shelter deep.** Every dog carries
   `shelter_id: "sfspca-mission"`. `web/src/lib/shelters.ts` lists **six** orgs
-  (counted this run); the other five have zero dogs and no import path —
+  (re-counted 2026-09-04 off the `id:` literals); the other five have zero dogs and no import path —
   decorative until M3. `shelters.test.ts` guards the canonical id.
 - **`shelters/sfspca-mission` exists** in production Firestore with the repo
   owner's uid in `staffUids` (RS-2, PR #34), so `isStaff()` evaluates against a
@@ -60,28 +60,30 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
 - **The `applications` composite index (`shelterId` ASC, `createdAt` DESC) is
   `READY`** — RS-7 (PRs #38, #39) wired the deploy target, RS-9 supplied the IAM
   grant. RS-5's query has a serving index to run against.
-- **2026-09-02 — the `applications` round trip is one-way in both directions.**
-  `setApplicationStatus()` has exactly one caller (the shelter inbox) and no foster surface reads
-  `status`; `SavedView`'s withdraw never writes `withdrawn`. Read off the files this run — the
-  finding and its decision are the design section below, the work is RS-11.
-- **2026-09-02 — the checklist halves are joined; the status round trip is not.** RS-10 shipped
-  `composeApprovalChecklist()` and `useApplication.ts`, so the shelter's ticks on
-  `applications/{id}.checklist` now reach the foster's Match view and Saved timeline. The
-  application's **`status`** still goes nowhere on the foster side and `withdrawn` is still never
-  written by the withdraw button — that is RS-11, now ungated and the only `[large]` item here.
-- **2026-09-03 — the round trip is closed; the design section below is now a description of
-  shipped code.** RS-11 landed `approvalDecision()` / `releasesFoster()` / `approvalBadge()` and
-  threaded the application's status into `activeApplication()`. What is *not* closed is that no
-  human has ever driven it end to end, because there is still no `applications` row (RS-5b).
-- **2026-09-03 — three signals now mean "approved", and RS-11 has to rank them.** Confirmed off
-  `MatchView.tsx:62-65` and `SavedView.tsx:161-164`: `shelterApproved` (shelter-owned items done)
-  drives the badge, `approved` (all items, both owners) drives the pickup scheduler and both
-  timelines, and `application.status` is read on the foster side nowhere at all. The precedence is
-  the design section below; the work stays RS-11.
+- **2026-09-03 — the application round trip is closed in both directions, and the design
+  sections that specified it are now descriptions of shipped code.** RS-10 joined the two
+  checklist halves by `owner`; RS-11 threaded `application.status` into the foster side under
+  the `declined` > `withdrawn` > `approved` > checklist precedence and made withdrawing write
+  `withdrawn` back. Both are compressed into the settled-design block below. What is *not*
+  closed is that no human has driven it end to end.
 - **2026-09-04 — `applications` is no longer empty, and the read rule is proven.** Three
   `fixture-` rows written with Sharang present; the inbox renders them signed in as staff, and
   both staff writes (a checklist tick, `Mark approved`) succeed. RS-5b is discharged; the
   README's "zero documents in the `applications` collection" line is now stale.
+- **2026-09-04 — the shelter has a dashboard it reads, and the foster's final artifact never
+  arrives in it.** Read off the files this run: `src/agent/builtin/adoption.py:61` writes
+  `status: "ready_for_adoption"` **and** `adoption_profile` onto the dog, and
+  `grep -rn adoption_profile web/` returns **no reader anywhere in the frontend** — only
+  `types.ts:85` declaring the field and three copy strings in `toolLabels.ts` telling the
+  foster it was "Sent the profile to the shelter". The paragraph Opus writes at the end of the
+  whole journey is stored and displayed to nobody.
+- **2026-09-04 — and the only action the roster offers a returned dog is to retire it.**
+  `rosterAction()` (`web/src/lib/shelterDog.ts:177`) maps `retired`→relist, `adopted`→null,
+  everything else→retire, so a dog a foster just handed back is grouped into
+  `ShelterRosterView`'s catch-all `rest` bucket with a status pill and a **Retire** button.
+  `DiscoveryView` filters to `status === "available"`, so the dog has correctly left the foster
+  feed and there is no honest control that puts it back. This is the work: RS-12.
+
 
 ## Milestones (compressed; full narrative in the archive)
 
@@ -109,71 +111,58 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   a second automated source before the manual path is proven just adds a second
   thing that can drift.
 
-## Settled 2026-08-31, built 2026-09-02 — RS-10: the two approval checklists join by `owner`
+## Settled design, all three shipped — compressed 2026-09-04
 
-**One writer per field.** Shelter-owned items live on `applications/{id}.checklist`, foster-owned
-ones stay on `fosters/{uid}.approvalChecklist`, and each view composes the displayed list out of
-both — not a mirror (PH-16 pinned `checklist` on the foster branch precisely to stop that, and a
-mirror is last-write-wins by construction) and not the full migration to the application as sole
-source of truth, which is M2's deferred work. The `owner` split is that migration's first half.
-Shipped as `composeApprovalChecklist()`; the full original spec, its two rejected alternatives
-and its three hazards are in the
+Three design sections used to sit here in full: **RS-6**'s photo source (a pasted URL into
+`photo_urls`, no uploads, and `dogPhotoOrNull()` keyed off `source` so the placedog fallback
+never fires for a hand-entered dog), **RS-10**'s checklist join (one writer per field — shelter
+items on `applications/{id}.checklist`, foster items on `fosters/{uid}`, each view composing
+both, never mirroring), and **RS-11**'s round trip plus the precedence that resolves it
+(`declined` > `withdrawn` > `approved` > checklist-derived; `approved` replaces the badge but
+never unlocks pickup; an absent application must never render as a decline). All three are now
+descriptions of shipped code, so per the README's 2026-09-02 rule they are the longer of two
+tellings and the ledger rows are the shorter. Full text, verbatim, in the
+[2026-09-04 archive](archive/real-data-and-shelters-2026-09-04.md); RS-10's original spec and
+its rejected alternatives remain in the
 [RS-10 archive](archive/real-data-and-shelters-rs10-2026-09-02.md).
 
-## Where a hand-entered dog's photo comes from — settled 2026-08-31, built 2026-09-01 (RS-6)
+## Settled 2026-09-04 — "notify the shelter" means the dashboard, and PH-1's gate is now open
 
-**The form takes a photo URL, written into the same `photo_urls` the scraper writes. No
-uploads.** Firebase Storage is not in this stack, and every dog on the site is already a
-hotlinked third-party image, so a pasted link introduces no practice the app isn't doing. The
-consequence that mattered is built and unit-tested: `dogPhotoOrNull()` keys off `source`, so
-**the placedog fallback never fires for a hand-entered dog** — a stock photo of some other
-animal on a real adoptable record is indistinguishable from one the staff member believes they
-supplied. Uploads, if ever wanted, are their own item (a `storage` block, rules scoped by
-`isStaff`, a size cap, a deletion path), not a widening of RS-6. Full original reasoning in the
-[2026-09-02 archive](archive/real-data-and-shelters-2026-09-02.md).
+`production-hardening.md` has carried PH-1 — *the tool that claims to notify a shelter and
+doesn't* — since 2026-08-24, deliberately unqueued with the note that a real notification path
+is **downstream of M3**, because "a shelter with an account and an application list is the
+thing worth notifying." M3's three surfaces have all shipped (RS-2, RS-5, RS-6) and RS-5b
+proved on 2026-09-04 that a real staff account reads the inbox and writes back to it. **The
+gate is open.** So the question this run answers is what the notification actually is.
 
-## Settled 2026-09-02 — the application document is written by both sides and read by only one each
+**It is not email, and it is not Arcade.** `send_adoption_profile_to_shelter` still returns
+`"notified_shelter": arcade_tools.available()`, which is honest (PR #19) and will stay `false`
+in production until someone configures an `ARCADE_API_KEY` that nobody has asked for. Wiring
+Gmail or Slack would mean choosing an address for an organization Pawthway has no relationship
+with — the conversation this doc keeps saying is Sharang's to have, not a PR's. A shelter that
+signs in to `/shelter` has already told us where it reads.
 
-`applications/{id}` is a two-owner record whose round trip is missing in both directions:
-`setApplicationStatus()` has exactly one caller (the shelter inbox, `ShelterApplicationsView.tsx:260`
-— re-verified 2026-09-03) and no foster surface reads `status`, so a declined foster goes on seeing
-*"⏳ Waiting for approval"* indefinitely; and `SavedView`'s `withdraw` clears the foster document
-without ever writing `status: "withdrawn"`, so the row stays live in the inbox forever. **This is one
-flow and it is RS-11**, gated behind RS-10 rather than merged into it, because both halves need
-`useApplication.ts` and bundling them produces the single PR that leaves the repo half-working if it
-stalls. Two rules the build must not reopen — `declined` is not a phase change (release
-`activeApplication()`, don't move anyone), and the withdraw write is best-effort and must not block
-the local clear — are restated in full in RS-11's queue item, which is why the reasoning behind them
-now lives in the [2026-09-03 archive](archive/real-data-and-shelters-2026-09-03.md).
+**So the notification is a surface, not a message: the dog comes back on the shelter's own
+roster, with the profile attached.** Three consequences the build must not soften:
 
-## Settled 2026-09-03 — three things now mean "approved", and only one of them is the decision
+- **The profile has to be rendered, or the tool is still lying.** `adoption_profile` is written
+  by the Admin SDK and read by nothing. The foster's Post Foster phase is the app's most
+  expensive turn (Opus, by `model_for_surface`) and its entire output currently reaches no
+  human but the foster who watched it stream.
+- **`ready_for_adoption` is an arrival, not a resting state.** It belongs in its own group at
+  the *top* of `ShelterRosterView`, above `available` — a dog waiting on a person, which is what
+  the Applications inbox is for and what the roster's flat available/rest split cannot express.
+- **The shelter needs a truthful action, and `retire` is not it.** Retiring says "stop listing
+  this for a reason of our own"; a dog whose foster handed it back adoption-ready wants
+  **List for adoption** (→ `available`, back into Discovery) or **Mark adopted** (→ `adopted`,
+  terminal, which `rosterAction` already refuses to reopen). Both already exist in `DogStatus`;
+  neither is offered.
 
-RS-11 will trip over this on its first screen, so it is answered here rather than left to whoever
-builds it. Read off `MatchView.tsx:62-65` and `SavedView.tsx:161-164` this run, the foster side is
-about to have **three** independent signals called approval:
+`notified_shelter` then stops being a capability probe and becomes true because the write
+landed somewhere a shelter demonstrably reads — which is the claim PH-1 was created to stop the
+app from making falsely. That is RS-12, and PH-1 is discharged by it rather than by anything in
+`production-hardening.md`.
 
-1. `shelterApproved` — every *shelter-owned* checklist item done. Drives the Match badge.
-2. `approved` — every item, both owners, done. Drives the pickup scheduler and `activeIdx` on both
-   timelines.
-3. `application.status === "approved"` — a staff member clicked Approve in the inbox. Read nowhere
-   on the foster side today.
-
-They are not three views of one fact. **The checklist answers "is the paperwork finished"; `status`
-answers "did the shelter say yes."** A shelter can decide before the boxes are ticked, and the boxes
-can be ticked by a foster whose application was never accepted. So:
-
-- **`declined` overrides everything**, at any checklist state. The case that makes this
-  non-negotiable already renders wrong today: a fully-ticked checklist on a declined application
-  shows *"✓ Approved — schedule pickup"*, which is the app inviting someone to book a pickup for a
-  dog they were refused.
-- **`approved` does not unlock pickup and does not tick anyone's boxes.** Scheduling stays gated on
-  the full composed checklist. Approving early means the decision is made and the paperwork isn't;
-  a scheduler at that moment books a slot for a home visit that hasn't happened.
-- **`approved` does replace the badge**, because the badge is the outcome and the outcome is now
-  known. `shelterApproved` stays the badge's source only while `status` is undecided.
-- **Precedence is `declined` > `withdrawn` > `approved` > checklist-derived**, and **no application
-  document falls all the way through to today's behaviour.** A guest, a `LOCAL_MODE` foster and
-  every pre-RS-5 record have no row at all; absence must never render as a decline.
 ## Task queue
 
 RS-2's original scope — "shelter sign-in, application list, and add/retire a
@@ -205,11 +194,41 @@ taken by the M4 drift check, which is unrelated and independent of these.)
   [`archive/real-data-and-shelters-rs10-2026-09-02.md`](archive/real-data-and-shelters-rs10-2026-09-02.md).
   It ungates RS-11, which now sits at the top of this queue.
 
-- **RS-11 `[large]` — shipped 2026-09-03 (PR #__); Ledger row is the full account.** The
-  round trip is closed in both directions: the foster reads `application.status` through the
-  precedence the design section above settles, and withdrawing writes `withdrawn` back.
-  **This doc now has no open `[large]` item** — see the README's `[large]` slot rule before
-  inventing one; RS-4 is the only thing left in this queue.
+- **RS-11 `[large]` — shipped 2026-09-03 (PRs #58, #59); Ledger rows are the full account.**
+  The round trip is closed in both directions. The `[large]` slot it emptied is refilled by
+  RS-12 below — the first time in four runs that re-reading the queue did *not* produce one
+  (see the README's 2026-09-04 note).
+
+- **RS-12 `[large]` (2026-09-04) — the dog comes back, and the shelter can see it. A complete
+  execute run.** The design section directly above is the spec; build from it, not from this
+  summary. Roughly four parts, and the order matters because the pure layer is what the tests
+  can reach:
+  - **The pure half first.** Extend `web/src/lib/shelterDog.ts`: `rosterAction()` currently
+    returns `retire` for `ready_for_adoption`, which is the wrong verb for a dog handed back
+    adoption-ready. Give that status its own actions — `list` (→ `available`) and `adopted`
+    (→ `adopted`) — and add the grouping helper `ShelterRosterView` needs, so the three buckets
+    (back from foster / listed / everything else) are decided in a tested function rather than
+    inline `filter` calls. Extend `shelterDog.test.ts` alongside; it needs no Firebase config.
+  - **Then the surface.** `ShelterRosterView.tsx` grows a **Back from foster** group rendered
+    *first*, above `listed`, with the dog's `adoption_profile` shown in full (it is prose the
+    agent wrote for a human to read — render it, don't truncate it to a pill) and the two
+    actions above. Empty state: render nothing at all rather than an empty heading; most days
+    there will be no returned dog and a permanent empty section trains staff to ignore it.
+  - **No rules change, and confirm that before writing one.** RS-6 already grants staff
+    `update` on their own shelter's dogs with `shelter_id` pinned (`firestore.rules:20-25`), and
+    both new actions are status-only writes on a dog the staff member already owns. If the write
+    is refused, that is a finding to record, **not** licence to widen `firestore.rules`.
+  - **Last, the agent's claim.** `src/agent/builtin/adoption.py:66` returns
+    `"notified_shelter": arcade_tools.available()`. Once the profile lands on a surface the
+    shelter reads, that should be true because the Firestore write succeeded, with Arcade
+    reported separately if it ran at all — and the docstring's *"otherwise this status update
+    alone is the notification"* becomes accurate for the first time. Keep it honest: if you
+    cannot make the distinction cleanly in the return shape, say so in the ledger row and leave
+    the field alone rather than hardcoding `True`, which is the exact bug PR #19 removed.
+  - **Verify:** `npm run build` / `test` / `lint` green, and the new pure tests covering all
+    five `DogStatus` values through `rosterAction`. The signed-in half — a real staff account
+    seeing a real returned dog — cannot be driven unattended and belongs under "Needs a human"
+    with RS-6b, in the same sitting. Say plainly in the ledger row which half was verified.
 
 - **RS-4 (2026-08-26) — the weekly drift check.** The M4 bullet above *is* the
   spec; the archive carries the full reasoning. Add a weekly `schedule:` trigger
@@ -239,10 +258,10 @@ taken by the M4 drift check, which is unrelated and independent of these.)
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
-- **RS-7 (PR #38/#39) and RS-5 (PR #52) — shipped; see the Ledger.** RS-5's one open question
-  (whether the `||` read rule actually serves the staff list query) is still open, because the
-  fixture write was refused unattended and `applications` is still empty — RS-5b under "Needs a
-  human". It gates nothing here.
+- **RS-7 (PR #38/#39) and RS-5 (PR #52) — shipped, and RS-5's one open question is now
+  answered.** Whether the `||` read rule actually serves the staff list query was settled on
+  2026-09-04 by seeding three fixtures and reading them signed in as staff: it does. See RS-5b
+  under "Needs a human", which is DONE.
 
 ### Needs a human, not a queue item
 
@@ -255,47 +274,30 @@ shelter, per the section below.
   [2026-08-31 archive](archive/real-data-and-shelters-2026-08-31.md).
 
 - **RS-5b — DONE 2026-09-04, with Sharang present. The `||` rule serves the staff list query.**
-  Sharang ran `gcloud auth application-default login` and signed in to the deployed app; the
-  session then wrote the three fixtures with `scripts/seed_test_applications.py` and opened
-  `https://pawthway-hackathon.web.app/shelter` as the uid in `shelters/sfspca-mission`.
-  **All three rows rendered** — no `permission-denied` — so the staff branch of `applications`'s
-  read rule does serve `where("shelterId","==",id)` + `orderBy("createdAt","desc")` against the
-  RS-7/RS-9 index. The `(deleted account)` fixture renders as an ordinary withdrawn row, which
-  is the PH-15 redaction state the inbox was built to handle and had never actually been shown.
-  Ticking a shelter-owned item and pressing **Mark approved** both wrote successfully, so the
-  staff *update* branch works too. `applications` now holds three `fixture-`-prefixed documents
-  in production; they have fixed ids, so re-running the seeder resets them rather than
-  duplicating, and nothing but a manual delete removes them.
-  *The old text of this item, for reference:*
+  Three `fixture-` rows seeded with `scripts/seed_test_applications.py`; **all three render** at
+  `https://pawthway-hackathon.web.app/shelter` signed in as the uid in `shelters/sfspca-mission`,
+  with no `permission-denied` — so the staff branch of `applications`'s read rule does serve
+  `where("shelterId","==",id)` + `orderBy("createdAt","desc")` against the RS-7/RS-9 index. This
+  was the question RS-5 shipped unable to answer, and it could not be answered against an empty
+  collection, because Firestore evaluates a list rule per candidate document. Ticking a
+  shelter-owned item and pressing **Mark approved** both wrote, so the staff *update* branch
+  works too, and the `(deleted account)` fixture renders as an ordinary withdrawn row — the
+  PH-15 redaction state the inbox was built for and had never been shown. The three fixtures
+  are still in production; they have fixed ids, so re-running the seeder resets rather than
+  duplicates. Full original wording of the item in the
+  [2026-09-04 archive](archive/real-data-and-shelters-2026-09-04.md).
 
-- **RS-5b (original) — Seed the fixtures and settle the `||`-rule question.**
-  Two commands and one sign-in, and it retires the last open question under RS-5:
-  `GOOGLE_CLOUD_PROJECT=pawthway-hackathon uv run python scripts/seed_test_applications.py`
-  (committed, `--dry-run` first if you want to see the three rows), then open
-  `https://pawthway-hackathon.web.app/shelter` signed in as the uid in
-  `shelters/sfspca-mission`. Either the rows render — the staff branch of `applications`'s read
-  rule serves the list query — or it comes back `permission-denied`, which the inbox now has
-  its own copy for. **Write down which happened.** If it is denied, that is a finding to queue,
-  **not** licence to widen `firestore.rules`. The unattended run could script this but not run
-  it: writing to production Firestore is blocked for a session with nobody present to approve it.
+- **RS-6b — PARTIALLY DONE 2026-09-04; the write half is still open.** Same sitting: `/shelter/dogs`
+  loaded and listed all **19** SF SPCA dogs for the staff account and the add-a-dog form renders
+  and accepts input, so the staff *read* path over `dogs` works. The session filled the form and
+  deliberately stopped rather than write a real animal into the production roster unasked. Three
+  checks remain, all needing a signed-in human, all one sitting with RS-8 and RS-12's signed-in
+  half: (1) submit the form with the photo field blank — expect the dog in foster-side Discovery
+  with a paw tile, **not** a placedog photo; (2) retire it — expect it to leave Discovery and stay
+  readable by id; (3) from the console, `updateDoc` that dog with a different `shelter_id` and
+  expect `permission-denied`. **Write down what happened.** A denial in (1) or (2) is a finding to
+  queue, never licence to widen `firestore.rules`.
 
-- **RS-6b — PARTIALLY DONE 2026-09-04; the write half is still open.** In the same signed-in
-  sitting as RS-5b: `/shelter/dogs` loaded and listed all **19** SF SPCA dogs for the staff
-  account, and the add-a-dog form renders and accepts input — so the staff *read* path over
-  `dogs` works. **Not exercised, and still needing a human:** actually submitting the form
-  (a real write to the live `dogs` collection that fosters would see in Discovery), retiring a
-  dog, and the console `updateDoc` test that a different `shelter_id` is refused. The session
-  deliberately filled the form and stopped rather than write a real animal into the production
-  roster without being asked to. The three checks below are what remains.
-
-- **RS-6b (remaining) — the `dogs` write rule, signed in.**
-  Do it in the same sitting as RS-5b and RS-8; it is the same sign-in. Open
-  `https://pawthway-hackathon.web.app/shelter/dogs` as the uid in `shelters/sfspca-mission` and
-  (1) add a dog with the photo field blank — it should appear in foster-side Discovery with the
-  SF SPCA card and a paw tile, not a placedog photo; (2) retire it — it should leave Discovery
-  and stay readable by id; (3) from the console, try `updateDoc` on that dog with a different
-  `shelter_id` and confirm `permission-denied`. **Write down what happened.** A denial anywhere
-  in (1) or (2) is a finding to queue, never licence to widen `firestore.rules`.
 
 - **RS-8 — PARKED 2026-08-31, not pending. Confirm RS-2's `staff` and `notStaff`
   states on the deployed app.** Both need a real Google popup sign-in, which no
@@ -320,11 +322,11 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status as of 2026-08-31: re-checked this run, still no evidence this
-conversation has happened —
-no commit, no doc edit from Sharang, no note anywhere in the repo. Re-checked,
-not carried over. Recorded so a future run doesn't mistake the passage of time
-for progress.)*
+*(Status as of 2026-09-04: re-checked this run — `git log --all` and a grep across `docs/`
+turn up no commit, no doc edit from Sharang and no note anywhere in the repo saying this has
+happened. Re-checked, not carried over. Recorded so a future run doesn't mistake the passage of
+time for progress. It is worth saying plainly now that M3 is finished: the shelter side is
+complete enough that this is the only thing standing between it and a real user.)*
 
 ## Ledger
 
@@ -385,42 +387,23 @@ supersedes the [2026-08-30 one](archive/real-data-and-shelters-ledger-2026-08-30
   when there is no application. **Unverified, honestly:** the two-party signed-in path needs a real
   shelter account and a real `applications` row, and neither exists (RS-5b). Full row in the
   [2026-09-03 archive](archive/real-data-and-shelters-2026-09-03.md).
-- 2026-09-03 — RS-11 `[large]` — PR #__ — **The application round trip closes in both directions.**
-  The foster now reads `application.status`: `approvalDecision()` collapses five statuses to the
-  three that are news plus `null`, and `approvalBadge()` layers that over each surface's own
-  checklist-derived badge (Match tracks shelter-owned steps, Saved tracks the whole list — they
-  keep disagreeing on purpose, and the decision wins on both). A declined application replaces the
-  checklist and the scheduler on both surfaces with what happened and one way forward. Withdrawing
-  from `SavedView` now calls `setApplicationStatus(id, "withdrawn")` before the local clear,
-  best-effort inside a `catch` — **no rules change**; PH-16's foster branch already permitted
-  exactly that field.
-  **The load-bearing edit was the signature**, as the queue item predicted: `activeApplication()`
-  is now `(foster, status)` with the second argument **required**, not optional. An optional one
-  would have let `DogDetailView` and `SavedView` disagree about whether a declined foster is still
-  blocked, which is the one bug this item exists to prevent — so both call sites gained a
-  `useApplication(foster?.matchedDogId)` keyed to the *matched* dog rather than the dog on screen.
-  Two things the spec didn't specify, decided here: `withdrawn` releases the block as well as
-  `declined` (an application the foster ended is no more live than one the shelter ended), and a
-  declined foster gets **no** button that clears `matchedDogId` — applying elsewhere overwrites it,
-  and the design section forbids moving them, so "Browse other dogs" just navigates.
-  13 new unit tests over the four statuses, absence, and the declined-with-matchedDogId-intact case.
-  **Unverified, honestly:** exactly what RS-10's row said, for the same reason — the two-party
-  signed-in path needs a real shelter account and a real `applications` row, and neither exists
-  (RS-5b). Nothing here was exercised against a live document; the pure layer and the call-site
-  wiring are what the tests cover.
-- 2026-09-03 — RS-11 (follow-up) — PR #__ — **The two RS-11 screens a walkthrough can't reach are
-  now rendered in a test.** Driving the app end to end (guest → onboarding → apply → shelter ticks →
-  pickup → Care Plan, in `LOCAL_MODE` against the committed roster) exercises exactly **one** of the
-  four statuses — absence — because `status` only ever arrives from Firestore and a guest journey has
-  no application document. It did confirm two things off the queue item: absence renders as
-  "⏳ Waiting on shelter review" rather than a decline, and withdraw still works with no application
-  row (`matchedDogId` cleared, no console error). `MatchView.test.tsx` covers the rest with
-  `renderToStaticMarkup` and three mocked hooks — **no jsdom, no new dependency**, following
-  `lib/markdown.test.tsx`. Six cases; the two that matter are a declined application removing the
-  scheduler and the Care Plan hand-off, and an `approved` status leaving `🔒 Schedule pickup` locked.
-  **Both were negative-controlled** — neutering `approvalDecision`'s declined branch fails exactly
-  the two declined cases, and letting `approved` unlock the scheduler fails exactly that one — so
-  they are not passing vacuously. Still unverified: the two-party signed-in path (RS-5b).
+- 2026-09-03 — RS-11 `[large]` — PR #58 — **The application round trip closes in both
+  directions.** `approvalDecision()` collapses five statuses to the three that are news plus
+  `null`, `approvalBadge()` layers that over each surface's own checklist-derived badge, and
+  withdrawing from `SavedView` writes `status: "withdrawn"` best-effort inside a `catch` before
+  the local clear — **no rules change**; PH-16's foster branch already permitted that field.
+  The load-bearing edit was the signature: `activeApplication()` is now `(foster, status)` with
+  the second argument **required**, so `DogDetailView` and `SavedView` cannot disagree about
+  whether a declined foster is still blocked. Two calls beyond the spec: `withdrawn` releases
+  the block as well as `declined`, and a declined foster gets no button that clears
+  `matchedDogId`. 13 unit tests. Full row in the
+  [2026-09-04 archive](archive/real-data-and-shelters-2026-09-04.md).
+- 2026-09-03 — RS-11 (follow-up) — PR #59 — **The two RS-11 screens a walkthrough can't reach
+  are now rendered in a test.** Driving the app end to end in `LOCAL_MODE` exercises exactly
+  one of the four statuses — absence — because `status` only ever arrives from Firestore and a
+  guest journey has no application document. `MatchView.test.tsx` covers the rest with
+  `renderToStaticMarkup` and three mocked hooks (**no jsdom, no new dependency**), six cases,
+  and the two that matter were **negative-controlled**. Full row in the archive above.
 - 2026-09-04 — RS-5b — no PR (a production fixture write + a signed-in check) — **The staff
   branch of `applications`'s read rule serves the list query.** Three fixtures seeded, all three
   render at `/shelter`, and both staff write paths succeed. This was the question RS-5 shipped
