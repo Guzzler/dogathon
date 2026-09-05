@@ -1,14 +1,17 @@
 import { useMemo, useState } from "react";
 import { useMyShelters } from "../../hooks/useStaffShelters";
 import { useShelterDogs } from "../../hooks/useShelterDogs";
-import { addShelterDog, relistDog, retireDog } from "../../lib/shelterRoster";
+import { addShelterDog, applyRosterAction } from "../../lib/shelterRoster";
 import { normalizeDog, dogPhotoOrNull } from "../../lib/dog";
 import {
   DOG_STATUS_LABELS,
   EMPTY_DOG_FORM,
-  rosterAction,
+  ROSTER_ACTION_LABELS,
+  groupRoster,
+  rosterActions,
   validateDogForm,
   type DogFormValues,
+  type RosterAction,
   type TriState,
 } from "../../lib/shelterDog";
 import type { Dog, DogSize } from "../../types";
@@ -22,6 +25,10 @@ import type { Dog, DogSize } from "../../types";
  * `shelter_id` is never typed: it comes from the shelter this staff member actually belongs
  * to. `firestore.rules` refuses anything else besides, but the form shouldn't offer a field
  * whose only use would be to attempt that.
+ *
+ * RS-12 added the group above both: a dog a foster handed back adoption-ready, with the
+ * profile the agent wrote for it rendered in full. That profile *is* the notification --
+ * there is no email and no Slack message -- so this is the only place a human ever reads it.
  */
 export function ShelterRosterView() {
   const shelters = useMyShelters();
@@ -31,8 +38,7 @@ export function ShelterRosterView() {
   const [adding, setAdding] = useState(false);
 
   const dogs = result.state === "ready" ? result.dogs : [];
-  const listed = dogs.filter((d) => d.status === "available");
-  const rest = dogs.filter((d) => d.status !== "available");
+  const { back, listed, rest } = groupRoster(dogs);
 
   return (
     <div className="screen shelter__home">
@@ -40,7 +46,11 @@ export function ShelterRosterView() {
         <h1>Our dogs</h1>
         <p className="muted">
           {active ? active.name : "No shelter"}
-          {result.state === "ready" ? ` · ${listed.length} listed, ${rest.length} not listed` : ""}
+          {result.state === "ready"
+            ? ` · ${listed.length} listed, ${rest.length} not listed${
+                back.length ? `, ${back.length} back from foster` : ""
+              }`
+            : ""}
         </p>
         {shelters.length > 1 && (
           <div className="shelter__switch">
@@ -97,6 +107,24 @@ export function ShelterRosterView() {
             </div>
           )}
 
+          {/* First, above everything: a dog waiting on a person. Rendered only when there is
+              one -- a permanent empty section is a section staff learn to scroll past. */}
+          {back.length > 0 && (
+            <section>
+              <h2 className="shelter__section">Back from foster</h2>
+              <p className="muted shelter__section-sub">
+                Their foster wrote this up and handed them back adoption-ready.
+              </p>
+              <ul className="shelter__list shelter__list--wide">
+                {back.map((dog) => (
+                  <li key={dog.id}>
+                    <ReturnedDog dog={dog} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {listed.length > 0 && (
             <section>
               <h2 className="shelter__section">Listed</h2>
@@ -127,26 +155,104 @@ function DogRows({ dogs }: { dogs: Dog[] }) {
   );
 }
 
-function DogRow({ dog }: { dog: Dog }) {
-  const rich = useMemo(() => normalizeDog(dog), [dog]);
-  const photo = dogPhotoOrNull(rich, 200, 200);
+/**
+ * One `applyRosterAction` call plus the two bits of state every roster button needs. The live
+ * subscription puts the row back the way the database has it, so a failure only has to say
+ * that the write didn't land.
+ */
+function useRosterWrite(dogId: string) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-  const action = rosterAction(dog.status);
 
-  async function run(work: () => Promise<void>) {
+  async function run(action: RosterAction) {
     setBusy(true);
     setFailed(false);
     try {
-      await work();
+      await applyRosterAction(dogId, action);
     } catch {
-      // The live subscription puts the row back the way the database has it; all this needs
-      // to say is that the write didn't land.
       setFailed(true);
     } finally {
       setBusy(false);
     }
   }
+  return { busy, failed, run };
+}
+
+function ActionButtons({
+  actions,
+  busy,
+  run,
+}: {
+  actions: RosterAction[];
+  busy: boolean;
+  run: (action: RosterAction) => void;
+}) {
+  return (
+    <>
+      {actions.map((action) => (
+        <button
+          key={action}
+          type="button"
+          className={`btn${action === "list" ? "" : " outline"}`}
+          disabled={busy}
+          onClick={() => run(action)}
+        >
+          {ROSTER_ACTION_LABELS[action]}
+        </button>
+      ))}
+    </>
+  );
+}
+
+/**
+ * The RS-12 card. The profile is rendered in full, never truncated to a pill: it is prose the
+ * agent wrote for a human to read, and a shelter reading it is the whole notification. A dog
+ * that came back without one says so rather than rendering an empty card.
+ */
+function ReturnedDog({ dog }: { dog: Dog }) {
+  const rich = useMemo(() => normalizeDog(dog), [dog]);
+  const photo = dogPhotoOrNull(rich, 400, 400);
+  const { busy, failed, run } = useRosterWrite(dog.id);
+
+  return (
+    <article className="shelter__returned">
+      <div className="shelter__returned-head">
+        {photo ? (
+          <div className="shelter__dog-photo" style={{ backgroundImage: `url(${photo})` }} />
+        ) : (
+          <div className="shelter__dog-photo is-empty" aria-hidden="true">
+            🐾
+          </div>
+        )}
+        <div className="shelter__dog-main">
+          <strong>{dog.name}</strong>
+          <span className="muted">
+            {dog.breed} · {rich.ageLabel}
+          </span>
+          <span className="shelter__pill shelter__pill--back">{DOG_STATUS_LABELS[dog.status]}</span>
+        </div>
+      </div>
+
+      {dog.adoption_profile ? (
+        <p className="shelter__profile">{dog.adoption_profile}</p>
+      ) : (
+        <p className="muted shelter__profile">
+          No write-up came back with them &mdash; they were marked ready without one.
+        </p>
+      )}
+
+      {failed && <p className="shelter__failed">That didn&rsquo;t save. Try again.</p>}
+      <div className="shelter__actions">
+        <ActionButtons actions={rosterActions(dog.status)} busy={busy} run={run} />
+      </div>
+    </article>
+  );
+}
+
+function DogRow({ dog }: { dog: Dog }) {
+  const rich = useMemo(() => normalizeDog(dog), [dog]);
+  const photo = dogPhotoOrNull(rich, 200, 200);
+  const { busy, failed, run } = useRosterWrite(dog.id);
 
   return (
     <div className="shelter__dog">
@@ -167,16 +273,7 @@ function DogRow({ dog }: { dog: Dog }) {
         <span className="shelter__pill shelter__pill--dog">{DOG_STATUS_LABELS[dog.status]}</span>
         {failed && <span className="shelter__failed">That didn&rsquo;t save. Try again.</span>}
       </div>
-      {action === "retire" && (
-        <button type="button" className="btn outline" disabled={busy} onClick={() => run(() => retireDog(dog.id))}>
-          Retire
-        </button>
-      )}
-      {action === "relist" && (
-        <button type="button" className="btn outline" disabled={busy} onClick={() => run(() => relistDog(dog.id))}>
-          List again
-        </button>
-      )}
+      <ActionButtons actions={rosterActions(dog.status)} busy={busy} run={run} />
     </div>
   );
 }

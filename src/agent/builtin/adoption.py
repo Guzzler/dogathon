@@ -41,9 +41,11 @@ def generate_adoption_profile(foster_id: str = "") -> dict:
 def send_adoption_profile_to_shelter(foster_id: str = "", dog_id: str = "", profile_text: str = "") -> dict:
     """Send the finished adoption profile back to the shelter: saves it on
     the dog's record, marks the dog ready for adoption, and closes out the
-    foster's journey. If a Gmail or Slack tool is available, also use it to
-    notify the shelter's contact with the profile text -- otherwise this
-    status update alone is the notification.
+    foster's journey. The shelter's own roster shows a `ready_for_adoption`
+    dog in its "Back from foster" group with this profile rendered in full,
+    so the write itself is how the shelter is notified. If a Gmail or Slack
+    tool is available, also use it to reach their contact with the profile
+    text -- that is an extra channel, not the notification.
 
     Args:
         foster_id: The foster's id. Leave this out -- it defaults to the
@@ -63,4 +65,17 @@ def send_adoption_profile_to_shelter(foster_id: str = "", dog_id: str = "", prof
     foster_ref = db().collection("fosters").document(foster_id)
     foster_ref.set({"phase": "complete", "readyForAdoption": True}, merge=True)
 
-    return {"dog_id": dog_id, "status": "ready_for_adoption", "notified_shelter": arcade_tools.available()}
+    # `notified_shelter` used to be `arcade_tools.available()` -- honest at the time (PR #19
+    # removed a hardcoded True) but it was reporting a *capability*, not a delivery, and in
+    # production it is always False because nobody has configured an ARCADE_API_KEY. Since
+    # RS-12 the shelter's roster renders `adoption_profile` for exactly this status, so the
+    # Firestore write above is a real notification to a surface a shelter demonstrably reads.
+    # The two claims are reported separately rather than collapsed: this one is true because
+    # the write landed, and the Arcade one stays a capability probe under its own name.
+    return {
+        "dog_id": dog_id,
+        "status": "ready_for_adoption",
+        "notified_shelter": True,
+        "notified_via": "shelter_roster",
+        "arcade_messaging_available": arcade_tools.available(),
+    }

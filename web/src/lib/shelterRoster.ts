@@ -1,6 +1,13 @@
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { firestore } from "../firebase";
-import { dogFromForm, dogIdFor, retiredStatus, type DogFormValues } from "./shelterDog";
+import {
+  ROSTER_ACTION_STATUS,
+  dogFromForm,
+  dogIdFor,
+  retiredStatus,
+  type DogFormValues,
+  type RosterAction,
+} from "./shelterDog";
 import type { DogStatus } from "../types";
 
 /**
@@ -42,3 +49,11 @@ export async function setDogStatus(dogId: string, status: DogStatus): Promise<vo
 
 export const retireDog = (dogId: string) => setDogStatus(dogId, retiredStatus);
 export const relistDog = (dogId: string) => setDogStatus(dogId, "available");
+
+/**
+ * The one entry point the roster's buttons use. Every action is a status-only write on a dog
+ * the staff member's shelter already owns, which `firestore.rules` (RS-6) already permits:
+ * `shelter_id` is untouched, so the pinned-id check passes without any rules change.
+ */
+export const applyRosterAction = (dogId: string, action: RosterAction) =>
+  setDogStatus(dogId, ROSTER_ACTION_STATUS[action]);

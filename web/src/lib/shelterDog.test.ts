@@ -4,12 +4,16 @@ import {
   MANUAL_SOURCE,
   dogFromForm,
   dogIdFor,
+  ROSTER_ACTION_STATUS,
+  groupRoster,
   isHttpsUrl,
-  rosterAction,
+  rosterActions,
+  rosterGroup,
   validateDogForm,
   type DogFormValues,
 } from "./shelterDog";
 import { dogPhotoOrNull, normalizeDog } from "./dog";
+import type { DogStatus } from "../types";
 
 const NOW = "2026-09-01T00:00:00.000Z";
 
@@ -130,15 +134,62 @@ describe("dogIdFor", () => {
   });
 });
 
-describe("rosterAction", () => {
+describe("rosterActions", () => {
   it("offers retire for anything still on the roster and relist for a retired dog", () => {
-    expect(rosterAction("available")).toBe("retire");
-    expect(rosterAction("foster")).toBe("retire");
-    expect(rosterAction("medical_hold")).toBe("retire");
-    expect(rosterAction("retired")).toBe("relist");
+    expect(rosterActions("available")).toEqual(["retire"]);
+    expect(rosterActions("foster")).toEqual(["retire"]);
+    expect(rosterActions("medical_hold")).toEqual(["retire"]);
+    expect(rosterActions("retired")).toEqual(["relist"]);
   });
 
   it("offers nothing for an adopted dog -- that is not a checkbox to reopen", () => {
-    expect(rosterAction("adopted")).toBeNull();
+    expect(rosterActions("adopted")).toEqual([]);
+  });
+
+  // RS-12: the whole point. A dog handed back adoption-ready used to fall through to the
+  // catch-all and be offered `Retire`, which says something the shelter doesn't mean.
+  it("offers a returned dog the two honest moves, and never retire", () => {
+    expect(rosterActions("ready_for_adoption")).toEqual(["list", "adopted"]);
+    expect(rosterActions("ready_for_adoption")).not.toContain("retire");
+  });
+
+  it("covers every DogStatus, and every action lands on a real status", () => {
+    const all: DogStatus[] = ["available", "foster", "medical_hold", "adopted", "ready_for_adoption", "retired"];
+    for (const status of all) {
+      const actions = rosterActions(status);
+      expect(Array.isArray(actions)).toBe(true);
+      for (const action of actions) expect(ROSTER_ACTION_STATUS[action]).toBeTruthy();
+    }
+    expect(ROSTER_ACTION_STATUS.list).toBe("available");
+    expect(ROSTER_ACTION_STATUS.adopted).toBe("adopted");
+  });
+});
+
+describe("rosterGroup / groupRoster", () => {
+  it("puts a returned dog in its own group rather than the catch-all", () => {
+    expect(rosterGroup("ready_for_adoption")).toBe("back");
+    expect(rosterGroup("available")).toBe("listed");
+    expect(rosterGroup("foster")).toBe("rest");
+    expect(rosterGroup("medical_hold")).toBe("rest");
+    expect(rosterGroup("adopted")).toBe("rest");
+    expect(rosterGroup("retired")).toBe("rest");
+  });
+
+  it("splits a roster in one pass and keeps each group's order", () => {
+    const roster = [
+      { id: "a", status: "available" as DogStatus },
+      { id: "b", status: "ready_for_adoption" as DogStatus },
+      { id: "c", status: "retired" as DogStatus },
+      { id: "d", status: "ready_for_adoption" as DogStatus },
+      { id: "e", status: "available" as DogStatus },
+    ];
+    const groups = groupRoster(roster);
+    expect(groups.back.map((d) => d.id)).toEqual(["b", "d"]);
+    expect(groups.listed.map((d) => d.id)).toEqual(["a", "e"]);
+    expect(groups.rest.map((d) => d.id)).toEqual(["c"]);
+  });
+
+  it("returns all three groups for an empty roster, so the view never reads undefined", () => {
+    expect(groupRoster([])).toEqual({ back: [], listed: [], rest: [] });
   });
 });
