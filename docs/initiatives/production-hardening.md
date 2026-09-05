@@ -78,7 +78,7 @@ is the failure that has no floor.
 and not a hedge: `--max-instances` is still 1 on `main`, and PH-13 (a human's) is
 what raises both numbers together.
 
-## The notification that doesn't notify — honest, still not capable (PH-1)
+## The notification that doesn't notify — DISCHARGED 2026-09-05 by RS-12 (PH-1)
 
 `src/agent/builtin/adoption.py:66` returns
 `"notified_shelter": arcade_tools.available()` instead of a hardcoded `True`
@@ -106,6 +106,18 @@ because the write landed somewhere a shelter demonstrably reads.
 That is deliberate: the fix is a shelter surface, it belongs in the doc that owns the
 shelter side, and duplicating it here would refill the queue the 2026-08-31 re-rank
 exists to keep empty.
+
+**2026-09-05 — RS-12 shipped, and this is closed.** `adoption_profile` renders in full in
+`ShelterRosterView`'s new **Back from foster** group, and `notified_shelter` is `True`
+because that Firestore write landed on a surface RS-5b proved a staff account reads —
+with `notified_via: "shelter_roster"` naming which surface and Arcade demoted to
+`arcade_messaging_available` under its own name, so no single field conflates a capability
+with a delivery. `server.py`'s system prompt moved with it: the branch telling the model to
+say "no one was notified automatically" would never have fired again, and would have been
+the wrong thing to say if it had. **Nothing signed-in was verified** — that half is RS-12b
+in `real-data-and-shelters.md`. This section is kept rather than deleted because the
+2026-08-24 → 2026-09-05 arc (hardcoded `True` → honest capability probe → true for a stated
+reason) is the whole point of the item. Full account in RS-12's ledger row there.
 
 ## Account deletion and export — shipped, and deletion now reaches everything
 
@@ -200,8 +212,8 @@ is the single errand that discharges both.
 **Still empty on 2026-09-01, and deliberately so.** This doc is now third of three, the
 two above it hold four open items including the repo's only `[large]` one (RS-6), and
 this is the doc whose refills produced the treadmill the 2026-08-31 re-rank exists to
-stop. Nothing here is broken for anyone: the notification gap (PH-1) is honest and
-gated on M3, and everything else outstanding is a verification errand parked below.
+stop. Nothing here is broken for anyone: the notification gap (PH-1) is **closed as of
+2026-09-05** by RS-12, and everything else outstanding is a verification errand parked below.
 Refilling this queue would take the next execute run away from the shelter surface
 again, which is the one mistake this loop has already made twice. Take from here when
 `real-data-and-shelters.md` and `design-consistency.md` have nothing open.

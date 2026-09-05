@@ -156,7 +156,7 @@ export function dogFromForm(v: DogFormValues, shelterId: string, now: string): O
   return dog;
 }
 
-/** Retiring and un-retiring are the only status moves this surface offers. */
+/** Retiring and un-retiring are the only status moves the *listed* half of this surface offers. */
 export const isListed = (status: DogStatus): boolean => status === "available";
 export const retiredStatus: DogStatus = "retired";
 
@@ -170,12 +170,63 @@ export const DOG_STATUS_LABELS: Record<DogStatus, string> = {
 };
 
 /**
- * Retiring is offered for anything still on the roster; un-retiring only for a dog this
- * surface retired. A dog the *agent* moved to `adopted` or `ready_for_adoption` is not
- * something a checkbox here should quietly reopen.
+ * The status moves the roster offers, as a list because one status wants two of them.
+ *
+ * `ready_for_adoption` is the dog the agent handed back at the end of a foster journey
+ * (`send_adoption_profile_to_shelter`). Until RS-12 it fell through to `retire`, which is the
+ * wrong verb entirely: retiring says "stop listing this for a reason of our own", while a dog
+ * a foster just returned adoption-ready is waiting on a person to do one of two honest things.
  */
-export function rosterAction(status: DogStatus): "retire" | "relist" | null {
-  if (status === "retired") return "relist";
-  if (status === "adopted") return null;
-  return "retire";
+export type RosterAction = "retire" | "relist" | "list" | "adopted";
+
+/** Where each action moves the dog. Every target is already a `DogStatus`; nothing new. */
+export const ROSTER_ACTION_STATUS: Record<RosterAction, DogStatus> = {
+  retire: "retired",
+  relist: "available",
+  list: "available",
+  adopted: "adopted",
+};
+
+export const ROSTER_ACTION_LABELS: Record<RosterAction, string> = {
+  retire: "Retire",
+  relist: "List again",
+  list: "List for adoption",
+  adopted: "Mark adopted",
+};
+
+/**
+ * Retiring is offered for anything still on the roster; un-retiring only for a dog this
+ * surface retired; `adopted` is terminal and offers nothing -- that is not a checkbox to
+ * quietly reopen.
+ */
+export function rosterActions(status: DogStatus): RosterAction[] {
+  if (status === "ready_for_adoption") return ["list", "adopted"];
+  if (status === "retired") return ["relist"];
+  if (status === "adopted") return [];
+  return ["retire"];
+}
+
+/**
+ * Which of the roster's three sections a dog belongs in.
+ *
+ * `back` is rendered first and deliberately: `ready_for_adoption` is an arrival, not a resting
+ * state -- a dog waiting on a person, which the old flat available/not-available split could
+ * not express at all. It sat in the catch-all bucket with a status pill and a Retire button.
+ */
+export type RosterGroup = "back" | "listed" | "rest";
+
+export function rosterGroup(status: DogStatus): RosterGroup {
+  if (status === "ready_for_adoption") return "back";
+  if (status === "available") return "listed";
+  return "rest";
+}
+
+/**
+ * One pass over the roster instead of three inline `filter` calls in the view, so the
+ * grouping is decided somewhere a test can reach it without a Firebase config.
+ */
+export function groupRoster<T extends { status: DogStatus }>(dogs: T[]): Record<RosterGroup, T[]> {
+  const groups: Record<RosterGroup, T[]> = { back: [], listed: [], rest: [] };
+  for (const dog of dogs) groups[rosterGroup(dog.status)].push(dog);
+  return groups;
 }

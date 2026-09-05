@@ -802,6 +802,25 @@ input,textarea,select{font-family:inherit}
 .shelter__dog-main strong{font-size:15px;flex-basis:100%}
 .shelter__dog-main .shelter__failed{flex-basis:100%}
 .shelter__pill--dog{background:var(--cream-2);color:var(--ink-3)}
+
+/* ---------- back from foster (RS-12) ----------
+   A dog handed back adoption-ready is an arrival, not a row: it wants a person to act, and
+   it carries a paragraph the agent wrote for a human to read. So it gets a card rather than
+   the compact roster row, with the write-up at reading width and full length -- truncating
+   the one artifact of the whole foster journey would be its own kind of lie. */
+.shelter__section-sub{margin:-6px 0 10px;font-size:13.5px}
+.shelter__list--wide{grid-template-columns:1fr !important}
+.shelter__returned{
+  display:flex;flex-direction:column;gap:12px;width:100%;box-sizing:border-box;
+  padding:16px;border-radius:var(--r-md);background:var(--card);
+  border:1px solid var(--sage);box-shadow:var(--shadow);
+}
+.shelter__returned-head{display:flex;align-items:center;gap:12px}
+.shelter__pill--back{background:var(--sage-soft);color:var(--sage)}
+.shelter__profile{
+  margin:0;font-size:14.5px;line-height:1.55;color:var(--ink-2);
+  white-space:pre-wrap;max-width:64ch;
+}
 .shelter__form{
   display:flex;flex-direction:column;gap:12px;width:100%;
   padding:18px;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line);
