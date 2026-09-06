@@ -142,8 +142,13 @@ touched the token surface.
   `origin/main...HEAD` diff" — DC-6 shipped the fix that makes that diff
   actually resolve (fetch-depth 0, verified from a real Actions run per its
   ledger row), so this is now buildable against a working diff.
-- **DC-5 `[large]` (2026-08-26; marked large 2026-08-31) — let the foster side
-  breathe on a wide screen. A complete execute run.** It touches CSS across several
+- **DC-5 `[large]` (2026-08-26; marked large 2026-08-31; the repo's top `[large]`
+  item as of 2026-09-05) — let the foster side breathe on a wide screen. A
+  complete execute run.** It has been the only `[large]` item in the repo more
+  than once and has lost every time to something in the top doc. That doc has now
+  run out of buildable work — M3 is finished and M5 is gated on a conversation
+  that hasn't happened — so **this is next**, and the README records why the slot
+  moved down a doc rather than the ranking changing. It touches CSS across several
   files and three breakpoints, which is exactly the shape that kept losing to
   single-file items under the old ordering. The
   direct consequence of the device-agnostic decision recorded above. Today
@@ -160,10 +165,40 @@ touched the token surface.
     in a 430px column on a 27" monitor). `MatchChatView` should be checked
     but is probably fine narrow; a chat column that stretches to 1400px is
     worse, not better.
-  - The bottom `.tabbar` is a phone pattern. Decide deliberately whether it
-    becomes a side rail above some breakpoint or simply stays — either is
-    defensible, but say which in the ledger row and do it once, not
-    per-screen.
+  - **The bottom `.tabbar` stays a bottom bar. Answered 2026-09-05 — don't
+    re-open it, build it.** The item used to leave this to whoever picked it up
+    ("either is defensible"); reading `Layout.tsx` and `lib/foster.ts` against
+    `main` makes one of them clearly wrong, so the decision is recorded here
+    instead of deferred into a ledger row. Three grounded reasons:
+    1. **It isn't global navigation, so a rail would lie about it.**
+       `journeyTabs(phase)` returns **two to four** entries depending on the
+       foster's phase — `discovery` and `match` get two, `care_plan` four,
+       `complete` two — plus the account tab. A side rail is a fixed column of
+       persistent destinations; this is a progress indicator that changes shape
+       as the journey moves. A bar whose item count varies reads as a step
+       tracker; a rail whose item count varies reads as a bug.
+    2. **`FULL_BLEED` hides it on five route patterns** (`/welcome`,
+       `/onboarding`, `/dog/`, `/adoption/`, `/match/chat`). A bottom bar that
+       disappears gives its height back and nothing else moves. A side rail that
+       disappears reflows the *horizontal* axis, so every full-bleed screen would
+       need a second layout — five screens of new work, inside an item that is
+       explicitly not a redesign.
+    3. **It would change what everything else is measured against.** `.tabbar` is
+       a flex child of `.phone`; making it a rail means `.phone` becomes
+       `flex-direction:row` above a breakpoint, which moves the containing block
+       for the fixed-position overlays that currently pin themselves to the same
+       430px.
+    So: keep it at the bottom, and when the frame widens let the bar's inner row
+    **cap at the content column's width and centre**, rather than stretching five
+    thumb-sized cells across 1400px. One rule, done once.
+  - **A second 430px hardcode the scope note above misses:** `.sharesheet`
+    (`theme.css:549`) is `position:fixed` with its own `max-width:430px` and auto
+    margins, deliberately (the comment says centring can't use `translateX`
+    because motion animates `transform`). It is not inside `.phone`'s flow, so
+    widening the frame will not widen it — it will strand a 430px sheet under a
+    wider app. Move it with the frame in the same PR, or state in the ledger row
+    that it stays 430 on purpose. `grep -rn 430 web/src/` finds every site: two
+    live rules and three comments.
   - This will touch CSS across several files. It used to be described here as
     the "real test of DC-1's guard" — **it isn't, and must not be treated as
     one** (updated 2026-08-28): the guard doesn't run at all until DC-6 lands,

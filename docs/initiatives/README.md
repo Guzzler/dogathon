@@ -145,6 +145,22 @@ rather than re-derived.
   RS-12. So the generalisation gains a second half: **read the queue first, and when it is
   genuinely empty of big work, re-read the notes that were gated on something that has since
   shipped.** A parked item whose gate opened is the cheapest place a `[large]` one hides.
+- **2026-09-05 — the slot left the top doc, and the ranking did not change with it.**
+  RS-12 shipped and `real-data-and-shelters.md` was left holding one small item (RS-4). Both
+  fallbacks were tried and both came back empty: re-reading the queue found nothing big
+  unlabelled, and re-reading the gated notes found nothing whose gate had opened. The reason
+  is structural rather than an oversight — **M3 is finished** (three surfaces, both round
+  trips, a real staff account verified against it), and **M5 is explicitly gated on one real
+  shelter using the admin surface**, which is gated on Sharang's conversation. So the repo's
+  only `[large]` item is **DC-5**, in the *second*-priority doc, which is precisely the
+  arrangement the 2026-09-01 note called "not what this README asks for". It is the right
+  answer anyway, and the distinction matters: **the top doc has run out of buildable work, not
+  out of work.** Re-ranking would be wrong — the moment a shelter says yes, real-data goes
+  straight back to the top with M5 and a second source behind it. Promoting DC-5 to execute's
+  next run is a routing decision for one run, not a re-rank. The generalisation worth keeping:
+  when the top doc's remaining work is gated on a human rather than on code, take the
+  `[large]` item from the next doc down and **say so**, rather than inventing one to keep the
+  slot inside the top doc.
 - **`production-hardening.md`'s queue is empty and was deliberately left empty.** It
   is the lowest-priority doc, the two above it hold four open items including the
   `[large]` one, and PH is the doc whose refills produced the treadmill the re-rank
@@ -206,7 +222,10 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **Thirteen archives exist as of
+snapshot) rather than let it grow unbounded. **Fifteen archives exist as of
+2026-09-05** (the newest, `real-data-and-shelters-2026-09-05.md`, took RS-12's design section
+the run after it shipped — the 2026-09-02 rule applied on schedule for once, and it brought the
+doc from 394 back to 374 before that run's own additions). Previously **thirteen as of
 2026-09-04** — that run archived from *two* docs in one PR, which is a first.
 `production-hardening-ledger-2026-09-04.md` took PH-14/15/16's three rows, 55 lines of entirely
 load-bearing text, after this run's own PH-1 edits carried that doc to 410; it came back to 372.
