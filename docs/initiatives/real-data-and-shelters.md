@@ -122,42 +122,22 @@ tellings and the ledger rows are the shorter. Full text, verbatim, in the
 its rejected alternatives remain in the
 [RS-10 archive](archive/real-data-and-shelters-rs10-2026-09-02.md).
 
-## Settled 2026-09-04 — "notify the shelter" means the dashboard, and PH-1's gate is now open
+## Settled — "notify the shelter" means the dashboard (2026-09-04, shipped 2026-09-05)
 
-`production-hardening.md` has carried PH-1 — *the tool that claims to notify a shelter and
-doesn't* — since 2026-08-24, deliberately unqueued with the note that a real notification path
-is **downstream of M3**, because "a shelter with an account and an application list is the
-thing worth notifying." M3's three surfaces have all shipped (RS-2, RS-5, RS-6) and RS-5b
-proved on 2026-09-04 that a real staff account reads the inbox and writes back to it. **The
-gate is open.** So the question this run answers is what the notification actually is.
-
-**It is not email, and it is not Arcade.** `send_adoption_profile_to_shelter` still returns
-`"notified_shelter": arcade_tools.available()`, which is honest (PR #19) and will stay `false`
-in production until someone configures an `ARCADE_API_KEY` that nobody has asked for. Wiring
-Gmail or Slack would mean choosing an address for an organization Pawthway has no relationship
-with — the conversation this doc keeps saying is Sharang's to have, not a PR's. A shelter that
-signs in to `/shelter` has already told us where it reads.
-
-**So the notification is a surface, not a message: the dog comes back on the shelter's own
-roster, with the profile attached.** Three consequences the build must not soften:
-
-- **The profile has to be rendered, or the tool is still lying.** `adoption_profile` is written
-  by the Admin SDK and read by nothing. The foster's Post Foster phase is the app's most
-  expensive turn (Opus, by `model_for_surface`) and its entire output currently reaches no
-  human but the foster who watched it stream.
-- **`ready_for_adoption` is an arrival, not a resting state.** It belongs in its own group at
-  the *top* of `ShelterRosterView`, above `available` — a dog waiting on a person, which is what
-  the Applications inbox is for and what the roster's flat available/rest split cannot express.
-- **The shelter needs a truthful action, and `retire` is not it.** Retiring says "stop listing
-  this for a reason of our own"; a dog whose foster handed it back adoption-ready wants
-  **List for adoption** (→ `available`, back into Discovery) or **Mark adopted** (→ `adopted`,
-  terminal, which `rosterAction` already refuses to reopen). Both already exist in `DogStatus`;
-  neither is offered.
-
-`notified_shelter` then stops being a capability probe and becomes true because the write
-landed somewhere a shelter demonstrably reads — which is the claim PH-1 was created to stop the
-app from making falsely. That is RS-12, and PH-1 is discharged by it rather than by anything in
-`production-hardening.md`.
+PH-1 had said since 2026-08-24 that a real notification path was *downstream of M3*; M3
+finished while nobody re-read that sentence. The answer, once someone did: **the
+notification is a surface, not a message.** Not email and not Arcade — wiring either would
+mean choosing an address for an organization Pawthway has no relationship with, which is
+the conversation this doc keeps saying is Sharang's to have. A shelter that signs in to
+`/shelter` has already told us where it reads. So the dog comes back **on the shelter's own
+roster, with the agent's profile rendered in full**, `ready_for_adoption` is an arrival that
+sits above `available` rather than a resting state, and the offered action is **List for
+adoption** / **Mark adopted** rather than the untruthful `retire`. `notified_shelter` is
+then true because a write landed somewhere a shelter demonstrably reads (RS-5b), not
+because a capability exists. Shipped as RS-12 (PR #63), which discharges PH-1. Full text of
+the specification, verbatim, in the
+[2026-09-05 design archive](archive/real-data-and-shelters-2026-09-05.md); what the build
+found that the spec hadn't is RS-12's ledger row.
 
 ## Task queue
 
@@ -195,13 +175,30 @@ taken by the M4 drift check, which is unrelated and independent of these.)
   RS-12 below — the first time in four runs that re-reading the queue did *not* produce one
   (see the README's 2026-09-04 note).
 
-- **RS-12 `[large]` — shipped 2026-09-05 (PR #__); the Ledger row is the full account.** The
-  spec above it — the settled "notify the shelter means the dashboard" section — is now a
-  description of shipped code, so per the README's 2026-09-02 rule the next run to touch this
-  doc should compress it to a pointer. **PH-1 is discharged by this**, not by anything in
-  `production-hardening.md`. One thing the spec hadn't named: `rosterAction` had to become
-  plural, because a returned dog wants two moves and the singular signature couldn't say so.
-  The signed-in half is RS-12b under "Needs a human".
+- **RS-12 `[large]` — shipped 2026-09-05 (PR #63); the Ledger row is the full account.** Its
+  spec was compressed to a pointer on 2026-09-05, the same run that backfilled this number.
+  **PH-1 is discharged by this**, not by anything in `production-hardening.md`. One thing the
+  spec hadn't named: `rosterAction` had to become plural, because a returned dog wants two
+  moves and the singular signature couldn't say so. The signed-in half is RS-12b under
+  "Needs a human".
+
+- **This queue holds no `[large]` item, and that is a finding rather than a gap (2026-09-05).**
+  The README asks for one at the top of the highest-priority doc at all times, and for four
+  runs the answer was found by re-reading this queue rather than inventing. This run it was
+  not, and re-reading the gated notes — the 2026-09-04 fallback — did not produce one either,
+  because the gates that are still shut are shut on a person, not on code:
+  - **M3 is finished.** Its three surfaces (RS-2, RS-5, RS-6) and both round trips (RS-10,
+    RS-11) shipped, RS-5b proved a real staff account reads and writes the inbox, and RS-12
+    closed the last claim the app was making falsely.
+  - **M5 is gated on demonstrated need** — "don't build it until M3 has one real shelter using
+    the admin surface" — and M3 has none, because the conversation below has not happened.
+  - **RS-4 is small by construction**, and inflating a workflow trigger into a run would be
+    dishonest about its size.
+  - So the repo's `[large]` slot is **DC-5 in `design-consistency.md`**, the second-priority
+    doc, for the first time since the 2026-08-31 re-rank. That is recorded in the README as a
+    consequence of the ranking's premise expiring, not as a re-rank — this doc goes back to the
+    top the moment a shelter says yes, and the honest reading is that the top doc has run out
+    of buildable work before it has run out of *work*.
 
 - **RS-4 (2026-08-26) — the weekly drift check.** The M4 bullet above *is* the
   spec; the archive carries the full reasoning. Add a weekly `schedule:` trigger
@@ -308,11 +305,14 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status as of 2026-09-04: re-checked this run — `git log --all` and a grep across `docs/`
+*(Status as of 2026-09-05: re-checked this run — `git log --all` and a grep across `docs/`
 turn up no commit, no doc edit from Sharang and no note anywhere in the repo saying this has
 happened. Re-checked, not carried over. Recorded so a future run doesn't mistake the passage of
 time for progress. It is worth saying plainly now that M3 is finished: the shelter side is
-complete enough that this is the only thing standing between it and a real user.)*
+complete enough that this is the only thing standing between it and a real user. **As of
+2026-09-05 that has a second consequence** — it is also the only thing standing between this
+doc and its next `[large]` item, per the queue note above. The loop cannot route around it,
+and should stop looking for a way to.)*
 
 ## Ledger
 
@@ -357,7 +357,7 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   of `applications`'s read rule serves the list query.** Three fixtures seeded, all three render at
   `/shelter`, both staff write paths succeed. It could not be answered against an empty collection
   because Firestore evaluates a list rule per candidate document.
-- 2026-09-05 — RS-12 `[large]` — PR #__ — **the dog comes back, and the shelter sees it — which is
+- 2026-09-05 — RS-12 `[large]` — PR #63 — **the dog comes back, and the shelter sees it — which is
   what "notify the shelter" now means.** `adoption_profile` had been written by the agent since the
   first Post Foster turn and read by **nothing**: `grep -rn adoption_profile web/` found only the
   `types.ts` declaration. The app's most expensive turn (Opus, by `model_for_surface`) produced a
