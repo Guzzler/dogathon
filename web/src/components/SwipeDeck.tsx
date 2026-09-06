@@ -54,8 +54,8 @@ export default function SwipeDeck({ dogs, me, scoreOf, onLike, onPass, onUndo, o
   }
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-      <div style={{ flex: 1, minHeight: 0, position: "relative", margin: "4px 20px 0" }}>
+    <div className="deck">
+      <div className="deck__stack">
         {next && <CardShell key={next.id} dog={next} me={me} score={scoreOf(next)} behind />}
         <SwipeCard key={top.id} dog={top} me={me} score={scoreOf(top)} flick={flick}
           onSwipe={advance} onOpen={() => onOpen(top.id)} />

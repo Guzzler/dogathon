@@ -18,6 +18,12 @@
   --r-sm:12px; --r-md:18px; --r-lg:26px; --r-xl:34px;
   --font:'Nunito',system-ui,-apple-system,sans-serif;
   --display:'Fraunces',Georgia,serif;
+  /* The foster frame and the readable column inside it. Equal while the app is a
+     phone; the wide-screen block at the bottom of this file is the only place they
+     diverge, so every 430px that used to be hardcoded now moves from one spot. */
+  --frame-w:430px;
+  --content-w:430px;
+  --gutter:24px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%}
@@ -33,7 +39,7 @@ body{
   height:100dvh;width:100%;display:flex;align-items:center;justify-content:center;
 }
 .phone{
-  position:relative;width:100%;max-width:430px;height:100dvh;max-height:100dvh;
+  position:relative;width:100%;max-width:var(--frame-w);height:100dvh;max-height:100dvh;
   background:var(--cream);overflow:hidden;display:flex;flex-direction:column;
 }
 @media (min-width:640px){
@@ -143,6 +149,13 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 }
 .me-dot{width:16px;height:16px;border-radius:50%;background:#3B82F6;border:3px solid #fff;box-shadow:0 0 0 6px rgba(59,130,246,.22)}
 
+/* ---------- swipe deck ---------- */
+.deck{flex:1;min-height:0;display:flex;flex-direction:column}
+.deck__stack{flex:1;min-height:0;position:relative;margin:4px 20px 0}
+
+/* A list of cards: one column at phone width, more when the frame allows it. */
+.cardgrid{display:grid;grid-template-columns:1fr}
+
 /* ---------- misc ---------- */
 .row{display:flex;align-items:center;gap:10px}
 .sp{flex:1}
@@ -241,6 +254,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
   padding:7px 6px max(7px,env(safe-area-inset-bottom));
   background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line);
 }
+.tabbar__row{display:flex;align-items:stretch;gap:2px;flex:1;min-width:0}
 .tabbar__link{
   flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 2px;
   border-radius:14px;text-decoration:none;color:var(--ink-3);transition:color .18s,background .18s;
@@ -546,7 +560,10 @@ input,textarea,select{font-family:inherit}
 
 .sharesheet{
   /* motion animates `transform`, so centring can't use translateX — auto margins instead */
-  position:fixed;left:0;right:0;margin:0 auto;bottom:0;width:100%;max-width:430px;z-index:901;
+  /* It follows the frame rather than staying pinned at 430, but a share sheet stops
+     being a sheet somewhere around 500px wide, so it stops there. */
+  position:fixed;left:0;right:0;margin:0 auto;bottom:0;width:100%;
+  max-width:min(var(--frame-w),480px);z-index:901;
   /* a tall sheet on a short screen scrolls rather than running off the top */
   max-height:88vh;overflow-y:auto;
   background:#fff;border-radius:28px 28px 0 0;
@@ -838,3 +855,49 @@ input,textarea,select{font-family:inherit}
   border-color:var(--coral);
 }
 .shelter__error{color:var(--coral-dk);font-size:12px;font-weight:700}
+
+/* ---------- wide screens (DC-5) ----------
+   The foster journey is a phone app first and stays one: this widens the frame it
+   sits in and lets the two screens that actually suffer from a 430px cap use the
+   room. It is not a desktop redesign -- every rule below is a max-width or a
+   gutter, and none of them change the narrow composition.
+
+   Two deliberate non-changes, both argued in docs/initiatives/design-consistency.md:
+   the tab bar stays a bottom bar (journeyTabs() returns 2-4 entries depending on
+   phase, so it is a step tracker, not global navigation -- a rail whose item count
+   varies reads as a bug), and the swipe card stays card-sized. Only its inner row
+   caps and centres, so five thumb-sized cells don't stretch across 1400px.
+
+   These rules must stay at the bottom of this file: they override .pad/.topbar/.tabs
+   by source order, not by specificity. */
+@media (min-width:1024px){
+  :root{--frame-w:760px;--content-w:560px}
+}
+@media (min-width:1440px){
+  :root{--frame-w:960px;--content-w:620px}
+}
+@media (min-width:1024px){
+  /* Centre the reading column with padding rather than a wrapper element, so no
+     screen's markup has to know it is on a wide viewport. At phone width the
+     calc() resolves to 0 and max() keeps the 24px gutter, which is why these can
+     share one rule with the narrow case. */
+  .topbar,.pad,.tabs{
+    padding-left:max(var(--gutter),calc((100% - var(--content-w)) / 2));
+    padding-right:max(var(--gutter),calc((100% - var(--content-w)) / 2));
+  }
+  /* The older .pw-page screens keep their own padding and just stop stretching. */
+  .phone-body .pw-page{max-width:var(--content-w);width:100%;margin-inline:auto}
+
+  .tabbar__row{max-width:var(--content-w);margin-inline:auto}
+
+  /* A swipe card that fills 960px is a worse swipe card, so the stack caps and
+     centres. The map behind the same toggle is the opposite case -- it is flex:1
+     inside .screen and gets the whole widened frame, which is the point. */
+  /* width:100% is load-bearing, not belt-and-braces: auto inline margins on a
+     column-flex child cancel the cross-axis stretch, so max-width alone left the
+     stack shrink-to-fit -- measured at 31px before this line was added. */
+  .deck__stack{width:100%;max-width:min(var(--content-w),440px);margin-inline:auto}
+
+  /* The one list long enough to earn a second column. */
+  .cardgrid{grid-template-columns:1fr 1fr;column-gap:14px}
+}
