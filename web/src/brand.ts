@@ -21,27 +21,10 @@ export interface AppTheme {
   };
 }
 
-export const sidekickTheme: AppTheme = {
-  name: "Sidekick",
-  tagline: "your rescue-ops sidekick.",
-  logo: {
-    horizontal: "/brand/logo-horizontal.png",
-    mark: "/brand/mark.png",
-    favicon: "/brand/favicon.png",
-  },
-  palette: {
-    evergreen: "#2D5A3D",
-    copper: "#C4955A",
-    cream: "#F6F1E9",
-    ink: "#173526",
-    muted: "#726A5E",
-    panel: "#FFFCF6",
-    border: "#DED5C6",
-    danger: "#A84034",
-    success: "#2F7A4B",
-  },
-};
-
+/* There is exactly one theme, and it is pawthwayTheme below. An unused second one
+   (sidekickTheme, from before the project was called Pawthway) used to sit here with a
+   full matching shape, which is precisely the trap DC-2 names: two theme objects, one
+   wired in, nothing saying which. Removed 2026-09-05. */
 export const pawthwayTheme: AppTheme = {
   name: "Pawthway",
   tagline: "the guided path from foster to forever.",

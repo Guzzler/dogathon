@@ -28,6 +28,9 @@ export function Layout() {
         </div>
         {!hideTabs && (
           <nav className="tabbar">
+            {/* The bar spans the frame; this row is what caps and centres on a wide
+                screen, so the cells stay thumb-sized instead of stretching. */}
+            <div className="tabbar__row">
             {tabs.map(t => (
               <NavLink key={t.to} to={t.to} end={t.end}
                 className={({ isActive }) => `tabbar__link ${isActive ? "is-active" : ""}`}>
@@ -40,6 +43,7 @@ export function Layout() {
             ))}
             {/* Not a journey step — identity lives alongside it, opening a sheet. */}
             <AccountTab session={session} />
+            </div>
           </nav>
         )}
       </div>

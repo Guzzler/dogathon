@@ -59,7 +59,9 @@ export function SavedView() {
                   cta={{ label: "Find dogs", to: "/discovery" }} />
               : (<>
                   {active && activeDog && <BlockedNotice dogName={activeDog.name} phase={active.phase} />}
-                  {saved.map((d, i) => <SavedCard key={d.id} d={d} i={i} blocked={!!active} />)}
+                  <div className="cardgrid">
+                    {saved.map((d, i) => <SavedCard key={d.id} d={d} i={i} blocked={!!active} />)}
+                  </div>
                 </>)
           ) : (
             !matched

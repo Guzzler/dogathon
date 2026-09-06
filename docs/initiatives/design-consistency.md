@@ -69,22 +69,12 @@ touched the token surface.
 
 ## Task queue
 
-- **DC-2 — do this as a RIDER, not as a run (2026-08-24; re-verified open a
-  *fourth* time on 2026-08-31 — `grep -rn sidekickTheme web/src/` still returns
-  exactly one line, `brand.ts:24`, its own `export`).** Confirming this a fifth
-  time would be the treadmill the README's re-rank exists to stop. It is the
-  oldest open item across all three docs and a one-line change, and the reason it
-  never ships is structural: execute works queues top-down and takes whole runs,
-  so a one-line item either eats a run it doesn't deserve or loses forever. So the
-  instruction changes rather than the item: **fold DC-2 into the first PR that
-  touches `web/src/brand.ts` or any DC item**, in the same commit, with its own
-  ledger row. Do not open a PR for it alone. Remove `sidekickTheme` from `brand.ts`, or if
-  there's a reason to keep it (a rollback reference, a second-brand plan
-  nobody's written down) turn it into a one-line comment explaining why an
-  unused theme object is still there, so it stops looking like a
-  live option. Trivial, but it's the exact shape of thing that causes a
-  PR-#11-style mistake: two theme objects, one wired in, no marker saying
-  which.
+- **DC-2 — shipped 2026-09-05 (PR #__), as a rider on DC-5 exactly as this entry
+  instructed.** `sidekickTheme` is gone from `web/src/brand.ts`, replaced by a four-line
+  comment saying there is one theme and naming the trap, so the file still records why an
+  unused theme object was ever there. The rider convention worked on its first use: a
+  one-line item that had lost five runs in a row shipped without costing one.
+
 - **DC-3 — CLOSED 2026-08-28. The guard is inert, and worry (1) is what did
   it.** Not a queue item any more; the fix is DC-6 below. The observation
   DC-3 was waiting for arrived on 2026-08-27, when PRs #27, #28 and #29 all
@@ -142,71 +132,14 @@ touched the token surface.
   `origin/main...HEAD` diff" — DC-6 shipped the fix that makes that diff
   actually resolve (fetch-depth 0, verified from a real Actions run per its
   ledger row), so this is now buildable against a working diff.
-- **DC-5 `[large]` (2026-08-26; marked large 2026-08-31; the repo's top `[large]`
-  item as of 2026-09-05) — let the foster side breathe on a wide screen. A
-  complete execute run.** It has been the only `[large]` item in the repo more
-  than once and has lost every time to something in the top doc. That doc has now
-  run out of buildable work — M3 is finished and M5 is gated on a conversation
-  that hasn't happened — so **this is next**, and the README records why the slot
-  moved down a doc rather than the ranking changing. It touches CSS across several
-  files and three breakpoints, which is exactly the shape that kept losing to
-  single-file items under the old ordering. The
-  direct consequence of the device-agnostic decision recorded above. Today
-  `.phone` is `max-width:430px` at every viewport, so a 1440px browser shows
-  a 430px column on a gradient. Make the foster journey responsive **without
-  redesigning it phone-second**: the narrow composition is the one that
-  works and the one most fosters will use, so this is about the frame and
-  the screens that visibly suffer from the cap, not a rebuild.
-  - Scope the frame first: `.shell`/`.phone` in `theme.css`, and the
-    `min-width:640px` block that currently makes it a floating phone.
-    Keep the phone presentation as the small/medium case.
-  - Then only the screens where the cap actually costs something — the
-    discovery grid and `SavedView` are the obvious two (a list of dog cards
-    in a 430px column on a 27" monitor). `MatchChatView` should be checked
-    but is probably fine narrow; a chat column that stretches to 1400px is
-    worse, not better.
-  - **The bottom `.tabbar` stays a bottom bar. Answered 2026-09-05 — don't
-    re-open it, build it.** The item used to leave this to whoever picked it up
-    ("either is defensible"); reading `Layout.tsx` and `lib/foster.ts` against
-    `main` makes one of them clearly wrong, so the decision is recorded here
-    instead of deferred into a ledger row. Three grounded reasons:
-    1. **It isn't global navigation, so a rail would lie about it.**
-       `journeyTabs(phase)` returns **two to four** entries depending on the
-       foster's phase — `discovery` and `match` get two, `care_plan` four,
-       `complete` two — plus the account tab. A side rail is a fixed column of
-       persistent destinations; this is a progress indicator that changes shape
-       as the journey moves. A bar whose item count varies reads as a step
-       tracker; a rail whose item count varies reads as a bug.
-    2. **`FULL_BLEED` hides it on five route patterns** (`/welcome`,
-       `/onboarding`, `/dog/`, `/adoption/`, `/match/chat`). A bottom bar that
-       disappears gives its height back and nothing else moves. A side rail that
-       disappears reflows the *horizontal* axis, so every full-bleed screen would
-       need a second layout — five screens of new work, inside an item that is
-       explicitly not a redesign.
-    3. **It would change what everything else is measured against.** `.tabbar` is
-       a flex child of `.phone`; making it a rail means `.phone` becomes
-       `flex-direction:row` above a breakpoint, which moves the containing block
-       for the fixed-position overlays that currently pin themselves to the same
-       430px.
-    So: keep it at the bottom, and when the frame widens let the bar's inner row
-    **cap at the content column's width and centre**, rather than stretching five
-    thumb-sized cells across 1400px. One rule, done once.
-  - **A second 430px hardcode the scope note above misses:** `.sharesheet`
-    (`theme.css:549`) is `position:fixed` with its own `max-width:430px` and auto
-    margins, deliberately (the comment says centring can't use `translateX`
-    because motion animates `transform`). It is not inside `.phone`'s flow, so
-    widening the frame will not widen it — it will strand a 430px sheet under a
-    wider app. Move it with the frame in the same PR, or state in the ledger row
-    that it stays 430 on purpose. `grep -rn 430 web/src/` finds every site: two
-    live rules and three comments.
-  - This will touch CSS across several files. It used to be described here as
-    the "real test of DC-1's guard" — **it isn't, and must not be treated as
-    one** (updated 2026-08-28): the guard doesn't run at all until DC-6 lands,
-    so a green CI on this item proves nothing about color literals. Use
-    tokens because it's the rule, not because CI will catch you.
-  - Verify at 390px, 768px, 1440px: no horizontal scroll, no orphaned
-    controls, the tab bar (or its replacement) reachable at all three, and
-    `npm run build`/`test`/`lint` green.
+- **DC-5 `[large]` — shipped 2026-09-05 (PR #__); the Ledger row is the full account.**
+  The frame widens, the tab bar stays a bottom bar and caps its inner row, and the two
+  screens that suffered from the cap use the room. The spec's own scope note was wrong
+  about one thing and the ledger row says how.
+  **Consequence for plan, recorded rather than acted on:** this was the repo's only
+  `[large]` item, so there is now none in any of the three docs. DC-4 (below) is the only
+  thing left open here, and it is small. The README's 2026-09-05 note still reads as if
+  DC-5 were pending — it needs re-dating, not re-deciding.
 
 ## What's parked
 
@@ -271,3 +204,36 @@ queued work.
   "Add a dog" mid-page in a column; it was caught in preview and removed.
   Verified by injecting the exact rules over the live deployed page and measuring, not by eye.
 
+- 2026-09-05 — DC-5 (with DC-2 as its rider) — PR #__ — **The foster journey stops being a
+  430px column on a 27" monitor.** Three new `:root` tokens — `--frame-w`, `--content-w`,
+  `--gutter` — carry the widths that were hardcoded, so `.phone` and `.sharesheet` both move
+  from one place; at `min-width:1024px` the frame goes to 760/560 and at 1440px to 960/620.
+  The reading column is centred with **padding, not a wrapper**: `.topbar`, `.pad` and `.tabs`
+  take `padding-inline: max(var(--gutter), calc((100% - var(--content-w)) / 2))`, which
+  resolves to exactly the old 24px at phone width, so one rule serves both cases and no
+  screen's markup learns it is on a wide viewport. `.pw-page` (Hub, Post Foster, the older
+  phase views) just stops stretching. `SavedView`'s list is now a `.cardgrid` that goes two-up;
+  `SwipeDeck`'s stack caps at 440px and centres, because a swipe card that fills 960px is a
+  worse swipe card, while the map behind the same toggle deliberately takes the whole widened
+  frame. The tab bar keeps its decided shape — a new `.tabbar__row` wrapper caps and centres so
+  five thumb-sized cells don't stretch across 1400px.
+  **Three things the spec did not know.**
+  (1) There is **no "discovery grid"**; Discovery is a swipe deck and a map, so the second
+  column landed in `SavedView` alone — the one list long enough to earn it.
+  (2) `.sharesheet` does **not** stay 430 and does not follow the frame either: it is
+  `max-width:min(var(--frame-w),480px)`, because a sheet stops reading as a sheet somewhere
+  around 500px. The spec offered "move it or say it stays" and the honest answer was neither.
+  (3) A real bug, caught by measuring rather than by eye: `margin-inline:auto` on a
+  **column**-flex child cancels the cross-axis stretch, so `.deck__stack` collapsed to
+  **31px** at 1024px+ with `max-width` alone. `width:100%` is what fixes it and there is a
+  comment on the line saying so.
+  Verified by serving the built stylesheet against a harness of the real class structure in
+  four iframes (a media query evaluates against an iframe's own viewport, which is what made
+  this measurable at all in a session that cannot start a dev server) and reading computed
+  boxes at **390 / 768 / 1024 / 1440**: frame 390→390, 768→430, 1024→760, 1440→960; `.pad`'s
+  left padding 24 / 24 / 99 / 169; the grid one column then `273px 273px` then `303px 303px`;
+  the deck stack 302 / 340 / 440 / 440, centred at every width; **no horizontal scroll at any
+  of the four**. The narrow half was diffed against a baseline build of `main`: frame, gutter
+  and sheet are byte-identical at 390 and 768, which is the claim that mattered — this widens
+  the frame, it does not redesign the phone. `build` / `test` (98) / `lint` green, with the
+  same 9 pre-existing warnings and no new ones.
