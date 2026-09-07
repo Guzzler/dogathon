@@ -22,7 +22,6 @@ import { useSession } from "./hooks/useSession";
 import { useFoster } from "./hooks/useFoster";
 import { StaffShelterProvider, useStaffShelters } from "./hooks/useStaffShelters";
 import { hasOnboarded, journeyHome } from "./lib/foster";
-import "./App.css";
 import "./pawthway.css";
 import "./theme.css";
 

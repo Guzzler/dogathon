@@ -1,3 +1,12 @@
+/* theme.css — the LAST stylesheet loaded, and therefore the canonical one.
+   `App.tsx` imports `pawthway.css` then this file; anything defined in both resolves
+   here. Two orderings are load-bearing and neither is enforced by specificity:
+     1. `pawthway.css` before this file, so its `.btn` base layer can be overridden by
+        `.screen .btn` / `.phone-body .btn--ghost` / `.sharesheet .btn` / `.shelter .btn`.
+     2. Within this file, `.shelter .btn` must stay BELOW `.screen .btn` — equal
+        specificity, so source order is the only thing deciding it (PR #60).
+   Reordering the imports in App.tsx, or moving the shelter block, changes live screens
+   silently. CI prints a notice when the import order in App.tsx changes. */
 :root{
   --cream:#FFF7F1;
   --cream-2:#FDEFE4;
@@ -24,6 +33,12 @@
   --frame-w:430px;
   --content-w:430px;
   --gutter:24px;
+  /* The `.btn` base layer lives in pawthway.css (DC-7) and cannot hold colour literals
+     there -- CI's design-token guard exempts this file and brand.ts, and nothing else.
+     These are the exact values that rule carried in App.css, moved, not changed. */
+  --btn-primary-shadow:0 8px 20px rgba(45,90,61,.2);
+  --btn-ghost-bg:rgba(246,241,233,.08);
+  --btn-ghost-line:rgba(246,241,233,.2);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%}
@@ -282,6 +297,10 @@ input,textarea,select{font-family:inherit}
   position:relative;display:flex;flex-direction:column;
   background:#fff;border-radius:var(--r-lg);box-shadow:var(--shadow);
   overflow:hidden;
+  /* Inherited from App.css's `.chat` until DC-7 deleted that file: a flex child's
+     default `min-width:auto` refuses to shrink below its content, so without this the
+     Match chat screen could push the frame wider than the phone. */
+  min-width:0;
 }
 /* Owns the whole screen: the thread is the only scroller, so nothing chains and
    nothing runs under the tab bar. */

@@ -1,3 +1,67 @@
+/* pawthway.css — the SECOND of two stylesheets, and the order is load-bearing.
+   `App.tsx` imports `pawthway.css` then `theme.css`; `main.tsx` imports `index.css`
+   (element reset only). theme.css is canonical for tokens and for every screen built
+   since; this file holds the `.pw-*` views (Hub, Post Foster, the public adoption
+   page) plus the `.btn` base layer below. Anything here that theme.css also defines
+   loses, by source order alone — see the header comment in theme.css. */
+
+/* ---------- .btn base layer ----------
+   Moved here from `App.css` when that file was deleted (DC-7, 2026-09-06): it was 627
+   lines of the pre-Pawthway agent scaffold, of which only these rules were still live.
+   They are the BASE layer — `theme.css`'s `.screen .btn`, `.phone-body .btn--ghost`,
+   `.sharesheet .btn` and `.shelter .btn` are all written to override them, so they must
+   keep loading BEFORE theme.css. That is why they live here and not there: a bare `.btn`
+   sitting in theme.css alongside `.screen .btn` is the equal-specificity collision PR #60
+   already paid for once. */
+
+.btn {
+  /* Some .btn callers are <Link>s, which are inline — vertical padding on an inline box
+     overflows its line and collides with the text above it. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.52;
+  cursor: default;
+}
+
+.btn--primary {
+  background: var(--color-evergreen);
+  color: var(--color-cream);
+  box-shadow: var(--btn-primary-shadow);
+}
+
+.btn--ghost {
+  background: var(--btn-ghost-bg);
+  color: var(--color-cream);
+  border: 1px solid var(--btn-ghost-line);
+}
+
+/* The `.pw-page` views (Hub, Post Foster, the adoption page) render outside `.screen`,
+   so their buttons never pick up `.screen .btn`'s own `width:100%` — this is the rule
+   that makes them full-width on a phone. Kept verbatim from App.css:618. */
+@media (max-width: 520px) {
+  .btn {
+    width: 100%;
+  }
+}
+
 .pw-app {
   --radius-sm: 6px;
   --radius-md: 10px;
