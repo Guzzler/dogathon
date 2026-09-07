@@ -80,6 +80,33 @@ jobs:
             exit 1
           fi
 
+      # The two stylesheets resolve several live rules by source order alone, not by
+      # specificity -- the `.btn` base layer in pawthway.css under theme.css's
+      # `.screen .btn`, and `.chat` after App.css was deleted (DC-7). Reordering the
+      # imports in App.tsx therefore repaints screens silently, which is the same shape
+      # of near-miss as PR #11. This NOTICES, it never fails: reordering may well be
+      # deliberate, and this doc's goal is that it be visible in review.
+      - name: Stylesheet order notice
+        run: |
+          set -euo pipefail
+          diff=$(git diff origin/main...HEAD -- web/src/App.tsx)
+          moved=$(echo "$diff" | grep -E '^[+-]import "\./[A-Za-z0-9_-]+\.css";' || true)
+          if [ -n "$moved" ]; then
+            echo "::warning file=web/src/App.tsx::This PR changes the CSS import order in App.tsx. Several live rules resolve by source order, not specificity -- see the header comments in web/src/theme.css and web/src/pawthway.css."
+            {
+              echo "### Stylesheet import order changed"
+              echo
+              echo "\`web/src/App.tsx\` no longer imports its stylesheets in the same order."
+              echo "\`pawthway.css\` must load **before** \`theme.css\`: it holds the \`.btn\` base"
+              echo "layer that \`.screen .btn\`, \`.phone-body .btn--ghost\`, \`.sharesheet .btn\` and"
+              echo "\`.shelter .btn\` are all written to override at equal or higher specificity."
+              echo
+              echo '```diff'
+              echo "$moved"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   backend:
     runs-on: ubuntu-latest
     permissions:

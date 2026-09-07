@@ -67,11 +67,23 @@ touched the token surface.
   chat-like or streaming UI should extend this pattern rather than invent
   a parallel one — it already solved the scroll-pinning and error-taxonomy
   problems once.
+- **Two stylesheets, and the order is load-bearing — since DC-7 (2026-09-06).**
+  `App.tsx` imports `pawthway.css` then `theme.css`; `main.tsx` imports `index.css`. The
+  `.btn` base layer sits at the top of `pawthway.css` precisely so `theme.css`'s
+  `.screen .btn` / `.phone-body .btn--ghost` / `.sharesheet .btn` / `.shelter .btn` can
+  override it at equal-or-higher specificity — putting a bare `.btn` in `theme.css` instead is
+  the collision PR #60 paid for. Both files carry a header comment saying so, and CI prints a
+  **non-failing** notice when a PR changes the import lines in `App.tsx`.
 - **No dark mode anywhere.** Zero `prefers-color-scheme` references in any
   CSS file. Not an oversight to silently fix — just worth knowing before
   proposing token changes that assume one exists.
 
-## Settled — what `App.css` actually is, and what may leave (2026-09-06)
+## Settled — what `App.css` was, and why it is gone (2026-09-06; shipped the same day)
+
+**DC-7 shipped this.** The measurement below is preserved as the reasoning; the outcome is
+that `web/src/App.css` no longer exists, `Sidebar.tsx` and `components/Checklist.tsx` are
+deleted, and the app is two stylesheets (`pawthway.css` then `theme.css`) plus `index.css`'s
+element reset. Both files now open with a header comment naming what depends on the order.
 
 The open question this run answered is one the doc had never asked: **there are three
 stylesheets, they are loaded in a fixed order, and nothing says which of them is live.**
@@ -112,44 +124,11 @@ rather than in violation of it. DC-7 builds it.
 
 ## Task queue
 
-- **DC-7 `[large]` (2026-09-06) — the app is one stylesheet, and reordering it stops being
-  dangerous.** Grounded in the section directly above; read it first, and re-measure rather
-  than trust it. Ship as one PR — the deletions and the guard against them coming back are
-  the same change.
-  - **Delete `web/src/components/Sidebar.tsx` and `web/src/components/Checklist.tsx`.**
-    Confirm nothing imports either (`grep -rn "Sidebar\|components/Checklist" web/src`)
-    *before* deleting, not after; `Checklist.tsx`'s `ChecklistItem` import is a type import
-    from `../types` and is not a reverse dependency.
-  - **Fold the three surviving rules — `.btn`, `.btn--primary`, `.btn--ghost` (plus
-    `.btn:hover:not(:disabled)`, `.btn:disabled`, and the `.btn` block inside `App.css`'s
-    media query at `:624`) — into the top of `web/src/pawthway.css`**, with a comment saying
-    they are the base layer that `theme.css` overrides and must therefore load before it.
-    Then delete `web/src/App.css` entirely and drop its import from `App.tsx:25`. Do **not**
-    move them into `theme.css`: `.screen .btn` and the bare `.btn` in the same file, in that
-    order, is the collision PR #60 already paid for once.
-  - **`min-width:0` is the one property that must survive the deletion.** `App.css`'s `.chat`
-    sets it and `theme.css`'s does not, and the live Match chat screen currently gets it by
-    import order. Add it to `theme.css`'s `.chat` **in the same commit** as the deletion, with
-    a comment naming where it came from. Everything else on `App.css`'s `.chat`/`.chat__scroll`
-    is already overridden or dead — verify that claim by diffing the computed rules, don't
-    assume it.
-  - **Then make the ordering visible instead of tribal.** Add a short header comment to
-    `pawthway.css` and `theme.css` saying which loads first and what depends on it (the `.btn`
-    base layer, and `.shelter .btn` needing to sit below `.screen .btn` *within* `theme.css`),
-    and add a **non-failing** CI notice in `ci.yml`'s `frontend` job, next to the existing
-    Design token guard, that flags a PR reordering the `import "./*.css"` lines in `App.tsx`.
-    If DC-4 has already landed its `$GITHUB_STEP_SUMMARY` step, extend that step rather than
-    adding a third; say which you did in the ledger row.
-  - **Out of scope, deliberately:** `pawthway.css`'s own dead rules, `index.css`, any token
-    or color change, and merging `pawthway.css` into `theme.css`. The `.pw-page` views are
-    still live (Hub, Post Foster, the public adoption page) — this item removes a dead
-    stylesheet, it does not migrate a live one.
-  - **Verify:** `npm run build`, `npm test` (98 green today), `npm run lint` (9 pre-existing
-    warnings — compare against `main` by stashing, as DC-5's row did, and report the number).
-    Then re-run the measurement in the section above against the built CSS and record in the
-    ledger row **how many lines left the repo** and that no `className` in `web/src` now
-    matches zero selectors. Confirm by eye or by computed-box measurement that the Match chat
-    screen, the approval modal and any `.btn--ghost` on a `.pw-page` are unchanged.
+- **DC-7 `[large]` — shipped 2026-09-06 (PR #__); the Ledger row is the full account.**
+  `App.css` is gone, the `.btn` base layer lives at the top of `pawthway.css`, and the two
+  header comments plus a non-failing CI notice say what the load order is doing. The spec was
+  right about all three of its measured claims and wrong about nothing; what it did not
+  anticipate is in the ledger row.
 
 - **DC-2 — shipped 2026-09-05 (PR #65), as a rider on DC-5 exactly as this entry
   instructed.** `sidekickTheme` is gone from `web/src/brand.ts`, replaced by a four-line
@@ -319,3 +298,38 @@ queued work.
   and sheet are byte-identical at 390 and 768, which is the claim that mattered — this widens
   the frame, it does not redesign the phone. `build` / `test` (98) / `lint` green, with the
   same 9 pre-existing warnings and no new ones.
+
+- 2026-09-06 — DC-7 — PR #__ — **The app is one stylesheet fewer, and the order that decides
+  live screens is written down.** `web/src/App.css` (627 lines), `components/Sidebar.tsx` (51)
+  and `components/Checklist.tsx` (31) are deleted — **709 lines out of the repo**, against 78
+  added, and the built stylesheet drops from 94.4kB to 86.2kB. The measurement was re-run
+  rather than trusted and it held: `App.css` had exactly five live classes, not the seven a
+  naive scan reports (`app` and `badge` are JS identifiers inside `className={...}`
+  expressions — `app.id`, `badge.tone` — which is worth knowing before anyone re-measures).
+  `.btn`, `.btn--primary`, `.btn--ghost`, `.btn:hover:not(:disabled)`, `.btn:disabled` and the
+  520px `.btn{width:100%}` rule moved verbatim to the **top of `pawthway.css`**, not into
+  `theme.css`, for the reason the spec gave.
+  **Proof, not eyeballing.** The built CSS was diffed rule-by-rule against a baseline build of
+  `main`: **66 selectors removed, 0 added**, and every removed one is absent from every
+  `className` in `web/src`. Four selectors changed and each is accounted for — `.chat` gained
+  `min-width:0` (the one property `App.css` was silently supplying to the live Match chat) and
+  otherwise resolves to `theme.css`'s rule exactly as it already did; `.chat__scroll` lost a
+  copy that was already being overridden, *including* the `padding:18px` inside `App.css`'s
+  780px media query, which never won because a media query adds no specificity;
+  `.btn--primary`/`.btn--ghost` differ only by `var()` indirection.
+  **The one thing the spec did not anticipate: moving the rules would have failed CI.** The
+  design-token guard flags an *added* line containing `rgba(` in any file but `theme.css` and
+  `brand.ts`, and it cannot tell a move from new drift. Per this doc's standing rule that a
+  guard hit means use a token, the three literals became `--btn-primary-shadow`,
+  `--btn-ghost-bg` and `--btn-ghost-line` in `theme.css`'s `:root`. Values are byte-identical,
+  so this is not the repaint the parked list forbids — but it *is* three new tokens, recorded
+  here rather than buried.
+  **The notice is a third step, not an extension of DC-4's** — DC-4 has not landed, so there
+  was nothing to extend. It greps `App.tsx`'s diff for `import "./*.css"` lines and, on a hit,
+  emits a `::warning::` plus a `$GITHUB_STEP_SUMMARY` block; it never exits non-zero. It fires
+  on this PR, which is correct — this PR removed an import.
+  **What is still dead and deliberately untouched:** `pawthway.css`'s own unused rules, and six
+  `className` literals that match no selector anywhere (`cp-journal`, `cp-timeline`, `cp-tips`,
+  `cp-tip-group`, `cp-feed-item__tag--ask`, `shelter__home`). All six predate this item and sit
+  in files it had no business opening; they are a note for plan, not a bonus fix.
+  `build` / `test` (98) / `lint` green, 9 pre-existing warnings on both this branch and `main`.
