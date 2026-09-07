@@ -182,7 +182,8 @@ taken by the M4 drift check, which is unrelated and independent of these.)
   moves and the singular signature couldn't say so. The signed-in half is RS-12b under
   "Needs a human".
 
-- **This queue holds no `[large]` item, and that is a finding rather than a gap (2026-09-05).**
+- **This queue holds no `[large]` item, and that is a finding rather than a gap (2026-09-05;
+  re-checked and unchanged 2026-09-06).**
   The README asks for one at the top of the highest-priority doc at all times, and for four
   runs the answer was found by re-reading this queue rather than inventing. This run it was
   not, and re-reading the gated notes — the 2026-09-04 fallback — did not produce one either,
@@ -199,6 +200,13 @@ taken by the M4 drift check, which is unrelated and independent of these.)
     consequence of the ranking's premise expiring, not as a re-rank — this doc goes back to the
     top the moment a shelter says yes, and the honest reading is that the top doc has run out
     of buildable work before it has run out of *work*.
+  - **2026-09-06 — DC-5 shipped and the same question was asked again with the same answer.**
+    Both fallbacks were re-run against this doc rather than carried over: re-reading the queue
+    found only RS-4, and re-reading the gated notes found no gate that had opened (RS-12b,
+    RS-6b and RS-8 all still want a signed-in human; M5 still wants a shelter). So the
+    `[large]` slot stays outside this doc for a second consecutive run — and it was found a
+    **third** way, by measuring `web/src/` rather than by reading either the queue or the
+    notes. That is DC-7 in `design-consistency.md`; the README records the new fallback.
 
 - **RS-4 (2026-08-26) — the weekly drift check.** The M4 bullet above *is* the
   spec; the archive carries the full reasoning. Add a weekly `schedule:` trigger
@@ -305,9 +313,10 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status as of 2026-09-05: re-checked this run — `git log --all` and a grep across `docs/`
+*(Status as of 2026-09-06: re-checked this run — `git log --all` and a grep across `docs/`
 turn up no commit, no doc edit from Sharang and no note anywhere in the repo saying this has
-happened. Re-checked, not carried over. Recorded so a future run doesn't mistake the passage of
+happened — `git log --all --since=2026-09-04` is four commits, every one of them this loop's
+own. Re-checked, not carried over. Recorded so a future run doesn't mistake the passage of
 time for progress. It is worth saying plainly now that M3 is finished: the shelter side is
 complete enough that this is the only thing standing between it and a real user. **As of
 2026-09-05 that has a second consequence** — it is also the only thing standing between this
@@ -357,38 +366,17 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   of `applications`'s read rule serves the list query.** Three fixtures seeded, all three render at
   `/shelter`, both staff write paths succeed. It could not be answered against an empty collection
   because Firestore evaluates a list rule per candidate document.
-- 2026-09-05 — RS-12 `[large]` — PR #63 — **the dog comes back, and the shelter sees it — which is
-  what "notify the shelter" now means.** `adoption_profile` had been written by the agent since the
-  first Post Foster turn and read by **nothing**: `grep -rn adoption_profile web/` found only the
-  `types.ts` declaration. The app's most expensive turn (Opus, by `model_for_surface`) produced a
-  paragraph that reached no human but the foster who watched it stream. It now lands in a **Back
-  from foster** group at the *top* of `ShelterRosterView`, rendered in full — `.shelter__profile`
-  has no clamp and the test negative-controls the profile's *last* clause, because truncating the
-  one artifact of a whole foster journey would be its own kind of lie.
-  - **The pure layer moved first, as queued.** `rosterAction` (singular, `"retire" | "relist" |
-    null`) became **`rosterActions` (plural, an array)** — the shape change the item implied but
-    didn't name, because `ready_for_adoption` is the one status wanting *two* moves. With it,
-    `ROSTER_ACTION_STATUS` (action → `DogStatus`, so no view spells a status) and
-    `rosterGroup`/`groupRoster`, replacing three inline `filter` calls. 5 new pure cases, one
-    walking **all six** `DogStatus` values (the item said five; the union has six).
-  - **No rules change, confirmed before writing one.** Both new actions are status-only writes on
-    a dog the staff member's shelter already owns, so RS-6's `update: isStaff(resource.data.shelter_id)
-    && shelter_id unchanged` (`firestore.rules:20-25`) already permits them. `applyRosterAction()`
-    is the single write path; `retireDog`/`relistDog` stay as its named callers.
-  - **The agent's claim is now true for the reason it says.** `notified_shelter` was
-    `arcade_tools.available()` — honest when PR #19 wrote it, but reporting a *capability*, and
-    `False` in production forever because no `ARCADE_API_KEY` exists. It is now `True` **because
-    the Firestore write landed on a surface a shelter demonstrably reads** (RS-5b proved staff
-    read this dashboard), with `notified_via: "shelter_roster"` naming which, and Arcade demoted
-    to `arcade_messaging_available` under its own name rather than collapsed in. The two claims
-    are separate fields, which is the distinction the item asked for rather than the hardcoded
-    `True` PR #19 removed. **`server.py`'s system prompt had to move with it** — it instructed the
-    model to say "no one was notified automatically" when the field was false, which after this
-    change would never fire and, worse, was the wrong thing to say. This discharges **PH-1**.
-  - **Verified:** `npm run build` / `test` / `lint` green (98 tests, 9 lint warnings — the same 9
-    as `main`, checked by stashing); backend imports clean. Five new rendered cases in
-    `ShelterRosterView.test.tsx`, same `renderToStaticMarkup` pattern as RS-11's, covering the
-    ordering, the untruncated profile, the two actions, the missing-profile state, and a roster
-    with no returned dog rendering **no heading at all**. **Not verified, honestly:** nothing
-    signed-in. A `ready_for_adoption` dog is only ever written by the Admin SDK at the end of a
-    completed foster journey, so no unattended run can produce one — that half is RS-12b, below.
+- 2026-09-05 — RS-12 `[large]` — PR #63 — **the dog comes back, and the shelter sees it — which
+  is what "notify the shelter" now means.** `adoption_profile` had been written by the agent
+  since the first Post Foster turn and read by **nothing** — the app's most expensive turn
+  produced a paragraph that reached no human but the foster who watched it stream. It now lands
+  in a **Back from foster** group at the *top* of `ShelterRosterView`, rendered in full with no
+  clamp. `rosterAction` (singular) became **`rosterActions` (plural)**, because
+  `ready_for_adoption` is the one status wanting two moves — the shape change the item implied
+  and didn't name. **No rules change**, confirmed before writing one: both actions are
+  status-only writes on a dog the shelter already owns. `notified_shelter` is now `True`
+  *because the write landed on a surface RS-5b proved staff read*, with `notified_via:
+  "shelter_roster"` and Arcade demoted to `arcade_messaging_available` — two claims, two fields.
+  `server.py`'s system prompt moved with it. This discharges **PH-1**. Nothing signed-in was
+  verified; that half is RS-12b. Full 35-line row verbatim in the
+  [2026-09-06 ledger archive](archive/real-data-and-shelters-ledger-2026-09-06.md).

@@ -35,14 +35,18 @@ touched the token surface.
   before it was Pawthway) — **unused, and a trap**: it's the kind of thing
   a "let's try a new look" pass could get pointed at by mistake since it's
   sitting right next to the real one with a full matching shape.
-- **The mobile-first phone frame — still what's built, no longer the
-  destination.** `.shell > .phone` with a bottom tab bar (`Layout.tsx`),
-  centered and hard-capped at `max-width:430px`, becoming a rounded floating
-  phone over a gradient at `min-width:640px`. Screens that own their full
-  height hide the tab bar (`FULL_BLEED` in `Layout.tsx`). It was built narrow
-  on purpose and the composition is good — but see the decision directly
-  below: it is no longer true that every new screen should be designed at
-  phone width first.
+- **The frame is a token, not a constant — since DC-5 (2026-09-05, PR #65).**
+  `.shell > .phone` with a bottom tab bar (`Layout.tsx`) still centres the
+  journey and still becomes a rounded floating phone over a gradient at
+  `min-width:640px`, but its width now comes from `:root`'s `--frame-w` /
+  `--content-w` / `--gutter` (`theme.css:24-26`), which step to 760/560 at
+  1024px and 960/620 at 1440px (`theme.css:874-891`). **Change a width there,
+  not in a rule.** The reading column is centred by
+  `padding-inline: max(var(--gutter), calc((100% - var(--content-w)) / 2))`, so
+  no screen's markup knows it is on a wide viewport. Screens that own their full
+  height hide the tab bar (`FULL_BLEED` in `Layout.tsx`). The phone composition
+  is still the one that works and the one most fosters will use; it is no longer
+  the only one.
 - **Both sides are device-agnostic (Sharang, 2026-08-26).** Pawthway should be
   a genuinely good phone app *and* a genuinely good web app, on both sides of
   the product. This unparks the `.shell`/`.phone` restructure that the "what's
@@ -67,9 +71,87 @@ touched the token surface.
   CSS file. Not an oversight to silently fix — just worth knowing before
   proposing token changes that assume one exists.
 
+## Settled — what `App.css` actually is, and what may leave (2026-09-06)
+
+The open question this run answered is one the doc had never asked: **there are three
+stylesheets, they are loaded in a fixed order, and nothing says which of them is live.**
+`App.tsx:25-27` imports `App.css`, `pawthway.css`, `theme.css` in that order and
+`main.tsx` imports `index.css` (29 lines of `html`/`body`/`#root` reset — not in scope
+below). `CLAUDE.md` records the order as load-bearing for `.btn`; PR #60's ledger row
+records a second case (`.shelter .btn` beats `.screen .btn` only by sitting lower in
+`theme.css`). Two hazards of the same shape, both discovered by being bitten.
+
+It was measured rather than guessed — every `className` literal and template string in
+`web/src/**/*.tsx` against every selector in each file:
+
+- **`App.css` is 627 lines and three classes of it are live.** `.btn`, `.btn--primary`
+  and `.btn--ghost` — 67, 11 and 16 uses. They are the *base* layer that `theme.css`'s
+  `.screen .btn`, `.phone-body .btn--ghost`, `.sharesheet .btn` and `.shelter .btn` all
+  override, so they are load-bearing and stay.
+- **Everything else in it is the pre-Pawthway scaffold's desktop agent UI**, reachable
+  only through `components/Sidebar.tsx` — which **nothing imports** (`grep -rn "from
+  .*Sidebar"` → zero hits). That covers `.sidebar*`, `.tool-list*`, `.badge*`,
+  `.banner*`, `.brand-lockup*`, `.app`, and the whole dead chat stack (`.bubble*`,
+  `.turn*`, `.tool-card*`, `.chat-header*`, `.modal*`, `.composer*`, `.status-pill*`,
+  `.thinking-block`, `.empty-state*`, `.btn--approve`, `.btn--deny`). The live agent UI
+  uses `theme.css` exclusively: `TurnView` is `.msg*`, `ToolCallCard` is `.activity*`,
+  `ApprovalModal` is `.approve*`.
+- **`components/Checklist.tsx` is dead too** — `MatchView` renders its own local
+  `ChecklistSection`.
+- **Two dead selectors leak into a live surface by name.** `.chat` and `.chat__scroll`
+  are the *only* selectors defined in two files (`App.css:137,233` and
+  `theme.css:281,320`), at identical specificity. `MatchView`/`MatchChatView` render
+  `.chat`, so the live chat screen is currently resolved by import order — and it
+  inherits `min-width:0` from `App.css`, which `theme.css`'s `.chat` does not set. That
+  is the PR #11 failure mode with the two halves reversed: not a repaint nobody reviewed,
+  but a *deletion* that would silently change a live screen.
+
+**The decision: one stylesheet, and the order stops mattering.** Not a repaint — no token,
+no font and no color value changes, which is what keeps this inside the parked list below
+rather than in violation of it. DC-7 builds it.
+
 ## Task queue
 
-- **DC-2 — shipped 2026-09-05 (PR #__), as a rider on DC-5 exactly as this entry
+- **DC-7 `[large]` (2026-09-06) — the app is one stylesheet, and reordering it stops being
+  dangerous.** Grounded in the section directly above; read it first, and re-measure rather
+  than trust it. Ship as one PR — the deletions and the guard against them coming back are
+  the same change.
+  - **Delete `web/src/components/Sidebar.tsx` and `web/src/components/Checklist.tsx`.**
+    Confirm nothing imports either (`grep -rn "Sidebar\|components/Checklist" web/src`)
+    *before* deleting, not after; `Checklist.tsx`'s `ChecklistItem` import is a type import
+    from `../types` and is not a reverse dependency.
+  - **Fold the three surviving rules — `.btn`, `.btn--primary`, `.btn--ghost` (plus
+    `.btn:hover:not(:disabled)`, `.btn:disabled`, and the `.btn` block inside `App.css`'s
+    media query at `:624`) — into the top of `web/src/pawthway.css`**, with a comment saying
+    they are the base layer that `theme.css` overrides and must therefore load before it.
+    Then delete `web/src/App.css` entirely and drop its import from `App.tsx:25`. Do **not**
+    move them into `theme.css`: `.screen .btn` and the bare `.btn` in the same file, in that
+    order, is the collision PR #60 already paid for once.
+  - **`min-width:0` is the one property that must survive the deletion.** `App.css`'s `.chat`
+    sets it and `theme.css`'s does not, and the live Match chat screen currently gets it by
+    import order. Add it to `theme.css`'s `.chat` **in the same commit** as the deletion, with
+    a comment naming where it came from. Everything else on `App.css`'s `.chat`/`.chat__scroll`
+    is already overridden or dead — verify that claim by diffing the computed rules, don't
+    assume it.
+  - **Then make the ordering visible instead of tribal.** Add a short header comment to
+    `pawthway.css` and `theme.css` saying which loads first and what depends on it (the `.btn`
+    base layer, and `.shelter .btn` needing to sit below `.screen .btn` *within* `theme.css`),
+    and add a **non-failing** CI notice in `ci.yml`'s `frontend` job, next to the existing
+    Design token guard, that flags a PR reordering the `import "./*.css"` lines in `App.tsx`.
+    If DC-4 has already landed its `$GITHUB_STEP_SUMMARY` step, extend that step rather than
+    adding a third; say which you did in the ledger row.
+  - **Out of scope, deliberately:** `pawthway.css`'s own dead rules, `index.css`, any token
+    or color change, and merging `pawthway.css` into `theme.css`. The `.pw-page` views are
+    still live (Hub, Post Foster, the public adoption page) — this item removes a dead
+    stylesheet, it does not migrate a live one.
+  - **Verify:** `npm run build`, `npm test` (98 green today), `npm run lint` (9 pre-existing
+    warnings — compare against `main` by stashing, as DC-5's row did, and report the number).
+    Then re-run the measurement in the section above against the built CSS and record in the
+    ledger row **how many lines left the repo** and that no `className` in `web/src` now
+    matches zero selectors. Confirm by eye or by computed-box measurement that the Match chat
+    screen, the approval modal and any `.btn--ghost` on a `.pw-page` are unchanged.
+
+- **DC-2 — shipped 2026-09-05 (PR #65), as a rider on DC-5 exactly as this entry
   instructed.** `sidekickTheme` is gone from `web/src/brand.ts`, replaced by a four-line
   comment saying there is one theme and naming the trap, so the file still records why an
   unused theme object was ever there. The rider convention worked on its first use: a
@@ -132,7 +214,7 @@ touched the token surface.
   `origin/main...HEAD` diff" — DC-6 shipped the fix that makes that diff
   actually resolve (fetch-depth 0, verified from a real Actions run per its
   ledger row), so this is now buildable against a working diff.
-- **DC-5 `[large]` — shipped 2026-09-05 (PR #__); the Ledger row is the full account.**
+- **DC-5 `[large]` — shipped 2026-09-05 (PR #65); the Ledger row is the full account.**
   The frame widens, the tab bar stays a bottom bar and caps its inner row, and the two
   screens that suffered from the cap use the room. The spec's own scope note was wrong
   about one thing and the ledger row says how.
@@ -204,7 +286,7 @@ queued work.
   "Add a dog" mid-page in a column; it was caught in preview and removed.
   Verified by injecting the exact rules over the live deployed page and measuring, not by eye.
 
-- 2026-09-05 — DC-5 (with DC-2 as its rider) — PR #__ — **The foster journey stops being a
+- 2026-09-05 — DC-5 (with DC-2 as its rider) — PR #65 — **The foster journey stops being a
   430px column on a 27" monitor.** Three new `:root` tokens — `--frame-w`, `--content-w`,
   `--gutter` — carry the widths that were hardcoded, so `.phone` and `.sharesheet` both move
   from one place; at `min-width:1024px` the frame goes to 760/560 and at 1440px to 960/620.
