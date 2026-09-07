@@ -65,9 +65,13 @@ Nothing was wrong with any individual item. The ordering was wrong. So:
 2. [`design-consistency.md`](design-consistency.md) — keeping the visual
    language coherent as more surfaces get built, ideally enforced by something
    CI checks rather than something plan has to remember to look for. Promoted
-   above production-hardening because DC-5 (letting the foster side breathe on a
-   wide screen) is real product work on a surface people actually see, and
-   because a live incident (PR #11) is why this doc exists at all.
+   above production-hardening on 2026-08-31 because DC-5 (letting the foster side
+   breathe on a wide screen) was real product work on a surface people actually
+   see, and because a live incident (PR #11) is why this doc exists at all.
+   DC-5 shipped 2026-09-05 (PR #65); the promotion still holds, because the
+   incident that replaced it as this doc's `[large]` item — DC-7, two selectors
+   in two files resolving a live screen by import order — is the same failure
+   mode found a second time, in a different place, in code that ships today.
 3. [`production-hardening.md`](production-hardening.md) — the trust and
    correctness debt: a tool that claims to notify a shelter and doesn't, and the
    verification errands that keep accumulating. Still genuinely valuable, still
@@ -153,14 +157,29 @@ rather than re-derived.
   trips, a real staff account verified against it), and **M5 is explicitly gated on one real
   shelter using the admin surface**, which is gated on Sharang's conversation. So the repo's
   only `[large]` item is **DC-5**, in the *second*-priority doc, which is precisely the
-  arrangement the 2026-09-01 note called "not what this README asks for". It is the right
-  answer anyway, and the distinction matters: **the top doc has run out of buildable work, not
+  arrangement the 2026-09-01 note called "not what this README asks for". *(DC-5 has since
+  shipped — PR #65, 2026-09-05 — and the slot is now DC-7 in the same doc; see the next
+  bullet.)* It is the right answer anyway, and the distinction matters: **the top doc has run out of buildable work, not
   out of work.** Re-ranking would be wrong — the moment a shelter says yes, real-data goes
   straight back to the top with M5 and a second source behind it. Promoting DC-5 to execute's
   next run is a routing decision for one run, not a re-rank. The generalisation worth keeping:
   when the top doc's remaining work is gated on a human rather than on code, take the
   `[large]` item from the next doc down and **say so**, rather than inventing one to keep the
   slot inside the top doc.
+- **2026-09-06 — the slot was found a third way: by measuring, not by reading.** DC-5
+  shipped, which emptied the only `[large]` item in the repo. Both established fallbacks were
+  run against the top doc and both came back empty again — re-reading `real-data-and-shelters.md`'s
+  queue found only RS-4, and re-reading its gated notes found no gate that had opened, for the
+  same structural reason as the day before (M3 finished, M5 waits on a shelter). The item came
+  instead from **measuring the codebase against itself**: every `className` in `web/src/**/*.tsx`
+  against every selector in the three stylesheets. That turned up 627 lines of `App.css` of which
+  three classes are live, two dead components nothing imports, and — the part that made it worth
+  a `[large]` item rather than a cleanup chore — **two selectors defined in two files at
+  identical specificity, resolving a live screen by import order**. So the fallback chain now has
+  three links, in cost order: *read the queue, then re-read the gated notes, then measure*. The
+  third is the most expensive and the only one that can find work nobody has written down yet.
+  DC-7 is the result, and the slot stays in `design-consistency.md` for a second run — which is
+  the 2026-09-05 arrangement continuing, not a new one.
 - **`production-hardening.md`'s queue is empty and was deliberately left empty.** It
   is the lowest-priority doc, the two above it hold four open items including the
   `[large]` one, and PH is the doc whose refills produced the treadmill the re-rank
@@ -222,8 +241,10 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **Fifteen archives exist as of
-2026-09-05** (the newest, `real-data-and-shelters-2026-09-05.md`, took RS-12's design section
+snapshot) rather than let it grow unbounded. **Sixteen archives exist as of 2026-09-06** — the newest,
+`real-data-and-shelters-ledger-2026-09-06.md`, took RS-12's 35-line ledger row on the standing
+instruction below, bringing that doc from 394 to 373 before this run's own additions took it to
+382. Previously **fifteen as of 2026-09-05** (the newest, `real-data-and-shelters-2026-09-05.md`, took RS-12's design section
 the run after it shipped — the 2026-09-02 rule applied on schedule for once, and it brought the
 doc from 394 back to 374 before that run's own additions). Previously **thirteen as of
 2026-09-04** — that run archived from *two* docs in one PR, which is a first.
@@ -327,7 +348,9 @@ stops being cheap, the fix is execute amending its own row after opening the PR,
 not plan guessing. *(2026-08-30: three more — PH-10 → #43, PH-11 → #44,
 PH-12 → #45 — backfilled at the same moment those rows were moved into the
 ledger archive, which is the cheapest time to do it: the rows were being
-rewritten anyway.)*
+rewritten anyway.)* *(2026-09-06: DC-5 and its rider DC-2 both carried one and
+both resolve to the same **#65**, since the rider convention puts two items in one PR —
+which is the first time a single number has filled two placeholders.)*
 
 **A standing lesson from 2026-08-28, worth generalising past the one bug.**
 DC-1 shipped with its verification recorded honestly as *"verified locally on
