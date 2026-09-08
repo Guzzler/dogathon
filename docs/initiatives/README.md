@@ -180,6 +180,20 @@ rather than re-derived.
   third is the most expensive and the only one that can find work nobody has written down yet.
   DC-7 is the result, and the slot stays in `design-consistency.md` for a second run — which is
   the 2026-09-05 arrangement continuing, not a new one.
+- **2026-09-07 — measuring worked twice, and the *second* measurement corrected the first.**
+  DC-7 shipped, emptying the slot again. The first two fallbacks came back empty for the third
+  consecutive run and for the same structural reason (M3 finished, M5 gated on a shelter), so
+  the third link — measure — was used again, and it found the slot again: **DC-8**. But the
+  lesson is not "measuring works." It is that **the previous run's measurement was wrong, and
+  only re-measuring caught it.** DC-7 enumerated `App.tsx`'s import lines and concluded the app
+  is "two stylesheets"; the app has **three** authored stylesheets, and the one it missed —
+  `web/src/phases/careplan/carePlan.css`, imported from a component — is **1850 lines, larger
+  than the other three combined**. That false claim shipped into `design-consistency.md`'s
+  "what's actually canonical right now" list and stood for a day. Two things generalise:
+  **enumerate the import graph, not one file's imports**, and — the more useful half — **a
+  measurement is evidence, not a fact, and the cheapest place to find a wrong one is the
+  section the last run just wrote.** The step-2 duty to verify grounding against reality
+  applies to this loop's own prior output first, not only to the humans'.
 - **`production-hardening.md`'s queue is empty and was deliberately left empty.** It
   is the lowest-priority doc, the two above it hold four open items including the
   `[large]` one, and PH is the doc whose refills produced the treadmill the re-rank
@@ -241,7 +255,7 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **Sixteen archives exist as of 2026-09-06** — the newest,
+snapshot) rather than let it grow unbounded. **Eighteen archives exist as of 2026-09-07** — that run archived twice from `design-consistency.md` in one PR (DC-7's settled section, restated by its own ledger row per the 2026-09-02 rule, and DC-3's closed diagnosis) because its own edits carried the doc to 404; it came back to 385. Previously **sixteen as of 2026-09-06** — the newest,
 `real-data-and-shelters-ledger-2026-09-06.md`, took RS-12's 35-line ledger row on the standing
 instruction below, bringing that doc from 394 to 373 before this run's own additions took it to
 382. Previously **fifteen as of 2026-09-05** (the newest, `real-data-and-shelters-2026-09-05.md`, took RS-12's design section
@@ -350,7 +364,8 @@ PH-12 → #45 — backfilled at the same moment those rows were moved into the
 ledger archive, which is the cheapest time to do it: the rows were being
 rewritten anyway.)* *(2026-09-06: DC-5 and its rider DC-2 both carried one and
 both resolve to the same **#65**, since the rider convention puts two items in one PR —
-which is the first time a single number has filled two placeholders.)*
+which is the first time a single number has filled two placeholders.)* *(2026-09-07: DC-7's
+queue entry and ledger row both backfilled to **#67**.)*
 
 **A standing lesson from 2026-08-28, worth generalising past the one bug.**
 DC-1 shipped with its verification recorded honestly as *"verified locally on
