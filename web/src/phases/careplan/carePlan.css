@@ -1,5 +1,17 @@
-/* Stage — mobile-first: fills the phone frame (Layout `.phone-body`) edge-to-edge.
-   Demo panel and desktop grid activate only via .cp-stage:not(--solo) on wider screens. */
+/* Care Plan's own stylesheet. It is phase-scoped on purpose (every class here is
+   `cp-`-prefixed and collides with nothing in the three root stylesheets), but it shares
+   the app's geometry — see docs/initiatives/design-consistency.md, DC-8.
+
+   Two rules for anything added below:
+   1. Breakpoints step with the FRAME, not the viewport. The frame is `--frame-w` in
+      theme.css: 430px until viewport 1024, then 760, then 960 at 1440. A media query
+      evaluates against the viewport, so a `min-width:720px` rule here used to go two-up
+      inside a 430px frame — two ~200px columns on a tablet. Use 1024 / 1440, or express
+      the rule against its container (`repeat(auto-fit,minmax(...,1fr))`) and skip the
+      breakpoint entirely, which is better wherever the rule is really about width.
+   2. The reading column is `--content-w`, capped on `.cp-stage` below. Don't hardcode it.
+
+   Stage — mobile-first: fills the phone frame (Layout `.phone-body`) edge-to-edge. */
 
 .cp-stage {
   --cp-radius: 14px;
@@ -16,24 +28,21 @@
   height: 100%;
   background: transparent;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
+
+  /* The reading column, same token and same value as theme.css gives .pw-page. Equal to
+     the frame at phone width, so this is a no-op below 1024 and a cap above it. width:100%
+     is load-bearing: .phone-body is a column flex, and auto inline margins on a column-flex
+     child cancel the cross-axis stretch (DC-5 paid for that once already). */
+  max-width: var(--content-w);
+  width: 100%;
+  margin-inline: auto;
 }
 
-/* Widescreen with demo panel visible (only when SHOW_DEMO_CONTROLS = true). */
-@media (min-width: 900px) {
-  .cp-stage:not(.cp-stage--solo):not(.cp-stage--empty) {
-    display: grid;
-    grid-template-columns: minmax(240px, 320px) 1fr;
-    gap: 32px;
-    padding: 24px 32px;
-    align-items: start;
-    background:
-      radial-gradient(1200px 600px at 20% 0%, rgba(196, 149, 90, 0.14), transparent 60%),
-      radial-gradient(900px 500px at 100% 100%, rgba(45, 90, 61, 0.14), transparent 60%),
-      linear-gradient(180deg, #f8f3ea 0%, #ece4d3 100%);
-    height: auto;
-    border-radius: 20px;
-  }
-}
+/* The widescreen demo-panel grid that used to sit here is deleted (DC-8). It was
+   `.cp-stage:not(.cp-stage--solo):not(.cp-stage--empty)` at min-width:900px, and it could
+   never match: CarePlanView renders exactly three stages and every one of them carries
+   --solo or --empty (CarePlanView.tsx:183, :188, :210). There is no SHOW_DEMO_CONTROLS flag
+   anywhere in web/src, so the panel it was written for is gone too. */
 
 /* Demo panel */
 
@@ -73,11 +82,11 @@
   font-weight: 700;
 }
 
-/* --solo: no demo panel; on wide screens, center a max-width column. */
-@media (min-width: 900px) {
+/* --solo used to cap itself at a hardcoded 780px from 900px up. The cap now lives on
+   .cp-stage as --content-w; what's left here is the vertical breathing room, moved onto
+   the frame's own first step. */
+@media (min-width: 1024px) {
   .cp-stage--solo {
-    max-width: 780px;
-    margin: 0 auto;
     padding: 24px 0;
     height: auto;
   }
@@ -128,7 +137,7 @@
   flex-shrink: 0;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1024px) {
   .cp-topbar { padding: 20px 26px; }
 }
 
@@ -166,7 +175,7 @@
   font-size: 18px;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1024px) {
   .cp-topbar__title { font-size: 20px; }
   .cp-avatar { width: 42px; height: 42px; font-size: 20px; }
 }
@@ -204,7 +213,7 @@
   font-size: 12px;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1024px) {
   .cp-tabs { padding: 10px 20px; }
 }
 
@@ -264,7 +273,7 @@
   background: #fffdf8;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 1024px) {
   .cp-main {
     padding: 24px 28px 36px;
     gap: 16px;
@@ -272,14 +281,14 @@
   }
 }
 
+/* Container-driven, no breakpoint: this rule was only ever about whether two cards fit
+   side by side, and the viewport was the wrong thing to ask. At min-width:720px it went
+   two-up inside a 430px frame — two ~200px columns — which was live on the foster's main
+   Care Plan screen at every tablet and small-laptop width. auto-fit asks the row itself. */
 .cp-hub__row {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 12px;
-}
-
-@media (min-width: 720px) {
-  .cp-hub__row { grid-template-columns: 1fr 1fr; }
 }
 
 /* Shared */
@@ -489,7 +498,10 @@
   position: relative;
 }
 
-@media (min-width: 720px) {
+/* A fixed 78px time gutter instead of 64px — a chrome tweak for a roomier frame, not a
+   reflow, so it stays a media query and moves onto the frame's first step (was 720px,
+   which widened the gutter while the frame was still 430px). */
+@media (min-width: 1024px) {
   .cp-schedule-block { grid-template-columns: 78px 1fr; }
 }
 
@@ -1539,9 +1551,14 @@
   line-height: 1.45;
 }
 
+/* Container-driven, no breakpoint. The old pair — `1fr 1fr` with a max-width:520px
+   override back to one column — resolved against the viewport, so these tiles were two-up
+   inside a 430px frame from viewport 521px all the way to 1024px. minmax(230px,1fr)
+   reproduces the phone's single column at 430 and gives two only when the frame actually
+   widens. */
 .cp-emergency-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 10px;
 }
 
@@ -1617,10 +1634,6 @@
   cursor: pointer;
 }
 
-/* Emergency actions stack on narrow widths; grid at ≥520px handled at base rule */
-@media (max-width: 520px) {
-  .cp-emergency-actions { grid-template-columns: 1fr; }
-}
 
 
 /* One merged row per real care event — the plan and the record are the same list now. */

@@ -80,17 +80,49 @@ jobs:
             exit 1
           fi
 
-      # The two stylesheets resolve several live rules by source order alone, not by
+      # Two things get noticed here, both non-failing.
+      #
+      # (1) The root stylesheets resolve several live rules by source order alone, not by
       # specificity -- the `.btn` base layer in pawthway.css under theme.css's
       # `.screen .btn`, and `.chat` after App.css was deleted (DC-7). Reordering the
       # imports in App.tsx therefore repaints screens silently, which is the same shape
-      # of near-miss as PR #11. This NOTICES, it never fails: reordering may well be
-      # deliberate, and this doc's goal is that it be visible in review.
+      # of near-miss as PR #11.
+      #
+      # (2) A stylesheet can also enter the app from any component, which is exactly how
+      # `phases/careplan/carePlan.css` -- 1850 lines, the largest in the repo -- went a
+      # month without anyone noticing it laid out against the viewport instead of the
+      # frame (DC-8). This step used to diff App.tsx alone and was blind to that by
+      # construction, so it now watches every .tsx under web/src.
+      #
+      # Neither branch fails the job. Phase-scoped stylesheets are allowed and carePlan.css
+      # is staying; the point is that the next one is visible in review rather than found
+      # by measurement a month later.
       - name: Stylesheet order notice
         run: |
           set -euo pipefail
           diff=$(git diff origin/main...HEAD -- web/src/App.tsx)
           moved=$(echo "$diff" | grep -E '^[+-]import "\./[A-Za-z0-9_-]+\.css";' || true)
+          alldiff=$(git diff origin/main...HEAD -- ':(glob)web/src/**/*.tsx')
+          # Any added/removed import of a local .css file, from any component. The
+          # App.tsx lines are reported by the branch above, so drop them here.
+          elsewhere=$(echo "$alldiff" | grep -E '^[+-]import ["'"'"'](\.{1,2}/)[^"'"'"']*\.css["'"'"'];?' | grep -vxF "$moved" || true)
+          if [ -n "$elsewhere" ]; then
+            echo "::warning::This PR adds or removes a stylesheet import outside web/src/App.tsx. A phase-scoped stylesheet is allowed, but it must share the app frame: breakpoints step at 1024/1440 with --frame-w, and widths come from --content-w. See the header comment in web/src/phases/careplan/carePlan.css."
+            {
+              echo "### A stylesheet import changed outside \`App.tsx\`"
+              echo
+              echo "A \`.css\` file is entering or leaving the app from a component rather than from"
+              echo "\`App.tsx\`. That is allowed -- \`phases/careplan/carePlan.css\` is one -- but a"
+              echo "phase stylesheet still shares the app's geometry: step breakpoints at **1024px**"
+              echo "and **1440px** with \`--frame-w\`, cap widths with \`--content-w\`, and prefer a"
+              echo "container-driven grid over a viewport breakpoint. A \`min-width:720px\` rule lays"
+              echo "out against the *viewport*, which is not the frame the screen occupies."
+              echo
+              echo '```diff'
+              echo "$elsewhere"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ -n "$moved" ]; then
             echo "::warning file=web/src/App.tsx::This PR changes the CSS import order in App.tsx. Several live rules resolve by source order, not specificity -- see the header comments in web/src/theme.css and web/src/pawthway.css."
             {

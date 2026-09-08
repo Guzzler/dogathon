@@ -101,7 +101,7 @@ export function Hub({
         {earlier.length > 0 && (
           <button
             type="button"
-            className={`cp-earlier ${showEarlier ? "cp-earlier--open" : ""}`}
+            className="cp-earlier"
             onClick={() => setShowEarlier((v) => !v)}
             aria-expanded={showEarlier}
           >

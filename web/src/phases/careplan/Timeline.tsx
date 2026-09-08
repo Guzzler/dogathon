@@ -61,7 +61,7 @@ export function Timeline({ milestones, dayInFoster, dogName }: TimelineProps) {
   const upcomingCount = milestones.length - pastCount;
 
   return (
-    <div className="cp-timeline">
+    <div>
       <header className="cp-view-header">
         <h2>Timeline</h2>
         <p className="cp-mini-meta">
