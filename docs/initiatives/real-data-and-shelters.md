@@ -183,7 +183,7 @@ taken by the M4 drift check, which is unrelated and independent of these.)
   "Needs a human".
 
 - **This queue holds no `[large]` item, and that is a finding rather than a gap (2026-09-05;
-  re-checked and unchanged 2026-09-06).**
+  re-checked and unchanged 2026-09-06 and 2026-09-07).**
   The README asks for one at the top of the highest-priority doc at all times, and for four
   runs the answer was found by re-reading this queue rather than inventing. This run it was
   not, and re-reading the gated notes — the 2026-09-04 fallback — did not produce one either,
@@ -207,6 +207,16 @@ taken by the M4 drift check, which is unrelated and independent of these.)
     `[large]` slot stays outside this doc for a second consecutive run — and it was found a
     **third** way, by measuring `web/src/` rather than by reading either the queue or the
     notes. That is DC-7 in `design-consistency.md`; the README records the new fallback.
+  - **2026-09-07 — a third consecutive run, same answer, and the measurement itself was the
+    thing that moved.** All three fallbacks were re-run against this doc rather than carried
+    over: the queue still holds only RS-4, and no gate has opened (RS-12b, RS-6b and RS-8 all
+    still want a signed-in human; M5 still wants a shelter; the conversation below still has no
+    evidence behind it — `git log --all --since=2026-09-05` is six commits, every one this
+    loop's own). The `[large]` slot stays in `design-consistency.md` for a third run as DC-8.
+    Worth recording here rather than only there: DC-8 exists because re-measuring found
+    **DC-7's own measurement was incomplete** — it missed the repo's largest stylesheet. That
+    is a caution for this doc too, whose "Where this actually stands" section is a list of
+    dated measurements of exactly the same kind.
 
 - **RS-4 (2026-08-26) — the weekly drift check.** The M4 bullet above *is* the
   spec; the archive carries the full reasoning. Add a weekly `schedule:` trigger
@@ -313,9 +323,9 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status as of 2026-09-06: re-checked this run — `git log --all` and a grep across `docs/`
+*(Status as of 2026-09-07: re-checked this run — `git log --all` and a grep across `docs/`
 turn up no commit, no doc edit from Sharang and no note anywhere in the repo saying this has
-happened — `git log --all --since=2026-09-04` is four commits, every one of them this loop's
+happened — `git log --all --since=2026-09-05` is six commits, every one of them this loop's
 own. Re-checked, not carried over. Recorded so a future run doesn't mistake the passage of
 time for progress. It is worth saying plainly now that M3 is finished: the shelter side is
 complete enough that this is the only thing standing between it and a real user. **As of

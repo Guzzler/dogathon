@@ -209,6 +209,12 @@ in one execute run (PRs #47, #48, #49). Two of the three left something for a pe
 rather than claiming a verification they couldn't run: PH-15b under "Needs a human"
 is the single errand that discharges both.
 
+**Still empty on 2026-09-07, checked rather than assumed, and deliberately so** — this is the
+seventh consecutive run that has declined to refill it. Nothing here is broken for anyone, the
+two docs above hold three open items including the repo's `[large]` one (DC-8), and every
+outstanding PH item is a verification errand parked below waiting on a signed-in human. The
+paragraph below is the original reasoning and still holds verbatim.
+
 **Still empty on 2026-09-01, and deliberately so.** This doc is now third of three, the
 two above it hold four open items including the repo's only `[large]` one (RS-6), and
 this is the doc whose refills produced the treadmill the 2026-08-31 re-rank exists to
