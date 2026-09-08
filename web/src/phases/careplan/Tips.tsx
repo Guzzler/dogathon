@@ -49,7 +49,7 @@ export function Tips({ tips, pinnedTipId, dogName }: TipsProps) {
   })).filter((g) => g.items.length > 0);
 
   return (
-    <div className="cp-tips">
+    <div>
       <header className="cp-view-header">
         <h2>Tips & ask anything</h2>
         <p className="cp-mini-meta">
@@ -82,7 +82,7 @@ export function Tips({ tips, pinnedTipId, dogName }: TipsProps) {
       </section>
 
       {grouped.map(({ category, items }) => (
-        <section key={category} className="cp-tip-group">
+        <section key={category}>
           <h3 className="cp-tip-group__title">{category}</h3>
           <ul className="cp-tip-list">
             {items.map((t) => (

@@ -310,7 +310,7 @@ export function JournalTips({
             return (
               <li key={item.id} className="cp-feed-item cp-feed-item--ask">
                 <div className="cp-feed-item__row">
-                  <span className="cp-feed-item__tag cp-feed-item__tag--ask">
+                  <span className="cp-feed-item__tag">
                     {item.label ?? "You asked"}
                   </span>
                   <span className="cp-mini-meta">{item.createdAt}</span>
@@ -388,7 +388,7 @@ export function JournalTips({
         {libraryOpen && (
           <div className="cp-tip-library__body">
             {grouped.map(({ category, items }) => (
-              <section key={category} className="cp-tip-group">
+              <section key={category}>
                 <h3 className="cp-tip-group__title">{category}</h3>
                 <ul className="cp-tip-list">
                   {items.map((t) => (

@@ -35,7 +35,7 @@ export function Journal({ entries, dayInFoster, dogName, onAdd, onToggleStar }: 
   }
 
   return (
-    <div className="cp-journal">
+    <div>
       <header className="cp-view-header">
         <h2>Journal</h2>
         <p className="cp-mini-meta">
