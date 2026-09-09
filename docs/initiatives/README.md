@@ -210,6 +210,21 @@ rather than re-derived.
   cheapest correction is still the section the last run just wrote, but the *method* it used
   deserves the same suspicion as its numbers. Where a static diff can prove the thing (DC-7's
   selector-set diff), prefer it over anything you had to build to observe it.
+- **2026-09-08, second run — the slot was *spent*, not found, and the loop is now out of
+  `[large]` work everywhere.** DC-10 shipped (with DC-4 as its rider), which empties
+  `design-consistency.md`'s queue entirely after it held the repo's `[large]` slot for four
+  consecutive runs. Across all three docs the only open item is **RS-4**, small by
+  construction. So the next `dogathon-plan` run inherits the 2026-09-05 situation in a sharper
+  form: the top doc is still gated on a human, and now the second doc has run out too. Both
+  leads DC-10 left behind are small (a one-class-at-a-time `theme.css` pass; a re-count of
+  `carePlan.css`'s literals now that 80 classes of rules are gone), so the honest expectation
+  is that **the third fallback — measure — has to find the next `[large]` item somewhere other
+  than CSS**, because three consecutive runs of measuring CSS have now consumed the dead CSS
+  there was. One thing DC-10 proved about the method itself, worth carrying forward: its own
+  queue entry's measurement was **over-reported by five classes**, all of them live via a
+  conditional class nested inside a template literal's `${...}`. A literal scan is a shortlist,
+  never a verdict — the confirming pass must read `className=` values specifically, and
+  whatever is measured next deserves the same two-pass treatment.
 - **`production-hardening.md`'s queue is empty and was deliberately left empty.** It
   is the lowest-priority doc, the two above it hold four open items including the
   `[large]` one, and PH is the doc whose refills produced the treadmill the re-rank
@@ -271,7 +286,7 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **Twenty archives exist as of 2026-09-08** — that run archived twice from `design-consistency.md` again (DC-8's settled section, restated by its own ledger row, and three settled Ledger rows plus DC-5's, which is where the growth was); its own edits would have carried the doc past 470 and it came back to **399**, under the line for the first time in three runs. Previously **eighteen as of 2026-09-07** — that run archived twice from `design-consistency.md` in one PR (DC-7's settled section, restated by its own ledger row per the 2026-09-02 rule, and DC-3's closed diagnosis) because its own edits carried the doc to 404; it came back to 385. Previously **sixteen as of 2026-09-06** — the newest,
+snapshot) rather than let it grow unbounded. **Twenty-one archives exist as of 2026-09-08** — the newest, `design-consistency-dc10-2026-09-08.md`, took DC-10's design answer and its original spec in DC-10's own PR; the same run also appended DC-8's Ledger row to that day's earlier ledger archive, because DC-10 deleted most of the code that row described. Those edits would have left `design-consistency.md` at 437 and it came back to **393**. The doc has now archived on three consecutive runs, which is the trigger working rather than a doc that is too long. Previously **twenty as of 2026-09-08** — that run archived twice from `design-consistency.md` again (DC-8's settled section, restated by its own ledger row, and three settled Ledger rows plus DC-5's, which is where the growth was); its own edits would have carried the doc past 470 and it came back to **399**, under the line for the first time in three runs. Previously **eighteen as of 2026-09-07** — that run archived twice from `design-consistency.md` in one PR (DC-7's settled section, restated by its own ledger row per the 2026-09-02 rule, and DC-3's closed diagnosis) because its own edits carried the doc to 404; it came back to 385. Previously **sixteen as of 2026-09-06** — the newest,
 `real-data-and-shelters-ledger-2026-09-06.md`, took RS-12's 35-line ledger row on the standing
 instruction below, bringing that doc from 394 to 373 before this run's own additions took it to
 382. Previously **fifteen as of 2026-09-05** (the newest, `real-data-and-shelters-2026-09-05.md`, took RS-12's design section

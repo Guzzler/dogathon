@@ -100,3 +100,62 @@ row itself could be compressed.
   the frame, it does not redesign the phone. `build` / `test` (98) / `lint` green, with the
   same 9 pre-existing warnings and no new ones.
 
+---
+
+## Appended later the same day, in DC-10's PR — DC-8 / DC-9's Ledger row
+
+DC-10 shipped hours after DC-8 and deleted five of the six media-query blocks this row
+describes re-homing, so the row became a description of code that no longer exists. Its
+`.cp-stage` finding and its harness lesson are kept in the working doc; everything else is
+here. **Append-only** — corrections go in `design-consistency.md`.
+
+- 2026-09-07 — DC-8 (with DC-9 as its rider) — PR #69 — **Care Plan stops laying out against
+  a viewport it doesn't occupy.** All nine of `carePlan.css`'s media queries were re-homed or
+  removed: the four chrome tweaks (`.cp-topbar`, `.cp-topbar__title`/`.cp-avatar`, `.cp-tabs`,
+  `.cp-main`) and `.cp-schedule-block`'s 64→78px time gutter moved onto the frame's own first
+  step at **1024px**, because each is a "roomier frame gets roomier chrome" tweak and not a
+  reflow; `.cp-hub__row` and `.cp-emergency-actions` lost their breakpoints entirely and became
+  `repeat(auto-fit,minmax(240px,1fr))` and `minmax(230px,1fr)`, because both were only ever
+  asking whether two cards fit and the viewport was the wrong thing to ask. `.cp-stage` now
+  carries `max-width:var(--content-w)` unconditionally — `--content-w` equals `--frame-w` below
+  1024, so one declaration serves both cases and there is no third place a width lives.
+  **The screen was worse than the spec knew, and only measuring found it.** DC-8 was written to
+  fix two-up-inside-430px at tablet widths, which was real and is measured below. What nobody had
+  noticed is that `.cp-stage--solo`'s old `max-width:780px;margin:0 auto` is **DC-5's exact trap
+  a second time**: auto inline margins on a column-flex child cancel the cross-axis stretch, so
+  from viewport 1024px up the entire Care Plan screen rendered **283px wide** inside a 762px
+  frame — narrower than the phone. It is 560px now, and `width:100%` on `.cp-stage` is what
+  fixes it, with a comment on the line saying so. That is twice this trap has been paid for; it
+  is worth treating `margin-inline:auto` inside `.phone-body` as requiring `width:100%` by rule.
+  **The 900px grid was dead, confirmed not assumed.** `.cp-stage:not(--solo):not(--empty)` could
+  never match: `CarePlanView` renders exactly three stages (`:183`, `:188`, `:210`) and every one
+  carries `--solo` or `--empty`. There is no `SHOW_DEMO_CONTROLS` identifier anywhere in
+  `web/src`, so the flag its comment named is gone too. Deleted, with a comment recording why.
+  The `.cp-demo-panel` rules it styled are equally dead and were **left alone** — they are not
+  geometry and this item had no business widening into a cleanup.
+  **Six dead classNames, not eight — the spec's own measurement was one-and-a-half wrong.**
+  `cp-earlier--open`, `cp-feed-item__tag--ask`, `cp-journal`, `cp-timeline`, `cp-tip-group` (two
+  sites) and `cp-tips` match no selector in any of the four stylesheets and are gone. The
+  seventh, non-`cp-` `ask` in `JournalTips.tsx`, is **not a className at all** — it is a `Mode`
+  string literal (`"note" | "photo" | "ask"`) and an entry `kind`. That is precisely the DC-7
+  trap the spec warned about, arriving in the spec itself; the honest count of dead classNames
+  the run started with was six. `cp-feed-item--ask` *is* live and was left.
+  **Verified by measuring, not by eye**, the way DC-5 did and for the same reason: the built
+  stylesheet from this branch and from a baseline build of `main`, both served against a
+  harness of the real class structure (`.shell > .phone > .phone-body > .cp-stage--solo`), read
+  at **390 / 768 / 1024 / 1440** with the real viewport resized rather than iframes.
+  At **390** every measured box is identical before and after — frame 390, `.cp-stage` 390,
+  `.cp-main` pad 14px, all three grids one column — which was the claim that mattered.
+  At **768**: `.cp-hub__row` went from `195px 195px` to a single `402px`, and
+  `.cp-emergency-actions` from `196px 196px` to `402px`, both inside a 430px frame — that is
+  the defect, measured, and gone. At **1024**: `.cp-stage` **283px → 560px**; at **1440**:
+  **283px → 620px**, both centred, both `--content-w` exactly. No horizontal scroll at any of
+  the four, before or after.
+  **DC-9 rides along.** The notice step now also diffs every `.tsx` under `web/src` for an
+  added or removed local `.css` import and warns with the frame rules; the `App.tsx`-reorder
+  branch is unchanged and still runs. Both branches are `::warning::` only — a phase-scoped
+  stylesheet is allowed, and this doc's own conclusion is that `carePlan.css` should stay. The
+  grep pair was exercised locally against synthetic diff lines (fires on `+import "./foo.css";`
+  and `-import "../bar/baz.css"`, silent on `+import x from "./y";`) and is correctly silent on
+  this PR, which changes no import line.
+  `build` / `test` (98) / `lint` green, 9 pre-existing warnings and no new ones.
