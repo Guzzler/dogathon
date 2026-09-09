@@ -86,13 +86,19 @@ touched the token surface.
 - **No dark mode anywhere.** Zero `prefers-color-scheme` references in any
   CSS file. Not an oversight to silently fix — just worth knowing before
   proposing token changes that assume one exists.
-- **Roughly half of the CSS that ships is dead — measured 2026-09-08.** Prefix-aware count of
-  every class selector against every `className` under `web/src`: `pawthway.css` **41 of 61
-  classes unreferenced**, `carePlan.css` **67 of 204**, `theme.css` 19 of 221 (mostly false
-  positives — `is-on`, `leaflet-*`). Three modules have zero importers: `careplan/Tips.tsx`,
-  `careplan/Journal.tsx`, `hooks/useSwipe.ts`. Nothing is broken by it, but it is why DC-8
-  spent a third of its run re-homing media queries for markup that does not exist. DC-10 is
-  the pass; the two settled sections below are the method.
+- **That dead half is gone — DC-10, 2026-09-08 (PR #__).** `pawthway.css` 544 → 203 lines,
+  `carePlan.css` 1863 → 1136, the three zero-importer modules (`careplan/Tips.tsx`,
+  `careplan/Journal.tsx`, `hooks/useSwipe.ts`) deleted, and `Timeline.tsx`'s unused second
+  export with them. The **built** stylesheet went 85,702 → 69,568 bytes, 824 → 671 selectors:
+  **153 removed, 0 added**, every removed selector naming a class no `className` under
+  `web/src` produces. What survives in those two files is live. `theme.css` was deliberately
+  left alone — its 22 apparent dead classes are mostly false positives (`is-on`, `has-error`,
+  `leaflet-*`) and it wants a one-at-a-time pass, not a sweep.
+  - **Two rules are left knowingly unpruned**, because pruning them means editing a surviving
+    line: `.cp-composer__textarea, .cp-composer__input` and its `:focus` twin are selector
+    *lists* whose first half is live and second half dead. Deleting the dead half is a value
+    edit, which DC-10's own first ordering rule forbids. They cost two unreachable selectors
+    and are the honest place to stop.
 
 ## Settled — `App.css` is gone (2026-09-06, PR #67); compressed 2026-09-07
 
@@ -125,109 +131,73 @@ are restated nowhere else:
   They **predate DC-1's guard**, which only flags *added* lines, so CI has been correct and
   silent throughout. Not a repaint to schedule — a number to know before anyone proposes one.
 
-**And one claim in it was wrong, found by re-measuring on 2026-09-08.** The section above
-named `.cp-hub__row` and `.cp-schedule-block` as the screens going two-up inside a 430px
-frame, and DC-8 re-homed six media-query blocks onto the frame's 1024px step. **Four of those
-six target classes no component renders** — `.cp-topbar`, `.cp-topbar__title` + `.cp-avatar`,
-`.cp-tabs`, `.cp-schedule-block` — as does the `.cp-hub__row` auto-fit rewrite. Grepping
-`web/src/**/*.tsx` for any of the five returns nothing; `Hub.tsx` renders `cp-hub` and
-`cp-quick-row`, and there is no Care Plan topbar or tab strip in the component tree at all.
-DC-8's live effect was real and load-bearing — `.cp-stage` went 283px → 560px, `.cp-main`'s
-padding, `.cp-emergency-actions`' auto-fit — but a third of the run was spent rearranging rules
-for markup that does not exist. **The harness is why**: DC-8 measured against a hand-built
-harness "of the real class structure", and a harness containing dead classes reports geometry
-for them exactly as convincingly as for live ones. That is the third consecutive run in which
-re-measuring corrected the previous run's measurement, and the first in which the *method*, not
-the sample, was the fault. The consequence is DC-10 below.
+**And one claim in it was wrong — found by re-measuring 2026-09-08, and resolved by DC-10 the
+same day.** Five of the six media-query blocks DC-8 re-homed targeted classes no component
+renders; DC-10 deleted them with their rules. The two that survive, `.cp-stage--solo` and
+`.cp-main`, were the real effects, and `.cp-stage` going 283px → 560px was real and
+load-bearing. **The harness is why DC-8 could not tell the difference**: it verified against a
+hand-built page "of the real class structure", and a harness containing dead classes reports
+geometry for them exactly as convincingly as for live ones. That is the lesson that outlives
+both items, and it is now the third of four consecutive runs in which re-measuring corrected
+the previous run's measurement — the first in which the *method*, not the sample, was at fault.
+DC-10's Ledger row has the full list of what went.
 
-## Settled — deleting dead CSS is not a repaint, and a harness cannot prove it (2026-09-08)
+## Settled — deleting dead CSS is not a repaint (2026-09-08); compressed the same run
 
-The design question this run opened, because DC-10 cannot be built without it: **the parked
-list forbids a repaint, and this doc has twice recorded that moving rules costs new tokens
-(DC-7 needed three). Is deleting a rule that resolves to a color a repaint? And how would you
-prove a deletion changed nothing?**
+The question DC-10 could not be built without: the parked list forbids a repaint, so is
+deleting a rule that resolves to a color one? **No.** A repaint changes what a rendered pixel
+resolves to; deleting a rule no element matches changes nothing that resolves, and DC-7 set the
+precedent with `App.css`'s 627 lines. The token guard agrees by construction — it flags *added*
+lines, so a pure deletion passes and should. Three constraints from it outlive the decision and
+are restated nowhere else:
 
-**Deleting is not a repaint, and the distinction is not "does the line contain a hex".** A
-repaint changes what a *rendered pixel* resolves to. Deleting a rule no element matches changes
-nothing that resolves, so the parked list does not reach it — that list exists so a palette
-change is a decision somebody made on purpose, not so dead bytes are immortal. DC-7 already
-established the precedent by deleting 627 lines of `App.css` under the same parked list. The
-design-token guard is consistent with this by construction: it flags *added* lines only, so a
-pure deletion passes and should.
-
-**Two rules make the difference between that and an accidental repaint**, and both come out of
-DC-7's own experience:
-1. **Delete whole rules, never edit surviving ones.** The moment a value moves, it is DC-7's
-   case, the guard fires on the added line, and the fix is a token in `theme.css` — recorded as
-   a finding, not done silently.
+1. **Delete whole rules, never edit surviving ones.** A moved value is DC-7's case: the guard
+   fires on the added line and the fix is a token, recorded as a finding rather than done
+   quietly. This is why DC-10 left two mixed selector lists unpruned.
 2. **`.pw-page` and `.pw-textarea` are defined in both `pawthway.css` and `theme.css`** at
-   equal specificity, resolving by load order. They are live and they are not part of the
-   documented `.btn` base layer. Do not touch either while deleting around them.
+   equal specificity, resolving by load order. Live, and not part of the documented `.btn` base
+   layer. Don't touch either while deleting around them.
+3. **Prove it statically, never with a harness** — diff the built stylesheet's selector set
+   against a baseline build of `main` and require every removed selector to match no
+   `className` in `web/src`. DC-8's harness is the reason: one containing dead classes reports
+   geometry for them as convincingly as for live ones.
 
-**Proving it: not with a harness.** DC-8's failure above is the reason. The proof that works is
-DC-7's and it is entirely static — **diff the built stylesheet's selector set against a
-baseline build of `main`, and require that every removed selector matches no `className` in
-`web/src`.** No viewport, no iframe, no hand-written markup that can silently disagree with the
-app. Two orderings matter and are easy to get backwards:
-
-- **Remove the orphan modules first, in the same PR, then re-measure.** A component nothing
-  imports keeps its CSS looking live. `Tips.tsx`, `Journal.tsx` and `hooks/useSwipe.ts` have
-  zero importers, so every class only they render is currently counted as used.
-- **Grep for constructed class names before believing any count.** `cp-plan-chip__kind--${row.kind}`
-  and `shelter__row${" is-on"}` are live classes that no literal-string scan finds — the
-  measurement for DC-10 below over-reported by this exact mechanism until it was corrected,
-  which is DC-7's `app`/`badge` trap in a new costume.
+Full text, verbatim, in
+[`archive/design-consistency-dc10-2026-09-08.md`](archive/design-consistency-dc10-2026-09-08.md),
+which also holds DC-10's original spec. DC-10's Ledger row is the account of what shipped,
+**including where that spec's own measurement was wrong.**
 
 ## Task queue
 
-- **DC-10 `[large]` (2026-09-08) — delete the dead half of the two stylesheets DC-7 left
-  alone, and the three modules nothing imports.** This is the cleanup DC-7 explicitly deferred
-  ("what is still dead and deliberately untouched: `pawthway.css`'s own unused rules"), plus
-  what re-measuring on 2026-09-08 found in `carePlan.css`. Read the settled section above
-  first — it is the spec for *how*, and both its orderings are load-bearing.
-  - **Measured, prefix-aware, on 2026-09-08** (the script must count
-    `` `cp-plan-chip__kind--${row.kind}` ``-style constructed names as live, or it over-reports):
-    `pawthway.css` **41 of 61 classes dead**, `carePlan.css` **67 of 204**, `theme.css` **19 of
-    221** — and the `theme.css` figure is mostly false positives (`is-on`, `is-active`,
-    `has-error`, `leaflet-*`), so treat that file as **out of scope** and verify anything you
-    do touch there one class at a time.
-  - **`pawthway.css`'s dead set is one coherent generation, not scattered drift**: an older
-    markup era superseded by `theme.css` — `agent-panel*` (6), `swipe-card*` (5),
-    `care-log-*` (7), `checklist*` (5), `onboarding-*` (5), `pw-nav*` (8), plus `pw-grid`,
-    `pw-hint`, `pw-main`, `badge--soft`, `hub-step--active`. The live twenty are what the
-    `.pw-page` screens and the `.btn` base layer still need. **Do not touch `.btn`,
-    `.btn--primary`, `.btn--ghost` or the 520px `.btn{width:100%}` rule** — they are the
-    documented base layer DC-7 moved here on purpose, and `.pw-page`/`.pw-textarea` are the
-    cross-file pair the settled section says to leave alone.
-  - **`carePlan.css`'s dead set is whole subsystems**, which is what makes it worth a `[large]`
-    run rather than a nibble: `cp-schedule*` (~20), `cp-event*` (11), `cp-log-item*` (8),
-    `cp-plan-chip` box variants, `cp-topbar*`, `cp-tabs*`, `cp-avatar`, `cp-hub__row`,
-    `cp-demo-panel`/`cp-demo-hint`, `cp-emergency-banner*`, `cp-check*`, `cp-select`,
-    `cp-week--current`/`--dim`/`--passed`. **Five of these carry the 1024px media-query blocks
-    DC-8 re-homed a day earlier** (`cp-topbar`, `cp-topbar__title`, `cp-avatar`, `cp-tabs`,
-    `cp-schedule-block`); delete the blocks with the rules and say so in the ledger row rather
-    than quietly reverting a day-old PR.
-  - **Three orphan modules, deleted first so the re-measure is honest**:
-    `web/src/phases/careplan/Tips.tsx` (103), `web/src/phases/careplan/Journal.tsx` (103),
-    `web/src/hooks/useSwipe.ts` (37) — zero importers each, checked against every `.ts`/`.tsx`
-    under `web/src`. `Timeline.tsx` stays: `Hub.tsx` imports `WeightChart` from it. Its
-    second export, `Timeline`, is unused — removing just that export is in scope, deleting the
-    file is not. Re-run the class measurement **after** these three are gone; expect the dead
-    count to rise, and use the new number.
-  - **Verify the way DC-7 did, not the way DC-8 did.** Build this branch and a baseline build
-    of `main`, diff the built stylesheet's selector sets, and require **N selectors removed, 0
-    added**, with every removed selector matching no `className` anywhere in `web/src` after
-    the orphan deletions. Record the built-CSS size before and after. No harness, no iframes —
-    the settled section says why. `build` / `test` / `lint` green with no new warnings.
-  - Out of scope, deliberately: retokenising `carePlan.css`'s 115 color literals (parked), any
-    value change to a surviving rule, and `theme.css` beyond the one-at-a-time check above.
+- **DC-10 `[large]` — shipped 2026-09-08 (PR #__); the Ledger row is the full account.** The
+  two stylesheets are down to what the app renders, and the measurement the queue entry was
+  written from was itself over-reported by five classes — see the row. Its original spec is
+  archived verbatim alongside the design answer, since both orderings it turned on are now
+  restated by the settled section above.
 
-- **DC-4 — the exempt-file notice; re-confirmed open and grounded 2026-09-08.** `ci.yml`'s
-  `frontend` job still has exactly two guard steps ("Design token guard", "Stylesheet order
-  notice"); neither says anything when `web/src/theme.css` or `web/src/brand.ts` is edited, so
-  a wholesale repaint — PR #11, the incident this doc exists for — still passes CI silently.
-  Full spec below under the original entry; it is small enough to ride on DC-10 if the same
-  run has room, and DC-9 shipping as DC-8's rider is the precedent.
+- **DC-4 — shipped 2026-09-08 (PR #__) as a rider on DC-10**, which is what its own entry
+  invited and the DC-9-on-DC-8 precedent it cited. `ci.yml`'s `frontend` job now has three
+  guard steps; the new one is **"Palette change notice"**. Verified on a throwaway commit the
+  way DC-1 asked and DC-6 actually did — both cases, though locally rather than on a real
+  Actions run. See the Ledger row for exactly what that does and does not prove.
+
+- **This doc's queue is now empty of open items, and the repo's `[large]` slot is empty with
+  it (2026-09-08, left for `dogathon-plan`).** DC-10 and DC-4 were the last two, so
+  `design-consistency.md` — which had held the slot for four consecutive runs (DC-5, DC-7,
+  DC-8, DC-10) — holds nothing. Across all three docs the only open item is **RS-4**, a
+  workflow trigger that is small by construction, so this is not an empty-queue audit case
+  yet; it is one refill away from being one. Two leads for whoever queues next, both from this
+  run rather than invented:
+  - **`theme.css` has never had the pass the other two just had.** DC-10 ruled it out of scope
+    on purpose: 22 of its 224 classes look unreferenced but most are false positives
+    (`is-on`, `is-active`, `has-error`, `leaflet-*` come from libraries or from constructed
+    names), and a handful do not — `shelter__form`, `shelter__form-row`, `shelter__label`,
+    `shelter__error`, `signin__google`, `signin__note`, `signin__fine`, `account__wipe`,
+    `avatar`, `avatar--initial`, `ap-row`, `ap-when`, `ap-manner`, `ap-routine`,
+    `tabbar__link--account`. That is a one-class-at-a-time item, not a sweep, and it is small.
+  - **`carePlan.css`'s ~115 color literals are now a smaller problem than the number
+    suggests**, because the pass above deleted 80 classes' worth of rules. Re-count before
+    treating the parked retokenisation as the size it used to be.
 
 - **DC-8 `[large]` (with DC-9) — shipped 2026-09-07 (PR #69); the Ledger row is the full
   account.** Care Plan's breakpoints step with the frame and `.cp-stage` caps at `--content-w`
@@ -348,53 +318,75 @@ queued work.
   in files it had no business opening; they are a note for plan, not a bonus fix.
   `build` / `test` (98) / `lint` green, 9 pre-existing warnings on both this branch and `main`.
 
-- 2026-09-07 — DC-8 (with DC-9 as its rider) — PR #69 — **Care Plan stops laying out against
-  a viewport it doesn't occupy.** All nine of `carePlan.css`'s media queries were re-homed or
-  removed: the four chrome tweaks (`.cp-topbar`, `.cp-topbar__title`/`.cp-avatar`, `.cp-tabs`,
-  `.cp-main`) and `.cp-schedule-block`'s 64→78px time gutter moved onto the frame's own first
-  step at **1024px**, because each is a "roomier frame gets roomier chrome" tweak and not a
-  reflow; `.cp-hub__row` and `.cp-emergency-actions` lost their breakpoints entirely and became
-  `repeat(auto-fit,minmax(240px,1fr))` and `minmax(230px,1fr)`, because both were only ever
-  asking whether two cards fit and the viewport was the wrong thing to ask. `.cp-stage` now
-  carries `max-width:var(--content-w)` unconditionally — `--content-w` equals `--frame-w` below
-  1024, so one declaration serves both cases and there is no third place a width lives.
-  **The screen was worse than the spec knew, and only measuring found it.** DC-8 was written to
-  fix two-up-inside-430px at tablet widths, which was real and is measured below. What nobody had
-  noticed is that `.cp-stage--solo`'s old `max-width:780px;margin:0 auto` is **DC-5's exact trap
-  a second time**: auto inline margins on a column-flex child cancel the cross-axis stretch, so
-  from viewport 1024px up the entire Care Plan screen rendered **283px wide** inside a 762px
-  frame — narrower than the phone. It is 560px now, and `width:100%` on `.cp-stage` is what
-  fixes it, with a comment on the line saying so. That is twice this trap has been paid for; it
-  is worth treating `margin-inline:auto` inside `.phone-body` as requiring `width:100%` by rule.
-  **The 900px grid was dead, confirmed not assumed.** `.cp-stage:not(--solo):not(--empty)` could
-  never match: `CarePlanView` renders exactly three stages (`:183`, `:188`, `:210`) and every one
-  carries `--solo` or `--empty`. There is no `SHOW_DEMO_CONTROLS` identifier anywhere in
-  `web/src`, so the flag its comment named is gone too. Deleted, with a comment recording why.
-  The `.cp-demo-panel` rules it styled are equally dead and were **left alone** — they are not
-  geometry and this item had no business widening into a cleanup.
-  **Six dead classNames, not eight — the spec's own measurement was one-and-a-half wrong.**
-  `cp-earlier--open`, `cp-feed-item__tag--ask`, `cp-journal`, `cp-timeline`, `cp-tip-group` (two
-  sites) and `cp-tips` match no selector in any of the four stylesheets and are gone. The
-  seventh, non-`cp-` `ask` in `JournalTips.tsx`, is **not a className at all** — it is a `Mode`
-  string literal (`"note" | "photo" | "ask"`) and an entry `kind`. That is precisely the DC-7
-  trap the spec warned about, arriving in the spec itself; the honest count of dead classNames
-  the run started with was six. `cp-feed-item--ask` *is* live and was left.
-  **Verified by measuring, not by eye**, the way DC-5 did and for the same reason: the built
-  stylesheet from this branch and from a baseline build of `main`, both served against a
-  harness of the real class structure (`.shell > .phone > .phone-body > .cp-stage--solo`), read
-  at **390 / 768 / 1024 / 1440** with the real viewport resized rather than iframes.
-  At **390** every measured box is identical before and after — frame 390, `.cp-stage` 390,
-  `.cp-main` pad 14px, all three grids one column — which was the claim that mattered.
-  At **768**: `.cp-hub__row` went from `195px 195px` to a single `402px`, and
-  `.cp-emergency-actions` from `196px 196px` to `402px`, both inside a 430px frame — that is
-  the defect, measured, and gone. At **1024**: `.cp-stage` **283px → 560px**; at **1440**:
-  **283px → 620px**, both centred, both `--content-w` exactly. No horizontal scroll at any of
-  the four, before or after.
-  **DC-9 rides along.** The notice step now also diffs every `.tsx` under `web/src` for an
-  added or removed local `.css` import and warns with the frame rules; the `App.tsx`-reorder
-  branch is unchanged and still runs. Both branches are `::warning::` only — a phase-scoped
-  stylesheet is allowed, and this doc's own conclusion is that `carePlan.css` should stay. The
-  grep pair was exercised locally against synthetic diff lines (fires on `+import "./foo.css";`
-  and `-import "../bar/baz.css"`, silent on `+import x from "./y";`) and is correctly silent on
-  this PR, which changes no import line.
-  `build` / `test` (98) / `lint` green, 9 pre-existing warnings and no new ones.
+- 2026-09-07 — DC-8 (with DC-9 as its rider) — PR #69 — **Care Plan joins the frame, and the
+  notice learns to watch the import graph.** Archived verbatim the next run, in DC-10's PR, at
+  [`archive/design-consistency-ledger-2026-09-08.md`](archive/design-consistency-ledger-2026-09-08.md)
+  — DC-10 deleted five of the six media-query blocks this row is about, so most of it now
+  describes code that is gone. What survives it and is stated above instead: `.cp-stage` was
+  capped to `--content-w` (283px → 560px on a wide screen, a defect the spec hadn't known
+  about), `ci.yml`'s stylesheet notice now watches every `.tsx` for a local `.css` import
+  (DC-9) rather than `App.tsx` alone, and **a harness cannot prove a CSS change** — which is
+  the lesson DC-10 was created by.
+- 2026-09-08 — DC-10 (with DC-4 as its rider) — PR #__ — **Half the shipped CSS is deleted, and
+  the measurement that queued it was wrong by five classes.** `pawthway.css` 544 → 203,
+  `carePlan.css` 1863 → 1136, `Tips.tsx` / `Journal.tsx` / `useSwipe.ts` gone along with
+  `Timeline.tsx`'s unused `Timeline` export. 43 dead classes out of `pawthway.css`'s 66 real
+  ones, 80 out of `carePlan.css`'s 207. Built CSS **85,702 → 69,568 bytes** (−18.8%), gzip
+  19.61 → 17.31 kB, **824 → 671 selectors: 153 removed, 0 added.**
+  - **The queue entry's own numbers were over-reported, by exactly the mechanism the settled
+    section warned about.** It said `carePlan.css` had 67 dead classes; the honest figure
+    before the orphan deletions was **62**. The five it wrongly condemned —
+    `cp-week--current`, `cp-week--dim`, `cp-week--passed`, `cp-star--on`,
+    `cp-composer-mode--active` — are all live, and all live the same way: a conditional class
+    in a **nested** string literal inside a template literal's `${...}`
+    (`` `cp-week ${week.passed ? "cp-week--passed" : ""}` ``). A scanner that splits on
+    `${...}` and discards the contents never sees them. That is DC-7's `app`/`badge` trap in
+    its third costume, and it is now four consecutive runs where re-measuring corrected the
+    previous run's measurement. The scanner also has false *lives*: `.checklist` and
+    `.pickup-form` are dead classes whose names occur as a Firestore field name and a plain
+    word elsewhere, so the real `pawthway.css` figure is **43, not 41**. A literal scan is a
+    shortlist; the confirming pass has to read `className=` values specifically.
+  - **The orphan-first ordering paid for itself exactly as specified.** Deleting the three
+    zero-importer modules first took `carePlan.css`'s dead count 62 → **81** — `cp-milestone*`,
+    `cp-timeline-list`, `cp-kind-chip`, `cp-answer`, `cp-ask`, `cp-composer`, `cp-view-header`
+    were all being kept alive by components nothing rendered.
+  - **Five of DC-8's six re-homed 1024px blocks are gone with their rules**, said plainly
+    rather than quietly reverted: `cp-topbar`, `cp-topbar__title` + `cp-avatar`, `cp-tabs`,
+    `cp-schedule-block`, and the `cp-hub__row` auto-fit rewrite. The two that survive,
+    `.cp-stage--solo` and `.cp-main`, were DC-8's real and load-bearing effects.
+  - **A rule whose selector names a dead class is dead even when it also names a live one.**
+    `.cp-ask .cp-btn` can never match once `.cp-ask` is gone. The first pruner only checked
+    whether *every* class in a selector was dead and left three such rules behind; the fix is
+    per-selector reachability, with a comma-separated list dead only when all of its selectors
+    are. Two genuine mixed *lists* are left alone on purpose — see the canonical section.
+  - **Verified the DC-7 way, not the DC-8 way, which is the whole point of the item.** A
+    baseline build of `main` and a build of this branch, their minified selector sets diffed,
+    with the requirement that every removed selector name a class no `className` under
+    `web/src` produces. No harness, no iframe, no hand-written markup that can disagree with
+    the app. `build` / `test` (98 passing) / `lint` green — 9 pre-existing warnings, the same
+    9 as on `main`, measured by running lint on a stash of this branch.
+  - **One self-inflicted bug, caught by the verification and worth the warning:** a header
+    comment I added said `` `web/src/**/*.tsx` ``, and the `*/` inside `**/*` **terminates a CSS
+    comment** — the rest of the sentence became garbage CSS, and `vite build` emitted it
+    without complaint. The selector diff caught it as two added selectors. A glob in a CSS
+    comment is a live hazard; the surviving comment says so.
+- 2026-09-08 — DC-4 — PR #__ — **A palette repaint is finally visible in review.** A third
+  `frontend` guard step, **"Palette change notice"**: when a PR's diff touches
+  `web/src/theme.css` or `web/src/brand.ts` it emits a `::warning::` plus a
+  `$GITHUB_STEP_SUMMARY` block naming the files and quoting the changed token and color lines.
+  It **cannot** fail the job — editing the palette on purpose is allowed, and the goal was
+  always that PR #11 be *noticed*, not blocked. Reuses the `origin/main...HEAD` diff DC-6 made
+  resolve, so it inherits the `fetch-depth: 0` fix rather than repeating its bug.
+  - **Both of the two cases the spec named were exercised, on a real throwaway commit**, by
+    extracting the step's `run:` block out of the parsed YAML and running it against a real
+    git diff: a `:root` `--ink` edit produced the warning, the summary block and the quoted
+    diff line at **exit 0**; this PR, which touches neither exempt file, produced no output
+    and wrote no summary at all — and that second case will be visible on this very PR's run.
+  - **What that does not prove, stated plainly because DC-1 is this doc's standing lesson
+    about exactly this:** the warning case ran in local Git Bash against local git, not on a
+    GitHub Actions runner. DC-1's failure was environmental (a depth-1 checkout local testing
+    cannot reproduce), and while DC-6 has since fixed that for this exact diff mechanism — the
+    two steps beside this one depend on it and pass — **the warning branch has still never
+    been observed on a real Actions run.** Per the README, that makes it something to go and
+    check on a named next run, not a disclaimer discharged by being written down. The first
+    PR to touch `theme.css` or `brand.ts` is the check; it costs one glance at the summary.

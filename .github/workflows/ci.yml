@@ -80,6 +80,50 @@ jobs:
             exit 1
           fi
 
+      # The other half of PR #11, and the half the guard above cannot see (DC-4). That
+      # near-miss was spread over five files; the guard catches a stray literal in the
+      # four non-exempt ones, but the actual repaint was the `:root` token block in
+      # theme.css and `pawthwayTheme.palette` in brand.ts -- the two files the guard
+      # exempts, because a color literal is *supposed* to live there. So a wholesale
+      # palette rewrite still passes CI in silence.
+      #
+      # This reports rather than fails, deliberately: editing the palette on purpose is
+      # allowed, and the goal is that a repaint be visible in review, not blocked.
+      - name: Palette change notice
+        run: |
+          set -euo pipefail
+          diff=$(git diff origin/main...HEAD -- web/src/theme.css web/src/brand.ts)
+          if [ -n "$diff" ]; then
+            files=$(git diff --name-only origin/main...HEAD -- web/src/theme.css web/src/brand.ts | paste -sd, - | sed 's/,/, /g')
+            # Changed lines that define a custom property or name a color -- the ones a
+            # reviewer has to actually look at. `|| true` because a PR may touch these
+            # files without touching a token at all (a comment, a layout rule).
+            tokens=$(echo "$diff" | grep -E '^[+-]' | grep -E -v '^(\+\+\+|---)' \
+              | grep -E -- '--[a-zA-Z0-9-]+\s*:|#[0-9a-fA-F]{3,8}\b|rgba?\(' || true)
+            echo "::warning::This PR edits the palette source ($files). The design-token guard exempts these files by design, so nothing here fails -- but a token change repaints every screen at once. Check the summary."
+            {
+              echo "### The palette source changed"
+              echo
+              echo "This PR edits \`$files\` -- where colors are *supposed* to live, and therefore"
+              echo "the files the design-token guard exempts. That exemption is why PR #11's actual"
+              echo "repaint would have passed CI: the guard saw the stray literals in the other four"
+              echo "files, never the \`:root\` block or \`pawthwayTheme.palette\` that did the damage."
+              echo
+              echo "Nothing is blocked. Confirm the repaint is intended and in scope for this PR."
+              if [ -n "$tokens" ]; then
+                echo
+                echo "Changed token and color lines:"
+                echo
+                echo '```diff'
+                echo "$tokens"
+                echo '```'
+              else
+                echo
+                echo "_No token or color lines changed -- this edit looks like comments or layout._"
+              fi
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       # Two things get noticed here, both non-failing.
       #
       # (1) The root stylesheets resolve several live rules by source order alone, not by
