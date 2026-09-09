@@ -200,13 +200,9 @@ taken by the M4 drift check, which is unrelated and independent of these.)
     consequence of the ranking's premise expiring, not as a re-rank — this doc goes back to the
     top the moment a shelter says yes, and the honest reading is that the top doc has run out
     of buildable work before it has run out of *work*.
-  - **2026-09-06 — DC-5 shipped and the same question was asked again with the same answer.**
-    Both fallbacks were re-run against this doc rather than carried over: re-reading the queue
-    found only RS-4, and re-reading the gated notes found no gate that had opened (RS-12b,
-    RS-6b and RS-8 all still want a signed-in human; M5 still wants a shelter). So the
-    `[large]` slot stays outside this doc for a second consecutive run — and it was found a
-    **third** way, by measuring `web/src/` rather than by reading either the queue or the
-    notes. That is DC-7 in `design-consistency.md`; the README records the new fallback.
+  - **2026-09-06 — same question, same answer, and the slot was found a third way.** Both
+    fallbacks came back empty against this doc; measuring `web/src/` rather than reading either
+    the queue or the notes produced DC-7. The README records the new fallback.
   - **2026-09-07 — a third consecutive run, same answer, and the measurement itself was the
     thing that moved.** All three fallbacks were re-run against this doc rather than carried
     over: the queue still holds only RS-4, and no gate has opened (RS-12b, RS-6b and RS-8 all
@@ -217,6 +213,16 @@ taken by the M4 drift check, which is unrelated and independent of these.)
     **DC-7's own measurement was incomplete** — it missed the repo's largest stylesheet. That
     is a caution for this doc too, whose "Where this actually stands" section is a list of
     dated measurements of exactly the same kind.
+  - **2026-09-08 — a fourth consecutive run, and the caution above came true one doc over.**
+    All three fallbacks re-run against this doc rather than carried over: the queue still holds
+    only RS-4; no gate has opened (RS-12b, RS-6b and RS-8 all still want a signed-in human, M5
+    still wants a shelter, and `git log --all --since=2026-09-06` is four commits, every one
+    this loop's own); measuring found nothing new here, because this doc's surfaces are shipped
+    rather than unmeasured. The slot stays in `design-consistency.md` as DC-10 — which exists
+    because re-measuring found **DC-8 verified against a harness containing dead classes**, so
+    four of the six media-query blocks it re-homed style markup no component renders. That is
+    the caution above landing: a dated measurement is evidence, and *what you measured against*
+    is part of the claim.
 
 - **RS-4 (2026-08-26) — the weekly drift check.** The M4 bullet above *is* the
   spec; the archive carries the full reasoning. Add a weekly `schedule:` trigger
@@ -323,9 +329,9 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status as of 2026-09-07: re-checked this run — `git log --all` and a grep across `docs/`
+*(Status as of 2026-09-08: re-checked this run — `git log --all` and a grep across `docs/`
 turn up no commit, no doc edit from Sharang and no note anywhere in the repo saying this has
-happened — `git log --all --since=2026-09-05` is six commits, every one of them this loop's
+happened — `git log --all --since=2026-09-06` is four commits, every one of them this loop's
 own. Re-checked, not carried over. Recorded so a future run doesn't mistake the passage of
 time for progress. It is worth saying plainly now that M3 is finished: the shelter side is
 complete enough that this is the only thing standing between it and a real user. **As of
