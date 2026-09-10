@@ -8,116 +8,65 @@ with a real foster.
 
 ## H1 — session state survives a restart (PH-3, PH-8) — settled
 
-Both halves of a foster's agent session now live in Firestore on
+Both halves of a foster's agent session live in Firestore on
 `fosters/{uid}/agentSession/current`: the transcript as a `messagesJson` string
-(`session_store.py`, PH-3, PR #23) and the approval handoff as a polled
-`pendingApproval` map (`approval_store.py`, PH-8, PR #37). A redeploy no longer
-drops a conversation, and a decision written by any instance reaches a thread
-parked in any other. Full reasoning — including why the transcript is a JSON
-string rather than a native array, and the three deliberate behaviour changes
-PH-8 made beyond its literal task — is in the [archive](archive/production-hardening-2026-08-29.md).
-
-What that deliberately leaves open is the `--min-instances=1 --max-instances=1`
-pin, which is now *removable* and has not been removed. The next section is this
-run's answer to what removing it actually costs.
+(`session_store.py`, PH-3, PR #23) and the approval handoff as a polled `pendingApproval`
+map (`approval_store.py`, PH-8, PR #37). A redeploy no longer drops a conversation, and a
+decision written by any instance reaches a thread parked in any other. Full reasoning —
+why the transcript is a JSON string rather than a native array, and PH-8's three deliberate
+behaviour changes — in the [archive](archive/production-hardening-2026-08-29.md). What it
+leaves open is the `--min-instances=1 --max-instances=1` pin, now *removable* and not
+removed; the next section is what removing it costs.
 
 ## What lifting the instance pin actually costs — answered 2026-08-29, discharged 2026-08-30
 
-PH-8 left the `--min-instances=1 --max-instances=1` pin removable and gated its
-removal on "once this has been watched working in production", which is not an
-exit condition any run of this loop can evaluate. Replacing it meant reading
-`server.py` for what is *actually* still per-process. Two things were, and both
-have now shipped: the in-memory rate limiter, which silently became a 20N spend
-ceiling at N instances (PH-11, and the decision is the next section), and — found
-while checking the other one — a live transcript that nothing ever trimmed, so
-the 40-message cap only bit across a restart and the warm instance the pin keeps
-alive re-sent an unbounded conversation every turn (PH-10). The residual race,
-two concurrent turns for the same foster on different instances losing one turn
-to a last-write-wins, needs two devices and is accepted.
+PH-8 left `--min-instances=1 --max-instances=1` removable and gated its removal on "once
+this has been watched working in production", which no run of this loop can evaluate.
+Reading `server.py` for what was still genuinely per-process replaced that with a concrete
+exit condition. Both blockers shipped: the in-memory rate limiter, which silently became a
+20N spend ceiling at N instances (PH-11, next section), and a live transcript nothing ever
+trimmed, so the 40-message cap only bit across a restart (PH-10). The residual race — two
+concurrent turns for one foster on different instances, last-write-wins — needs two devices
+and is accepted. **What remains:** `--max-instances` goes to **2** in one small PR, and a
+human confirms the two things that only exist multi-instance — `/health`'s `active_sessions`
+differing across two hits, and an approval issued in one browser resuming a turn parked in
+another. That second one is PH-8's actual claim and has never been observed. It is PH-13
+under "Needs a human", and it is the only thing between here and lifting the pin.
 
-**The concrete exit condition that replaced it:** PH-10 and PH-11 ship — they
-have — then `--max-instances` goes to **2** (not unbounded, `--min-instances=1`
-unchanged) in one small PR, and a human confirms the two things that only exist
-multi-instance: `/health`'s `active_sessions` differing across two hits, and one
-approval issued in one browser answered such that the parked turn resumes. That
-second one is PH-8's actual claim and has never been observed. It is PH-13 under
-"Needs a human" below, and it is the only thing now standing between here and
-lifting the pin.
+## What the rate limit means with more than one instance (decided 2026-08-30, PH-11); compressed 2026-09-09
 
-## What the rate limit means with more than one instance (decided 2026-08-30, PH-11)
+**Option (b): keep the bucket in memory and divide the budget by the maximum instance
+count.** `server.py` carries `CHAT_REQUESTS_PER_MINUTE_BUDGET = 20` (what a foster gets
+across the whole service), `MAX_CLOUD_RUN_INSTANCES = 1` (**which must equal
+`--max-instances` in `deploy-backend.yml`** — a `!!` comment sits next to the flag, where
+someone will actually be editing when they get it wrong), and the per-instance limit
+derived from the two. The cost, stated plainly: an unlucky foster whose requests all land
+on one instance is throttled at the divided number. Over-throttling one person is
+recoverable; multiplying spend by the instance count has no floor. The Firestore-backed
+bucket (a) is the correct answer at any instance count and lost on scope, not cost — it
+would make the spend brake depend on Firestore, and a limiter that fails closed on a blip
+turns a database hiccup into "you can't talk to the assistant". **Revisit (a) if the
+instance count stops being a small fixed number**; that is the condition. Today the
+division is by 1, so nothing changed numerically, and PH-13 raises both numbers together.
+Full reasoning verbatim in
+[`archive/production-hardening-ratelimit-2026-09-09.md`](archive/production-hardening-ratelimit-2026-09-09.md).
 
-**Option (b): keep the bucket in memory and divide the budget by the maximum
-instance count.** `server.py` now carries three constants instead of one —
-`CHAT_REQUESTS_PER_MINUTE_BUDGET = 20` (what a foster is allowed, in total,
-across the whole service), `MAX_CLOUD_RUN_INSTANCES = 1` (which must equal
-`--max-instances` in `deploy-backend.yml`), and `CHAT_REQUESTS_PER_MINUTE`
-derived from the two. Raising the flag without raising the constant is still
-possible, but it is now visibly wrong in a diff and called out by a `!!` comment
-block in both files — including next to the flag itself, which is where someone
-will actually be editing when they get it wrong.
+## The notification that doesn't notify — CLOSED 2026-09-05 by RS-12 (PH-1); compressed 2026-09-09
 
-**Why not (a), the Firestore-backed bucket.** It is the correct answer at any
-instance count and it was genuinely close. It lost on scope, not on cost: the
-read+write per chat request is small next to the model call in the same turn, but
-it makes the spend brake depend on Firestore being up, and `_await_approval`
-already establishes that a Firestore failure has to fail *closed*. A rate limiter
-that fails closed on a Firestore blip turns a database hiccup into "you can't talk
-to the assistant"; one that fails open stops being a spend brake at the exact
-moment something is going wrong. Neither is a good answer, and picking between
-them is a bigger question than max-instances=2 deserves. Revisit (a) if the
-instance count ever stops being a small fixed number — that is the condition, and
-it is written down here so it doesn't have to be re-derived.
+The arc, in one line: a hardcoded `notified_shelter: True` (2026-08-24) → an honest
+capability probe, `arcade_tools.available()` (PH-1, PR #19) → **true because a write
+landed on a surface a staff account demonstrably reads** (RS-12, PR #63), with
+`notified_via: "shelter_roster"` naming which surface and Arcade demoted to its own
+`arcade_messaging_available` field so no one field conflates a capability with a
+delivery. The fix was a shelter surface, so it was built and is recorded in
+`real-data-and-shelters.md`, not here. Full section verbatim in
+[`archive/production-hardening-ph1-2026-09-09.md`](archive/production-hardening-ph1-2026-09-09.md).
 
-**What (b) costs, stated plainly:** a foster whose requests all land on one
-instance is throttled at the divided number, not the budget. At
-`--max-instances=2` that is 10/minute rather than 20 for an unlucky foster.
-Over-throttling one person is recoverable; multiplying spend by the instance count
-is the failure that has no floor.
-
-**Today the division is by 1, so nothing changed numerically.** That is correct
-and not a hedge: `--max-instances` is still 1 on `main`, and PH-13 (a human's) is
-what raises both numbers together.
-
-## The notification that doesn't notify — DISCHARGED 2026-09-05 by RS-12 (PH-1)
-
-`src/agent/builtin/adoption.py:66` returns
-`"notified_shelter": arcade_tools.available()` instead of a hardcoded `True`
-(PR #19), and the system prompt tells the model to say plainly when nobody was
-notified. The fix made the tool honest, not capable. Background in the
-[archive](archive/production-hardening-2026-08-29.md).
-
-**2026-09-04 — the gate this was parked behind is open, and the work has moved.** This
-section has said since 2026-08-24 that a real notification path is downstream of M3 —
-"a shelter with an account and an application list is the thing worth notifying." M3's
-three surfaces have all shipped (RS-2, RS-5, RS-6) and RS-5b proved on 2026-09-04 that a
-real staff account reads the inbox and writes back to it. M3 finished while nobody
-re-read this paragraph.
-
-Reading `adoption.py` against the shipped dashboard this run turned up the concrete gap:
-the tool writes `status: "ready_for_adoption"` **and** `adoption_profile` onto the dog,
-and `grep -rn adoption_profile web/` finds **no reader in the frontend at all** — the
-paragraph the app's most expensive turn writes reaches no human but the foster who
-watched it stream. The answer is that the notification is the shelter's own roster, not
-email: `real-data-and-shelters.md`'s **"notify the shelter" means the dashboard** section
-settles it, and **RS-12 `[large]`** builds it, including making `notified_shelter` true
-because the write landed somewhere a shelter demonstrably reads.
-
-**PH-1 stays open here and is discharged by RS-12, not by anything queued in this doc.**
-That is deliberate: the fix is a shelter surface, it belongs in the doc that owns the
-shelter side, and duplicating it here would refill the queue the 2026-08-31 re-rank
-exists to keep empty.
-
-**2026-09-05 — RS-12 shipped, and this is closed.** `adoption_profile` renders in full in
-`ShelterRosterView`'s new **Back from foster** group, and `notified_shelter` is `True`
-because that Firestore write landed on a surface RS-5b proved a staff account reads —
-with `notified_via: "shelter_roster"` naming which surface and Arcade demoted to
-`arcade_messaging_available` under its own name, so no single field conflates a capability
-with a delivery. `server.py`'s system prompt moved with it: the branch telling the model to
-say "no one was notified automatically" would never have fired again, and would have been
-the wrong thing to say if it had. **Nothing signed-in was verified** — that half is RS-12b
-in `real-data-and-shelters.md`. This section is kept rather than deleted because the
-2026-08-24 → 2026-09-05 arc (hardcoded `True` → honest capability probe → true for a stated
-reason) is the whole point of the item. Full account in RS-12's ledger row there.
+**Two things worth carrying forward rather than archiving.** The gap was found by
+`grep -rn adoption_profile web/` returning **no reader at all** — the app's most
+expensive turn wrote a paragraph no human but the foster ever saw; and the section sat
+parked behind "downstream of M3" for days *after* M3 finished, because nobody re-read the
+sentence. Nothing signed-in was verified: that half is RS-12b in `real-data-and-shelters.md`.
 
 ## Account deletion and export — shipped, and deletion now reaches everything
 
@@ -179,50 +128,127 @@ applies to the backend, with a foster on the other end of it. → PH-7.
   `./node_modules/.bin/tsc` — `npx tsc` resolves to an unrelated `tsc@2.0.4` that
   prints a banner and exits 1 without compiling.)*
 
+## Settled — advice may be templated; a history may not be seeded (2026-09-09)
+
+**The finding.** `web/src/phases/careplan/data.ts` is 438 lines written for a demo dog
+called Marty, and most of it is not a template — it is a **past**. Thirteen
+`seedMilestones` with dates and outcomes ("Intake with Copper's Dream · Cleared for foster.
+Deworming complete.", "DHPP booster", "Vet check-in (Dr. Alvarez)"), **seven carrying a
+weight** from 20 lb to 29 lb; three `seedJournal` entries in a foster's voice ("Wouldn't eat
+kibble. Tried a spoon of wet food on top"), one a photograph of a different animal
+(`web/public/journal/day4-couch.jpeg`); a `medicalSummary` asserting `DHPP (booster
+complete)`, `Allergies: None reported`, `Deworming — in progress`; and `scheduleBlocks`
+shipping **pre-ticked** (`s-flea`, `s-dhpp-1` are `done: true`).
+
+None of it is confined to a demo. `useJournal.ts:25` and `:59` write `seedJournal` and
+`scheduleBlocks` **into the real foster's Firestore document** on first render, for every
+foster, gated on nothing — `useJournalEntries` carefully gates *its* fallback on
+`LOCAL_MODE`, and the seeding write defeats that gate by making the data real. From there
+it reaches exactly where this project has already decided invented content must not go:
+`adoption.ts:144` sets `medical: medicalSummary` **unconditionally**, so every dog's
+adoption page prints Marty's vaccines and allergies; `:51`'s `milestones` parameter
+**defaults to `seedMilestones`**, which `CarePlanView` re-labels with the real dog's name;
+`:98-103` returns a seeded weight as `{ value, source: "care plan" }`, so the page's own
+provenance line says a foster observed a number nobody measured; and `careDone` counts the
+pre-ticked items. `adoption.ts`'s own comments name the standard without noticing it
+applies to its other inputs — *"a stand-in photograph of a different animal on the page a
+stranger reads to decide about this one is exactly what 'nothing on this page is invented'
+rules out"*. The compatibility tri-state got that treatment; the health record and the
+journal did not.
+
+**The rule that resolves it is a line, not a purge:**
+
+> **Forward-looking advice may be templated. A record of what has already happened may
+> never be seeded.**
+
+A tip, a week phase, a task template and an *unticked* care schedule are guidance — generic
+by construction, true of any dog, honest with `{dog}` substituted. A milestone with a date,
+a weight, a vaccination record, a journal entry, a ticked checkbox and a photograph are
+assertions that a specific thing happened to a specific animal. The first set stays; the
+second must come from the foster, from the shelter's record, or render as absent — the same
+three sources `buildAdoptionProfile` already names, and the same standard "Unknown is not a
+claim" applies to the dog document.
+
+**`LOCAL_MODE` is the deliberate exception and the only one.** A fresh clone shows a banner
+saying the data is local, so showing demo content behind it is honest. **Writing it to a
+foster document is not**, in any mode — that is what PH-17 removes outright rather than gates.
+
 ## Task queue
 
-**Refilled 2026-08-30.** PH-10, PH-11 and PH-12 all shipped in one execute run
-(PRs #43, #44, #45), emptying this queue for the second time. The three items
-below come out of the section directly above, which was written by reading
-`web/src/auth.ts`, `firestore.rules` and `server.py` against `main` — not by
-looking for something to queue. They are one finding split three ways, and the
-sequence matters: PH-16 tightens a rule that PH-15 needs to stay loose in one
-specific respect, so do not reorder them.
+**Refilled 2026-09-09, for the first time since 2026-08-30, and the routing is deliberate.**
+PH-14/15/16 (PRs #47/#48/#49, the last bullet below) emptied this queue, and eight
+consecutive runs then declined to refill it — correctly, because the 2026-08-31 re-rank
+exists to stop PH's small, tidy, headlessly-verifiable items consuming every execute run
+while the shelter surface waited. **That reasoning does not cover what is queued below.**
+PH-17 is not scaffolding: it is a whole phase of the product asserting things about a real
+animal that nobody observed, on the page a stranger reads to decide whether to adopt it. It
+is the same class of defect as PH-1 ("a tool that lies about notifying a shelter"), which is
+this doc's founding item, and it is the only `[large]` item in the repo. It sits here because
+this doc owns truthfulness, not because production-hardening has been re-ranked — the
+ranking in the README is unchanged, and the top doc goes back to the top the moment a
+shelter says yes. See the README's 2026-09-09 note.
 
-- **PH-14 — shipped 2026-08-30.** `deleteAccount()` clears the agent transcript
-  through `POST /reset` before it touches anything else, and refuses to delete the
-  rest if it can't. See the Ledger, including which half was only unit-tested.
+- **PH-17 `[large]` — stop seeding a history the foster never lived.** The design section
+  above is the specification; this is the file list and the exit condition. Do not
+  redistribute it into small PRs — the halves are only honest together.
+  - **`web/src/hooks/useJournal.ts` — delete both seeding effects** (`patchFoster({ journal:
+    seedJournal })` at :25, `patchFoster({ careSchedule: seedSchedule })` at :59) and the
+    `seeded` refs with them. This is the load-bearing change: nothing else matters while an
+    invented past is being written into a real document. `useJournal` returns `stored ?? []`
+    outside `LOCAL_MODE`; inside it, the seed may still be *shown*, never written.
+  - **`web/src/lib/adoption.ts` — three fixes, all provenance.** `medical: medicalSummary`
+    (:144) must render from data the app actually holds and otherwise be absent, with
+    `"medical record"` added to `missing`; the `milestones` parameter (:51) must **not**
+    default to `seedMilestones` — default it to `[]`; and the `lastMilestoneWeight` branch
+    (:98-103) must not be reachable from template data, so a weight is either a real
+    `careLog` weigh-in (`source: "care plan"`), the shelter's intake figure
+    (`source: "shelter"`), or the size bucket — never a seeded figure wearing the foster's
+    label.
+  - **`web/src/phases/careplan/data.ts` — split the file by the rule, don't gut it.** Keep
+    `taskTemplates`, `weekPhases`, `tips`, `daysSincePickup` and the `scheduleBlocks`
+    *shape*; set every `done: true` to `false` (`s-flea`, `s-dhpp-1`, and re-check the rest
+    — the count is not the two this doc names, verify it). Move `seedJournal`,
+    `medicalSummary`, `marty` and every past-dated `seedMilestones` entry into a clearly
+    named demo-only module (e.g. `data.demo.ts`) that **only `LOCAL_MODE` code paths may
+    import**; the one milestone that can survive is a pickup marker derived from
+    `foster.pickup.date`, which is real.
+  - **Empty states are part of the item, not follow-up.** `CarePlanView`, `Hub` and the
+    adoption page must each read well with an empty journal, no milestones and no medical
+    record — the adoption page already has `missing` and the "still to add" prompt for
+    exactly this, so use it rather than inventing new copy.
+  - **Verify, and make the verification a test rather than a screenshot.** Add cases to the
+    existing `adoption` tests: `buildAdoptionProfile` given an empty journal, empty schedule
+    and a dog with no medical fields returns no medical assertions, no milestones, a weight
+    whose `source` is `"shelter"`, and `missing` naming each absent section. Then
+    `grep -rn "seedJournal\|medicalSummary\|seedMilestones\|marty" web/src --include=*.ts
+    --include=*.tsx` must return only the demo module and `LOCAL_MODE`-guarded call sites —
+    paste that output in the ledger row. Finish with `npm run build` and a local run where a
+    foster document that has never opened Care Plan gains **no** `journal` or `careSchedule`
+    field (check the Firestore document, or `localStorage` in local mode).
 
-- **PH-15 — shipped 2026-08-30.** `deleteAccount()` redacts `fosterName` to
-  `"(deleted account)"` and sets `status: "withdrawn"` on every application the
-  deleted foster opened, before the Auth user goes. **The live rules check the item
-  asked for could not be run and is now PH-15b under "Needs a human"** — read that
-  before treating this as verified end to end.
+- **PH-18 — the emergency screen makes two claims it cannot support.**
+  `web/src/phases/careplan/Emergency.tsx` renders a hand-drawn SVG street map labelled
+  "Presidio Park" and "Bay" with a pin for the nearest vet — a picture of nowhere, on the
+  screen someone opens when something is wrong — and `emergencyContacts` offers "VCA SF
+  Veterinary Specialists · Nearest 24h emergency · 1.2 mi · Open now" and "Copper's Dream
+  Rescue · Foster coordinator · On-call today" regardless of where the foster is or which
+  shelter the dog came from. **The two national lines stay** — Pet Poison Helpline and ASPCA
+  Animal Poison Control are published, correct for any US caller, and claim nothing local.
+  The coordinator row comes from the dog's own `shelter` (`normalizeDog()` already supplies
+  it) or does not render; the "nearest" row loses `distanceMi` and "Open now" unless
+  something computed them, and says plainly that no 24h vet is recorded for this area.
+  Delete the decorative map rather than labelling it. Verify by rendering with a dog whose
+  shelter is not Copper's Dream and reading the screen for anything still guessed. *(A line
+  for the ledger, not a code change: `CLAUDE.md` lists "Emergency Mode (24h vet map)" as
+  explicitly out of scope, and it shipped anyway. The scope note is stale.)*
 
-- **PH-16 — shipped 2026-08-30.** The foster branch of `applications`'s update
-  rule now pins `fosterId`, `shelterId`, `dogId`, `createdAt` and `checklist`;
-  `fosterName` stays free, with a `!!` comment saying why. Its allow/deny check
-  needs a signed-in foster and is folded into PH-15b below.
-
-**This queue is empty again as of 2026-08-30** — PH-14, PH-15 and PH-16 all shipped
-in one execute run (PRs #47, #48, #49). Two of the three left something for a person
-rather than claiming a verification they couldn't run: PH-15b under "Needs a human"
-is the single errand that discharges both.
-
-**Still empty on 2026-09-08, checked rather than assumed, and deliberately so** — this is the
-eighth consecutive run that has declined to refill it. Nothing here is broken for anyone, the
-two docs above hold three open items including the repo's `[large]` one (DC-10), and every
-outstanding PH item is a verification errand parked below waiting on a signed-in human. The
-paragraph below is the original reasoning and still holds verbatim.
-
-**Still empty on 2026-09-01, and deliberately so.** This doc is now third of three, the
-two above it hold four open items including the repo's only `[large]` one (RS-6), and
-this is the doc whose refills produced the treadmill the 2026-08-31 re-rank exists to
-stop. Nothing here is broken for anyone: the notification gap (PH-1) is **closed as of
-2026-09-05** by RS-12, and everything else outstanding is a verification errand parked below.
-Refilling this queue would take the next execute run away from the shelter surface
-again, which is the one mistake this loop has already made twice. Take from here when
-`real-data-and-shelters.md` and `design-consistency.md` have nothing open.
+- **PH-14, PH-15 and PH-16 — all shipped 2026-08-30** (PRs #47, #48, #49); the Ledger
+  rows are the full account. Between them: `deleteAccount()` clears the agent transcript
+  through `POST /reset` before touching anything else and refuses to proceed if it can't,
+  redacts `fosterName` and marks every application `withdrawn`, and `applications`'s foster
+  update branch pins every field but `fosterName`. **The live rules check two of them asked
+  for could not be run and is PH-15b under "Needs a human"** — read it before treating
+  those as verified end to end.
 
 ### Needs a human — PARKED, not pending
 
@@ -230,73 +256,56 @@ again, which is the one mistake this loop has already made twice. Take from here
 than anyone clears them: PH-15 and PH-16 generated PH-15b on the very run that
 shipped them. Per the README's "nobody uses this app yet" section, they are
 **parked** — there are no users for whom the unverified behaviour is broken, and
-several will answer themselves once RS-5 builds a surface that exercises the same
-rules. They get cleared in one sitting when there is a real shelter and real data.
-Do not queue them, and do not read the length of this list as debt.
+several will answer themselves once a real shelter and real data exercise the same
+rules. They get cleared in one sitting then. Do not queue them, and do not read the
+length of this list as debt.
 
-**PH-7c — DONE 2026-08-31.** The one that was cheap enough to just do, because it
-needed no sign-in: `curl https://pawthway-agent-674869365762.us-central1.run.app/health`
-returns `{"anthropic_key_set":true,"arcade_available":false,"firestore_reachable":true,
-"tool_count":14,"active_sessions":0}`. **`firestore_reachable` is `true` in
-production** — the assertion PR #33 left untested inside its own health endpoint is
-now a result. `active_sessions: 0` is consistent with the single pinned instance
-having no live conversations.
+**PH-7c — DONE 2026-08-31**, the one cheap enough to just do because it needed no
+sign-in: `curl .../health` on the deployed agent returns `firestore_reachable: true`
+(with `anthropic_key_set: true`, `arcade_available: false`, `tool_count: 14`,
+`active_sessions: 0`) — the assertion PR #33 left untested inside its own health
+endpoint is now a result. PH-13 still wants a `/health` hit, for the different reason
+below, so that half is not discharged by this.
 
+- **PH-15b (2026-08-30) — run PH-15's redaction write against the deployed project.**
+  PH-15 shipped; its verification did not, and an unattended run has no way to do it:
+  the only sign-in is a Google popup, the Firestore emulator needs a JRE that isn't
+  installed here, and both popup-free routes to an ID token (creating a test account,
+  minting a custom token off the service-account key) are off-limits to this loop.
+  What was done instead is a close read of `firestore.rules:49-51`, which says the
+  write *should* pass — a reading, not a result. Signed in as a test foster with at
+  least one application, from the browser console on `https://pawthway-hackathon.web.app`:
+  four writes, one session. The `{ fosterName, status: "withdrawn" }` write succeeds;
+  the same write without the status change comes back `permission-denied`; with PH-16's
+  tightened rule live the redaction must **still** succeed (PH-15's path riding on the
+  deliberately-unpinned `fosterName`); and a withdraw that also changes `shelterId` must
+  now be denied. **Record the answer here.**
 
-- **PH-15b (2026-08-30) — run PH-15's redaction write against the deployed
-  project.** PH-15 shipped; its verification did not. The item asked for the write
-  to be run for real as a test-account foster, and an unattended run has no way to
-  do it: the frontend's only sign-in is a Google popup, the Firestore emulator needs
-  a JRE that isn't installed on this machine, and the two ways to get an ID token
-  without a popup — creating a test account, or minting a custom token off the
-  service-account key — are both off-limits to this loop. What was done instead is a
-  close read of `firestore.rules:49-51`, which says the write should pass: the foster
-  branch needs `resource.data.fosterId == request.auth.uid` (true — it's their own
-  row) and `request.resource.data.status == "withdrawn"` (true — the merged
-  post-write document carries it). That is a reading, not a result.
-  Signed in as a test foster with at least one application, from the browser console
-  on `https://pawthway-hackathon.web.app`, confirm both directions: the
-  `{ fosterName, status: "withdrawn" }` write succeeds, and the same write without
-  the status change comes back `permission-denied`. **Record the answer here.**
-  PH-16 then added the other half of the same errand, and it is the regression that
-  matters: with the tightened rule live, the redaction write must *still* succeed
-  (that is PH-15's path riding on the deliberately-unpinned `fosterName`), and a
-  withdraw write that also changes `shelterId` must now be denied. Four writes, one
-  console session.
-
-- **PH-13 (2026-08-29) — lift the instance pin, once PH-10 and PH-11 land.**
+- **PH-13 (2026-08-29) — lift the instance pin, now that PH-10 and PH-11 have landed.**
   Raise `--max-instances` from 1 to **2** in `deploy-backend.yml` (leave
-  `--min-instances=1`), in its own small PR, and rewrite the long comment above
-  the flag to say what was confirmed rather than what was expected. Not queued
-  for execute: merging it deploys to production immediately
-  (`deploy-backend.yml` is path-triggered), and the thing that makes it safe can
-  only be confirmed by a person driving two browsers. Confirm both and record
-  them here — `/health`'s `active_sessions` differing across two hits (proof
-  there really are two instances), and one dangerous-tool approval issued in one
-  session and answered such that the parked turn resumes. That second one is
-  PH-8's actual claim and has never been observed.
-- **PH-7b — the alerting half of PH-7.** Nothing in the agent backend's failure
-  path reaches a person. The logging side is already correct — `server.py` calls
-  `logging.exception` at the stream failure (`:300`) and the session-persist
-  failure (`:332`), so the records exist in Cloud Logging at `ERROR` severity.
-  What's missing is one alert that reads them. Deliberately **not** queued:
-  creating a log-based alert policy and notification channel is a hard-to-reverse
-  change to shared GCP infrastructure that sends real email and carries quota
-  implications, and an unattended run declined it on exactly those grounds
-  (PR #33). That was the right call, and re-queueing it would produce the same
-  refusal. Roughly: in `pawthway-hackathon`, a notification channel for Sharang's
-  email, then a log-based alerting policy on the Cloud Run agent service filtered
-  to `severity>=ERROR`. **If you do it via `gcloud`, add the invocation to
-  [`docs/runbook-gcp.md`](../runbook-gcp.md)** — that file now exists (RS-9 wrote
-  the first entry into it), so this needs a section, not a new doc.
-  Out of scope even then: uptime checks, a status page, Sentry, instance pins.
-- ~~**PH-7c — spot-check the deployed `/health`.**~~ **Done 2026-08-31 — the
-  result is recorded at the top of this section.** PR #33 had verified only the
-  *failure* path (no ADC in that environment), leaving "Firestore is reachable
-  from the backend" as an untested assertion inside a health endpoint. It is now
-  a measured `true`. PH-13 still wants a `/health` hit, but for a different
-  reason (two instances reporting different `active_sessions`), so that half is
-  not discharged by this.
+  `--min-instances=1`), in its own small PR, and rewrite the long comment above the flag
+  to say what was confirmed rather than what was expected. Not queued for execute:
+  merging deploys to production immediately (`deploy-backend.yml` is path-triggered),
+  and what makes it safe can only be confirmed by a person driving two browsers. Confirm
+  and record both — `/health`'s `active_sessions` differing across two hits (proof there
+  really are two instances), and one dangerous-tool approval issued in one session and
+  answered such that the parked turn resumes. That second one is PH-8's actual claim and
+  has never been observed.
+
+- **PH-7b — the alerting half of PH-7.** Nothing in the agent backend's failure path
+  reaches a person. The logging side is already correct — `server.py` calls
+  `logging.exception` at the stream failure (`:300`) and the session-persist failure
+  (`:332`), so the records exist in Cloud Logging at `ERROR` severity. What's missing is
+  one alert that reads them. Deliberately **not** queued: creating an alert policy and
+  notification channel is a hard-to-reverse change to shared GCP infrastructure that
+  sends real email and carries quota implications, and an unattended run declined it on
+  exactly those grounds (PR #33). That was the right call; re-queueing it would produce
+  the same refusal. Roughly: in `pawthway-hackathon`, a notification channel for
+  Sharang's email, then a log-based alerting policy on the Cloud Run agent service
+  filtered to `severity>=ERROR`. **If you do it via `gcloud`, add the invocation to
+  [`docs/runbook-gcp.md`](../runbook-gcp.md)** — that file exists (RS-9 wrote the first
+  entry), so this needs a section, not a new doc. Out of scope even then: uptime checks,
+  a status page, Sentry, instance pins.
 
 ## Ledger
 

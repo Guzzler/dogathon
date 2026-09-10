@@ -86,7 +86,7 @@ touched the token surface.
 - **No dark mode anywhere.** Zero `prefers-color-scheme` references in any
   CSS file. Not an oversight to silently fix — just worth knowing before
   proposing token changes that assume one exists.
-- **That dead half is gone — DC-10, 2026-09-08 (PR #__).** `pawthway.css` 544 → 203 lines,
+- **That dead half is gone — DC-10, 2026-09-08 (PR #71).** `pawthway.css` 544 → 203 lines,
   `carePlan.css` 1863 → 1136, the three zero-importer modules (`careplan/Tips.tsx`,
   `careplan/Journal.tsx`, `hooks/useSwipe.ts`) deleted, and `Timeline.tsx`'s unused second
   export with them. The **built** stylesheet went 85,702 → 69,568 bytes, 824 → 671 selectors:
@@ -169,13 +169,13 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
 
 ## Task queue
 
-- **DC-10 `[large]` — shipped 2026-09-08 (PR #__); the Ledger row is the full account.** The
+- **DC-10 `[large]` — shipped 2026-09-08 (PR #71); the Ledger row is the full account.** The
   two stylesheets are down to what the app renders, and the measurement the queue entry was
   written from was itself over-reported by five classes — see the row. Its original spec is
   archived verbatim alongside the design answer, since both orderings it turned on are now
   restated by the settled section above.
 
-- **DC-4 — shipped 2026-09-08 (PR #__) as a rider on DC-10**, which is what its own entry
+- **DC-4 — shipped 2026-09-08 (PR #71) as a rider on DC-10**, which is what its own entry
   invited and the DC-9-on-DC-8 precedent it cited. `ci.yml`'s `frontend` job now has three
   guard steps; the new one is **"Palette change notice"**. Verified on a throwaway commit the
   way DC-1 asked and DC-6 actually did — both cases, though locally rather than on a real
@@ -198,6 +198,26 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
   - **`carePlan.css`'s ~115 color literals are now a smaller problem than the number
     suggests**, because the pass above deleted 80 classes' worth of rules. Re-count before
     treating the parked retokenisation as the size it used to be.
+
+- **2026-09-09 — the queue is still empty on purpose, the `[large]` slot has left this doc,
+  and the `theme.css` lead above is mostly wrong.** Re-measuring the fifteen classes that
+  bullet names as *not* false positives — every `className="..."` and `className={...}`
+  literal under `web/src` against `.<name>` in `theme.css` — finds **eleven of them live**:
+  `shelter__form`, `shelter__form-row`, `shelter__label`, `shelter__error`, `signin__google`,
+  `signin__note`, `signin__fine`, `account__wipe`, `avatar`, `avatar--initial` and
+  `tabbar__link--account` all appear in a real `className`. Only the four `ap-*` rules
+  (`theme.css:557-564` — `.ap-row`, `.ap-when`, `.ap-manner`, `.ap-routine`) are genuinely
+  unreferenced. This is the README's 2026-09-07 lesson landing for the third consecutive run,
+  now against a *lead* rather than a shipped claim: the cheapest wrong measurement to find is
+  the one the last run just wrote. The lead survives, at a tenth of its stated size — four
+  rules, not fifteen — which is a reason to leave it a lead rather than promote it.
+  **Nothing is queued here this run, and that is a routing decision rather than an absence.**
+  execute works the queues top-down and this doc outranks `production-hardening.md`, so any
+  item added here — including the small, true, four-rule version of the lead above — would be
+  picked *before* **PH-17**, the repo's only `[large]` item and a defect in what the product
+  tells a stranger about a real animal. That is precisely the treadmill the 2026-08-31 re-rank
+  exists to stop, arriving from the other direction. The `carePlan.css` literal re-count is
+  untouched and still wants doing before the parked retokenisation is sized.
 
 - **DC-8 `[large]` (with DC-9) — shipped 2026-09-07 (PR #69); the Ledger row is the full
   account.** Care Plan's breakpoints step with the frame and `.cp-stage` caps at `--content-w`
@@ -285,38 +305,16 @@ queued work.
   [`archive/design-consistency-ledger-2026-09-08.md`](archive/design-consistency-ledger-2026-09-08.md).
 - 2026-09-06 — DC-7 — PR #67 — **The app is one stylesheet fewer, and the order that decides
   live screens is written down.** `web/src/App.css` (627 lines), `components/Sidebar.tsx` (51)
-  and `components/Checklist.tsx` (31) are deleted — **709 lines out of the repo**, against 78
-  added, and the built stylesheet drops from 94.4kB to 86.2kB. The measurement was re-run
-  rather than trusted and it held: `App.css` had exactly five live classes, not the seven a
-  naive scan reports (`app` and `badge` are JS identifiers inside `className={...}`
-  expressions — `app.id`, `badge.tone` — which is worth knowing before anyone re-measures).
-  `.btn`, `.btn--primary`, `.btn--ghost`, `.btn:hover:not(:disabled)`, `.btn:disabled` and the
-  520px `.btn{width:100%}` rule moved verbatim to the **top of `pawthway.css`**, not into
-  `theme.css`, for the reason the spec gave.
-  **Proof, not eyeballing.** The built CSS was diffed rule-by-rule against a baseline build of
-  `main`: **66 selectors removed, 0 added**, and every removed one is absent from every
-  `className` in `web/src`. Four selectors changed and each is accounted for — `.chat` gained
-  `min-width:0` (the one property `App.css` was silently supplying to the live Match chat) and
-  otherwise resolves to `theme.css`'s rule exactly as it already did; `.chat__scroll` lost a
-  copy that was already being overridden, *including* the `padding:18px` inside `App.css`'s
-  780px media query, which never won because a media query adds no specificity;
-  `.btn--primary`/`.btn--ghost` differ only by `var()` indirection.
-  **The one thing the spec did not anticipate: moving the rules would have failed CI.** The
-  design-token guard flags an *added* line containing `rgba(` in any file but `theme.css` and
-  `brand.ts`, and it cannot tell a move from new drift. Per this doc's standing rule that a
-  guard hit means use a token, the three literals became `--btn-primary-shadow`,
-  `--btn-ghost-bg` and `--btn-ghost-line` in `theme.css`'s `:root`. Values are byte-identical,
-  so this is not the repaint the parked list forbids — but it *is* three new tokens, recorded
-  here rather than buried.
-  **The notice is a third step, not an extension of DC-4's** — DC-4 has not landed, so there
-  was nothing to extend. It greps `App.tsx`'s diff for `import "./*.css"` lines and, on a hit,
-  emits a `::warning::` plus a `$GITHUB_STEP_SUMMARY` block; it never exits non-zero. It fires
-  on this PR, which is correct — this PR removed an import.
-  **What is still dead and deliberately untouched:** `pawthway.css`'s own unused rules, and six
-  `className` literals that match no selector anywhere (`cp-journal`, `cp-timeline`, `cp-tips`,
-  `cp-tip-group`, `cp-feed-item__tag--ask`, `shelter__home`). All six predate this item and sit
-  in files it had no business opening; they are a note for plan, not a bonus fix.
-  `build` / `test` (98) / `lint` green, 9 pre-existing warnings on both this branch and `main`.
+  and `components/Checklist.tsx` (31) deleted — 709 lines out against 78 added, built CSS
+  94.4kB → 86.2kB — and the `.btn` base layer moved verbatim to the **top of `pawthway.css`**,
+  not into `theme.css`. Proof rather than eyeballing: the built stylesheet was diffed
+  rule-by-rule against a baseline build of `main` — **66 selectors removed, 0 added**, every
+  removed one absent from every `className` under `web/src`. **Two things worth keeping out of
+  the archive.** `app` and `badge` are *JS identifiers* inside `className={...}` expressions
+  (`app.id`, `badge.tone`), so a naive scan reports seven live classes where there are five —
+  know that before re-measuring. And moving six rules needed three new tokens, which is why a
+  bulk retokenisation is parked rather than queued. Full 35-line row verbatim in
+  [`archive/design-consistency-ledger-2026-09-09.md`](archive/design-consistency-ledger-2026-09-09.md).
 
 - 2026-09-07 — DC-8 (with DC-9 as its rider) — PR #69 — **Care Plan joins the frame, and the
   notice learns to watch the import graph.** Archived verbatim the next run, in DC-10's PR, at
@@ -327,7 +325,7 @@ queued work.
   about), `ci.yml`'s stylesheet notice now watches every `.tsx` for a local `.css` import
   (DC-9) rather than `App.tsx` alone, and **a harness cannot prove a CSS change** — which is
   the lesson DC-10 was created by.
-- 2026-09-08 — DC-10 (with DC-4 as its rider) — PR #__ — **Half the shipped CSS is deleted, and
+- 2026-09-08 — DC-10 (with DC-4 as its rider) — PR #71 — **Half the shipped CSS is deleted, and
   the measurement that queued it was wrong by five classes.** `pawthway.css` 544 → 203,
   `carePlan.css` 1863 → 1136, `Tips.tsx` / `Journal.tsx` / `useSwipe.ts` gone along with
   `Timeline.tsx`'s unused `Timeline` export. 43 dead classes out of `pawthway.css`'s 66 real
@@ -370,7 +368,7 @@ queued work.
     comment** — the rest of the sentence became garbage CSS, and `vite build` emitted it
     without complaint. The selector diff caught it as two added selectors. A glob in a CSS
     comment is a live hazard; the surviving comment says so.
-- 2026-09-08 — DC-4 — PR #__ — **A palette repaint is finally visible in review.** A third
+- 2026-09-08 — DC-4 — PR #71 — **A palette repaint is finally visible in review.** A third
   `frontend` guard step, **"Palette change notice"**: when a PR's diff touches
   `web/src/theme.css` or `web/src/brand.ts` it emits a `::warning::` plus a
   `$GITHUB_STEP_SUMMARY` block naming the files and quoting the changed token and color lines.

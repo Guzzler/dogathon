@@ -124,76 +124,35 @@ Two consequences that plan should apply rather than re-derive:
 Both rules above got exercised on the same run, so the outcome is worth recording
 rather than re-derived.
 
-- **`real-data-and-shelters.md` had no `[large]` item at all** after RS-5 shipped —
-  the only one in the repo was DC-5, sitting in the *second*-priority doc, which is
-  not what this README asks for. RS-6 (add and retire a dog: a rules change, a form,
-  a status transition, and the foster-side consequences of both) was already that
-  size and merely wasn't labelled. It is now marked `[large]` and sits at the top of
-  the top doc's queue. The lesson is that the `[large]` slot is usually a **labelling**
-  gap, not a missing item — look for the item that is already big before inventing one.
-  **2026-09-02 repeated it exactly.** RS-6 shipped, taking the only `[large]` item in the top
-  doc with it, and the next one was again already in the queue and unlabelled: RS-10 (a hook,
-  both foster views composed from two sources, an agent tool constrained, a four-case test).
-  Twice running, the answer was a label rather than an invention. Treat "there is no `[large]`
-  item" as a prompt to re-read the queue before writing anything new.
-- **2026-09-03 repeated it a third time, and the label was already right.** RS-10 shipped and
-  RS-11 was already marked `[large]` and already at the top of the top doc — nothing needed
-  labelling or inventing. Three runs in a row, the `[large]` slot was filled by reading the queue.
-- **2026-09-04 broke the streak, and the exception is as instructive as the rule.** RS-11
-  shipped and the top doc's queue held exactly one item — RS-4, a workflow trigger that is
-  small by construction. Re-reading it produced nothing `[large]`, because there genuinely was
-  nothing: M3's three surfaces and both round trips are built. The item came instead from
-  **verifying a claim in the other direction** — PH-1 has said since 2026-08-24 that a real
-  notification path is "downstream of M3", and M3 finished while nobody re-read that sentence.
-  Reading `adoption.py` against the shipped shelter dashboard turned an old gated note into
-  RS-12. So the generalisation gains a second half: **read the queue first, and when it is
-  genuinely empty of big work, re-read the notes that were gated on something that has since
-  shipped.** A parked item whose gate opened is the cheapest place a `[large]` one hides.
-- **2026-09-05 — the slot left the top doc, and the ranking did not change with it.**
-  RS-12 shipped and `real-data-and-shelters.md` was left holding one small item (RS-4). Both
-  fallbacks were tried and both came back empty: re-reading the queue found nothing big
-  unlabelled, and re-reading the gated notes found nothing whose gate had opened. The reason
-  is structural rather than an oversight — **M3 is finished** (three surfaces, both round
-  trips, a real staff account verified against it), and **M5 is explicitly gated on one real
-  shelter using the admin surface**, which is gated on Sharang's conversation. So the repo's
-  only `[large]` item is **DC-5**, in the *second*-priority doc, which is precisely the
-  arrangement the 2026-09-01 note called "not what this README asks for". *(DC-5 has since
-  shipped — PR #65, 2026-09-05 — and the slot is now DC-7 in the same doc; see the next
-  bullet.)* It is the right answer anyway, and the distinction matters: **the top doc has run out of buildable work, not
-  out of work.** Re-ranking would be wrong — the moment a shelter says yes, real-data goes
-  straight back to the top with M5 and a second source behind it. Promoting DC-5 to execute's
-  next run is a routing decision for one run, not a re-rank. The generalisation worth keeping:
-  when the top doc's remaining work is gated on a human rather than on code, take the
-  `[large]` item from the next doc down and **say so**, rather than inventing one to keep the
-  slot inside the top doc.
-- **2026-09-06 — the slot was found a third way: by measuring, not by reading.** DC-5
-  shipped, which emptied the only `[large]` item in the repo. Both established fallbacks were
-  run against the top doc and both came back empty again — re-reading `real-data-and-shelters.md`'s
-  queue found only RS-4, and re-reading its gated notes found no gate that had opened, for the
-  same structural reason as the day before (M3 finished, M5 waits on a shelter). The item came
-  instead from **measuring the codebase against itself**: every `className` in `web/src/**/*.tsx`
-  against every selector in the three stylesheets. That turned up 627 lines of `App.css` of which
-  three classes are live, two dead components nothing imports, and — the part that made it worth
-  a `[large]` item rather than a cleanup chore — **two selectors defined in two files at
-  identical specificity, resolving a live screen by import order**. So the fallback chain now has
-  three links, in cost order: *read the queue, then re-read the gated notes, then measure*. The
-  third is the most expensive and the only one that can find work nobody has written down yet.
-  DC-7 is the result, and the slot stays in `design-consistency.md` for a second run — which is
-  the 2026-09-05 arrangement continuing, not a new one.
-- **2026-09-07 — measuring worked twice, and the *second* measurement corrected the first.**
-  DC-7 shipped, emptying the slot again. The first two fallbacks came back empty for the third
-  consecutive run and for the same structural reason (M3 finished, M5 gated on a shelter), so
-  the third link — measure — was used again, and it found the slot again: **DC-8**. But the
-  lesson is not "measuring works." It is that **the previous run's measurement was wrong, and
-  only re-measuring caught it.** DC-7 enumerated `App.tsx`'s import lines and concluded the app
-  is "two stylesheets"; the app has **three** authored stylesheets, and the one it missed —
-  `web/src/phases/careplan/carePlan.css`, imported from a component — is **1850 lines, larger
-  than the other three combined**. That false claim shipped into `design-consistency.md`'s
-  "what's actually canonical right now" list and stood for a day. Two things generalise:
-  **enumerate the import graph, not one file's imports**, and — the more useful half — **a
-  measurement is evidence, not a fact, and the cheapest place to find a wrong one is the
-  section the last run just wrote.** The step-2 duty to verify grounding against reality
-  applies to this loop's own prior output first, not only to the humans'.
+**The fallback chain, in cost order — read the queue, then re-read the gated notes, then
+measure.** It was established one run at a time between 2026-09-01 and 2026-09-07; the full
+seven-entry log is verbatim in
+[`archive/readme-large-slot-2026-09-09.md`](archive/readme-large-slot-2026-09-09.md).
+Compressed:
+
+- **2026-09-01 / 09-02 / 09-03 — read the queue.** Three runs running, the `[large]` slot was
+  filled by a **label**, not an invention: RS-6, then RS-10, then RS-11, each already big and
+  merely unmarked. Treat "there is no `[large]` item" as a prompt to re-read the queue first.
+- **2026-09-04 — re-read the gated notes.** RS-4 was genuinely small and nothing in the queue
+  was big, because M3's surfaces were built. The item came from a *note* whose gate had
+  quietly opened: PH-1 had said since 2026-08-24 that a real notification path was
+  "downstream of M3", and M3 finished while nobody re-read the sentence. **A parked item
+  whose gate opened is the cheapest place a `[large]` one hides.**
+- **2026-09-05 — the slot may leave the top doc, and saying so beats inventing.** Both
+  fallbacks came back empty because M3 is finished and M5 is gated on a real shelter — a
+  human, not code. The slot went to DC-5 in the second doc. **The top doc had run out of
+  buildable work, not out of work**; re-ranking would have been wrong, and routing one run is
+  not a re-rank.
+- **2026-09-06 — measure.** Every `className` under `web/src` against every selector in the
+  stylesheets found DC-7: two selectors in two files at identical specificity resolving a live
+  screen by import order. The third link is the most expensive and the only one that finds
+  work nobody has written down.
+- **2026-09-07 — a measurement is evidence, not a fact.** Re-measuring found DC-7's own claim
+  wrong: it enumerated one file's imports and missed the repo's largest stylesheet, and the
+  false claim had already shipped into a working doc. **Enumerate the import graph, not one
+  file's imports** — and the cheapest place to find a wrong measurement is the section the
+  last run just wrote. This loop's own prior output is the first thing step 2 should verify.
+
 - **2026-09-08 — measuring found the slot a third time, and what it corrected was the
   *method*, not the sample.** DC-8 shipped; the first two fallbacks came back empty against
   the top doc for the fourth consecutive run and for the same structural reason (M3 finished,
@@ -225,10 +184,45 @@ rather than re-derived.
   conditional class nested inside a template literal's `${...}`. A literal scan is a shortlist,
   never a verdict — the confirming pass must read `className=` values specifically, and
   whatever is measured next deserves the same two-pass treatment.
-- **`production-hardening.md`'s queue is empty and was deliberately left empty.** It
-  is the lowest-priority doc, the two above it hold four open items including the
-  `[large]` one, and PH is the doc whose refills produced the treadmill the re-rank
-  exists to stop. An empty third queue is the ranking working, not a gap to fill.
+- **2026-09-09 — the fourth link in the chain: measure something that isn't CSS, and the
+  slot lands in the *third* doc.** The previous run predicted this exactly — three
+  consecutive runs of measuring CSS had consumed the dead CSS there was, so the next
+  `[large]` item would have to come from somewhere else. It did. Both cheap fallbacks came
+  back empty against the top doc for the fifth consecutive run and for the unchanged
+  structural reason (M3 finished, M5 gated on a shelter, RS-4 small by construction and in
+  flight as this ran). Measuring **content provenance** instead of selectors — every module
+  that supplies data to `buildAdoptionProfile`, traced back to where the data is written —
+  produced **PH-17**: `web/src/phases/careplan/data.ts` is a demo dog's *past*, and
+  `useJournal.ts` writes it into every real foster's Firestore document, from where the
+  adoption page prints another animal's vaccination record and labels a seeded weight
+  `source: "care plan"`. Three things generalise, and the third is the one to keep:
+  - **The measurable surface is not only CSS.** Selectors against markup is one instance of
+    a general move — enumerate what the code *claims*, then trace each claim to its source.
+    Applied to content rather than style, the same method found a defect in what the product
+    tells a stranger about a real animal.
+  - **The slot may sit in the lowest-ranked doc**, and this is the second time the `[large]`
+    item has been outside the top one (2026-09-05 was the first, in the second doc). Same
+    reading as then: the ranking's premise — that real-data has the buildable work — has
+    expired *for now*, not been overturned. Routing for one run, not a re-rank.
+  - **Ranking cuts both ways, so an empty higher queue can be the correct queue.** execute
+    works top-down, so anything queued in `design-consistency.md` this run — including a
+    small, true item that survived re-measurement — would be picked *before* PH-17. Leaving
+    it a lead is what protects the `[large]` item. "Don't refill a queue just because it has
+    room" was written to stop the treadmill; this is the same rule arriving from the other
+    direction, and it applies to a doc that ranks *above* the work that matters, not just
+    below it.
+  - A fourth, smaller: the 2026-09-07 lesson landed for the third run running, this time
+    against a *lead* rather than a shipped claim. DC-10 left fifteen `theme.css` classes
+    named as genuinely unreferenced; re-measuring found **eleven of them live**. The cheapest
+    wrong measurement to find is still the one the last run just wrote.
+- **`production-hardening.md`'s queue was empty by design for eight consecutive runs, and
+  was refilled on 2026-09-09.** The emptiness was right while it lasted: it is the lowest-
+  ranked doc, and it is the one whose refills produced the treadmill the re-rank exists to
+  stop. What changed is not the ranking but the item — **PH-17** is a whole phase of the
+  product asserting things about a real animal that nobody observed, which is the class of
+  defect this doc was created for, not the small headlessly-verifiable errand class that
+  caused the treadmill. Its verification errands stay parked under "Needs a human", and
+  that list is still not a to-do list.
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -286,7 +280,7 @@ prose above it, or a design decision that's settled and can compress to one
 line with a date. There's no archive directory yet because nothing here has
 run long enough to need one; when a doc first crosses ~400 total lines,
 start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **Twenty-one archives exist as of 2026-09-08** — the newest, `design-consistency-dc10-2026-09-08.md`, took DC-10's design answer and its original spec in DC-10's own PR; the same run also appended DC-8's Ledger row to that day's earlier ledger archive, because DC-10 deleted most of the code that row described. Those edits would have left `design-consistency.md` at 437 and it came back to **393**. The doc has now archived on three consecutive runs, which is the trigger working rather than a doc that is too long. Previously **twenty as of 2026-09-08** — that run archived twice from `design-consistency.md` again (DC-8's settled section, restated by its own ledger row, and three settled Ledger rows plus DC-5's, which is where the growth was); its own edits would have carried the doc past 470 and it came back to **399**, under the line for the first time in three runs. Previously **eighteen as of 2026-09-07** — that run archived twice from `design-consistency.md` in one PR (DC-7's settled section, restated by its own ledger row per the 2026-09-02 rule, and DC-3's closed diagnosis) because its own edits carried the doc to 404; it came back to 385. Previously **sixteen as of 2026-09-06** — the newest,
+snapshot) rather than let it grow unbounded. **Twenty-five archives exist as of 2026-09-09.** That run archived four times across three docs — the widest spread so far, and every one because its own edits pushed a doc over: `production-hardening.md` took PH-17's design answer, so PH-1's discharged section and PH-11's rate-limit reasoning went out and it came back to **399**; `design-consistency.md` gained a correction and gave up DC-7's 35-line ledger row, landing at **390**; and `README.md` itself archived for the first time — the `[large]` slot log for 2026-09-01 → 2026-09-07, seven chronological entries compressed to the fallback chain they established plus one dated line each, which held this file at **406** while it gained a full new entry. The lesson the README had only been applying to the other docs: **a chronological log is the same growth shape as a ledger**, and the oldest entries are the ones that stopped being read. Previously **twenty-one as of 2026-09-08** — the newest, `design-consistency-dc10-2026-09-08.md`, took DC-10's design answer and its original spec in DC-10's own PR; the same run also appended DC-8's Ledger row to that day's earlier ledger archive, because DC-10 deleted most of the code that row described. Those edits would have left `design-consistency.md` at 437 and it came back to **393**. The doc has now archived on three consecutive runs, which is the trigger working rather than a doc that is too long. Previously **twenty as of 2026-09-08** — that run archived twice from `design-consistency.md` again (DC-8's settled section, restated by its own ledger row, and three settled Ledger rows plus DC-5's, which is where the growth was); its own edits would have carried the doc past 470 and it came back to **399**, under the line for the first time in three runs. Previously **eighteen as of 2026-09-07** — that run archived twice from `design-consistency.md` in one PR (DC-7's settled section, restated by its own ledger row per the 2026-09-02 rule, and DC-3's closed diagnosis) because its own edits carried the doc to 404; it came back to 385. Previously **sixteen as of 2026-09-06** — the newest,
 `real-data-and-shelters-ledger-2026-09-06.md`, took RS-12's 35-line ledger row on the standing
 instruction below, bringing that doc from 394 to 373 before this run's own additions took it to
 382. Previously **fifteen as of 2026-09-05** (the newest, `real-data-and-shelters-2026-09-05.md`, took RS-12's design section
