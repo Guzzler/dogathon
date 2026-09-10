@@ -1,12 +1,24 @@
 name: Import dog roster (Firestore)
 
-# Manual only. The committed data/dogs.json covers LOCAL_MODE and guest browsing, but a
-# configured deploy reads the live `dogs` collection, and nothing else writes to it — so
-# without running this, production keeps serving whatever was seeded there first.
+# Two callers, and they want opposite defaults.
 #
-# Not on a push trigger on purpose: this rewrites a production collection, and the roster
-# should change when someone decides it should, not because a file moved.
+# `workflow_dispatch` is the one that can write: the committed data/dogs.json covers
+# LOCAL_MODE and guest browsing, but a configured deploy reads the live `dogs` collection
+# and nothing else writes to it, so without running this by hand production keeps serving
+# whatever was seeded there first. Not on a push trigger on purpose — the roster should
+# change when someone decides it should, not because a file moved.
+#
+# `schedule` is the weekly drift check (RS-4). It re-scrapes sfspca.org and reports what no
+# longer matches the committed roster. It is **plan-only by construction** — there is no
+# input it can set and no branch it can take that writes to Firestore.
+#
+# Scheduled workflows only ever run from the default branch, so editing the cron on a
+# branch changes nothing until it merges; GitHub also disables them after 60 days with no
+# repository activity, which for this repo would itself be the signal worth noticing.
 on:
+  schedule:
+    # Mondays, 09:00 UTC.
+    - cron: "0 9 * * 1"
   workflow_dispatch:
     inputs:
       plan_only:
@@ -27,6 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: write      # the weekly check files its drift report as an issue
     steps:
       - uses: actions/checkout@v4
 
@@ -55,21 +68,92 @@ jobs:
           GOOGLE_CLOUD_PROJECT: pawthway-hackathon
           FIREBASE_PROJECT_ID: pawthway-hackathon
         run: |
-          ARGS=""
-          # --plan still connects and reads, so a preview proves the credentials work and
-          # shows the real diff. --dry-run would skip Firestore entirely and prove nothing.
-          [ "${{ inputs.plan_only }}" = "true" ] && ARGS="$ARGS --plan"
-          [ "${{ inputs.rescrape }}" = "true" ] || ARGS="$ARGS --from-cache"
+          set -o pipefail
+          # Inputs are empty on a `schedule` event, so the scheduled arguments are built
+          # from the event name rather than left to input defaults — which would resolve
+          # to "" and quietly drop --plan.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            # Both halves matter. --plan because a scheduled job must never rewrite a
+            # production collection unattended, and a re-scrape (i.e. *not* --from-cache)
+            # because replaying the cache diffs the committed data against itself and
+            # reports "no drift" forever, which is worse than having no check at all.
+            ARGS="--plan"
+          else
+            ARGS=""
+            [ "${{ inputs.plan_only }}" = "true" ] && ARGS="$ARGS --plan"
+            [ "${{ inputs.rescrape }}" = "true" ] || ARGS="$ARGS --from-cache"
+          fi
           echo "running: import_dogs.py $ARGS"
-          uv run python scripts/import_dogs.py $ARGS
+          uv run python scripts/import_dogs.py $ARGS | tee "$RUNNER_TEMP/import.log"
 
-      # A re-scrape produces a roster the repo doesn't have yet; surface it so someone can
-      # commit it rather than letting Firestore and data/dogs.json drift apart.
+      # A manual re-scrape produces a roster the repo doesn't have yet; surface it so
+      # someone can commit it rather than letting Firestore and data/dogs.json drift apart.
+      # The scheduled path gets the louder treatment below instead.
       - name: Check for uncommitted roster changes
-        if: ${{ inputs.rescrape }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.rescrape }}
         run: |
           if ! git diff --quiet -- data/dogs.json data/sfspca_scrape.json; then
             echo "::warning::The scrape changed data/dogs.json — commit it so the local"
             echo "::warning::roster matches Firestore. Diff:"
             git --no-pager diff --stat -- data/dogs.json data/sfspca_scrape.json
+          fi
+
+      # Quiet when nothing moved: a weekly check that speaks every week stops being read.
+      - name: Detect roster drift
+        id: drift
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          if git diff --quiet -- data/dogs.json data/sfspca_scrape.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No drift — the live SF SPCA roster still matches the committed one." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "The weekly re-scrape of sfspca.org no longer matches the roster committed"
+            echo "to this repo. **Nothing was written** — the scheduled run is plan-only."
+            echo
+            echo "To take the change: re-bake locally with"
+            echo '`uv run python scripts/import_dogs.py --dry-run`, review the descriptive'
+            echo "fields in \`data/enrichment.json\` for any dog that is new, commit, then run"
+            echo "the **Import dog roster (Firestore)** workflow by hand with *plan only*"
+            echo "unticked to push it live."
+            echo
+            echo '### What changed in the committed files'
+            echo
+            echo '```'
+            git --no-pager diff --stat -- data/dogs.json data/sfspca_scrape.json
+            echo '```'
+            echo
+            echo '### Firestore plan (read-only — nothing written)'
+            echo
+            echo '```'
+            sed -n '/^firestore plan/,/^$/p' "$RUNNER_TEMP/import.log"
+            echo '```'
+            echo
+            echo "<sub>Filed by the weekly drift check in \`.github/workflows/import-dogs.yml\`"
+            echo "— [run ${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}).</sub>"
+          } > "$RUNNER_TEMP/drift.md"
+          cat "$RUNNER_TEMP/drift.md" >> "$GITHUB_STEP_SUMMARY"
+
+      # One issue, reused. Opening a fresh one every Monday until someone re-bakes turns a
+      # useful signal into a backlog of identical tickets, so an already-open report gets a
+      # comment instead.
+      - name: File or update the drift report
+        if: ${{ steps.drift.outputs.changed == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create roster-drift --force --color D4A017 \
+            --description "The committed dog roster no longer matches the shelter's site"
+          existing=$(gh issue list --label roster-drift --state open --limit 1 \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file "$RUNNER_TEMP/drift.md"
+            echo "commented on existing issue #$existing"
+          else
+            gh issue create --label roster-drift \
+              --title "Dog roster has drifted from sfspca.org" \
+              --body-file "$RUNNER_TEMP/drift.md"
           fi

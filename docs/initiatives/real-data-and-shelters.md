@@ -95,13 +95,10 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   shelter that isn't SF SPCA, with zero scraping risk. RS-2 shipped the gate and
   RS-5 the inbox; RS-6 is the remaining third. Build from the queue items, not
   from this paragraph.
-- **M4 — decided 2026-08-26; queued as RS-4.** Yes to a cadence, no to Cloud
-  Scheduler (a `schedule:` trigger on the workflow that already holds the
-  credential), plan-only permanently, weekly, and the scheduled path **must**
-  `--rescrape` — a cached replay diffs the committed data against itself and
-  reports "no drift" forever. The deliverable is the notification, not the
-  schedule. Full reasoning and the known constraints are in the archive and
-  restated where they matter in RS-4.
+- **M4 — decided 2026-08-26, shipped 2026-09-09 as RS-4 (PR #__). Closed.** Yes to a cadence,
+  no to Cloud Scheduler; weekly, plan-only, and always re-scraping. The reasoning is in the
+  archive and the outcome is the RS-4 Ledger row — this bullet no longer carries the spec,
+  because the shipped workflow does.
 - **M5 — a second automated source (RescueGroups.org), gated on demonstrated
   need.** Don't build it until M3 has one real shelter using the admin surface;
   a second automated source before the manual path is proven just adds a second
@@ -200,9 +197,8 @@ taken by the M4 drift check, which is unrelated and independent of these.)
     consequence of the ranking's premise expiring, not as a re-rank — this doc goes back to the
     top the moment a shelter says yes, and the honest reading is that the top doc has run out
     of buildable work before it has run out of *work*.
-  - **2026-09-06 — same question, same answer, and the slot was found a third way.** Both
-    fallbacks came back empty against this doc; measuring `web/src/` rather than reading either
-    the queue or the notes produced DC-7. The README records the new fallback.
+  - **2026-09-06 — same question, same answer**; measuring `web/src/` rather than reading
+    the queue or the notes produced DC-7. The README records that fallback.
   - **2026-09-07 — a third consecutive run, same answer, and the measurement itself was the
     thing that moved.** All three fallbacks were re-run against this doc rather than carried
     over: the queue still holds only RS-4, and no gate has opened (RS-12b, RS-6b and RS-8 all
@@ -224,30 +220,11 @@ taken by the M4 drift check, which is unrelated and independent of these.)
     the caution above landing: a dated measurement is evidence, and *what you measured against*
     is part of the claim.
 
-- **RS-4 (2026-08-26) — the weekly drift check.** The M4 bullet above *is* the
-  spec; the archive carries the full reasoning. Add a weekly `schedule:` trigger
-  to `.github/workflows/import-dogs.yml` alongside the existing
-  `workflow_dispatch`, leaving every manual input and default exactly as-is.
-  - The scheduled path runs **plan-only with `--rescrape`** — the opposite of
-    the manual rescrape default, and the one detail that decides whether this
-    task is worth doing at all: a cached replay diffs the committed data against
-    itself and reports "no drift" forever, which is worse than no check.
-  - Inputs are empty on a `schedule` event, so build the arg list from
-    `github.event_name` rather than relying on input defaults.
-  - Quiet on an empty diff, loud otherwise. Prefer opening (or **updating** —
-    don't spam a new one weekly) a GitHub issue with the diff body, which needs
-    `issues: write` in the job's `permissions:` (currently `contents: read`);
-    failing with `::error::` and the diff is an acceptable simpler fallback.
-    Say which you chose in the ledger row.
-  - Leave the existing `concurrency: import-dogs` group alone — it already stops
-    a scheduled run overlapping a manual one. Add a comment noting that
-    scheduled workflows only run from the default branch and are disabled after
-    60 days of repo inactivity.
-  - **Nothing here may write to Firestore.** Do not add a path where a scheduled
-    run drops `--plan`.
-  - Verify: `workflow_dispatch` it by hand first to confirm the file still
-    parses and the manual path is unchanged, then echo the final `ARGS` in the
-    run log and read back that the scheduled branch resolves to plan + rescrape.
+- **RS-4 — shipped 2026-09-09 (PR #__); the Ledger row is the full account.** M4 is closed:
+  `.github/workflows/import-dogs.yml` has a weekly `schedule:` trigger, the scheduled path is
+  plan-only-and-re-scraping *by construction* rather than by input default, and drift is
+  reported as one reused GitHub issue. Every manual input and default is byte-for-byte
+  unchanged. **This empties the last open item across all three initiative docs.**
 
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
@@ -396,3 +373,28 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   `server.py`'s system prompt moved with it. This discharges **PH-1**. Nothing signed-in was
   verified; that half is RS-12b. Full 35-line row verbatim in the
   [2026-09-06 ledger archive](archive/real-data-and-shelters-ledger-2026-09-06.md).
+- 2026-09-09 — RS-4 — PR #__ — **the roster now tells us when it goes stale, weekly, without
+  ever being able to write.** A `schedule: "0 9 * * 1"` trigger joins the existing
+  `workflow_dispatch` on `import-dogs.yml`. The one detail M4 said decides whether the task is
+  worth doing at all is enforced structurally, not by default: the scheduled branch builds
+  `ARGS="--plan"` from `github.event_name` and never appends `--from-cache`, so it always
+  re-scrapes (a cached replay diffs the committed data against itself and reports "no drift"
+  forever) and there is **no input it can set and no branch it can take that writes to
+  Firestore**. Both manual paths resolve to exactly the argument strings they did before —
+  checked by replaying the shell for all three events, not by reading it. **Chose the issue
+  over the `::error::` fallback** the item offered, and reused rather than reopened: one
+  `roster-drift` label (created with `--force`, so a missing label can't fail the run), one
+  open issue, a *comment* on it if a later week still drifts — a weekly check that files an
+  identical ticket every Monday until someone re-bakes is a backlog, not a signal. Quiet when
+  the diff is empty: one line to the step summary and nothing else. `permissions:` gains
+  `issues: write`; `concurrency: import-dogs` is untouched, as asked, and already prevents a
+  scheduled run overlapping a manual one. Two things the spec hadn't named. The report needed
+  a body richer than a diff stat, so the import output is `tee`'d and the `firestore plan`
+  block is `sed`'d out of it — a reader wants to know how many docs *would* change, not only
+  which files did. And the existing "Check for uncommitted roster changes" step was pinned to
+  `github.event_name == 'workflow_dispatch'`: `inputs.rescrape` is empty on a schedule event
+  so it was already inert there, but relying on that is relying on a falsy empty string.
+  **Verified by dispatching the branch's own workflow** (`--ref feat/roster-drift-check`,
+  defaults untouched: plan-only, cached) — see the row's PR for the run. The scheduled branch
+  itself cannot be dispatched, so what is proven about it is the argument replay plus the
+  file parsing, not a live green run; the first real proof arrives the Monday after merge.
