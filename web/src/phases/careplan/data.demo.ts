@@ -143,7 +143,6 @@ export const seedJournal: JournalEntry[] = [
     dayInFoster: 4,
     kind: "photo",
     photoUrl: "/journal/day4-couch.jpeg",
-    imageColor: "#C4955A",
     caption: "First time on the couch. Look at this face.",
     starred: true,
   },
