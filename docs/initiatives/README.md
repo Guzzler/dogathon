@@ -224,6 +224,41 @@ Compressed:
   caused the treadmill. Its verification errands stay parked under "Needs a human", and
   that list is still not a to-do list.
 
+- **2026-09-10 — the slot was not sought, and the run's work was checking the one that exists.**
+  PH-17 was queued the day before and had not been picked up (execute's last run shipped RS-4,
+  #72, which merged twenty minutes before PH-17's doc PR, #73). So no fallback was run: the
+  `[large]` slot is filled, it sits in the third doc for the second consecutive run, and both
+  higher queues are empty on purpose — `design-consistency.md`'s emptiness is the routing
+  decision recorded there on 2026-09-09, and re-queueing its four-rule `theme.css` lead would
+  still take execute's run ahead of PH-17. **Total open across all three docs: two, one
+  `[large]`.** Nothing was refilled, which is "don't refill a queue just because it has room"
+  applied to a run with room in two of three docs.
+
+  What the run did instead was **re-verify the `[large]` item's own spec against `main`** — the
+  standing 2026-09-07 lesson, now on its fourth consecutive run and for the first time applied
+  to an item *before* it is built rather than after. Every line number PH-17 cited was right,
+  and the spec was still materially incomplete in three ways an execute run following its file
+  list literally would have inherited:
+  - **It named two write paths and there are four.** Deleting the two seeding effects leaves
+    `setJournal` (`useJournal.ts:31`) and `setSchedule` (`:64`) persisting
+    `updater(stored ?? seed…)`, so the first note a real foster writes saves the whole invented
+    past underneath it. The defect would have survived its own fix.
+  - **It named three files and there are four.** `CarePlanView.tsx` imports both moving exports
+    and is what re-labels another shelter's intake record with this dog's name; moving them
+    breaks it, and that is not discoverable from the other three files.
+  - **One of its hedges was wrong in the safe direction.** "The count is not the two this doc
+    names, verify it" — it is exactly two.
+  The generalisation, and the reason this is worth a line here: **a spec is a measurement too.**
+  The loop has learned to re-measure a shipped claim and a written-down lead; a queue entry that
+  has not been built yet is the same object, and the cheapest moment to find it wrong is before
+  someone spends a whole run on it.
+
+  The design question advanced turns PH-17's rule from a pair of lists into a **test** — *could
+  this value be wrong about a specific animal?* — and applying it to a second file showed
+  **PH-18 is the same defect**, not a neighbour: `1.2 mi` and `Open now` on the emergency screen
+  fail it exactly the way a seeded weight does. Recorded in `production-hardening.md`, with the
+  seam that lets either item ship first.
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
@@ -273,92 +308,40 @@ Compressed:
 
 ## Doc size
 
-Keep each initiative doc's **working core** — context plus the Task
-queue — under roughly 250 lines. If it grows past that, the excess is
-almost always closed queue items that belong in the Ledger instead of the
-prose above it, or a design decision that's settled and can compress to one
-line with a date. There's no archive directory yet because nothing here has
-run long enough to need one; when a doc first crosses ~400 total lines,
-start one (`docs/initiatives/archive/<doc>-<date>.md`, dated verbatim
-snapshot) rather than let it grow unbounded. **Twenty-five archives exist as of 2026-09-09.** That run archived four times across three docs — the widest spread so far, and every one because its own edits pushed a doc over: `production-hardening.md` took PH-17's design answer, so PH-1's discharged section and PH-11's rate-limit reasoning went out and it came back to **399**; `design-consistency.md` gained a correction and gave up DC-7's 35-line ledger row, landing at **390**; and `README.md` itself archived for the first time — the `[large]` slot log for 2026-09-01 → 2026-09-07, seven chronological entries compressed to the fallback chain they established plus one dated line each, which held this file at **406** while it gained a full new entry. The lesson the README had only been applying to the other docs: **a chronological log is the same growth shape as a ledger**, and the oldest entries are the ones that stopped being read. Previously **twenty-one as of 2026-09-08** — the newest, `design-consistency-dc10-2026-09-08.md`, took DC-10's design answer and its original spec in DC-10's own PR; the same run also appended DC-8's Ledger row to that day's earlier ledger archive, because DC-10 deleted most of the code that row described. Those edits would have left `design-consistency.md` at 437 and it came back to **393**. The doc has now archived on three consecutive runs, which is the trigger working rather than a doc that is too long. Previously **twenty as of 2026-09-08** — that run archived twice from `design-consistency.md` again (DC-8's settled section, restated by its own ledger row, and three settled Ledger rows plus DC-5's, which is where the growth was); its own edits would have carried the doc past 470 and it came back to **399**, under the line for the first time in three runs. Previously **eighteen as of 2026-09-07** — that run archived twice from `design-consistency.md` in one PR (DC-7's settled section, restated by its own ledger row per the 2026-09-02 rule, and DC-3's closed diagnosis) because its own edits carried the doc to 404; it came back to 385. Previously **sixteen as of 2026-09-06** — the newest,
-`real-data-and-shelters-ledger-2026-09-06.md`, took RS-12's 35-line ledger row on the standing
-instruction below, bringing that doc from 394 to 373 before this run's own additions took it to
-382. Previously **fifteen as of 2026-09-05** (the newest, `real-data-and-shelters-2026-09-05.md`, took RS-12's design section
-the run after it shipped — the 2026-09-02 rule applied on schedule for once, and it brought the
-doc from 394 back to 374 before that run's own additions). Previously **thirteen as of
-2026-09-04** — that run archived from *two* docs in one PR, which is a first.
-`production-hardening-ledger-2026-09-04.md` took PH-14/15/16's three rows, 55 lines of entirely
-load-bearing text, after this run's own PH-1 edits carried that doc to 410; it came back to 372.
-`real-data-and-shelters-2026-09-04.md` took three settled design sections at once
-plus RS-11's two ledger rows and RS-5b's superseded original — and the doc still landed at
-**412**, over the threshold, which is recorded here rather than hidden, as 2026-08-31's 421 was.
-The reason is the same both times: a run that archives *and* adds a `[large]` item plus a design
-answer is net-positive on lines even after cutting 100. The next run to touch this doc should
-archive the Ledger, which is again where the growth is.) Previously **eleven as of
-2026-09-03** (counted off `docs/initiatives/archive/`, not carried over). The six that
-established the convention: `real-data-and-shelters-2026-08-29.md` (that
-doc's settled M1/M2/M4 narrative) and `production-hardening-2026-08-29.md` (its
-settled PH-1..PH-6 narrative and rows), then
-`production-hardening-ledger-2026-08-30.md` (PH-7..PH-12's rows) and
-`real-data-and-shelters-ledger-2026-08-30.md` (M1 through RS-9's rows), then
-`production-hardening-deletion-2026-08-30.md` (the account-deletion finding that
-produced PH-14/15/16, archived by execute in PH-16's own PR the moment its edits
-crossed the line — which is the trigger working as written).
-The pattern that worked all three times, and is
-now the convention: snapshot verbatim into the archive so nothing
-is lost, then compress the settled sections in the working doc to one dated line
-each that points at the archive for the reasoning. Archives are append-only — if
-something in one turns out to be wrong, correct the working doc and say so there.
-
-**The 2026-08-30 pair narrows the pattern usefully, so it's worth recording.** The
-first two archived *narrative* — settled prose that had stopped being read. The
-second two archived only **ledger rows**, because that is where the growth
-actually was: both docs went back over 400 within a day or two of their first
-archive, and almost none of the regrowth was stale prose. execute writes long,
-genuinely valuable rows (PH-8's is 40 lines and every one of them earns its
-place), so the ledger is now the first place to look when a doc is over, not the
-last. Compress a row to its decision, its surprises, and what was verified versus
-reasoned about; the archive keeps the rest.
-
-**2026-08-31 — the sixth, and the first where compressing was not enough.**
-`real-data-and-shelters.md` was at 397 before that run, which then added a whole new
-design answer plus RS-10; archiving RS-9's narrative and compressing four settled
-sections bought back roughly 60 lines and the doc still landed at **421**. It was
-recorded rather than hidden, with the instruction that the next run to touch it should
-archive the Ledger.
-
-**2026-09-02 — the eighth**
-(`archive/real-data-and-shelters-2026-09-02.md`) narrows the rule one more notch. That run's own
-edits would have taken the doc to roughly 490, so it archived in the same PR, and what it took
-was RS-6's photo-source design answer *and* RS-6's 26-line ledger row — both of which had been
-restated by the thing they produced (the shipped code, and each other). The generalisation:
-**after a `[large]` item ships, its design answer and its ledger row are two tellings of one
-story**, and the working doc only needs the shorter one.
-
-**2026-09-03 — the eleventh, and it took both kinds at once.** RS-10 shipped, so its
-design section *and* its 22-line ledger row were the two tellings the 2026-09-02 rule names —
-except the design section had already been compressed, so what was actually redundant was the
-**round-trip section for RS-11, an item that has not shipped yet**. Its two "must not do" rules
-were quoted word for word inside RS-11's own queue entry, which is the 2026-09-01 trigger
-("a design answer stops earning its length the moment its queue item restates it") firing
-*before* the build rather than after. The generalisation: the restating thing can be the queue
-item, not only the shipped code, so check the queue entry against the design section the run you
-write it, not the run it ships.
-
-**2026-09-01 — that instruction was followed, and it worked.** The seventh archive
-(`archive/real-data-and-shelters-2026-09-01.md`) took both the Ledger through RS-5 and
-the 2026-08-31 checklist-join design answer, which had become RS-10's duplicated spec
-rather than live reasoning. The doc went 390 → 356 *while* gaining a new design section
-and a new queue bullet. Two things generalise. **The ledger really was the growth**, as
-the 2026-08-30 pair predicted: RS-5's row alone was 24 lines. And **a design answer stops
-earning its length the moment its queue item restates it** — compress it to the decision
-plus a pointer at exactly that point, not later.
-
-The trigger is worth applying at the moment a run's own edits push a doc past
-~400, not on the next run. production-hardening crossed it *because of* the
-2026-08-29 queue refill, and archiving in the same PR is what kept the working
-doc at 347 lines instead of letting a 420-line version merge and get noticed
+Keep each initiative doc's **working core** — context plus the Task queue — under roughly 250
+lines, and the whole doc under ~400. When a run's own edits push a doc past that, archive **in
+the same PR** (`docs/initiatives/archive/<doc>-<slug>-<date>.md`, verbatim snapshot), then
+compress what you took to one dated line pointing at it. Not on the next run — production-
+hardening crossed the line *because of* the 2026-08-29 refill, and archiving in the same PR is
+what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
+
+**Twenty-eight archives exist as of 2026-09-10** (this run added three: two from
+`production-hardening.md` and one from this file). The eleven-entry narration of which doc was
+how many lines on which date is now in
+[`archive/readme-docsize-2026-09-10.md`](archive/readme-docsize-2026-09-10.md) — archived for
+exactly the reason the `[large]` slot log was archived the run before, which is the rule
+directly below. What that narration established, and what is worth keeping here:
+
+- **The Ledger is the first place to look when a doc is over, not the last** (2026-08-30). Both
+  docs went back over 400 within two days of archiving *narrative*, and almost none of the
+  regrowth was stale prose. execute writes long, genuinely valuable rows; compress a row to its
+  decision, its surprises, and what was verified versus reasoned about.
+- **A design answer stops earning its length the moment something else restates it**
+  (2026-09-01), and **after a `[large]` item ships, its design answer and its ledger row are two
+  tellings of one story** (2026-09-02) — keep the shorter. The restating thing can be the
+  **queue entry**, not only the shipped code (2026-09-03), so check the entry against the
+  section the run you write it, not the run it ships. *(2026-09-10 widens this once more: it can
+  also be a **parked** item. "What lifting the instance pin actually costs" was discharged and
+  restated word for word by PH-13 under "Needs a human"; so were "No error tracking" by PH-7b
+  and "Two smaller ones" by two ledger rows.)*
+- **A chronological log is the same growth shape as a ledger** (2026-09-09, applied to this
+  section itself on 2026-09-10). The oldest entries are the ones that stopped being read.
+- **Compressing is sometimes not enough, and that gets recorded rather than hidden.**
+  `real-data-and-shelters.md` landed at 421 on 2026-08-31 and 412 on 2026-09-04; a run that
+  archives *and* adds a `[large]` item plus a design answer is net-positive on lines even after
+  cutting 100. *(2026-09-10: `production-hardening.md` landed at 404 after three archives —
+  over by four, recorded here for the same reason.)*
 
 ## Ledger convention
 
@@ -393,6 +376,8 @@ which is the first time a single number has filled two placeholders.)* *(2026-09
 queue entry and ledger row both backfilled to **#67**.)* *(2026-09-08: DC-8 and DC-9 both
 resolve to **#69** — the rider convention filling two placeholders with one number for the
 second time, and three placeholders across two sections resolved by one `gh pr list`.)*
+*(2026-09-10: RS-4's three placeholders — its queue entry, the M4 section and its ledger row —
+all resolve to **#72**. Three in one doc from one shipped item, still one `gh pr list`.)*
 
 **A standing lesson from 2026-08-28, worth generalising past the one bug.**
 DC-1 shipped with its verification recorded honestly as *"verified locally on
