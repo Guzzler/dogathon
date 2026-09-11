@@ -1,6 +1,5 @@
 import type { CareLogEntry, Foster } from "../types";
 import type { JournalEntry, Milestone, ScheduleBlock } from "../phases/careplan/types";
-import { medicalSummary, seedMilestones } from "../phases/careplan/data";
 import { ENERGY_WORD, dogPhotoOrNull, sizeLabel, type RichDog } from "./dog";
 
 /**
@@ -24,8 +23,15 @@ export interface AdoptionProfile {
   careOutstanding: number;
   /** Vet visits and weigh-ins from the Care Plan timeline. */
   milestones: { day: number; title: string; kind: string; note?: string; weight?: number }[];
-  medical: { vaccines: string[]; allergies: string[]; medications: string[] };
-  /** Latest recorded weight, from a milestone weigh-in if there is one. */
+  /**
+   * Only what the app actually holds: care items the foster ticked off, and vet visits they
+   * logged. `null` when there is nothing — never a template. This used to be a constant
+   * written for a demo dog, so every adoption page printed the same vaccines and the same
+   * "Allergies: None reported"; allergies have no source anywhere in this app, so the row
+   * does not render at all rather than reading as a clean bill of health nobody gave.
+   */
+  medical: { vaccines: string[]; medications: string[]; vetVisits: string[] } | null;
+  /** Latest recorded weight. `"care plan"` means the foster weighed the dog themselves. */
   weight: { value: string; source: "care plan" | "shelter" };
 
   /** Straight off the dog's record. Facts the shelter recorded, not foster observations. */
@@ -48,7 +54,7 @@ export function buildAdoptionProfile(
   journal: JournalEntry[] = [],
   schedule: ScheduleBlock[] = [],
   dayInFoster = Number.POSITIVE_INFINITY,
-  milestones: Milestone[] = seedMilestones,
+  milestones: Milestone[] = [],
 ): AdoptionProfile {
   // Oldest first, so the page and the summary both read Day 1 → today rather than newest-first.
   const byDay = [...journal].sort((a, b) => a.dayInFoster - b.dayInFoster);
@@ -91,15 +97,29 @@ export function buildAdoptionProfile(
 
   // The older careLog collection still counts if anything wrote to it.
   const logWeighIns = entries.filter((e) => e.type === "weigh_in" && e.value);
-  const lastMilestoneWeight = [...passed].reverse().find((m) => m.weightLbs)?.weightLbs;
 
+  // A weigh-in the foster logged, else the shelter's intake figure, else the size bucket.
+  // Deliberately no fourth source: this used to fall through to the last milestone carrying a
+  // weight, and while the milestones were seeded that printed a number nobody measured under
+  // a provenance line saying the foster measured it.
   const weight = logWeighIns.length
     ? { value: logWeighIns[logWeighIns.length - 1].value, source: "care plan" as const }
-    : lastMilestoneWeight
-    ? { value: `${lastMilestoneWeight} lb`, source: "care plan" as const }
     : dog.weight_lbs != null
     ? { value: `${dog.weight_lbs} lb`, source: "shelter" as const }
     : { value: sizeLabel(dog.size), source: "shelter" as const };
+
+  // Medical facts with an actual source. Ticked vaccine/medication rows are the foster saying
+  // it happened; `vet_visit` entries are the same. Nothing here is filled in when empty.
+  const ticked = (kind: string) => careDone.filter((c) => c.kind === kind).map((c) => c.label);
+  const vaccines = ticked("vaccine");
+  const medications = ticked("medication");
+  const vetVisits = entries
+    .filter((e) => e.type === "vet_visit")
+    .map((e) => e.note?.trim() || e.value?.trim())
+    .filter((t): t is string => !!t);
+  const medical = vaccines.length || medications.length || vetVisits.length
+    ? { vaccines, medications, vetVisits }
+    : null;
 
   const shelterFacts = [
     { label: "Breed", value: dog.breed },
@@ -132,6 +152,7 @@ export function buildAdoptionProfile(
   if (!journalPhotos.length) missing.push("photos");
   if (!journalNotes.length) missing.push("journal notes");
   if (!careDone.length) missing.push("care plan items");
+  if (!medical) missing.push("medical record");
   if (!fosterNote) missing.push("your note");
 
   return {
@@ -141,7 +162,7 @@ export function buildAdoptionProfile(
     careDone,
     careOutstanding,
     milestones: milestoneList,
-    medical: medicalSummary,
+    medical,
     weight,
     shelterFacts,
     shelterNotes: dog.notes,

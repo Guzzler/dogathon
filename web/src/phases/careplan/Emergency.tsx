@@ -2,7 +2,12 @@ import type { DogProfile, EmergencyContact, MedicalSummary } from "./types";
 
 interface EmergencyProps {
   dog: DogProfile;
-  summary: MedicalSummary;
+  /**
+   * Absent unless the app actually holds a medical record for this dog. A vaccination list
+   * and "Allergies: None reported" that came from a template are claims about a specific
+   * animal, on the screen someone opens when something is wrong.
+   */
+  summary?: MedicalSummary;
   contacts: EmergencyContact[];
 }
 
@@ -132,7 +137,8 @@ export function Emergency({ dog, summary, contacts }: EmergencyProps) {
         <p className="cp-eyebrow">{dog.name} · {dog.weightLbs} lbs</p>
         <h2 className="cp-phase-name">Emergency</h2>
         <p className="cp-banner-meta">
-          24-hour vet, poison control, and {dog.name}'s medical summary — ready to read out.
+          24-hour vet, poison control, and what {dog.name}'s record actually says — ready to
+          read out.
         </p>
       </header>
 
@@ -157,15 +163,15 @@ export function Emergency({ dog, summary, contacts }: EmergencyProps) {
         <dl className="cp-med-summary">
           <div>
             <dt>Vaccines</dt>
-            <dd>{summary.vaccines.join(" · ")}</dd>
+            <dd>{summary ? summary.vaccines.join(" · ") : "Not recorded"}</dd>
           </div>
           <div>
             <dt>Allergies</dt>
-            <dd>{summary.allergies.join(" · ")}</dd>
+            <dd>{summary ? summary.allergies.join(" · ") : "Not recorded"}</dd>
           </div>
           <div>
             <dt>Medications</dt>
-            <dd>{summary.medications.join(" · ")}</dd>
+            <dd>{summary ? summary.medications.join(" · ") : "Not recorded"}</dd>
           </div>
           <div>
             <dt>Weight</dt>
