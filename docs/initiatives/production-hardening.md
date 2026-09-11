@@ -18,20 +18,14 @@ behaviour changes — in the [archive](archive/production-hardening-2026-08-29.m
 leaves open is the `--min-instances=1 --max-instances=1` pin, now *removable* and not
 removed; the next section is what removing it costs.
 
-## What lifting the instance pin actually costs — answered 2026-08-29, discharged 2026-08-30
+## What lifting the instance pin actually costs — answered 2026-08-29, discharged 2026-08-30; archived 2026-09-10
 
-PH-8 left `--min-instances=1 --max-instances=1` removable and gated its removal on "once
-this has been watched working in production", which no run of this loop can evaluate.
-Reading `server.py` for what was still genuinely per-process replaced that with a concrete
-exit condition. Both blockers shipped: the in-memory rate limiter, which silently became a
-20N spend ceiling at N instances (PH-11, next section), and a live transcript nothing ever
-trimmed, so the 40-message cap only bit across a restart (PH-10). The residual race — two
-concurrent turns for one foster on different instances, last-write-wins — needs two devices
-and is accepted. **What remains:** `--max-instances` goes to **2** in one small PR, and a
-human confirms the two things that only exist multi-instance — `/health`'s `active_sessions`
-differing across two hits, and an approval issued in one browser resuming a turn parked in
-another. That second one is PH-8's actual claim and has never been observed. It is PH-13
-under "Needs a human", and it is the only thing between here and lifting the pin.
+Both blockers shipped (PH-11's divided rate limit, PH-10's live transcript trim), the residual
+two-device race is accepted, and what remains is one small PR raising `--max-instances` to **2**
+plus the two things only a human can observe. That remainder is **PH-13** under "Needs a human",
+stated there in full — which is why this section is now verbatim in
+[`archive/production-hardening-instancepin-2026-09-10.md`](archive/production-hardening-instancepin-2026-09-10.md)
+rather than here.
 
 ## What the rate limit means with more than one instance (decided 2026-08-30, PH-11); compressed 2026-09-09
 
@@ -75,58 +69,34 @@ in `web/src/auth.ts` and surfaced in `AccountSheet.tsx` for signed-in users;
 guests have "Start fresh on this device". Details in the
 [archive](archive/production-hardening-2026-08-29.md).
 
-### What deletion left behind, and what an application does about it — archived 2026-08-30
+### What deletion left behind — archived 2026-08-30, compressed 2026-09-10
 
-Reading `deleteAccount()`, `firestore.rules` and `server.py` against `main` on
-2026-08-30 turned up two things a deleted account left behind, and both were
-structural rather than an oversight to patch in place:
+Two things a deleted account left behind, both structural: the agent transcript (a
+subcollection, so deleting the parent document missed it → PH-14 clears it through
+`POST /reset` first, while an ID token can still be minted) and the `applications` rows
+carrying `fosterName` (**redact, don't delete** — an application is a two-owner record and
+must not vanish mid-review → PH-15 redacts and withdraws, PH-16 pins every other field).
+Full reasoning, including why `applications`'s update rule must stay loose about
+`fosterName` specifically, in [`archive/production-hardening-deletion-2026-08-30.md`](archive/production-hardening-deletion-2026-08-30.md)
+— read it before tightening that rule. Narrative archived in
+[`archive/production-hardening-settled-2026-09-10.md`](archive/production-hardening-settled-2026-09-10.md).
 
-- **The agent transcript** (`fosters/{uid}/agentSession/current`) survived, because
-  deleting a document doesn't delete its subcollections — a verbatim dump of
-  everything the foster typed, unreachable forever once the uid stopped existing.
-  Shipped as PH-14: `POST /reset` clears it through the Admin SDK, and the call goes
-  first, while an ID token can still be minted.
-- **The `applications` rows** survived carrying `fosterName`, with no `delete` rule to
-  remove them. The decision was **redact, don't delete** — the absent delete rule is
-  right, because an application is a two-owner record and must not vanish out from
-  under a staff member mid-review. Shipped as PH-15 (`"(deleted account)"` +
-  `status: "withdrawn"`) and PH-16 (pin the other fields, leave `fosterName` free).
+## No error tracking — compressed 2026-09-10
 
-The full reasoning — including why export and deletion are different questions, and
-why `applications`'s update rule must stay loose about `fosterName` specifically — is
-in the [archive](archive/production-hardening-deletion-2026-08-30.md). Read it before
-tightening that rule.
+Cloud Run logs only, and nothing reads them. The *logging* half is already correct
+(`server.py:300`, `:332`), so what is missing is one alert policy — **PH-7b** under "Needs a
+human", which states it more operationally than this section did. The reason it matters was
+demonstrated next door: DC-3's guard printed `fatal: ... no merge base` on four consecutive
+runs while reporting success, unnoticed for a day, because nothing reads logs that don't fail
+anything.
 
-## No error tracking
+## Two smaller ones — both resolved; compressed 2026-09-10
 
-Cloud Run logs only. Combined with the single-instance pin above: one wedged
-instance is the whole backend, and the first signal you'd get is a foster
-telling you chat is broken.
-
-**Sharpened 2026-08-28, and there is now a second reason to care.** The
-codebase already does the *logging* half competently — `server.py` calls
-`logging.exception` at each of the failure points that matter (the stream
-failure at `:300`, the session-persist failure at `:332`), so the information
-exists in Cloud Logging. What is missing is anything that *reads* it. That's
-a cheap gap to close relative to its value, and it just got demonstrated in
-the adjacent repo surface: the design-token guard in `ci.yml` printed
-`fatal: ... no merge base` on four consecutive runs while reporting success,
-and nobody noticed for a day, because nothing reads logs that don't fail
-anything (see `design-consistency.md`, DC-3). The same shape of blindness
-applies to the backend, with a foster on the other end of it. → PH-7.
-
-## Two smaller ones — both resolved
-
-- **Guest→account migration — 2026-08-26 (PH-5, PR #29).** A guest is pure
-  `localStorage` with no Firebase Auth session, so there was never anything to
-  `linkWithCredential`; `migrateGuestData()` copies the local `Foster` and care log
-  into `fosters/{uid}` on first sign-in, only when that doc doesn't already exist.
-  The README's "already decided" list carries the corrected framing.
-- **`tsconfig.app.json` strictness — 2026-08-26 (PH-4, PR #27).** `"strict": true`
-  made explicit. It was already on (TypeScript 6 defaults it), so this is a pin
-  against a silent future regression, not a fix. *(When re-checking, use
-  `./node_modules/.bin/tsc` — `npx tsc` resolves to an unrelated `tsc@2.0.4` that
-  prints a banner and exits 1 without compiling.)*
+PH-5 (guest→account migration, PR #29) and PH-4 (`"strict": true` pinned in
+`web/tsconfig.app.json`, PR #27) — the Ledger rows are the full account. One operational note
+worth keeping out of the archive: when re-checking strictness use `./node_modules/.bin/tsc`,
+because `npx tsc` resolves to an unrelated `tsc@2.0.4` that prints a banner and exits 1
+without compiling.
 
 ## Settled — advice may be templated; a history may not be seeded (2026-09-09)
 
@@ -173,29 +143,67 @@ claim" applies to the dog document.
 saying the data is local, so showing demo content behind it is honest. **Writing it to a
 foster document is not**, in any mode — that is what PH-17 removes outright rather than gates.
 
+### The line is tense, not topic — and it cuts one file further than PH-17 was scoped (2026-09-10)
+
+PH-17's rule was written against `data.ts` and stated as a pair of lists. Applying it to a
+second file turns it into a **test**, which is the more useful form:
+
+> Could this value be *wrong about a specific animal*? Then it is a record, and it may only
+> come from the foster, the shelter's document, or nothing at all.
+
+A tip, a week phase, a task template, an unticked schedule row: all survive the test — they
+are advice, false of no dog in particular. A milestone, a weight, a vaccination line, a
+journal entry, a tick, a photograph: all fail it.
+
+**So does `emergencyContacts`, and that makes PH-18 the same defect rather than a neighbour.**
+`data.ts:339-353` ships "VCA SF Veterinary Specialists · Nearest 24h emergency · 1.2 mi ·
+Open now" and "Copper's Dream Rescue · Foster coordinator · On-call today" to every foster.
+`1.2 mi` and `Open now` are measurements of a distance and an opening time nobody computed;
+"Copper's Dream" is a named shelter that is simply not this dog's, and `normalizeDog()`
+already supplies the one that is. The two national rows pass the test unchanged — Pet Poison
+Helpline and ASPCA Animal Poison Control are published numbers, correct for any US caller,
+and assert nothing local. The hand-drawn SVG labelled "Presidio Park" fails it hardest: it is
+a map of nowhere on the screen someone opens when something is wrong.
+
+**The seam between the two items, so neither blocks the other.** Both touch
+`Emergency.tsx`, which renders `medicalSummary` as its `summary` prop (`CarePlanView.tsx:260`).
+**PH-17 owns the prop** — when the medical record moves into the demo-only module, `summary`
+becomes optional and Emergency renders the section as absent, using the same "not recorded"
+language the adoption page already uses. **PH-18 owns the rows and the map** and touches
+neither the prop nor `data.ts`'s journal/milestone exports. PH-18 may ride PH-17 as a single
+PR if execute gets there, per the rider convention, but it is correct alone in either order.
+
 ## Task queue
 
 **Refilled 2026-09-09, for the first time since 2026-08-30, and the routing is deliberate.**
-PH-14/15/16 (PRs #47/#48/#49, the last bullet below) emptied this queue, and eight
-consecutive runs then declined to refill it — correctly, because the 2026-08-31 re-rank
-exists to stop PH's small, tidy, headlessly-verifiable items consuming every execute run
-while the shelter surface waited. **That reasoning does not cover what is queued below.**
+Eight consecutive runs declined to refill this queue — correctly, because the 2026-08-31
+re-rank exists to stop PH's small, tidy, headlessly-verifiable items consuming every execute
+run while the shelter surface waited. **That reasoning does not cover what is queued below.**
 PH-17 is not scaffolding: it is a whole phase of the product asserting things about a real
-animal that nobody observed, on the page a stranger reads to decide whether to adopt it. It
-is the same class of defect as PH-1 ("a tool that lies about notifying a shelter"), which is
-this doc's founding item, and it is the only `[large]` item in the repo. It sits here because
-this doc owns truthfulness, not because production-hardening has been re-ranked — the
-ranking in the README is unchanged, and the top doc goes back to the top the moment a
-shelter says yes. See the README's 2026-09-09 note.
+animal that nobody observed, on the page a stranger reads to decide whether to adopt it —
+the same class of defect as PH-1, this doc's founding item, and the only `[large]` item in
+the repo. It sits here because this doc owns truthfulness, not because production-hardening
+has been re-ranked. See the README's 2026-09-09 note.
+
+**Both open items were re-verified against `main` on 2026-09-10** and the corrections are
+inline below, marked with that date — PH-17's file list was missing two write paths and a
+whole fourth file, and one of its hedges was wrong. Nothing in either item was invalidated.
 
 - **PH-17 `[large]` — stop seeding a history the foster never lived.** The design section
   above is the specification; this is the file list and the exit condition. Do not
   redistribute it into small PRs — the halves are only honest together.
-  - **`web/src/hooks/useJournal.ts` — delete both seeding effects** (`patchFoster({ journal:
-    seedJournal })` at :25, `patchFoster({ careSchedule: seedSchedule })` at :59) and the
-    `seeded` refs with them. This is the load-bearing change: nothing else matters while an
-    invented past is being written into a real document. `useJournal` returns `stored ?? []`
-    outside `LOCAL_MODE`; inside it, the seed may still be *shown*, never written.
+  - **`web/src/hooks/useJournal.ts` — four write paths, not two** *(re-verified 2026-09-10;
+    the two effects are exactly where this doc said, and the other two were missed)*. Delete
+    both seeding effects (`patchFoster({ journal: seedJournal })` at :25,
+    `patchFoster({ careSchedule: seedSchedule })` at :60 — the line is :60, not :59) and the
+    `seeded` refs with them. **Then fix the two setters**, which are the reason deleting only
+    the effects would leave the defect intact: `setJournal` at :31 persists
+    `updater(stored ?? seedJournal)` and `setSchedule` at :64 persists
+    `updater(stored ?? seedSchedule)`, so the first note a real foster writes, or the first
+    box they tick, saves the entire seed underneath it. Both fall back to `[]`. Line :28's
+    `stored ?? seedJournal` becomes `stored ?? (LOCAL_MODE ? seedJournal : [])` — which is
+    exactly what `useJournalEntries` (:41) and `useCareScheduleBlocks` (:74) already do
+    correctly, so copy them rather than inventing a shape.
   - **`web/src/lib/adoption.ts` — three fixes, all provenance.** `medical: medicalSummary`
     (:144) must render from data the app actually holds and otherwise be absent, with
     `"medical record"` added to `missing`; the `milestones` parameter (:51) must **not**
@@ -206,12 +214,22 @@ shelter says yes. See the README's 2026-09-09 note.
     label.
   - **`web/src/phases/careplan/data.ts` — split the file by the rule, don't gut it.** Keep
     `taskTemplates`, `weekPhases`, `tips`, `daysSincePickup` and the `scheduleBlocks`
-    *shape*; set every `done: true` to `false` (`s-flea`, `s-dhpp-1`, and re-check the rest
-    — the count is not the two this doc names, verify it). Move `seedJournal`,
+    *shape*; set every `done: true` to `false` — *verified 2026-09-10:* it **is** exactly the
+    two this doc names, `s-flea` (:279) and `s-dhpp-1` (:288), `grep -c "done: true"` returns
+    2, so the hedge in the original entry was wrong and no hunt is needed. Move `seedJournal`,
     `medicalSummary`, `marty` and every past-dated `seedMilestones` entry into a clearly
     named demo-only module (e.g. `data.demo.ts`) that **only `LOCAL_MODE` code paths may
     import**; the one milestone that can survive is a pickup marker derived from
     `foster.pickup.date`, which is real.
+  - **`web/src/phases/careplan/CarePlanView.tsx` — a fourth file the original entry did not
+    name** *(found 2026-09-10)*. It imports `medicalSummary` and `seedMilestones as
+    rawMilestones` at :13-14, re-labels the milestones with the real dog's name at :120-127
+    (which is how another shelter's intake record ends up wearing this dog's name), passes
+    them at :228 and :247-248, and hands `medicalSummary` to `<Emergency summary=...>` at
+    :260. Moving those exports into the demo-only module **breaks this file**, so it is part
+    of PH-17 and not discoverable from the other three. The milestone list becomes `[]`
+    outside `LOCAL_MODE` plus the real pickup marker; `summary` becomes optional per the seam
+    described in the design section above.
   - **Empty states are part of the item, not follow-up.** `CarePlanView`, `Hub` and the
     adoption page must each read well with an empty journal, no milestones and no medical
     record — the adoption page already has `missing` and the "still to add" prompt for
@@ -238,7 +256,12 @@ shelter says yes. See the README's 2026-09-09 note.
   it) or does not render; the "nearest" row loses `distanceMi` and "Open now" unless
   something computed them, and says plainly that no 24h vet is recorded for this area.
   Delete the decorative map rather than labelling it. Verify by rendering with a dog whose
-  shelter is not Copper's Dream and reading the screen for anything still guessed. *(A line
+  shelter is not Copper's Dream and reading the screen for anything still guessed.
+  **Grounded 2026-09-10 in PH-17's rule rather than stated on its own** — see "The line is
+  tense, not topic" above: `1.2 mi` and `Open now` fail the same test a seeded weight fails,
+  which is why this is the same defect and not a neighbouring one. The seam is written there
+  too: PH-18 touches the contacts and the map only, never the `summary` prop or `data.ts`'s
+  journal and milestone exports, so it is correct before or after PH-17 and may ride it. *(A line
   for the ledger, not a code change: `CLAUDE.md` lists "Emergency Mode (24h vet map)" as
   explicitly out of scope, and it shipped anyway. The scope note is stale.)*
 
@@ -326,57 +349,39 @@ verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
 - 2026-08-26 — PH-5 — PR #29 — `migrateGuestData()` copies localStorage guest
   state into `fosters/{uid}` on first sign-in. Shipped smaller than queued: there
   is no anonymous Auth session to `linkWithCredential`. **Not verified live.**
-- 2026-08-28 — PH-7 (commit-shaped half only) — PR #33 — `GET /health` also
-  reports `firestore_reachable` via a cheapest-possible round trip that returns
-  `False` rather than raising. Did **not** do the alerting half — creating a live
-  GCP alert policy is a hard-to-reverse infrastructure change an unattended run
-  declined on purpose; that half is PH-7b under "Needs a human". Verified against
-  the failure path only. Full row in the
+- 2026-08-28 — PH-7 (commit-shaped half only) — PR #33 — `GET /health` reports
+  `firestore_reachable` via a cheap round trip that returns `False` rather than raising. The
+  alerting half was declined on purpose as a hard-to-reverse infrastructure change and is
+  PH-7b under "Needs a human". Full row in the
   [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
-- 2026-08-29 — PH-9 — PR #36 — The backend test harness: `pytest` as a dev
-  dependency group, `testpaths = ["tests"]`, a `Test` step appended to `ci.yml`'s
-  `backend` job, and 12 tests over `session_store` and `/health` that need no ADC,
-  no API key and no network — plus a ~60-line in-memory Firestore fake in
-  `conftest.py`. No emulator and no refactor for testability. Verified the new step
-  can turn the job red by pushing a deliberately broken assertion and reading it
-  back off a real Actions run. Full row in the
+- 2026-08-29 — PH-9 — PR #36 — The backend test harness: `pytest`, a `Test` step in `ci.yml`'s
+  `backend` job, 12 tests needing no ADC/key/network, and an in-memory Firestore fake in
+  `conftest.py`. No emulator, no refactor for testability. Verified the step can turn the job
+  red, off a real Actions run. Full row in the
   [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
 - 2026-08-29 — PH-8 — PR #37 — The approval handoff moved from an in-process
   `queue.Queue[bool]` to a polled `pendingApproval` field on
   `fosters/{uid}/agentSession/current` (`approval_store.py`), so a decision written
-  by any instance reaches a turn parked in any other. Three deliberate changes
-  beyond the literal task, each of which is a fail-closed choice: a timeout now
-  declines rather than letting `queue.Empty` escape and strand a `tool_use` with no
-  `tool_result`; `session_store.save()` became `merge=True` so it can't delete an
-  approval a turn is parked on; and a Firestore failure while recording the request
-  declines, because an unaskable question is not a yes. 8 tests, clock injected
-  rather than slept. The two-instance case is reasoned about, not exercised — it
+  by any instance reaches a turn parked in any other. Three fail-closed choices beyond the
+  literal task: a timeout declines rather than stranding a `tool_use` with no `tool_result`;
+  `session_store.save()` became `merge=True` so it can't delete an approval a turn is parked
+  on; and a Firestore failure while recording the request declines, because an unaskable
+  question is not a yes. 8 tests, clock injected. The two-instance case is reasoned about, not
+  exercised — it
   can't be, under the pin. Full row in the
   [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
-- 2026-08-30 — PH-10 — PR #43 — `session_store.trim()` is the one place the
-  40-message bound is applied, and `_stream`'s `finally` now applies it to the
-  **live** `agent.messages`, not just the stored copy — before this the cap was a
-  persistence bound wearing a spend bound's clothes, and the warm instance re-sent a
-  whole growing transcript every turn. The trim walks backwards to a clean turn
-  boundary and keeps everything if there isn't one, because under-keeping 400s the
-  API. Verified on unit cases only (4 new tests, negative direction run). Full row in
-  the [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
-- 2026-08-30 — PH-11 — PR #44 — Option (b): `CHAT_REQUESTS_PER_MINUTE` is derived
-  from a per-foster budget divided by `MAX_CLOUD_RUN_INSTANCES`, with matching `!!`
-  comments in `server.py` and next to `--max-instances` in `deploy-backend.yml`. The
-  recorded decision is the section "What the rate limit means with more than one
-  instance" above and was as much the deliverable as the code. No numeric change
-  today — the division is by 1. 6 tests, the first the rate limiter has ever had,
-  driving `time.monotonic` by hand. Full row in the
+- 2026-08-30 — PH-10 — PR #43 — `_stream`'s `finally` trims the **live** `agent.messages`,
+  not just the stored copy; before this the 40-message cap was a persistence bound wearing a
+  spend bound's clothes. Unit cases only. Full row in the
   [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
-- 2026-08-30 — PH-12 — PR #45 — `tests/test_foster_isolation.py` pins the two
-  invariants `CLAUDE.md` asserts in prose and nothing enforced: `current_foster` as a
-  per-context value, and one `Agent`/session per foster. Driven in two real threads
-  with a `threading.Barrier` — deliberately, since a plain generator shares its
-  caller's context and interleaving two in one thread would have passed against a
-  global and proved nothing. Ran both negative directions: a module-level variable
-  fails test (1) and only test (1); a shared `Agent` fails (3) and (4). No production
-  code changed. Full row in the
+- 2026-08-30 — PH-11 — PR #44 — Option (b): the per-minute limit is a per-foster budget
+  divided by `MAX_CLOUD_RUN_INSTANCES`, `!!`-commented in both files that must agree. The
+  recorded decision was as much the deliverable as the code — see the section above. Full row
+  in the [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
+- 2026-08-30 — PH-12 — PR #45 — `tests/test_foster_isolation.py` pins the two invariants
+  `CLAUDE.md` asserts in prose: `current_foster` as a per-context value, and one
+  `Agent`/session per foster. Two real threads on a `threading.Barrier`, both negative
+  directions run, no production code changed. Full row in the
   [ledger archive](archive/production-hardening-ledger-2026-08-30.md).
 - 2026-08-30 — PH-14 — PR #47 — **The agent transcript dies with the account.**
   `deleteAccount()` calls `resetChat()` first, while an ID token can still be minted, and

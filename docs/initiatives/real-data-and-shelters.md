@@ -95,7 +95,7 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   shelter that isn't SF SPCA, with zero scraping risk. RS-2 shipped the gate and
   RS-5 the inbox; RS-6 is the remaining third. Build from the queue items, not
   from this paragraph.
-- **M4 — decided 2026-08-26, shipped 2026-09-09 as RS-4 (PR #__). Closed.** Yes to a cadence,
+- **M4 — decided 2026-08-26, shipped 2026-09-09 as RS-4 (PR #72). Closed.** Yes to a cadence,
   no to Cloud Scheduler; weekly, plan-only, and always re-scraping. The reasoning is in the
   archive and the outcome is the RS-4 Ledger row — this bullet no longer carries the spec,
   because the shipped workflow does.
@@ -220,7 +220,7 @@ taken by the M4 drift check, which is unrelated and independent of these.)
     the caution above landing: a dated measurement is evidence, and *what you measured against*
     is part of the claim.
 
-- **RS-4 — shipped 2026-09-09 (PR #__); the Ledger row is the full account.** M4 is closed:
+- **RS-4 — shipped 2026-09-09 (PR #72); the Ledger row is the full account.** M4 is closed:
   `.github/workflows/import-dogs.yml` has a weekly `schedule:` trigger, the scheduled path is
   plan-only-and-re-scraping *by construction* rather than by input default, and drift is
   reported as one reused GitHub issue. Every manual input and default is byte-for-byte
@@ -373,7 +373,7 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   `server.py`'s system prompt moved with it. This discharges **PH-1**. Nothing signed-in was
   verified; that half is RS-12b. Full 35-line row verbatim in the
   [2026-09-06 ledger archive](archive/real-data-and-shelters-ledger-2026-09-06.md).
-- 2026-09-09 — RS-4 — PR #__ — **the roster now tells us when it goes stale, weekly, without
+- 2026-09-09 — RS-4 — PR #72 — **the roster now tells us when it goes stale, weekly, without
   ever being able to write.** A `schedule: "0 9 * * 1"` trigger joins the existing
   `workflow_dispatch` on `import-dogs.yml`. The one detail M4 said decides whether the task is
   worth doing at all is enforced structurally, not by default: the scheduled branch builds
