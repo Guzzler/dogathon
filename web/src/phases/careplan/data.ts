@@ -1,30 +1,23 @@
+/**
+ * Care Plan content that is *advice*, not a record.
+ *
+ * The line this file sits on: forward-looking guidance may be templated, a record of what
+ * has already happened may never be seeded. A task template, a week phase, a tip and an
+ * **unticked** care schedule are true of any dog — nothing in them can be wrong about a
+ * specific animal. Dated milestones, weights, a vaccination summary, journal entries, a
+ * ticked box and a photograph can be, so they live in `data.demo.ts` and are reachable only
+ * from `LOCAL_MODE` code paths.
+ *
+ * If you add something here, apply the test: could this value be wrong about a specific
+ * animal? Then it belongs in `data.demo.ts`, on the dog's own document, or nowhere.
+ */
 import type {
-  DogProfile,
   EmergencyContact,
-  JournalEntry,
-  MedicalSummary,
-  Milestone,
   ScheduleBlock,
   TaskTemplate,
   Tip,
   WeekPhase,
 } from "./types";
-
-function todayIso(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-export const marty: DogProfile = {
-  id: "marty",
-  name: "Marty",
-  breed: "Shepherd mix",
-  ageMonths: 4,
-  weightLbs: 22,
-  pickupDate: todayIso(),
-  medicalFlags: [],
-  backstory: "Surrendered with two littermates. Shy at first, warms up with food.",
-};
 
 export function daysSincePickup(pickupIso: string): number {
   const [y, m, d] = pickupIso.split("-").map(Number);
@@ -105,128 +98,6 @@ export const taskTemplates: TaskTemplate[] = [
   },
 ];
 
-export const seedMilestones: Milestone[] = [
-  {
-    id: "m-intake",
-    dayInFoster: 1,
-    title: "Intake with Copper's Dream",
-    kind: "vet",
-    note: "Cleared for foster. Deworming complete.",
-    weightLbs: 20,
-  },
-  {
-    id: "m-pickup",
-    dayInFoster: 1,
-    title: "{dog} came home",
-    kind: "behavior",
-    note: "Hid under the coffee table for the first two hours.",
-  },
-  {
-    id: "m-week1-weigh",
-    dayInFoster: 7,
-    title: "Weigh-in — 21.5 lbs",
-    kind: "weigh",
-    weightLbs: 21.5,
-  },
-  {
-    id: "m-vaccine",
-    dayInFoster: 10,
-    title: "DHPP booster",
-    kind: "vaccine",
-    note: "Slept the rest of the day. Normal.",
-  },
-  {
-    id: "m-week2-weigh",
-    dayInFoster: 14,
-    title: "Weigh-in — 22 lbs",
-    kind: "weigh",
-    weightLbs: 22,
-  },
-  {
-    id: "m-vet-upcoming",
-    dayInFoster: 24,
-    title: "Vet check-in (Dr. Alvarez)",
-    kind: "vet",
-  },
-  {
-    id: "m-week3-weigh",
-    dayInFoster: 21,
-    title: "Weigh-in — 24 lbs",
-    kind: "weigh",
-    weightLbs: 24,
-  },
-  {
-    id: "m-sit",
-    dayInFoster: 25,
-    title: "First 'sit' on cue",
-    kind: "training",
-    note: "Third try, but he got it. Very proud puppy.",
-  },
-  {
-    id: "m-week4-weigh",
-    dayInFoster: 28,
-    title: "Weigh-in — 26 lbs",
-    kind: "weigh",
-    weightLbs: 26,
-  },
-  {
-    id: "m-bordetella",
-    dayInFoster: 30,
-    title: "Bordetella booster",
-    kind: "vaccine",
-    note: "Kennel cough shot before daycare visits.",
-  },
-  {
-    id: "m-loose-leash",
-    dayInFoster: 33,
-    title: "First loose-leash walk (10 min)",
-    kind: "training",
-  },
-  {
-    id: "m-week6-weigh",
-    dayInFoster: 42,
-    title: "Weigh-in — 29 lbs",
-    kind: "weigh",
-    weightLbs: 29,
-  },
-  {
-    id: "m-adoption-check",
-    dayInFoster: 45,
-    title: "Adoption readiness check",
-    kind: "vet",
-    note: "Green light from the shelter — profile can go live.",
-  },
-];
-
-export const seedJournal: JournalEntry[] = [
-  {
-    id: "j-1",
-    createdAt: "Day 1 · 8:14 pm",
-    dayInFoster: 1,
-    kind: "note",
-    text: "Wouldn't eat kibble. Tried a spoon of wet food on top — cleaned the bowl.",
-    starred: false,
-  },
-  {
-    id: "j-2",
-    createdAt: "Day 4 · 11:02 am",
-    dayInFoster: 4,
-    kind: "photo",
-    photoUrl: "/journal/day4-couch.jpeg",
-    imageColor: "#C4955A",
-    caption: "First time on the couch. Look at this face.",
-    starred: true,
-  },
-  {
-    id: "j-3",
-    createdAt: "Day 9 · 7:30 pm",
-    dayInFoster: 9,
-    kind: "note",
-    text: "Handled the vaccine like a champ. Slept next to my feet all evening.",
-    starred: true,
-  },
-];
-
 export const weekPhases: WeekPhase[] = [
   {
     index: 1,
@@ -276,7 +147,7 @@ export const scheduleBlocks: ScheduleBlock[] = [
     label: "Week 1",
     startDay: 1,
     items: [
-      { id: "s-flea", label: "Flea prevention", kind: "medication", done: true },
+      { id: "s-flea", label: "Flea prevention", kind: "medication", done: false },
       { id: "s-deworm", label: "Deworming (round 1)", kind: "medication", done: false },
     ],
   },
@@ -285,7 +156,7 @@ export const scheduleBlocks: ScheduleBlock[] = [
     label: "Week 2",
     startDay: 8,
     items: [
-      { id: "s-dhpp-1", label: "DHPP booster", kind: "vaccine", done: true },
+      { id: "s-dhpp-1", label: "DHPP booster", kind: "vaccine", done: false },
       { id: "s-nail-1", label: "First nail trim", kind: "grooming", done: false },
       { id: "s-weigh-2", label: "Weight check", kind: "checkup", done: false },
     ],
@@ -329,12 +200,6 @@ export const scheduleBlocks: ScheduleBlock[] = [
     ],
   },
 ];
-
-export const medicalSummary: MedicalSummary = {
-  vaccines: ["DHPP (booster complete)", "Bordetella (pending)", "Rabies (due Month 3)"],
-  allergies: ["None reported"],
-  medications: ["Flea/tick preventative — monthly", "Deworming — in progress"],
-};
 
 export const emergencyContacts: EmergencyContact[] = [
   {

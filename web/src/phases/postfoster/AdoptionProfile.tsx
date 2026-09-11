@@ -116,7 +116,7 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
           ? `${profile.careDone.length} of ${profile.careDone.length + profile.careOutstanding} care items completed`
           : "Nothing ticked off in the Care Plan yet"}
       >
-        {profile.careDone.length || profile.milestones.length ? (
+        {profile.careDone.length || profile.milestones.length || profile.medical ? (
           <>
             {profile.careDone.length > 0 && (
               <div className="card" style={{ padding: "13px 17px" }}>
@@ -150,12 +150,28 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
               </>
             )}
 
-            <p className="ap-note-hint" style={{ marginTop: 16, marginBottom: 10 }}>Medical</p>
-            <div className="card" style={{ padding: "4px 17px" }}>
-              <KV k="Vaccines" v={profile.medical.vaccines.join(", ")} />
-              <KV k="Allergies" v={profile.medical.allergies.join(", ")} />
-              <KV k="Medications" v={profile.medical.medications.join(", ")} last />
-            </div>
+            {/* Only rows with a source. An absent row is not a "none" -- printing
+                "Allergies: None reported" on the page a stranger reads to decide about a real
+                animal is a claim nobody made. */}
+            {profile.medical && (
+              <>
+                <p className="ap-note-hint" style={{ marginTop: 16, marginBottom: 10 }}>
+                  Medical · recorded in foster
+                </p>
+                <div className="card" style={{ padding: "4px 17px" }}>
+                  {profile.medical.vaccines.length > 0 && (
+                    <KV k="Vaccines" v={profile.medical.vaccines.join(", ")} />
+                  )}
+                  {profile.medical.medications.length > 0 && (
+                    <KV k="Medications" v={profile.medical.medications.join(", ")} />
+                  )}
+                  {profile.medical.vetVisits.length > 0 && (
+                    <KV k="Vet visits" v={profile.medical.vetVisits.join(", ")} />
+                  )}
+                  <KV k="Not recorded" v="Anything not listed above hasn't been logged in foster" last />
+                </div>
+              </>
+            )}
           </>
         ) : (
           <EmptyBlock icon="⚖️" title="No health entries yet"

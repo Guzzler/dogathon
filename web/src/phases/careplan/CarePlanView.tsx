@@ -6,15 +6,15 @@ import { useFoster } from "../../hooks/useFoster";
 import { useCareSchedule, useJournal } from "../../hooks/useJournal";
 import { normalizeDog, dogPhotoOrNull } from "../../lib/dog";
 import { DEMO_MODE } from "../../lib/demoMode";
+import { LOCAL_MODE } from "../../lib/localMode";
 import type { Dog } from "../../types";
 import {
   daysSincePickup,
   emergencyContacts,
-  medicalSummary,
-  seedMilestones as rawMilestones,
   tips as rawTips,
   weekPhases,
 } from "./data";
+import { medicalSummary as demoMedical, seedMilestones as demoMilestones } from "./data.demo";
 import { buildAgentBrief } from "./brief";
 import { buildPlanTimeline } from "./plan";
 import { Emergency } from "./Emergency";
@@ -25,6 +25,7 @@ import type {
   DogProfile,
   ExperienceLevel,
   JournalEntry,
+  Milestone,
   Tip,
 } from "./types";
 import "./carePlan.css";
@@ -117,15 +118,22 @@ export function CarePlanView() {
     () => rawTips.map((t) => ({ ...t, title: fill(t.title), body: fill(t.body) })),
     [dogName],
   );
-  const seedMilestones = useMemo(
-    () =>
-      rawMilestones.map((m) => ({
+  // The only milestone a real foster has is the one the app can prove: the day the dog came
+  // home, taken from the pickup they scheduled in Match. Everything else on this timeline used
+  // to be a demo dog's past -- dated vet visits, boosters and weigh-ins, relabelled with this
+  // dog's name and then printed on the adoption page as though the foster had logged them.
+  const milestones = useMemo<Milestone[]>(() => {
+    if (LOCAL_MODE) {
+      return demoMilestones.map((m) => ({
         ...m,
         title: fill(m.title),
         note: m.note ? fill(m.note) : m.note,
-      })),
-    [dogName],
-  );
+      }));
+    }
+    return foster?.pickup?.date
+      ? [{ id: "m-pickup", dayInFoster: 1, title: `${dogName} came home`, kind: "behavior" }]
+      : [];
+  }, [dogName, foster?.pickup?.date]);
 
   const tipsById = useMemo(() => {
     const m: Record<string, Tip> = {};
@@ -225,7 +233,7 @@ export function CarePlanView() {
             dayInFoster={dayInFoster}
             phase={phase}
             blocks={schedule}
-            milestones={seedMilestones}
+            milestones={milestones}
             onToggleScheduled={toggleScheduled}
             pinnedTip={tipsById[phase.pinnedTipId]}
             firedRules={fired}
@@ -244,8 +252,8 @@ export function CarePlanView() {
               dog,
               dayInFoster,
               phase,
-              weeks: buildPlanTimeline(schedule, seedMilestones, dayInFoster),
-              milestones: seedMilestones,
+              weeks: buildPlanTimeline(schedule, milestones, dayInFoster),
+              milestones,
               pinnedTip: tipsById[phase.pinnedTipId],
               firedRules: fired,
               tipsById,
@@ -257,7 +265,11 @@ export function CarePlanView() {
           />
         )}
         {view === "emergency" && (
-          <Emergency dog={dog} summary={medicalSummary} contacts={emergencyContacts} />
+          <Emergency
+            dog={dog}
+            summary={LOCAL_MODE ? demoMedical : undefined}
+            contacts={emergencyContacts}
+          />
         )}
       </main>
     </div>
