@@ -12,6 +12,35 @@ interface BriefInput {
   tipsById: Record<string, Tip>;
 }
 
+/** "a", "a and b", "a, b and c" — the shelter's absences read as a sentence, not a list. */
+function joinList(items: string[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+/**
+ * A page can render an absence; a prompt cannot stay silent about a field it enumerates.
+ *
+ * This line exists because the brief used to say "No medical flags." whenever the shelter's
+ * `needs` list was empty — a categorical negative about a real animal that nobody assessed,
+ * shipped for 9 of the 19 dogs in the roster. Omitting the clause is necessary but not
+ * sufficient: the model is told at the end never to go beyond what it was given, so silence
+ * about a field reads as "nothing there". Naming the gap as a gap is the only form that is
+ * both true and usable — it tells the model what to send the foster to check.
+ */
+function sayWhatIsMissing(dog: DogProfile): string | null {
+  const gaps: string[] = [];
+  if (!dog.careNeeds.length) gaps.push("any care or behaviour needs");
+  if (dog.weightLbs == null) gaps.push("a weight at intake");
+  if (!dog.backstory) gaps.push("a write-up");
+  if (!gaps.length) return null;
+  return (
+    `The shelter's record for ${dog.name} does not include ${joinList(gaps)}. That is a gap in ` +
+    `the paperwork, not a finding — never report it as a clean result, and if it matters to ` +
+    `the answer, say what to check or who to ask.`
+  );
+}
+
 /**
  * The context every Care Plan question carries with it.
  *
@@ -36,12 +65,22 @@ export function buildAgentBrief({
 }: BriefInput): string {
   const lines: string[] = [];
 
+  // Only the facts we actually hold. A missing weight drops the clause rather than printing a
+  // number — see `sayWhatIsMissing` below for why the absence is stated instead of implied.
+  const intake = [`${dog.ageMonths}-month-old ${dog.breed}`];
+  if (dog.weightLbs != null) intake.push(`${dog.weightLbs} lbs at intake`);
+
   lines.push(
     `You are Pawthway's care assistant, helping a foster look after ${dog.name}: a ` +
-      `${dog.ageMonths}-month-old ${dog.breed}, ${dog.weightLbs} lbs at intake.` +
-      (dog.medicalFlags.length ? ` Medical flags: ${dog.medicalFlags.join(", ")}.` : " No medical flags.") +
+      `${intake.join(", ")}.` +
+      (dog.careNeeds.length
+        ? ` Care and behaviour notes from the shelter: ${dog.careNeeds.join(", ")}.`
+        : "") +
       (dog.backstory ? ` Shelter's note: ${dog.backstory}` : ""),
   );
+
+  const missing = sayWhatIsMissing(dog);
+  if (missing) lines.push(missing);
   lines.push(`Today is day ${dayInFoster} of the foster — ${phase.eyebrow}, "${phase.name}".`);
 
   const current = weeks.find((w) => w.current);

@@ -124,44 +124,30 @@ of the seam between the two items — is verbatim in
 [`archive/production-hardening-tensetest-2026-09-11.md`](archive/production-hardening-tensetest-2026-09-11.md);
 the seam itself now lives in PH-18's queue entry, restated more precisely after re-verification.
 
-### An enumerated absence is a claim — the tense test, moved from the page to the prompt (2026-09-11)
+### An enumerated absence is a claim — the tense test, moved from the page to the prompt (2026-09-11); shipped the same day as PH-19, compressed
 
-PH-17 established the test and PH-18 showed it was about tense rather than topic. The open
-question this run was whether it survives the move from **what the product prints** to **what
-the product tells the model**, since a prompt is not read by the foster and could be argued to
-be scaffolding. It does survive, and it gets sharper, because the two surfaces fail differently:
+The rule, which is what survives:
 
 > A page can render an absence. A prompt, once it enumerates a field, cannot stay silent about
 > it — so **"No medical flags." is not the prompt equivalent of "Not recorded."** The prompt
-> equivalent is omitting the sentence.
+> equivalent is omitting the sentence. Generalised: **any template whose empty branch is prose
+> rather than nothing converts a missing record into an assertion.** Grep for the shape, not
+> the field.
 
-`adoption.ts` could answer "we hold no weight for this dog" by not drawing the row, and PR #75
-did exactly that. `brief.ts:42` has no such move available to it as written: a ternary over
-`dog.medicalFlags.length` has two branches and both of them are sentences, so an empty array is
-not an absence — it is routed to the confident negative. That is the whole of PH-19's first and
-largest finding, and it generalises past this one line: **any template whose empty branch is
-prose rather than nothing will convert a missing record into an assertion.** Grep for the shape,
-not the field.
+The working that produced it — including why the model is a reader with no way to check, and
+why softening `brief.ts`'s closing "never invent anything about the dog that isn't above" is
+the wrong fix — is verbatim in
+[`archive/production-hardening-absence-2026-09-11.md`](archive/production-hardening-absence-2026-09-11.md).
+**What shipping it added to the rule is in PH-19's ledger row**: omitting the sentence turned
+out to be necessary and not sufficient, because the same closing instruction that makes a false
+claim authoritative makes silence read as "nothing there".
 
-Two consequences worth keeping:
-
-- **The model is a reader with no way to check.** A foster reading "Not recorded" knows to go
-  and look; a model reading "No medical flags." has been told, and `brief.ts:107-108` closes by
-  instructing it never to go beyond what it was given. The instruction is correct and is what
-  makes the input's accuracy load-bearing — it should not be softened as the fix.
-- **This is why PH-19 is `[large]` and not a one-line change.** Three of its four findings are
-  one expression each; what makes it a surface is that the same question has to be asked of
-  every value the three LLM moments carry, and nothing in the repo has asked it before.
-
-**One stale fact found while tracing this, recorded here because `CLAUDE.md` is not this loop's
-to edit.** `CLAUDE.md` says of the cheap-model path: *"`web/src/api.ts` doesn't send it yet, so
-everything currently runs on the capable model; adding it to the `/chat` body is what turns the
-cheap path on."* That is no longer true. `api.ts:98` takes `phase?: ChatSurface` and `:109`
-sends it in the body; `AgentChatPanel`'s `phase` prop is **required**, not optional; all three
-mount points pass it (`MatchChatView.tsx:70` `"match"`, `PostFosterView.tsx:103` `"postfoster"`,
-and the Care Plan panel); and `server.py:432` hands `req.phase` to `model_for_surface`. The
-cheap path is on, and Match pickup coordination is being answered by Haiku today. Worth a
-sentence to Sharang rather than a doc edit.
+**One stale fact, still stale, recorded here because `CLAUDE.md` is not this loop's to edit.**
+`CLAUDE.md` says the cheap-model path is off — *"`web/src/api.ts` doesn't send it yet"*. It is
+on: `api.ts:98` takes `phase?: ChatSurface` and `:109` sends it, `AgentChatPanel`'s `phase` prop
+is required, all three mount points pass it, and `server.py:432` hands it to
+`model_for_surface`. Match pickup coordination is answered by Haiku today. A sentence to
+Sharang, not a doc edit.
 
 ## Task queue
 
@@ -188,51 +174,27 @@ is written. It found a defect in both branches of one line, for all nineteen dog
 roster. PH-19 sits **above PH-18** because execute works top-down and the `[large]` item should
 be picked first; the two are independent and either can ship alone.
 
-- **PH-19 `[large]` — the agent is told things about the dog that nobody recorded, and then
-  told not to doubt them.** `web/src/phases/careplan/brief.ts` composes the context carried by
-  every Care Plan question, and it reaches the model for real — `CarePlanView.tsx:251` builds
-  it, passes it to `JournalTips` as `dogContext`, and that component sends it at `:151`
-  (a logged note) and `:187` (a typed question). Four things in it fail the tense test, and the
-  brief's own closing instruction — *"Never invent anything about the dog that isn't above"*
-  (`brief.ts:107-108`) — is what converts each of them from a gap into an authority.
-  1. **`brief.ts:42` is wrong in both of its branches, for every dog in the roster.**
-     `medicalFlags` comes from `d.needs ?? []` (`CarePlanView.tsx:47`). When `needs` is absent
-     the brief asserts **"No medical flags."** — a categorical negative about a real animal that
-     nobody tested. **9 of the 19 committed dogs have no `needs` at all** (Howdy, Champ,
-     Colocho, Krypto, Jackie, Roxy, Sirius, Toby, Uncle Fester), so that sentence is shipped for
-     47% of the roster. For the other 10 it is a **mislabel**: the entire `needs` vocabulary is
-     behavioural — "Only dog in the home", "Leash training", "Confidence building", "Patient
-     introductions", "Daily fetch", "Jumping practice", "Slow introductions", "Teen-dog
-     training", "Only pet in the home" — and **not one of the ten values is medical**. The
-     model is told "Medical flags: Leash training, Daily fetch." Both counts were measured
-     against `data/dogs.json`; re-measure rather than trusting them.
-  2. **`brief.ts:41` tells the model a weight of zero.** `weightLbs` is `d.weight_lbs ?? 0`
-     (`CarePlanView.tsx:45`), whose comment claims "0 reads as 'unknown' in the Care Plan
-     header" — true of that one header and of nothing else. `weight_lbs` is nullable by design
-     (CLAUDE.md, "Unknown is not a claim") and the shelter's own add-a-dog form makes it
-     optional (`shelterDog.ts:71`, "Give a weight or pick a size", writing `null` at `:125`).
-     All 19 committed dogs happen to have one, so this is unexercised **today** and reachable
-     the first time a real shelter adds a dog through RS-6's form — at which point the brief
-     reads "0 lbs at intake".
-  3. **The same `0` is rendered to the foster on the emergency screen.**
-     `Emergency.tsx:137` (`{dog.name} · {dog.weightLbs} lbs`) and `:178` (under the label
-     **Weight**). Fix these with the brief, not with PH-18 — PH-18 owns the contacts and the
-     map, and this is the same `weightLbs` defect wearing a different surface.
-  4. **`JournalTips.askAbout` (`:47-75`) asserts age-specific claims about any dog.**
-     *"For a puppy ${dogName}'s age, biting is almost always teething"* is returned for a
-     nine-year-old, and the final branch ships prototype copy to a real foster: *"In the real
-     app this would call an LLM…"*. It is reached whenever the agent is unreachable, and is
-     flagged `offline` in the UI but not in its own text.
-  **What "fixed" means here is not "delete".** A prompt cannot render "Not recorded" the way a
-  page can — see the design answer below. An absent `needs` should produce **no sentence at
-  all**, or one that names the absence as an absence ("no medical needs are recorded; the
-  shelter may not have assessed this"). A `needs` list should be labelled what it is — care or
-  behaviour notes — not "Medical flags". A null weight should drop the clause rather than
-  print a number. **Verify** with `npm run test` plus a unit test over `buildAgentBrief` for
-  the three shapes that currently have no coverage: a dog with no `needs`, a dog with
-  behavioural `needs`, and a dog with no `weight_lbs` — asserting the output contains no
-  "No medical flags.", no "Medical flags:" over behavioural values, and no "0 lbs". There is
-  no brief test file today; `adoption.test.ts` (new in PR #75) is the pattern to copy.
+**PH-19 shipped the same day it was queued, and the `[large]` slot is empty again across all
+three docs.** What is left open in the whole repo is **PH-18**, small. Two leads for whoever
+refills, both from building PH-19 rather than invented: the "grep for the shape, not the field"
+rule above has only been applied to `brief.ts` — the **Match** and **Post Foster** prompts
+(`AgentChatPanel`'s `quickActions`, and `src/agent/builtin/adoption.py`'s
+`generate_adoption_profile`) carry values to the model that nothing has asked the tense test
+of; and `DogProfile.ageMonths` is `Math.max(1, round(age_years * 12))` on a field the
+shelter's own form requires (`shelterDog.ts:62` — name, breed and age are the only three that
+are), so it is the one intake value in the brief that cannot currently be absent. The
+`Math.max(1, …)` floor is the part to look at: it reports "1-month-old" for a dog entered as
+0 years, which is a rounding today and an assertion the moment anything reads it as one.
+
+- **PH-19 `[large]` — shipped 2026-09-11 (PR #77); the Ledger row is the full account.** The
+  spec is archived verbatim in
+  [`archive/production-hardening-ph19-2026-09-11.md`](archive/production-hardening-ph19-2026-09-11.md).
+  Unusually, **re-verifying it against `main` before building found nothing wrong** — all four
+  findings stood, and both roster counts (9 of 19 with no `needs`; 0 of the 10 recorded values
+  medical) re-measured exactly. That is the first time in three `[large]` items, and the
+  standing habit is still worth its cost: it cost ten minutes and the two previous items were
+  both materially wrong. One thing the spec asserted in passing *was* false, and it was the
+  code's own comment rather than the spec's claim — see the row.
 
 - **PH-17 `[large]` — shipped 2026-09-10 (PR #75); the Ledger row is the full account.** The
   spec and the finding behind it are archived verbatim (link in the section above), since the
@@ -286,58 +248,46 @@ be picked first; the two are independent and either can ship alone.
   for could not be run and is PH-15b under "Needs a human"** — read it before treating
   those as verified end to end.
 
-### Needs a human — PARKED, not pending
+### Needs a human — PARKED, not pending; archived 2026-09-11
 
-**Read this before adding to the list below (2026-08-31).** These accumulate faster than
-anyone clears them — PH-15 and PH-16 generated PH-15b on the run that shipped them. Per the
-README's "nobody uses this app yet" section they are **parked**: nobody is blocked by the
-unverified behaviour, and several will answer themselves once a real shelter exercises the
-same rules. Do not queue them, and do not read the length of this list as debt.
-**PH-7c — DONE 2026-08-31**, the one cheap enough to just do because it needed no sign-in:
-the deployed agent's `/health` returns `firestore_reachable: true`. PH-13 still wants a
-`/health` hit for a different reason, so that half is not discharged by it.
+Three items, all parked, none discharged, each wanting a signed-in human this loop cannot be:
+**PH-15b** (run PH-15's redaction write against the deployed project — four writes, one
+session), **PH-13** (lift `--max-instances` to 2 and confirm the two things only a person
+driving two browsers can see), **PH-7b** (one Cloud Logging alert policy over the agent's
+`severity>=ERROR` records; deliberately declined by an unattended run in PR #33, and
+re-queueing it would produce the same refusal). Each is stated in full — what to do, what to
+expect, and what a denial would mean — in
+[`archive/production-hardening-needsahuman-2026-09-11.md`](archive/production-hardening-needsahuman-2026-09-11.md);
+read that before acting on any of them, and do not re-derive them from these three lines.
+**PH-7c is DONE** (2026-08-31, the one cheap enough to just do: `/health` reports
+`firestore_reachable: true`).
 
-- **PH-15b (2026-08-30) — run PH-15's redaction write against the deployed project.**
-  PH-15 shipped; its verification did not, and an unattended run has no way to do it:
-  the only sign-in is a Google popup, the Firestore emulator needs a JRE that isn't
-  installed here, and both popup-free routes to an ID token (creating a test account,
-  minting a custom token off the service-account key) are off-limits to this loop.
-  What was done instead is a close read of `firestore.rules:49-51`, which says the
-  write *should* pass — a reading, not a result. Signed in as a test foster with at
-  least one application, from the browser console on `https://pawthway-hackathon.web.app`:
-  four writes, one session. The `{ fosterName, status: "withdrawn" }` write succeeds;
-  the same write without the status change comes back `permission-denied`; with PH-16's
-  tightened rule live the redaction must **still** succeed (PH-15's path riding on the
-  deliberately-unpinned `fosterName`); and a withdraw that also changes `shelterId` must
-  now be denied. **Record the answer here.**
-
-- **PH-13 (2026-08-29) — lift the instance pin, now that PH-10 and PH-11 have landed.**
-  Raise `--max-instances` from 1 to **2** in `deploy-backend.yml` (leave
-  `--min-instances=1`), in its own small PR, and rewrite the long comment above the flag
-  to say what was confirmed rather than what was expected. Not queued for execute:
-  merging deploys to production immediately (`deploy-backend.yml` is path-triggered),
-  and what makes it safe can only be confirmed by a person driving two browsers. Confirm
-  and record both — `/health`'s `active_sessions` differing across two hits (proof there
-  really are two instances), and one dangerous-tool approval issued in one session and
-  answered such that the parked turn resumes. That second one is PH-8's actual claim and
-  has never been observed.
-
-- **PH-7b — the alerting half of PH-7.** Nothing in the agent backend's failure path
-  reaches a person. The logging side is already correct — `server.py` calls
-  `logging.exception` at the stream failure (`:300`) and the session-persist failure
-  (`:332`), so the records exist in Cloud Logging at `ERROR` severity. What's missing is
-  one alert that reads them. Deliberately **not** queued: creating an alert policy and
-  notification channel is a hard-to-reverse change to shared GCP infrastructure that
-  sends real email and carries quota implications, and an unattended run declined it on
-  exactly those grounds (PR #33). That was the right call; re-queueing it would produce
-  the same refusal. Roughly: in `pawthway-hackathon`, a notification channel for
-  Sharang's email, then a log-based alerting policy on the Cloud Run agent service
-  filtered to `severity>=ERROR`. **If you do it via `gcloud`, add the invocation to
-  [`docs/runbook-gcp.md`](../runbook-gcp.md)** — that file exists (RS-9 wrote the first
-  entry), so this needs a section, not a new doc. Out of scope even then: uptime checks,
-  a status page, Sentry, instance pins.
+Per the README's "nobody uses this app yet", the length of that list is not debt. Do not queue
+them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
+
+- 2026-09-11 — PH-19 `[large]` — PR #77 — **The Care Plan brief stops asserting things nobody
+  recorded, and stops calling training notes medical.** `DogProfile.medicalFlags` → `careNeeds`
+  (the name `adoption.ts` already used for the same data) and `weightLbs: number | null`;
+  `brief.ts` drops the weight clause when there is no weight and the needs clause when there
+  are none. **Omitting the sentence turned out to be necessary and not sufficient**, which is
+  the one thing the design answer had not anticipated: the brief closes by telling the model
+  never to go beyond what it was given, so a silently-absent field reads as "nothing there"
+  just as confidently as "No medical flags." did. So `sayWhatIsMissing()` states each gap as a
+  gap — *"The shelter's record for Juniper does not include any care or behaviour needs and a
+  weight at intake. That is a gap in the paperwork, not a finding"* — which is the only form
+  that is both true and useful to a reader who cannot go and check. The same null weight is
+  now guarded on the emergency screen (`:137`, `:178` → "Not recorded"), and `askAbout`'s
+  offline fallbacks lose the age claim returned for nine-year-olds ("For a puppy X's age…")
+  and the prototype copy shipped to real fosters ("In the real app this would call an LLM…").
+  **One false claim found in the code, not in the spec**: `CarePlanView.tsx:45`'s comment
+  justified `?? 0` as reading "unknown in the Care Plan header", and no header renders
+  `weightLbs` at all — the only two readers were the emergency screen and the brief, and both
+  printed the zero as a fact. `brief.test.ts` is new (9 cases; 106 → 115), covering the three
+  shapes with no coverage plus the multi-gap sentence. Build, test and lint green, no new
+  warnings. **Not verified live** — Care Plan needs a sign-in this loop can't do; the brief is
+  a pure function and is covered by tests instead.
 
 - 2026-09-10 — PH-17 `[large]` — PR #75 — **A demo dog's past no longer reaches a real
   foster's document, or the adoption page.** `data.ts` splits by the tense test: advice stays,

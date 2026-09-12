@@ -44,11 +44,21 @@ const CATEGORY_ORDER = [
   "Adoption prep",
 ];
 
+/**
+ * The stand-in when the agent is unreachable. Every branch has to be true of *any* dog,
+ * because this function knows a name and nothing else — no age, no breed, no record.
+ *
+ * The biting branch used to open "For a puppy ${dogName}'s age, biting is almost always
+ * teething", which is an age-specific claim returned for a nine-year-old, and the fallthrough
+ * shipped prototype copy ("In the real app this would call an LLM...") to a real foster. The
+ * UI flags these as offline; the text has to say so on its own too, since it is what gets
+ * read.
+ */
 function askAbout(dogName: string, question: string, tips: Tip[]): { text: string; citedTip?: Tip } {
   const q = question.toLowerCase();
   if (/bit|nip|mouth/.test(q)) {
     return {
-      text: `For a puppy ${dogName}'s age, biting is almost always teething. Try the wet-towel trick and disengage briefly when hands get mouthy — hands stop being fun when they leave.`,
+      text: `Mouthing is common while a dog settles in, and in a puppy it is usually teething. Try the wet-towel trick and disengage briefly when hands get mouthy — hands stop being fun when they leave. If ${dogName} is full-grown, or the biting is hard or sudden, raise it with your shelter contact.`,
       citedTip: tips.find((t) => t.id === "tip-biting-teething"),
     };
   }
@@ -71,7 +81,7 @@ function askAbout(dogName: string, question: string, tips: Tip[]): { text: strin
     };
   }
   return {
-    text: `We don't have a canned answer for that yet. In the real app this would call an LLM with ${dogName}'s profile + week phase as context. For the prototype, browse the tips library below or check with your shelter contact.`,
+    text: `Live guidance is offline right now, so there's no answer here that's specific to ${dogName}. Browse the care library below, and check with your shelter contact for anything urgent.`,
   };
 }
 

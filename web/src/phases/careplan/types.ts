@@ -3,9 +3,20 @@ export interface DogProfile {
   name: string;
   breed: string;
   ageMonths: number;
-  weightLbs: number;
+  /**
+   * `null` when the shelter never weighed this dog — `weight_lbs` is optional by design and
+   * the add-a-dog form makes it so. Never coerce to 0: every reader of this field either
+   * prints it or tells the model, and "0 lbs at intake" is a claim about a real animal.
+   */
+  weightLbs: number | null;
   pickupDate: string;
-  medicalFlags: string[];
+  /**
+   * The shelter's `needs` list, under the name it actually has. It was `medicalFlags`, which
+   * was wrong about every dog in the roster — the whole vocabulary is behavioural ("Leash
+   * training", "Only dog in the home"), so the brief was labelling training notes as medical.
+   * An empty array means nothing was recorded, not that nothing is wrong.
+   */
+  careNeeds: string[];
   backstory: string;
   photoUrl?: string;
 }

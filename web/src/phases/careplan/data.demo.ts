@@ -31,7 +31,7 @@ export const marty: DogProfile = {
   ageMonths: 4,
   weightLbs: 22,
   pickupDate: todayIso(),
-  medicalFlags: [],
+  careNeeds: [],
   backstory: "Surrendered with two littermates. Shy at first, warms up with food.",
 };
 
