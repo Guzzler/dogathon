@@ -42,9 +42,12 @@ function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
     name: d.name,
     breed: d.breed,
     ageMonths: Math.max(1, Math.round(d.age_years * 12)),
-    weightLbs: d.weight_lbs ?? 0,   // 0 reads as "unknown" in the Care Plan header
+    // Nullable all the way through. The old `?? 0` was justified in a comment as reading
+    // "unknown" in the Care Plan header — no header renders it; the two readers are the
+    // emergency screen and the agent brief, and both printed the zero as a fact.
+    weightLbs: d.weight_lbs ?? null,
     pickupDate,
-    medicalFlags: d.needs ?? [],
+    careNeeds: d.needs ?? [],
     backstory: d.notes,
     photoUrl: dogPhotoOrNull(d, 600, 600) ?? undefined,
   };
@@ -146,7 +149,7 @@ export function CarePlanView() {
       firedRules({
         entries: journalToDate,
         tasks: [],
-        profile: dog ?? { id: "", name: "", breed: "", ageMonths: 0, weightLbs: 0, pickupDate: pickupIso, medicalFlags: [], backstory: "" },
+        profile: dog ?? { id: "", name: "", breed: "", ageMonths: 0, weightLbs: null, pickupDate: pickupIso, careNeeds: [], backstory: "" },
         dayInFoster,
       }),
     [journalToDate, dayInFoster],

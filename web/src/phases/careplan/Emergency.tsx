@@ -134,7 +134,10 @@ export function Emergency({ dog, summary, contacts }: EmergencyProps) {
   return (
     <div className="cp-emergency">
       <header className="cp-phase-banner cp-phase-banner--danger">
-        <p className="cp-eyebrow">{dog.name} · {dog.weightLbs} lbs</p>
+        <p className="cp-eyebrow">
+          {dog.name}
+          {dog.weightLbs != null && ` · ${dog.weightLbs} lbs`}
+        </p>
         <h2 className="cp-phase-name">Emergency</h2>
         <p className="cp-banner-meta">
           24-hour vet, poison control, and what {dog.name}'s record actually says — ready to
@@ -175,7 +178,10 @@ export function Emergency({ dog, summary, contacts }: EmergencyProps) {
           </div>
           <div>
             <dt>Weight</dt>
-            <dd>{dog.weightLbs} lbs · {dog.breed}, {dog.ageMonths} mo</dd>
+            <dd>
+              {dog.weightLbs != null ? `${dog.weightLbs} lbs` : "Not recorded"} · {dog.breed},{" "}
+              {dog.ageMonths} mo
+            </dd>
           </div>
         </dl>
       </section>
