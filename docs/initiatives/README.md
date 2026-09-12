@@ -153,76 +153,28 @@ Compressed:
   file's imports** — and the cheapest place to find a wrong measurement is the section the
   last run just wrote. This loop's own prior output is the first thing step 2 should verify.
 
-- **2026-09-08 — measuring found the slot a third time, and what it corrected was the
-  *method*, not the sample.** DC-8 shipped; the first two fallbacks came back empty against
-  the top doc for the fourth consecutive run and for the same structural reason (M3 finished,
-  M5 gated on a shelter), so measure was used again and produced **DC-10**. What it measured
-  was every class selector in all four stylesheets against every `className` under `web/src`,
-  prefix-aware so constructed names like `` `cp-plan-chip__kind--${row.kind}` `` count as live:
-  **41 of `pawthway.css`'s 61 classes and 67 of `carePlan.css`'s 204 are unreferenced**, and
-  three modules have zero importers. The finding that made it a correction rather than a
-  cleanup: **four of the six media-query blocks DC-8 re-homed the day before target classes no
-  component renders.** DC-8 verified against a hand-built harness "of the real class
-  structure", and a harness containing dead classes reports geometry for them exactly as
-  convincingly as for live ones. So the standing lesson from 2026-09-07 gains a second half:
-  a measurement is evidence, and **what you measured against is part of the claim** — the
-  cheapest correction is still the section the last run just wrote, but the *method* it used
-  deserves the same suspicion as its numbers. Where a static diff can prove the thing (DC-7's
-  selector-set diff), prefer it over anything you had to build to observe it.
-- **2026-09-08, second run — the slot was *spent*, not found, and the loop is now out of
-  `[large]` work everywhere.** DC-10 shipped (with DC-4 as its rider), which empties
-  `design-consistency.md`'s queue entirely after it held the repo's `[large]` slot for four
-  consecutive runs. Across all three docs the only open item is **RS-4**, small by
-  construction. So the next `dogathon-plan` run inherits the 2026-09-05 situation in a sharper
-  form: the top doc is still gated on a human, and now the second doc has run out too. Both
-  leads DC-10 left behind are small (a one-class-at-a-time `theme.css` pass; a re-count of
-  `carePlan.css`'s literals now that 80 classes of rules are gone), so the honest expectation
-  is that **the third fallback — measure — has to find the next `[large]` item somewhere other
-  than CSS**, because three consecutive runs of measuring CSS have now consumed the dead CSS
-  there was. One thing DC-10 proved about the method itself, worth carrying forward: its own
-  queue entry's measurement was **over-reported by five classes**, all of them live via a
-  conditional class nested inside a template literal's `${...}`. A literal scan is a shortlist,
-  never a verdict — the confirming pass must read `className=` values specifically, and
-  whatever is measured next deserves the same two-pass treatment.
-- **2026-09-09 — the fourth link in the chain: measure something that isn't CSS, and the
-  slot lands in the *third* doc.** The previous run predicted this exactly — three
-  consecutive runs of measuring CSS had consumed the dead CSS there was, so the next
-  `[large]` item would have to come from somewhere else. It did. Both cheap fallbacks came
-  back empty against the top doc for the fifth consecutive run and for the unchanged
-  structural reason (M3 finished, M5 gated on a shelter, RS-4 small by construction and in
-  flight as this ran). Measuring **content provenance** instead of selectors — every module
-  that supplies data to `buildAdoptionProfile`, traced back to where the data is written —
-  produced **PH-17**: `web/src/phases/careplan/data.ts` is a demo dog's *past*, and
-  `useJournal.ts` writes it into every real foster's Firestore document, from where the
-  adoption page prints another animal's vaccination record and labels a seeded weight
-  `source: "care plan"`. Three things generalise, and the third is the one to keep:
-  - **The measurable surface is not only CSS.** Selectors against markup is one instance of
-    a general move — enumerate what the code *claims*, then trace each claim to its source.
-    Applied to content rather than style, the same method found a defect in what the product
-    tells a stranger about a real animal.
-  - **The slot may sit in the lowest-ranked doc**, and this is the second time the `[large]`
-    item has been outside the top one (2026-09-05 was the first, in the second doc). Same
-    reading as then: the ranking's premise — that real-data has the buildable work — has
-    expired *for now*, not been overturned. Routing for one run, not a re-rank.
-  - **Ranking cuts both ways, so an empty higher queue can be the correct queue.** execute
-    works top-down, so anything queued in `design-consistency.md` this run — including a
-    small, true item that survived re-measurement — would be picked *before* PH-17. Leaving
-    it a lead is what protects the `[large]` item. "Don't refill a queue just because it has
-    room" was written to stop the treadmill; this is the same rule arriving from the other
-    direction, and it applies to a doc that ranks *above* the work that matters, not just
-    below it.
-  - A fourth, smaller: the 2026-09-07 lesson landed for the third run running, this time
-    against a *lead* rather than a shipped claim. DC-10 left fifteen `theme.css` classes
-    named as genuinely unreferenced; re-measuring found **eleven of them live**. The cheapest
-    wrong measurement to find is still the one the last run just wrote.
-- **`production-hardening.md`'s queue was empty by design for eight consecutive runs, and
-  was refilled on 2026-09-09.** The emptiness was right while it lasted: it is the lowest-
-  ranked doc, and it is the one whose refills produced the treadmill the re-rank exists to
-  stop. What changed is not the ranking but the item — **PH-17** is a whole phase of the
-  product asserting things about a real animal that nobody observed, which is the class of
-  defect this doc was created for, not the small headlessly-verifiable errand class that
-  caused the treadmill. Its verification errands stay parked under "Needs a human", and
-  that list is still not a to-do list.
+- **2026-09-08 — measuring found the slot a third time, and corrected the *method*, not the
+  sample.** DC-10 came from measuring every class selector in all four stylesheets against every
+  `className` under `web/src`, prefix-aware. The finding that made it a correction: **four of the
+  six media-query blocks DC-8 had re-homed the day before target classes no component renders** —
+  DC-8 had verified against a hand-built harness, and a harness containing dead classes reports
+  geometry for them exactly as convincingly as for live ones. So the 2026-09-07 lesson gains a
+  second half: **what you measured against is part of the claim**, and where a static diff can
+  prove the thing, prefer it over anything you had to build to observe it. Later the same day
+  DC-10 shipped and **emptied the `[large]` slot everywhere**, with the prediction — borne out
+  the next run — that three consecutive runs of measuring CSS had consumed the dead CSS there
+  was, so the next slot would have to come from somewhere else.
+- **2026-09-09 — the fourth link: measure something that isn't CSS, and the slot lands in the
+  *third* doc.** Measuring **content provenance** — every module supplying data to
+  `buildAdoptionProfile`, traced back to where the data is written — produced **PH-17**. Three
+  things generalise: **the measurable surface is not only CSS** (enumerate what the code
+  *claims*, then trace each claim to its source); **the slot may sit in the lowest-ranked doc**,
+  which is routing for one run and not a re-rank; and **an empty higher queue can be the correct
+  queue**, because execute works top-down and anything queued above would be picked first — the
+  anti-treadmill rule arriving from the other direction. A fourth, smaller: DC-10's parting lead
+  named fifteen `theme.css` classes as unreferenced and **eleven were live**.
+  Both entries verbatim in
+  [`archive/readme-large-slot-2026-09-11.md`](archive/readme-large-slot-2026-09-11.md).
 
 - **2026-09-10 — the slot was not sought, and the run's work was checking the one that exists.**
   PH-17 was queued the day before and had not been picked up (execute's last run shipped RS-4,
@@ -258,6 +210,38 @@ Compressed:
   **PH-18 is the same defect**, not a neighbour: `1.2 mi` and `Open now` on the emergency screen
   fail it exactly the way a seeded weight does. Recorded in `production-hardening.md`, with the
   seam that lets either item ship first.
+
+- **2026-09-11 — the fifth link, and it is the fourth link pointed at a second consumer.**
+  PH-17 shipped (#75), which emptied the `[large]` slot everywhere and left PH-18 — small — as
+  the only open item in the repo. So the chain was run in full for the first time since
+  2026-09-08: **read the queue** (nothing big), **re-read the gated notes** (every one is gated
+  on a *person*, unchanged — RS-8, RS-6b, RS-12b, PH-13, PH-7b, PH-15b), then **measure**. What
+  was measured is the 2026-09-09 move applied to a different consumer: provenance again, but of
+  what the **model** is told rather than what the adoption page prints — every value in
+  `buildAgentBrief`'s output traced back to where it is written. It produced **PH-19**, and the
+  slot sits in the third doc for the third consecutive run. Three things worth carrying:
+  - **A method is reusable against a second consumer, and that is cheaper than a new method.**
+    The four fallbacks so far each invented a new thing to measure. This run did not: it took
+    2026-09-09's move and asked it of a different reader of the same data, and found a defect
+    affecting **all nineteen dogs** — `brief.ts:42` says "No medical flags." for the 9 with no
+    `needs` recorded, and mislabels behavioural notes as medical for the other 10, none of whose
+    `needs` values are medical. Before inventing a fifth surface to measure, ask who else reads
+    the surface you measured last.
+  - **An enumerated absence is a claim.** The design answer this run, in
+    `production-hardening.md`: a page can render "Not recorded", but a prompt that enumerates a
+    field cannot stay silent about it, so **any template whose empty branch is prose rather than
+    nothing converts a missing record into an assertion.** Grep for that shape, not for the
+    field. It is the tense test surviving a move from output to input, and it is why PH-19 is a
+    surface rather than a one-line change.
+  - **The 2026-09-10 lesson held for a fifth run, against PH-18.** Re-verifying the one item
+    already in the queue found its line citations stale (PR #75 moved 163 lines out of
+    `data.ts`), one hardcoded number it had not named, and — the expensive one — that **PH-18's
+    fix would have re-introduced the defect it fixes**: `Emergency.tsx:130` falls back to
+    `contacts[0]`, so deleting the guessed "nearest vet" row makes the screen render *Pet Poison
+    Helpline* under the heading "Nearest 24-hour vet", on a *Call Vet Now* button. That is the
+    same shape as PH-17's "two write paths and there are four", found the same way, one run
+    apart. **Re-verify the queue entry, not only the shipped claim** is now the loop's most
+    reliably productive habit.
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -341,7 +325,12 @@ directly below. What that narration established, and what is worth keeping here:
   `real-data-and-shelters.md` landed at 421 on 2026-08-31 and 412 on 2026-09-04; a run that
   archives *and* adds a `[large]` item plus a design answer is net-positive on lines even after
   cutting 100. *(2026-09-10: `production-hardening.md` landed at 404 after three archives —
-  over by four, recorded here for the same reason.)*
+  over by four, recorded here for the same reason. **2026-09-11: the same doc landed at 409
+  after three more** — 109 lines archived across PH-17's ledger row, ten older ledger rows, and
+  the tense-test section, plus two preambles trimmed — while gaining a `[large]` item, a design
+  answer and a re-verification. Third consecutive over-run, all three on this doc, which is
+  itself the finding: **`production-hardening.md` is structurally at its ceiling**, and the next
+  run that adds to it should archive the "Needs a human" block rather than hunt for prose.)*
 
 ## Ledger convention
 
@@ -377,7 +366,9 @@ queue entry and ledger row both backfilled to **#67**.)* *(2026-09-08: DC-8 and 
 resolve to **#69** — the rider convention filling two placeholders with one number for the
 second time, and three placeholders across two sections resolved by one `gh pr list`.)*
 *(2026-09-10: RS-4's three placeholders — its queue entry, the M4 section and its ledger row —
-all resolve to **#72**. Three in one doc from one shipped item, still one `gh pr list`.)*
+all resolve to **#72**. Three in one doc from one shipped item, still one `gh pr list`.)* *(2026-09-11: PH-17's two — its queue entry and its ledger row — both resolve to **#75**,
+backfilled in the same run that compressed the row, which is again the cheapest moment: the row
+was being rewritten anyway.)*
 
 **A standing lesson from 2026-08-28, worth generalising past the one bug.**
 DC-1 shipped with its verification recorded honestly as *"verified locally on
