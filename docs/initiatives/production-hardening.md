@@ -199,55 +199,19 @@ unchanged: it reports "1-month-old" for a dog entered as 0 years, which is a rou
 an assertion the moment anything reads it as one.
 
 
-- **PH-20 `[large]` — the one paragraph this app keeps because a model wrote it.** The
-  grounding is the design section above; this is the build. Three changes plus tests, in one
-  PR, because none of them is safe alone — a prompt told to name gaps with no gaps in its
-  input will name none, and a tool that reports gaps to a prompt still asking for "specific"
-  will have them written around.
-  1. **`src/agent/builtin/adoption.py` — `generate_adoption_profile` returns what is
-     missing.** Add a `missing: list[str]` alongside the three raw keys, computed the way
-     `web/src/lib/adoption.ts:151-156` computes its own: no journal photos, no journal notes,
-     no ticked care items, no weigh-in or vet visit, no `adoptionNote`. Extend it with the two
-     the frontend does not need and the model does — the dog's own `needs` being empty, and no
-     weight from either source. **Phrase each entry as the gap it is, not as a field name**
-     ("no weigh-in was ever logged", not `"weight"`), for the reason PH-19's row records:
-     `sayWhatIsMissing()` had to state a gap as a gap because a bare absence reads as "nothing
-     there". Update the docstring, which currently promises only "raw materials".
-  2. **`src/agent/server.py` — the adoption paragraph of `PAWTHWAY_SYSTEM` (`:94-104`) gets
-     the content guardrail the pickup paragraph already has.** Keep "warm"; **drop or qualify
-     "specific"**, which is the word doing the damage. Say plainly that everything in the
-     profile must come from the tool result, that the `missing` list is what the foster and
-     shelter never recorded and must be described as unrecorded rather than filled or skipped
-     silently, and that a short honest paragraph is correct when the care log is thin. Do not
-     add a fourth clause to the pickup or care paragraphs in this PR.
-  3. **`src/agent/builtin/adoption.py` — `send_adoption_profile_to_shelter` writes a
-     provenance field beside the text.** `adoption_profile_source: "agent"` on the same
-     `update()` (`:63`), so the paragraph on `ShelterRosterView.tsx:237` is distinguishable
-     from anything a human later writes into that field. One optional field on `Dog` in
-     `web/src/types.ts`, nothing rendering it yet — the roster's own labelling is a separate,
-     smaller item and should not be bundled here.
-  4. **Tests.** `tests/test_adoption.py` is new — the `adoption` module has none, and the
-     harness for this has existed since PH-9 (`tests/conftest.py`'s in-memory Firestore fake;
-     no ADC, key or network). Cover: a dog and foster with nothing logged produces all seven
-     `missing` entries; a fully-logged one produces none; a partially-logged one produces
-     exactly the right subset; `send_…` writes `adoption_profile_source`; and the existing
-     `notified_shelter`/`arcade_messaging_available` split still reports separately.
-  **Verify** with `uv run pytest` (green, count up from 12). **There is no Python linter to
-  run** — the `backend` job is `uv sync --locked`, `import agent.server`, `compileall` and the
-  test step, checked this run rather than assumed, so don't add a `ruff` invocation to the
-  verification and don't read its absence as licence to skip the import check locally. **Not verifiable live by an unattended run**: reaching Post Foster needs a
-  completed foster journey on a signed-in account, so the tests are the verification and the
-  ledger row should say so in those words rather than hedging. **Two traps, both measured this
-  run rather than guessed.** (a) The `dog` object `generate_adoption_profile` returns is
-  `snap.to_dict()` and nothing else (`shelter.py:48-51`) — it is **not** `normalizeDog()`'s
-  enriched shape, so every field `web/src/lib/dog.ts` *derives* is simply absent here rather
-  than defaulted. Compute `missing` from what Firestore actually holds; a `KeyError` on a
-  frontend-only field name is the cheap failure, and a silently-empty `missing` list is the
-  expensive one, since it would report "nothing is missing" about a dog with nothing recorded.
-  (b) `profile_text` is stored with **no way to correct or retract it** — nothing in the app
-  clears `adoption_profile`, and RS-6's update rule pins `shelter_id` but says nothing about
-  this field. Adding a retraction path is out of scope and is the natural follow-up item; note
-  it in the ledger row rather than building it.
+- **PH-20 `[large]` — shipped 2026-09-12 (PR #__); the Ledger row is the full account.** The
+  spec is archived verbatim in
+  [`archive/production-hardening-ph20-2026-09-12.md`](archive/production-hardening-ph20-2026-09-12.md).
+  Re-verifying it against `main` before building found **nothing wrong** for the second
+  consecutive `[large]` item — both traps it named were real, `adoption.ts:151-156` is exactly
+  where it says, and the tool returns `snap.to_dict()` as described. The follow-up it asked be
+  noted rather than built is below, unqueued.
+
+- **Unqueued lead from PH-20, for `dogathon-plan`: `adoption_profile` cannot be retracted.**
+  Nothing in the app clears it, so a paragraph the foster later disagrees with is permanent on
+  a real dog's record, read by shelter staff at `/shelter/dogs`. `adoption_profile_source`
+  now says the agent wrote it, which is what makes a retraction path buildable — the roster can
+  tell the two apart. Labelling it there is the smaller half; the write path is the larger.
 
 - **PH-19 `[large]` — shipped 2026-09-11 (PR #77); the Ledger row is the full account.** The
   spec is archived verbatim in
@@ -349,6 +313,31 @@ Per the README's "nobody uses this app yet", the length of that list is not debt
 them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
+
+- 2026-09-12 — PH-20 `[large]` — PR #__ — **The one paragraph this app keeps because a model
+  wrote it now has to name what nobody recorded.** `generate_adoption_profile` returns a
+  seventh key, `missing` — computed the way `adoption.ts:151-156` computes its own, plus the
+  two the page doesn't need and the model does (no weight from either source, no `needs` on the
+  dog) — and each entry is a **sentence about what did not happen** rather than a field name,
+  for PH-19's reason: a bare token reads as "nothing there". `PAWTHWAY_SYSTEM`'s adoption
+  paragraph loses the word **"specific"** (the word doing the damage over sparse, nullable
+  inputs), keeps "warm", and gains the content guardrail the pickup paragraph already had —
+  every detail from the tool result, gaps stated plainly, *"a short paragraph that is true of
+  this dog is correct when the care log is thin; a fuller one that is true of some dog is
+  not"*. `send_adoption_profile_to_shelter` writes `adoption_profile_source: "agent"` beside
+  the text, with an optional field on `Dog` and nothing rendering it yet. **The harness needed
+  building before the tests could be written**, which the spec had not costed: `tests/conftest.py`
+  had no `update()` and no `order_by().stream()`, so neither of this module's two tools could be
+  driven at all — that is why `adoption` had no tests, not oversight. The fake's `update()`
+  **raises on a missing document** rather than creating one, or a test would pass against a dog
+  nobody seeded. `tests/test_adoption.py` is new (12 cases; 34 → 46), covering all seven gaps,
+  none, the exact subset, the two joins most likely to be got wrong (a shelter weight is not a
+  weigh-in; a vet visit is not a weight), and the `notified_shelter`/`arcade_messaging_available`
+  split. Backend import, `compileall` and `pytest` green; frontend build, test and lint green
+  with no new warnings. **Not verifiable live by an unattended run** — reaching Post Foster
+  needs a completed foster journey on a signed-in account, so the tests are the verification.
+  The retraction path the spec asked be noted rather than built is left as an unqueued lead in
+  the Task queue.
 
 - 2026-09-11 — PH-19 `[large]` — PR #77 — **The Care Plan brief stops asserting things nobody
   recorded, and stops calling training notes medical.** `DogProfile.medicalFlags` → `careNeeds`

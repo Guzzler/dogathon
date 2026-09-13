@@ -83,6 +83,12 @@ export interface Dog {
   good_with_dogs: boolean | null;
   notes: string;
   adoption_profile?: string;
+  /**
+   * Who wrote `adoption_profile`. `"agent"` means the Post Foster assistant drafted it
+   * and the foster approved it; absent means it predates the field or a human wrote it.
+   * Nothing renders this yet -- labelling it on the shelter roster is its own item.
+   */
+  adoption_profile_source?: "agent";
 
   // Added for Discovery. All optional — dogs seeded before these existed still
   // render, because `normalizeDog()` derives sensible values from the fields above.

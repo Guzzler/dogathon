@@ -24,7 +24,18 @@ class FakeDocument:
         self._path = path
 
     def get(self) -> "FakeSnapshot":
-        return FakeSnapshot(self._store.get(self._path))
+        return FakeSnapshot(self._store.get(self._path), self._path.rsplit("/", 1)[-1])
+
+    def update(self, data: dict[str, Any]) -> None:
+        """Real `update()` fails on a missing document; `set(merge=True)` creates one.
+
+        The difference matters here: `send_adoption_profile_to_shelter` checks the
+        dog exists and then updates, and a fake that quietly created the document
+        would let a test pass against a dog that was never seeded.
+        """
+        if self._path not in self._store:
+            raise KeyError(f"No document at {self._path}")
+        self._store[self._path].update(json.loads(json.dumps(data)))
 
     def set(self, data: dict[str, Any], merge: bool = False) -> None:
         # Firestore stores what it is given; round-tripping through JSON here
@@ -47,8 +58,9 @@ class FakeDocument:
 
 
 class FakeSnapshot:
-    def __init__(self, data: dict[str, Any] | None) -> None:
+    def __init__(self, data: dict[str, Any] | None, doc_id: str = "") -> None:
         self._data = data
+        self.id = doc_id
 
     @property
     def exists(self) -> bool:
@@ -65,6 +77,37 @@ class FakeCollection:
 
     def document(self, name: str) -> FakeDocument:
         return FakeDocument(self._store, f"{self._path}/{name}")
+
+    def order_by(self, field: str) -> "FakeQuery":
+        return FakeQuery(self._store, self._path, field)
+
+    def stream(self):
+        return FakeQuery(self._store, self._path, None).stream()
+
+
+class FakeQuery:
+    """Enough of a Firestore query for `get_care_log`: order by one field, stream.
+
+    Only documents one segment below the collection path are members, so a
+    subcollection under a document doesn't leak into its parent's results.
+    """
+
+    def __init__(self, store: dict[str, dict[str, Any]], path: str, field: str | None) -> None:
+        self._store = store
+        self._path = path
+        self._field = field
+
+    def stream(self):
+        prefix = f"{self._path}/"
+        members = [
+            (key.removeprefix(prefix), value)
+            for key, value in self._store.items()
+            if key.startswith(prefix) and "/" not in key.removeprefix(prefix)
+        ]
+        if self._field:
+            # Missing values sort first, the way an unset field does in Firestore.
+            members.sort(key=lambda kv: (kv[1].get(self._field) is None, kv[1].get(self._field, 0)))
+        return [FakeSnapshot(data, doc_id) for doc_id, data in members]
 
 
 class FakeDb:
@@ -84,8 +127,9 @@ def fake_db(monkeypatch: pytest.MonkeyPatch) -> FakeDb:
     share the same fake or the tests would not see them interfere.
     """
     from agent import approval_store, session_store
+    from agent.builtin import adoption, care, foster, shelter
 
     db = FakeDb()
-    monkeypatch.setattr(session_store, "db", lambda: db)
-    monkeypatch.setattr(approval_store, "db", lambda: db)
+    for module in (session_store, approval_store, adoption, care, foster, shelter):
+        monkeypatch.setattr(module, "db", lambda: db)
     return db
