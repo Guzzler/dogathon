@@ -16,87 +16,37 @@ decision written by any instance reaches a thread parked in any other. Full reas
 why the transcript is a JSON string rather than a native array, and PH-8's three deliberate
 behaviour changes — in the [archive](archive/production-hardening-2026-08-29.md). What it
 leaves open is the `--min-instances=1 --max-instances=1` pin, now *removable* and not
-removed; the next section is what removing it costs.
+removed; **PH-13** under "Needs a human" is what removing it costs.
 
-## What lifting the instance pin actually costs — answered 2026-08-29, discharged 2026-08-30; archived 2026-09-10
+## Six settled things, and where their reasoning lives — compressed 2026-09-12
 
-Both blockers shipped (PH-11's divided rate limit, PH-10's live transcript trim), the residual
-two-device race is accepted, and what remains is one small PR raising `--max-instances` to **2**
-plus the two things only a human can observe. That remainder is **PH-13** under "Needs a human",
-stated there in full — which is why this section is now verbatim in
-[`archive/production-hardening-instancepin-2026-09-10.md`](archive/production-hardening-instancepin-2026-09-10.md)
-rather than here.
+All six were already pointers into earlier archives rather than reasoning, so they were cut in
+one move to [`archive/production-hardening-settled-2026-09-12.md`](archive/production-hardening-settled-2026-09-12.md),
+which holds them verbatim. Read that first if you are about to touch any of them; each line
+below is an index entry, not an account.
 
-## What the rate limit means with more than one instance (decided 2026-08-30, PH-11); compressed 2026-09-09
-
-**Option (b): keep the bucket in memory and divide the budget by the maximum instance
-count.** `server.py` carries `CHAT_REQUESTS_PER_MINUTE_BUDGET = 20` (what a foster gets
-across the whole service), `MAX_CLOUD_RUN_INSTANCES = 1` (**which must equal
-`--max-instances` in `deploy-backend.yml`** — a `!!` comment sits next to the flag, where
-someone will actually be editing when they get it wrong), and the per-instance limit
-derived from the two. The cost, stated plainly: an unlucky foster whose requests all land
-on one instance is throttled at the divided number. Over-throttling one person is
-recoverable; multiplying spend by the instance count has no floor. The Firestore-backed
-bucket (a) is the correct answer at any instance count and lost on scope, not cost — it
-would make the spend brake depend on Firestore, and a limiter that fails closed on a blip
-turns a database hiccup into "you can't talk to the assistant". **Revisit (a) if the
-instance count stops being a small fixed number**; that is the condition. Today the
-division is by 1, so nothing changed numerically, and PH-13 raises both numbers together.
-Full reasoning verbatim in
-[`archive/production-hardening-ratelimit-2026-09-09.md`](archive/production-hardening-ratelimit-2026-09-09.md).
-
-## The notification that doesn't notify — CLOSED 2026-09-05 by RS-12 (PH-1); compressed 2026-09-09
-
-The arc, in one line: a hardcoded `notified_shelter: True` (2026-08-24) → an honest
-capability probe, `arcade_tools.available()` (PH-1, PR #19) → **true because a write
-landed on a surface a staff account demonstrably reads** (RS-12, PR #63), with
-`notified_via: "shelter_roster"` naming which surface and Arcade demoted to its own
-`arcade_messaging_available` field so no one field conflates a capability with a
-delivery. The fix was a shelter surface, so it was built and is recorded in
-`real-data-and-shelters.md`, not here. Full section verbatim in
-[`archive/production-hardening-ph1-2026-09-09.md`](archive/production-hardening-ph1-2026-09-09.md).
-
-**Two things worth carrying forward rather than archiving.** The gap was found by
-`grep -rn adoption_profile web/` returning **no reader at all** — the app's most
-expensive turn wrote a paragraph no human but the foster ever saw; and the section sat
-parked behind "downstream of M3" for days *after* M3 finished, because nobody re-read the
-sentence. Nothing signed-in was verified: that half is RS-12b in `real-data-and-shelters.md`.
-
-## Account deletion and export — shipped, and deletion now reaches everything
-
-`deleteAccount()` (PH-2, PR #20) and `exportAccountData()` (PH-6, PR #28), both
-in `web/src/auth.ts` and surfaced in `AccountSheet.tsx` for signed-in users;
-guests have "Start fresh on this device". Details in the
-[archive](archive/production-hardening-2026-08-29.md).
-
-### What deletion left behind — archived 2026-08-30, compressed 2026-09-10
-
-Two things a deleted account left behind, both structural: the agent transcript (a
-subcollection, so deleting the parent document missed it → PH-14 clears it through
-`POST /reset` first, while an ID token can still be minted) and the `applications` rows
-carrying `fosterName` (**redact, don't delete** — an application is a two-owner record and
-must not vanish mid-review → PH-15 redacts and withdraws, PH-16 pins every other field).
-Full reasoning, including why `applications`'s update rule must stay loose about
-`fosterName` specifically, in [`archive/production-hardening-deletion-2026-08-30.md`](archive/production-hardening-deletion-2026-08-30.md)
-— read it before tightening that rule. Narrative archived in
-[`archive/production-hardening-settled-2026-09-10.md`](archive/production-hardening-settled-2026-09-10.md).
-
-## No error tracking — compressed 2026-09-10
-
-Cloud Run logs only, and nothing reads them. The *logging* half is already correct
-(`server.py:300`, `:332`), so what is missing is one alert policy — **PH-7b** under "Needs a
-human", which states it more operationally than this section did. The reason it matters was
-demonstrated next door: DC-3's guard printed `fatal: ... no merge base` on four consecutive
-runs while reporting success, unnoticed for a day, because nothing reads logs that don't fail
-anything.
-
-## Two smaller ones — both resolved; compressed 2026-09-10
-
-PH-5 (guest→account migration, PR #29) and PH-4 (`"strict": true` pinned in
-`web/tsconfig.app.json`, PR #27) — the Ledger rows are the full account. One operational note
-worth keeping out of the archive: when re-checking strictness use `./node_modules/.bin/tsc`,
-because `npx tsc` resolves to an unrelated `tsc@2.0.4` that prints a banner and exits 1
-without compiling.
+- **The instance pin** — both blockers shipped, the residual two-device race is accepted, and
+  what is left is one PR raising `--max-instances` to 2 plus two things only a human can
+  observe. That remainder is **PH-13**, parked.
+- **What the rate limit means with more than one instance** (PH-11) — a per-foster budget
+  divided by `MAX_CLOUD_RUN_INSTANCES`, which **must equal `--max-instances` in
+  `deploy-backend.yml`**. Revisit the Firestore-backed bucket only if the instance count stops
+  being a small fixed number.
+- **The notification that doesn't notify** (PH-1) — **CLOSED 2026-09-05 by RS-12**: the write
+  lands on a surface a staff account demonstrably reads. Two things worth carrying rather than
+  archiving: the gap was found by `grep -rn adoption_profile web/` returning **no reader at
+  all**, and the section sat parked behind "downstream of M3" for days *after* M3 finished
+  because nobody re-read the sentence.
+- **Account deletion and export** (PH-2, PH-6) and **what deletion left behind** (PH-14,
+  PH-15, PH-16) — deletion reaches the agent transcript and the shelter's inbox; applications
+  are **redacted, not deleted**, and `applications`'s update rule stays deliberately loose
+  about `fosterName` for exactly that. Read the 2026-08-30 archive before tightening it.
+- **No error tracking** — the logging half is correct; the missing half is one alert policy,
+  which is **PH-7b**, parked.
+- **Two smaller ones** — PH-5 and PH-4, both resolved. One operational note that is cheaper
+  here than in an archive: when re-checking strictness use `./node_modules/.bin/tsc`, because
+  `npx tsc` resolves to an unrelated `tsc@2.0.4` that prints a banner and exits 1 without
+  compiling.
 
 ## Advice may be templated; a history may not be seeded — shipped 2026-09-10 (PH-17); archived
 
@@ -149,42 +99,155 @@ is required, all three mount points pass it, and `server.py:432` hands it to
 `model_for_surface`. Match pickup coordination is answered by Haiku today. A sentence to
 Sharang, not a doc edit.
 
+### The rule has a second side: what the model is allowed to write *down* (2026-09-12)
+
+PH-19 fixed what the model is **told**. Nothing has yet asked what the model is **permitted to
+assert**, and the two are not the same question, because this app keeps exactly one thing a
+model wrote:
+
+> `send_adoption_profile_to_shelter` stores `profile_text` on the dog's own document
+> (`adoption.py:63`), and since RS-12 **that write is the notification** — shelter staff read
+> the paragraph at `/shelter/dogs` (`ShelterRosterView.tsx:236-237`) and decide from it whether
+> a real animal gets listed. Every other model output in Pawthway is a chat turn that scrolls
+> away.
+
+Asked of that paragraph, the tense test answers immediately: a sentence in it *can* be wrong
+about a specific animal, so it is a record, and it may only come from the foster, the shelter's
+document, or nothing at all. What makes this a surface rather than a wording change is that
+**three separate things currently push the other way**, and they compound:
+
+1. **The prompt asks for the shape, not the evidence.** `PAWTHWAY_SYSTEM`'s adoption paragraph
+   (`server.py:94-104`) says *write a warm, **specific**, one-paragraph adoption profile*. Warm
+   and specific over sparse, nullable inputs is the precise instruction to fill.
+2. **The one anti-invention clause in that paragraph is scoped to channels**, not content —
+   *"never describe a channel that didn't run"* covers whether an email was sent and says
+   nothing about the dog. The pickup paragraph has a content clause (*"speak generally rather
+   than inventing specifics"*); the care paragraph and the adoption paragraph have none. Of the
+   three moments this agent exists for, the one whose output is *persisted* is the one with no
+   content guardrail.
+3. **The tool hands over absence as silence.** `generate_adoption_profile` returns `dog`,
+   `foster_intake` and `care_log` raw. A dog with no `needs`, no weight and an empty care log
+   arrives as three thin objects, and PH-19 already established what a model does with that: a
+   silently-absent field reads as "nothing there" exactly as confidently as a false claim reads
+   as a fact.
+
+The answer to (3) is the part worth recording, because **the frontend already solved it and the
+backend never got the answer.** `buildAdoptionProfile` computes `missing: string[]`
+(`adoption.ts:151-156`) for this exact reason, stated in its own header comment: *"Every field
+is either logged by the foster, recorded by the shelter, or absent — and `missing` lists what is
+absent so the page can ask for it instead of filling it in."* Two consumers read the same three
+data sources; one was taught the rule and one was not. So the generalisation is not a new rule
+at all, it is a **routing** one:
+
+> When a fix teaches one reader of a dataset to handle absence, check every other reader of that
+> same dataset before calling it shipped. The second reader is cheaper to fix than the first —
+> the design work is done — and it is the one nobody notices, because the first reader is the
+> one that was visibly broken.
+
+That is 2026-09-11's "ask who else reads the surface you measured last" arriving one layer down:
+not a second *surface*, a second *consumer of the same records*. It is also why the
+`missing`-list shape is the right answer here rather than a stronger prompt sentence — a prompt
+can be argued with, and an enumerated gap in the tool result cannot.
+
+**One claim the measurement contradicts, worth naming precisely rather than loosely.**
+`adoption.ts`'s header says "Nothing here is invented", and that is true of `adoption.ts` —
+`buildAdoptionProfile` really does source every field. But `CLAUDE.md`'s "The adoption page"
+section generalises it to *"Nothing on this page is invented"*, and the agent-written paragraph
+is a second, generated artefact about the same dog, read by staff rather than by the page.
+The two do not currently contradict each other in code, because **`/adoption/:dogId` does not
+render `adoption_profile`** — grep finds its only frontend reader is the shelter roster. So this
+is a scope note, not a bug: the sentence is right about the page and silent about the paragraph.
+Correcting `CLAUDE.md` is Sharang's, not this loop's.
+
 ## Task queue
 
-**Refilled 2026-09-09 after eight consecutive runs of declining to, and the routing is
-deliberate.** The 2026-08-31 re-rank exists to stop this doc's small, tidy, headlessly-
-verifiable items consuming every execute run while the shelter surface waits — and **that
-reasoning does not cover what is queued below.** PH-17 and PH-19 are not scaffolding; they are
-the product asserting things about a real animal that nobody observed, which is the class of
-defect this doc was founded on (PH-1). They sit here because this doc owns truthfulness, not
-because production-hardening has been re-ranked. See the README's 2026-09-09 note.
+**The routing that put truthfulness items in the third-ranked doc still holds, and it is worth
+restating once rather than re-narrated each run.** The 2026-08-31 re-rank exists to stop this
+doc's small, tidy, headlessly-verifiable items consuming every execute run while the shelter
+surface waits — and it does not cover PH-17, PH-19 or PH-20. Those are not scaffolding; they
+are the product asserting things about a real animal that nobody observed, which is the class
+of defect this doc was founded on (PH-1). They sit here because this doc owns truthfulness, not
+because production-hardening has been re-ranked. *(The three-run narration of how PH-17 and
+PH-19 were found, queued and shipped is now told by their Ledger rows and by "The line is
+tense, not topic" above; it was cut on 2026-09-12 under the README's rule that a design answer
+stops earning its length once something else restates it.)*
 
-**PH-17 shipped 2026-09-10 (PR #75) and PH-18 was what was left.** Both had been re-verified
-against `main` that morning — PH-17's file list was missing two write paths and a whole fourth
-file, and one of its hedges was wrong — and the re-verification held: nothing else in either
-item was invalidated by building it.
+**2026-09-12 — PH-20 joins PH-18, and the `[large]` slot stays in this doc for a fourth
+consecutive run.** PH-19 shipped the day it was queued, which emptied the slot everywhere and
+left PH-18 — small — as the only open item in the repo. So the README's fallback chain was run
+in full again: the queue held nothing big, every gated note is still gated on a *person* and
+not on code (RS-8, RS-6b, RS-12b, PH-13, PH-7b, PH-15b — re-read, unchanged), and the third
+link, **measure**, was used. It was used the way 2026-09-11 recommended — *point the last
+method at another consumer rather than invent a new method* — and that recommendation paid off
+twice over, because **the lead PH-19 left was half wrong and the half that was right was bigger
+than it looked**:
 
-**2026-09-11 — PH-19 joins it, and it is the repo's only `[large]` item.** PH-17 emptied the
-`[large]` slot everywhere, so the README's fallback chain was run in full: the queue held only
-PH-18 (small), every gated note is gated on a *person* and not on code (RS-8, RS-6b, RS-12b,
-PH-13, PH-7b, PH-15b — unchanged), and the third link, **measure**, was used. What it measured
-was PH-17's own method pointed at a different consumer: not what the adoption page prints, but
-**what the model is told**. Every value in `buildAgentBrief`'s output traced back to where it
-is written. It found a defect in both branches of one line, for all nineteen dogs in the
-roster. PH-19 sits **above PH-18** because execute works top-down and the `[large]` item should
-be picked first; the two are independent and either can ship alone.
+- **The Match prompts pass the tense test, and that is a result rather than a non-finding.**
+  Every value `MatchChatView`'s three `quickActions` interpolate — `dog.name`,
+  `foster.pickup.date`, `foster.pickup.time`, `dog.shelter.name` — is a record the foster or
+  the shelter actually wrote, and the screen does not render at all without `foster.pickup`
+  (`MatchChatView.tsx:23`). Nothing to fix. The lead can be struck.
+- **The Post Foster half is not a prompt problem at all**, which is why it is PH-20 and
+  `[large]` rather than the one-line edit the lead implied. See the design section directly
+  above: the defect is that the app persists one model-written paragraph as a record about a
+  real animal, and all three of the things shaping that paragraph — the system prompt's ask,
+  its missing content guardrail, and a tool that returns absence as silence — push toward
+  filling gaps rather than naming them.
 
-**PH-19 shipped the same day it was queued, and the `[large]` slot is empty again across all
-three docs.** What is left open in the whole repo is **PH-18**, small. Two leads for whoever
-refills, both from building PH-19 rather than invented: the "grep for the shape, not the field"
-rule above has only been applied to `brief.ts` — the **Match** and **Post Foster** prompts
-(`AgentChatPanel`'s `quickActions`, and `src/agent/builtin/adoption.py`'s
-`generate_adoption_profile`) carry values to the model that nothing has asked the tense test
-of; and `DogProfile.ageMonths` is `Math.max(1, round(age_years * 12))` on a field the
-shelter's own form requires (`shelterDog.ts:62` — name, breed and age are the only three that
-are), so it is the one intake value in the brief that cannot currently be absent. The
-`Math.max(1, …)` floor is the part to look at: it reports "1-month-old" for a dog entered as
-0 years, which is a rounding today and an assertion the moment anything reads it as one.
+`DogProfile.ageMonths`'s `Math.max(1, …)` floor is the one lead left untouched and it survives
+unchanged: it reports "1-month-old" for a dog entered as 0 years, which is a rounding today and
+an assertion the moment anything reads it as one.
+
+
+- **PH-20 `[large]` — the one paragraph this app keeps because a model wrote it.** The
+  grounding is the design section above; this is the build. Three changes plus tests, in one
+  PR, because none of them is safe alone — a prompt told to name gaps with no gaps in its
+  input will name none, and a tool that reports gaps to a prompt still asking for "specific"
+  will have them written around.
+  1. **`src/agent/builtin/adoption.py` — `generate_adoption_profile` returns what is
+     missing.** Add a `missing: list[str]` alongside the three raw keys, computed the way
+     `web/src/lib/adoption.ts:151-156` computes its own: no journal photos, no journal notes,
+     no ticked care items, no weigh-in or vet visit, no `adoptionNote`. Extend it with the two
+     the frontend does not need and the model does — the dog's own `needs` being empty, and no
+     weight from either source. **Phrase each entry as the gap it is, not as a field name**
+     ("no weigh-in was ever logged", not `"weight"`), for the reason PH-19's row records:
+     `sayWhatIsMissing()` had to state a gap as a gap because a bare absence reads as "nothing
+     there". Update the docstring, which currently promises only "raw materials".
+  2. **`src/agent/server.py` — the adoption paragraph of `PAWTHWAY_SYSTEM` (`:94-104`) gets
+     the content guardrail the pickup paragraph already has.** Keep "warm"; **drop or qualify
+     "specific"**, which is the word doing the damage. Say plainly that everything in the
+     profile must come from the tool result, that the `missing` list is what the foster and
+     shelter never recorded and must be described as unrecorded rather than filled or skipped
+     silently, and that a short honest paragraph is correct when the care log is thin. Do not
+     add a fourth clause to the pickup or care paragraphs in this PR.
+  3. **`src/agent/builtin/adoption.py` — `send_adoption_profile_to_shelter` writes a
+     provenance field beside the text.** `adoption_profile_source: "agent"` on the same
+     `update()` (`:63`), so the paragraph on `ShelterRosterView.tsx:237` is distinguishable
+     from anything a human later writes into that field. One optional field on `Dog` in
+     `web/src/types.ts`, nothing rendering it yet — the roster's own labelling is a separate,
+     smaller item and should not be bundled here.
+  4. **Tests.** `tests/test_adoption.py` is new — the `adoption` module has none, and the
+     harness for this has existed since PH-9 (`tests/conftest.py`'s in-memory Firestore fake;
+     no ADC, key or network). Cover: a dog and foster with nothing logged produces all seven
+     `missing` entries; a fully-logged one produces none; a partially-logged one produces
+     exactly the right subset; `send_…` writes `adoption_profile_source`; and the existing
+     `notified_shelter`/`arcade_messaging_available` split still reports separately.
+  **Verify** with `uv run pytest` (green, count up from 12). **There is no Python linter to
+  run** — the `backend` job is `uv sync --locked`, `import agent.server`, `compileall` and the
+  test step, checked this run rather than assumed, so don't add a `ruff` invocation to the
+  verification and don't read its absence as licence to skip the import check locally. **Not verifiable live by an unattended run**: reaching Post Foster needs a
+  completed foster journey on a signed-in account, so the tests are the verification and the
+  ledger row should say so in those words rather than hedging. **Two traps, both measured this
+  run rather than guessed.** (a) The `dog` object `generate_adoption_profile` returns is
+  `snap.to_dict()` and nothing else (`shelter.py:48-51`) — it is **not** `normalizeDog()`'s
+  enriched shape, so every field `web/src/lib/dog.ts` *derives* is simply absent here rather
+  than defaulted. Compute `missing` from what Firestore actually holds; a `KeyError` on a
+  frontend-only field name is the cheap failure, and a silently-empty `missing` list is the
+  expensive one, since it would report "nothing is missing" about a dog with nothing recorded.
+  (b) `profile_text` is stored with **no way to correct or retract it** — nothing in the app
+  clears `adoption_profile`, and RS-6's update rule pins `shelter_id` but says nothing about
+  this field. Adding a retraction path is out of scope and is the natural follow-up item; note
+  it in the ledger row rather than building it.
 
 - **PH-19 `[large]` — shipped 2026-09-11 (PR #77); the Ledger row is the full account.** The
   spec is archived verbatim in
@@ -239,6 +302,26 @@ are), so it is the one intake value in the brief that cannot currently be absent
   defect, and the seam is that PH-18 touches only `contacts` and `VetMap`.)* *(A line
   for the ledger, not a code change: `CLAUDE.md` lists "Emergency Mode (24h vet map)" as
   explicitly out of scope, and it shipped anyway. The scope note is stale.)*
+  **Re-verified against `main` again 2026-09-12, after PH-19 landed in this same file; two
+  corrections, one of them material.** (a) Line drift, as expected from a PR that edited
+  `Emergency.tsx`: the unguarded `nearest` dereferences are now `:150`, `:153`, `:155` and
+  `:159` (the `tel:` href), not `:150`/`:152`/`:156`; `:130` and `:113` are both unmoved, and
+  `data.ts:204-228` is exactly right. The `:137`/`:178` weight guards this entry set aside as
+  PH-19's **shipped** — `:182` now reads "Not recorded" — so that half of the seam is closed
+  and PH-18 is strictly `contacts` and `VetMap`. (b) **The fix as written cannot be built as
+  written, and this is the third consecutive item whose spec was wrong in the same direction.**
+  It says the coordinator row "comes from the dog's own `shelter`" — but **no shelter record
+  anywhere in this app carries a phone number.** `Shelter` is `{id, name, short, address, lat,
+  lng}` (`shelters.ts:1-3`) and `Dog.shelter` is the same six fields (`types.ts:104`). An
+  `EmergencyContact` row is rendered as a `tel:` link, so sourcing the row from the shelter
+  yields a name, a role and **no way to call anyone**. Decide that deliberately: either the
+  coordinator row renders without a call action, or it does not render at all. Do not add a
+  `phone` to `Shelter` to make the row work — that field would have to be *filled*, and
+  inventing it is the defect PH-18 exists to remove. (c) The acute part this entry never
+  named: **both local phone numbers are invented**, and one of them belongs to an organisation
+  that does not exist — `shelters.ts:13` records Copper's Dream Rescue as *"from the product
+  spec"*. A made-up number on the screen a foster opens when something is wrong is a worse
+  failure than a made-up distance, and it is the same delete.
 
 - **PH-14, PH-15 and PH-16 — all shipped 2026-08-30** (PRs #47, #48, #49); the Ledger
   rows are the full account. Between them: `deleteAccount()` clears the agent transcript
@@ -305,55 +388,10 @@ them, and do not add to it without reading the archived preamble first.
   app is not in `LOCAL_MODE` and Care Plan needs a sign-in this loop can't do. Full 28-line row
   verbatim in the [2026-09-11 ledger archive](archive/production-hardening-ledger-2026-09-11.md).
 
-*(Rows for PH-1 through PH-6 are compressed to one line each below; each one's
-full text, including what shipped smaller than queued and why, is preserved
-verbatim in the [archive](archive/production-hardening-2026-08-29.md).)*
-
-- 2026-08-24 — PH-1 — PR #19 — `send_adoption_profile_to_shelter` returns
-  `notified_shelter: arcade_tools.available()` instead of a hardcoded `True`.
-- 2026-08-24 — PH-2 — PR #20 — Client-side `deleteAccount()`: careLog docs, then
-  `fosters/{uid}`, then the Auth user. No rules change needed.
-- 2026-08-25 — PH-3 — PR #23 — `session_store.py` persists the transcript as a
-  `messagesJson` string, trimmed to 40 on write; `_stream` saves, `/reset` deletes.
-- 2026-08-26 — PH-4 — PR #27 — `"strict": true` made explicit in
-  `web/tsconfig.app.json`. A pin, not a fix — TypeScript 6 already defaulted it on.
-- 2026-08-26 — PH-6 — PR #28 — `exportAccountData()` builds a JSON blob of the
-  foster doc, its careLog, and its `applications` rows. No new dependency.
-- 2026-08-26 — PH-5 — PR #29 — `migrateGuestData()` copies localStorage guest
-  state into `fosters/{uid}` on first sign-in. Shipped smaller than queued: there
-  is no anonymous Auth session to `linkWithCredential`. **Not verified live.**
-- 2026-08-28 — PH-7 (commit-shaped half) — PR #33 — `GET /health` reports `firestore_reachable`
-  via a round trip that returns `False` rather than raising. Alerting half declined on purpose
-  (hard-to-reverse infra); it is PH-7b, parked.
-- 2026-08-29 — PH-9 — PR #36 — The backend test harness: `pytest`, a `Test` step in `ci.yml`,
-  12 tests needing no ADC/key/network, an in-memory Firestore fake. Verified it can turn the
-  job red off a real Actions run.
-- 2026-08-29 — PH-8 — PR #37 — The approval handoff moved from an in-process `queue.Queue` to a
-  polled `pendingApproval` field (`approval_store.py`), so a decision written by any instance
-  reaches a turn parked in any other. Three fail-closed choices beyond the task; the
-  two-instance case is reasoned about, not exercised — it can't be, under the pin.
-- 2026-08-30 — PH-10 — PR #43 — `_stream`'s `finally` trims the **live** `agent.messages`, not
-  just the stored copy; the 40-message cap had been a persistence bound in a spend bound's
-  clothes.
-- 2026-08-30 — PH-11 — PR #44 — The per-minute limit is a per-foster budget divided by
-  `MAX_CLOUD_RUN_INSTANCES`, `!!`-commented in both files that must agree. The recorded decision
-  was as much the deliverable as the code.
-- 2026-08-30 — PH-12 — PR #45 — `tests/test_foster_isolation.py` pins the two invariants
-  `CLAUDE.md` asserts in prose. Two real threads on a `threading.Barrier`; no production code
-  changed.
-- 2026-08-30 — PH-14 — PR #47 — **The agent transcript dies with the account.** `deleteAccount()`
-  calls `resetChat()` first and **refuses to delete anything else if that fails**. Live path not
-  run.
-- 2026-08-30 — PH-15 — PR #48 — **Deletion reaches the shelter's inbox**, by redaction:
-  `{ fosterName: "(deleted account)", status: "withdrawn" }`. **Redact, don't delete** — the
-  absent `delete` rule is deliberate. Verification became PH-15b, parked.
-- 2026-08-30 — PH-16 — PR #49 — The foster branch of `applications`'s update rule pins every
-  field but `fosterName`, which stays free with a `!!` comment saying why: PH-15's redaction
-  rides that exact gap.
-
-*(Full verbatim text of these ten rows — 51 lines — in the
-[2026-09-11 ledger archive](archive/production-hardening-ledger-2026-09-11b.md). Read it before
-re-deriving anything about the approval handoff or the `applications` rules.)*
-
-*(Full text of these three rows — 55 lines, all of it load-bearing — in the
-[2026-09-04 ledger archive](archive/production-hardening-ledger-2026-09-04.md).)*
+*(Sixteen rows for **PH-1 … PH-16** stood here, each already a one-line compression of a
+longer row archived elsewhere. On 2026-09-12 they moved to
+[`archive/production-hardening-ledger-2026-09-12.md`](archive/production-hardening-ledger-2026-09-12.md),
+which names for each of them where the uncompressed text lives. A compression of a compression
+is the cheapest thing in a doc at its ceiling to cut, because nothing is lost that was not
+already two hops away — this is the README's "the Ledger is the first place to look" rule
+reaching the end of what it can give on this doc.)*

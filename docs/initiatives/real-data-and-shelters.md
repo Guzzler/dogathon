@@ -306,10 +306,10 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status as of 2026-09-08: re-checked this run — `git log --all` and a grep across `docs/`
+*(Status as of 2026-09-12: re-checked this run — `git log --all` and a grep across `docs/`
 turn up no commit, no doc edit from Sharang and no note anywhere in the repo saying this has
-happened — `git log --all --since=2026-09-06` is four commits, every one of them this loop's
-own. Re-checked, not carried over. Recorded so a future run doesn't mistake the passage of
+happened — `git log --all --since=2026-09-09` is fourteen commits, every one of them this
+loop's own PRs. Re-checked, not carried over. Recorded so a future run doesn't mistake the passage of
 time for progress. It is worth saying plainly now that M3 is finished: the shelter side is
 complete enough that this is the only thing standing between it and a real user. **As of
 2026-09-05 that has a second consequence** — it is also the only thing standing between this

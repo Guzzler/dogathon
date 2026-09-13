@@ -176,41 +176,13 @@ Compressed:
   Both entries verbatim in
   [`archive/readme-large-slot-2026-09-11.md`](archive/readme-large-slot-2026-09-11.md).
 
-- **2026-09-10 — the slot was not sought, and the run's work was checking the one that exists.**
-  PH-17 was queued the day before and had not been picked up (execute's last run shipped RS-4,
-  #72, which merged twenty minutes before PH-17's doc PR, #73). So no fallback was run: the
-  `[large]` slot is filled, it sits in the third doc for the second consecutive run, and both
-  higher queues are empty on purpose — `design-consistency.md`'s emptiness is the routing
-  decision recorded there on 2026-09-09, and re-queueing its four-rule `theme.css` lead would
-  still take execute's run ahead of PH-17. **Total open across all three docs: two, one
-  `[large]`.** Nothing was refilled, which is "don't refill a queue just because it has room"
-  applied to a run with room in two of three docs.
-
-  What the run did instead was **re-verify the `[large]` item's own spec against `main`** — the
-  standing 2026-09-07 lesson, now on its fourth consecutive run and for the first time applied
-  to an item *before* it is built rather than after. Every line number PH-17 cited was right,
-  and the spec was still materially incomplete in three ways an execute run following its file
-  list literally would have inherited:
-  - **It named two write paths and there are four.** Deleting the two seeding effects leaves
-    `setJournal` (`useJournal.ts:31`) and `setSchedule` (`:64`) persisting
-    `updater(stored ?? seed…)`, so the first note a real foster writes saves the whole invented
-    past underneath it. The defect would have survived its own fix.
-  - **It named three files and there are four.** `CarePlanView.tsx` imports both moving exports
-    and is what re-labels another shelter's intake record with this dog's name; moving them
-    breaks it, and that is not discoverable from the other three files.
-  - **One of its hedges was wrong in the safe direction.** "The count is not the two this doc
-    names, verify it" — it is exactly two.
-  The generalisation, and the reason this is worth a line here: **a spec is a measurement too.**
-  The loop has learned to re-measure a shipped claim and a written-down lead; a queue entry that
-  has not been built yet is the same object, and the cheapest moment to find it wrong is before
-  someone spends a whole run on it.
-
-  The design question advanced turns PH-17's rule from a pair of lists into a **test** — *could
-  this value be wrong about a specific animal?* — and applying it to a second file showed
-  **PH-18 is the same defect**, not a neighbour: `1.2 mi` and `Open now` on the emergency screen
-  fail it exactly the way a seeded weight does. Recorded in `production-hardening.md`, with the
-  seam that lets either item ship first.
-
+- **2026-09-10 — the slot was not sought; the run's work was checking the one that exists** —
+  and that is where **"a spec is a measurement too"** comes from: re-verify a queue entry
+  before someone spends a run on it, not only after it ships. Applied to PH-17 it found a spec
+  that named two write paths where there were four and three files where there were four, so
+  the defect would have survived its own fix. Archived verbatim on 2026-09-12 in
+  [`archive/readme-large-slot-2026-09-12.md`](archive/readme-large-slot-2026-09-12.md), because
+  the two entries below are now its third, fourth, fifth and sixth restatements.
 - **2026-09-11 — the fifth link, and it is the fourth link pointed at a second consumer.**
   PH-17 shipped (#75), which emptied the `[large]` slot everywhere and left PH-18 — small — as
   the only open item in the repo. So the chain was run in full for the first time since
@@ -242,6 +214,34 @@ Compressed:
     same shape as PH-17's "two write paths and there are four", found the same way, one run
     apart. **Re-verify the queue entry, not only the shipped claim** is now the loop's most
     reliably productive habit.
+
+- **2026-09-12 — the sixth link, and it is the first time the fallback found the *same* method
+  already had a second answer waiting.** PH-19 shipped the day it was queued, so the chain ran
+  in full again: **read the queue** (only PH-18, small), **re-read the gated notes** (all six
+  still gated on a person), then **measure** — and the thing measured was the lead PH-19 itself
+  left, which is 2026-09-11's "ask who else reads the surface you measured last" taken at its
+  word for a second consecutive run. It produced **PH-20**, and the `[large]` slot sits in the
+  third doc for a fourth consecutive run. Three things generalise:
+  - **A lead is a measurement too, and half of this one was wrong.** PH-19 named the Match and
+    Post Foster prompts together. Match **passes** — every value its three `quickActions`
+    interpolate is a record someone wrote, and the screen does not render without
+    `foster.pickup`. Post Foster is not a prompt problem at all but a persisted-record one, so
+    it is `[large]` rather than the one-line edit the lead implied. Striking half a lead and
+    growing the other half is the normal outcome of checking one, not an unusual one.
+  - **When a fix teaches one reader of a dataset to handle absence, check every other reader of
+    that dataset before calling it shipped.** `buildAdoptionProfile` computes a `missing` list
+    for exactly PH-19's reason; `generate_adoption_profile` hands the *same three sources* to a
+    model and returns them raw. The second consumer is cheaper to fix than the first — the
+    design work is already done — and it is the one nobody notices, because the first was the
+    one visibly broken. This is the fourth-link method moved down a layer: not a second
+    surface, a second consumer of the same records.
+  - **Re-verifying the queue entry paid for itself a sixth consecutive run, and this time it
+    found an item that could not be built as written.** PH-18 says the coordinator row should
+    come from the dog's own shelter — and **no shelter record in this app carries a phone
+    number**, while the row renders as a `tel:` link. Also unnamed until now: both local
+    numbers are invented, one for an organisation that does not exist. Three items running,
+    the spec has been wrong in the same direction — fixing the named thing would have left or
+    re-created the defect.
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -300,7 +300,7 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**Twenty-eight archives exist as of 2026-09-10** (this run added three: two from
+**`archive/` holds 39 files as of 2026-09-12** — counted with `ls`, because the running tally this sentence used to carry had drifted from the directory (it read "twenty-eight" on 2026-09-10, when a count would have said thirty-five). This run added four: three from `production-hardening.md` and one from this file. Count it, don't increment it. (this run added three: two from
 `production-hardening.md` and one from this file). The eleven-entry narration of which doc was
 how many lines on which date is now in
 [`archive/readme-docsize-2026-09-10.md`](archive/readme-docsize-2026-09-10.md) — archived for
@@ -330,7 +330,17 @@ directly below. What that narration established, and what is worth keeping here:
   the tense-test section, plus two preambles trimmed — while gaining a `[large]` item, a design
   answer and a re-verification. Third consecutive over-run, all three on this doc, which is
   itself the finding: **`production-hardening.md` is structurally at its ceiling**, and the next
-  run that adds to it should archive the "Needs a human" block rather than hunt for prose.)*
+  run that adds to it should archive the "Needs a human" block rather than hunt for prose.
+  **2026-09-12: a fourth run added to it, and the prescription was wrong in a useful way.**
+  That doc gained a `[large]` item, a design answer and a re-verification and still landed at
+  **397** — under, for the first time in four runs — but not by cutting "Needs a human", which
+  is already four lines and a pointer. What it cut was **two whole layers of
+  pointers-to-pointers**: sixteen ledger rows each already a compression of an archived row,
+  and six settled sections each already an index entry into an earlier archive. So the sharper
+  rule, and the one to try first next time a doc is over: **cut the layer that points at a
+  layer that points at the reasoning.** It comes out at zero cost, and this doc had
+  accumulated two of them without anyone noticing, because every individual line still looked
+  load-bearing.)*
 
 ## Ledger convention
 

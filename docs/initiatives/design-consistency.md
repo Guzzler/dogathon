@@ -219,6 +219,13 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
   exists to stop, arriving from the other direction. The `carePlan.css` literal re-count is
   untouched and still wants doing before the parked retokenisation is sized.
 
+- **2026-09-10 through 2026-09-12 — still empty, still the same routing decision, re-checked
+  rather than carried over.** `production-hardening.md` has held the repo's `[large]` slot for
+  four consecutive runs (PH-17, PH-19, PH-19's successor PH-20), and execute works the queues
+  top-down: anything added here — including the true four-rule `ap-*` version of the `theme.css`
+  lead above — would be picked ahead of it. The `carePlan.css` literal re-count is still
+  untouched and still wants doing before the parked retokenisation is sized.
+
 - **DC-8 `[large]` (with DC-9) — shipped 2026-09-07 (PR #69); the Ledger row is the full
   account.** Care Plan's breakpoints step with the frame and `.cp-stage` caps at `--content-w`
   (283px → 560px, the defect the spec had not known about); `ci.yml`'s notice now watches
