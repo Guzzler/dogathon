@@ -145,3 +145,45 @@ def send_adoption_profile_to_shelter(foster_id: str = "", dog_id: str = "", prof
         "notified_via": "shelter_roster",
         "arcade_messaging_available": arcade_tools.available(),
     }
+
+
+@tool(dangerous=True)
+def withdraw_adoption_profile(foster_id: str = "", dog_id: str = "", reason: str = "") -> dict:
+    """Un-say an adoption profile the assistant wrote: replaces the paragraph on
+    the dog's record with a short note saying the foster withdrew it and why.
+    Use this when the foster says something in the profile is wrong about their
+    dog. It does NOT change the dog's status -- a dog that came back from foster
+    is still back from foster -- and it does not delete anything: the shelter is
+    reading that field, so it has to keep saying something true rather than go
+    blank. To replace the profile with a corrected one instead, call
+    send_adoption_profile_to_shelter again with the new text.
+
+    Args:
+        foster_id: The foster's id. Leave this out -- it defaults to the
+            signed-in foster the app is showing.
+        dog_id: The matched dog's id, for example d-001.
+        reason: The foster's own words for what was wrong with it.
+    """
+    foster_id = resolve(foster_id)
+    if not dog_id or not reason.strip():
+        raise ValueError("dog_id and reason are both required.")
+
+    dog_ref = db().collection("dogs").document(dog_id)
+    if not dog_ref.get().exists:
+        raise KeyError(f"No dog with id {dog_id}")
+
+    # A retraction is a write, not an erasure (PH-21). Since RS-12 the paragraph *is* the
+    # notification -- clearing the field would leave the dog in `ready_for_adoption` with a
+    # "Back from foster" card and nothing in it, so the arrival survives and its content
+    # vanishes. That is a worse state for the staff member deciding than either the paragraph
+    # or no card at all. `status` is untouched for the same reason: it is RS-12's arrival
+    # state, not a claim about the text.
+    text = f"The foster withdrew this write-up. In their words: {reason.strip()}"
+    dog_ref.update({"adoption_profile": text, "adoption_profile_source": "foster_withdrawn"})
+
+    return {
+        "dog_id": dog_id,
+        "withdrawn": True,
+        "adoption_profile": text,
+        "status_unchanged": True,
+    }

@@ -857,6 +857,17 @@ input,textarea,select{font-family:inherit}
   margin:0;font-size:14.5px;line-height:1.55;color:var(--ink-2);
   white-space:pre-wrap;max-width:64ch;
 }
+
+/* PH-21. One class for the attribution line, shared by all three surfaces that render
+   `adoption_profile` -- the foster's page, the shared link, and this roster. Three copies of
+   the same line in three files is the PR #11 incident; the component is
+   `components/ProfileAttribution.tsx`. The withdrawn state is a data attribute rather than a
+   second class for the same reason. */
+.profile-attrib{
+  margin:0;font-size:12.5px;line-height:1.45;font-weight:700;color:var(--ink-3);
+  display:flex;gap:6px;align-items:baseline;
+}
+.profile-attrib[data-withdrawn]{color:var(--coral)}
 .shelter__form{
   display:flex;flex-direction:column;gap:12px;width:100%;
   padding:18px;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line);

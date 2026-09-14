@@ -85,6 +85,30 @@ describe("ShelterRosterView — back from foster", () => {
     expect(html).toContain("Mark adopted");
   });
 
+  // PH-21. Staff decide from this paragraph whether a real animal gets listed, and until
+  // now it rendered bare -- indistinguishable from something the shelter itself recorded.
+  it("says the assistant drafted it", () => {
+    const html = render([
+      dog({ id: "b", status: "ready_for_adoption", adoption_profile: PROFILE, adoption_profile_source: "agent" }),
+    ]);
+    expect(html).toContain("Drafted by the Pawthway assistant");
+  });
+
+  it("reads as a retraction, not a description, once the foster withdraws it", () => {
+    const html = render([
+      dog({
+        id: "b",
+        status: "ready_for_adoption",
+        adoption_profile: "The foster withdrew this write-up. In their words: she is scared of cats.",
+        adoption_profile_source: "foster_withdrawn",
+      }),
+    ]);
+    expect(html).toContain("no longer a description of the dog");
+    // The status is RS-12's arrival state and a withdrawal never touches it, so the card
+    // still offers both moves -- staff decide, with the retraction in front of them.
+    expect(html).toContain("List for adoption");
+  });
+
   it("renders no heading at all on a roster with nobody in foster", () => {
     const html = render([dog({ id: "a" }), dog({ id: "c", status: "retired" })]);
     expect(html).not.toContain("Back from foster");

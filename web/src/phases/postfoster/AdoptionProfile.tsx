@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import type { AdoptionProfile } from "../../lib/adoption";
 import { sizeLabel, type RichDog } from "../../lib/dog";
+import { ProfileAttribution } from "../../components/ProfileAttribution";
 
 /**
  * The adoption page. Every section states where its content came from — the foster's journal
@@ -96,6 +97,22 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
           </>
         )}
       </Section>
+
+      {dog.adoption_profile && (
+        <Section title="The assistant's write-up">
+          {/* PH-21. Its own section, above the foster's note and never blended into it: the
+              whole point of `adoption_profile_source` is that a reader can tell a drafted
+              paragraph from a written one. Until now this text reached nobody but shelter
+              staff -- not the adopter it was written for, and not the foster who is the only
+              person who could say it is wrong. */}
+          <div className="card ap-note">
+            <ProfileAttribution source={dog.adoption_profile_source} />
+            <p className="sub" style={{ fontSize: 14.5, marginTop: 9, whiteSpace: "pre-wrap" }}>
+              {dog.adoption_profile}
+            </p>
+          </div>
+        </Section>
+      )}
 
       <Section title="A note from the foster">
         {profile.fosterNote && (
