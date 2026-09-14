@@ -197,28 +197,27 @@ taken by the M4 drift check, which is unrelated and independent of these.)
     consequence of the ranking's premise expiring, not as a re-rank — this doc goes back to the
     top the moment a shelter says yes, and the honest reading is that the top doc has run out
     of buildable work before it has run out of *work*.
-  - **2026-09-06 — same question, same answer**; measuring `web/src/` rather than reading
-    the queue or the notes produced DC-7. The README records that fallback.
-  - **2026-09-07 — a third consecutive run, same answer, and the measurement itself was the
-    thing that moved.** All three fallbacks were re-run against this doc rather than carried
-    over: the queue still holds only RS-4, and no gate has opened (RS-12b, RS-6b and RS-8 all
-    still want a signed-in human; M5 still wants a shelter; the conversation below still has no
-    evidence behind it — `git log --all --since=2026-09-05` is six commits, every one this
-    loop's own). The `[large]` slot stays in `design-consistency.md` for a third run as DC-8.
-    Worth recording here rather than only there: DC-8 exists because re-measuring found
-    **DC-7's own measurement was incomplete** — it missed the repo's largest stylesheet. That
-    is a caution for this doc too, whose "Where this actually stands" section is a list of
-    dated measurements of exactly the same kind.
-  - **2026-09-08 — a fourth consecutive run, and the caution above came true one doc over.**
-    All three fallbacks re-run against this doc rather than carried over: the queue still holds
-    only RS-4; no gate has opened (RS-12b, RS-6b and RS-8 all still want a signed-in human, M5
-    still wants a shelter, and `git log --all --since=2026-09-06` is four commits, every one
-    this loop's own); measuring found nothing new here, because this doc's surfaces are shipped
-    rather than unmeasured. The slot stays in `design-consistency.md` as DC-10 — which exists
-    because re-measuring found **DC-8 verified against a harness containing dead classes**, so
-    four of the six media-query blocks it re-homed style markup no component renders. That is
-    the caution above landing: a dated measurement is evidence, and *what you measured against*
-    is part of the claim.
+  - **2026-09-06 through 2026-09-08 — same question, same answer, three more times**, each with
+    all three fallbacks re-run against this doc rather than carried over: no gate opened, and
+    measuring `web/src/` rather than reading the queue produced DC-7, then DC-8, then DC-10 one
+    doc over. Two cautions those runs left, and they apply directly to this doc's "Where this
+    actually stands" section, which is a list of dated measurements of exactly the same kind:
+    **DC-8 existed because re-measuring found DC-7 had missed the repo's largest stylesheet**,
+    and **DC-10 existed because DC-8 had verified against a hand-built harness containing dead
+    classes**. A dated measurement is evidence, and *what you measured against* is part of the
+    claim.
+
+
+- **2026-09-13 — the `[large]` slot is in `production-hardening.md` for a fifth consecutive
+  run, and nothing here has changed.** All three fallbacks re-run against this doc rather than
+  carried over: the queue is empty, no gate has opened (RS-12b, RS-6b and RS-8 all still want a
+  signed-in human; M5 still wants a shelter; `git log --all --since=2026-09-10` is this loop's
+  own commits only), and measuring found PH-21 one doc over rather than anything here. Worth
+  recording *here* rather than only there: PH-21's fourth part lands on
+  `ShelterRosterView.tsx`, which is this doc's surface. It does not change what staff can do —
+  it labels the paragraph they already read with who wrote it — so it is correctly PH-21's and
+  not a new RS item, but whoever builds it is editing M3's screen and should read RS-12's
+  ledger row first.
 
 - **RS-4 — shipped 2026-09-09 (PR #72); the Ledger row is the full account.** M4 is closed:
   `.github/workflows/import-dogs.yml` has a weekly `schedule:` trigger, the scheduled path is

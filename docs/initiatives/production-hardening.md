@@ -48,19 +48,14 @@ below is an index entry, not an account.
   `npx tsc` resolves to an unrelated `tsc@2.0.4` that prints a banner and exits 1 without
   compiling.
 
-## Advice may be templated; a history may not be seeded — shipped 2026-09-10 (PH-17); archived
+## The tense test, and the four faces it has been asked in — consolidated 2026-09-13
 
-The finding that produced this rule — 438 lines written for a demo dog called Marty, reaching
-a real foster's Firestore document and from there the adoption page — is verbatim in
-[`archive/production-hardening-ph17-2026-09-10.md`](archive/production-hardening-ph17-2026-09-10.md)
-together with PH-17's queue entry. The rule itself survives below in its more useful form,
-because **PH-18 still depends on it**.
+Four sections stood here, one per shipped item, each a rule plus a preamble plus a pointer to
+the archive holding its working. They are one rule asked four times, so they are one section.
+The statements below are verbatim; everything that surrounded them is in the archives named at
+the end, and **PH-18 and PH-21 both still depend on this**.
 
-
-### The line is tense, not topic (2026-09-10)
-
-PH-17's rule, stated as the test rather than as a pair of lists — the form PH-18 and PH-19 both
-depend on:
+**1 — the test itself (PH-17, what a page may print).**
 
 > Could this value be *wrong about a specific animal*? Then it is a record, and it may only
 > come from the foster, the shelter's document, or nothing at all.
@@ -68,15 +63,9 @@ depend on:
 A tip, a week phase, a task template, an unticked schedule row: all survive — they are advice,
 false of no dog in particular. A milestone, a weight, a vaccination line, a journal entry, a
 tick, a photograph: all fail. **So does `emergencyContacts`**, which is why PH-18 is the same
-defect rather than a neighbour, and so does what the brief tells the model, which is PH-19.
-The full 2026-09-10 section — its working of PH-18 against the test, and the original statement
-of the seam between the two items — is verbatim in
-[`archive/production-hardening-tensetest-2026-09-11.md`](archive/production-hardening-tensetest-2026-09-11.md);
-the seam itself now lives in PH-18's queue entry, restated more precisely after re-verification.
+defect rather than a neighbour.
 
-### An enumerated absence is a claim — the tense test, moved from the page to the prompt (2026-09-11); shipped the same day as PH-19, compressed
-
-The rule, which is what survives:
+**2 — input (PH-19, what a model may be told).**
 
 > A page can render an absence. A prompt, once it enumerates a field, cannot stay silent about
 > it — so **"No medical flags." is not the prompt equivalent of "Not recorded."** The prompt
@@ -84,79 +73,87 @@ The rule, which is what survives:
 > rather than nothing converts a missing record into an assertion.** Grep for the shape, not
 > the field.
 
-The working that produced it — including why the model is a reader with no way to check, and
-why softening `brief.ts`'s closing "never invent anything about the dog that isn't above" is
-the wrong fix — is verbatim in
-[`archive/production-hardening-absence-2026-09-11.md`](archive/production-hardening-absence-2026-09-11.md).
-**What shipping it added to the rule is in PH-19's ledger row**: omitting the sentence turned
-out to be necessary and not sufficient, because the same closing instruction that makes a false
-claim authoritative makes silence read as "nothing there".
+Shipping it added the half the rule had not anticipated, recorded in PH-19's ledger row:
+omitting the sentence is necessary and **not sufficient**, because the same closing instruction
+that makes a false claim authoritative makes silence read as "nothing there".
 
-**One stale fact, still stale, recorded here because `CLAUDE.md` is not this loop's to edit.**
-`CLAUDE.md` says the cheap-model path is off — *"`web/src/api.ts` doesn't send it yet"*. It is
-on: `api.ts:98` takes `phase?: ChatSurface` and `:109` sends it, `AgentChatPanel`'s `phase` prop
-is required, all three mount points pass it, and `server.py:432` hands it to
-`model_for_surface`. Match pickup coordination is answered by Haiku today. A sentence to
-Sharang, not a doc edit.
+**3 — persistence (PH-20, what a model may assert).**
 
-### The rule has a second side: what the model is allowed to write *down* (2026-09-12)
+> This app keeps exactly one thing a model wrote. `send_adoption_profile_to_shelter` stores
+> `profile_text` on the dog's own document (`adoption.py:126`), and since RS-12 **that write is
+> the notification** — staff read the paragraph at `/shelter/dogs` and decide from it whether a
+> real animal gets listed. Every other model output in Pawthway is a chat turn that scrolls
+> away. A sentence in it can be wrong about a specific animal, so it is a record.
 
-PH-19 fixed what the model is **told**. Nothing has yet asked what the model is **permitted to
-assert**, and the two are not the same question, because this app keeps exactly one thing a
-model wrote:
-
-> `send_adoption_profile_to_shelter` stores `profile_text` on the dog's own document
-> (`adoption.py:63`), and since RS-12 **that write is the notification** — shelter staff read
-> the paragraph at `/shelter/dogs` (`ShelterRosterView.tsx:236-237`) and decide from it whether
-> a real animal gets listed. Every other model output in Pawthway is a chat turn that scrolls
-> away.
-
-Asked of that paragraph, the tense test answers immediately: a sentence in it *can* be wrong
-about a specific animal, so it is a record, and it may only come from the foster, the shelter's
-document, or nothing at all. What makes this a surface rather than a wording change is that
-**three separate things currently push the other way**, and they compound:
-
-1. **The prompt asks for the shape, not the evidence.** `PAWTHWAY_SYSTEM`'s adoption paragraph
-   (`server.py:94-104`) says *write a warm, **specific**, one-paragraph adoption profile*. Warm
-   and specific over sparse, nullable inputs is the precise instruction to fill.
-2. **The one anti-invention clause in that paragraph is scoped to channels**, not content —
-   *"never describe a channel that didn't run"* covers whether an email was sent and says
-   nothing about the dog. The pickup paragraph has a content clause (*"speak generally rather
-   than inventing specifics"*); the care paragraph and the adoption paragraph have none. Of the
-   three moments this agent exists for, the one whose output is *persisted* is the one with no
-   content guardrail.
-3. **The tool hands over absence as silence.** `generate_adoption_profile` returns `dog`,
-   `foster_intake` and `care_log` raw. A dog with no `needs`, no weight and an empty care log
-   arrives as three thin objects, and PH-19 already established what a model does with that: a
-   silently-absent field reads as "nothing there" exactly as confidently as a false claim reads
-   as a fact.
-
-The answer to (3) is the part worth recording, because **the frontend already solved it and the
-backend never got the answer.** `buildAdoptionProfile` computes `missing: string[]`
-(`adoption.ts:151-156`) for this exact reason, stated in its own header comment: *"Every field
-is either logged by the foster, recorded by the shelter, or absent — and `missing` lists what is
-absent so the page can ask for it instead of filling it in."* Two consumers read the same three
-data sources; one was taught the rule and one was not. So the generalisation is not a new rule
-at all, it is a **routing** one:
+And the routing rule that found it, which is the reusable half:
 
 > When a fix teaches one reader of a dataset to handle absence, check every other reader of that
 > same dataset before calling it shipped. The second reader is cheaper to fix than the first —
 > the design work is done — and it is the one nobody notices, because the first reader is the
 > one that was visibly broken.
 
-That is 2026-09-11's "ask who else reads the surface you measured last" arriving one layer down:
-not a second *surface*, a second *consumer of the same records*. It is also why the
-`missing`-list shape is the right answer here rather than a stronger prompt sentence — a prompt
-can be argued with, and an enumerated gap in the tool result cannot.
+**4 — audience (PH-21, who is shown the assertion).** Open; the measurement and the design
+answer are the section directly below.
 
-**One claim the measurement contradicts, worth naming precisely rather than loosely.**
-`adoption.ts`'s header says "Nothing here is invented", and that is true of `adoption.ts` —
-`buildAdoptionProfile` really does source every field. But `CLAUDE.md`'s "The adoption page"
-section generalises it to *"Nothing on this page is invented"*, and the agent-written paragraph
-is a second, generated artefact about the same dog, read by staff rather than by the page.
-The two do not currently contradict each other in code, because **`/adoption/:dogId` does not
-render `adoption_profile`** — grep finds its only frontend reader is the shelter roster. So this
-is a scope note, not a bug: the sentence is right about the page and silent about the paragraph.
+*Archives, in order: [PH-17's finding and the original tense-test working](archive/production-hardening-ph17-2026-09-10.md)
+and [the 2026-09-10 section in full](archive/production-hardening-tensetest-2026-09-11.md);
+[PH-19's working](archive/production-hardening-absence-2026-09-11.md);
+[PH-20's design section and the queue narration that found it](archive/production-hardening-secondside-2026-09-13.md).*
+
+**One stale fact, still stale, recorded here because `CLAUDE.md` is not this loop's to edit.**
+`CLAUDE.md` says the cheap-model path is off — *"`web/src/api.ts` doesn't send it yet"*. It is
+on: `api.ts:98` takes `phase?: ChatSurface` and `:109` sends it, `AgentChatPanel`'s `phase` prop
+is required, all three mount points pass it, and `server.py:432` hands it to
+`model_for_surface`. Match pickup coordination is answered by Haiku today. A sentence to
+Sharang, not a doc edit. *(A second one joins it this run, from PH-21's measurement:
+`CLAUDE.md`'s "The adoption page" section says "Nothing on this page is invented", which is true
+of `buildAdoptionProfile` and silent about the agent-written paragraph. Correcting it is
+Sharang's, not this loop's.)*
+
+### A retraction is a write, not an erasure — and nobody but the shelter can read the paragraph at all (2026-09-13)
+
+PH-20 closed the question of what the model may assert and left one behind, recorded as an
+unqueued lead: **`adoption_profile` cannot be retracted.** Measuring it — every reader and every
+writer of that field, traced to the surface it renders on — found the lead was the smaller half
+of the defect, and the larger half is the reason the smaller one is hard to notice:
+
+- **The foster never sees what was sent.** `PostFosterView.tsx:70-74` renders *"{dog}'s adoption
+  profile is with the shelter. Thank you for fostering!"* keyed on `foster.readyForAdoption`,
+  and **nothing in that view renders `dog.adoption_profile`**. The text is available to it —
+  `dogs` is `allow read: if true` (`firestore.rules:13`), `normalizeDog()` spreads `...d`, and
+  `PostFosterView` already holds the matched dog — it is simply not shown. So the one person who
+  can tell whether a sentence about this dog is true reads a banner saying a paragraph exists.
+- **The adopter never sees it either.** `PublicAdoptionView` — the shared link, the surface the
+  paragraph is *written for* — builds its body from `buildAdoptionProfile` and does not read
+  `adoption_profile`. Grep confirms the field's only frontend reader anywhere is
+  `ShelterRosterView.tsx:236-237`. A profile written for adopters reaches staff and stops.
+- **`adoption_profile_source` is written and rendered nowhere.** PH-20 added it for exactly this
+  purpose; its three occurrences are `adoption.py`, `types.ts` and a test.
+- **Two documents carry one claim and can disagree.** The banner reads
+  `fosters/{uid}.readyForAdoption`; the paragraph lives on `dogs/{id}`. One tool writes both, so
+  they agree today — but the banner asserts the paragraph's existence without consulting it.
+
+The design answer, which is what makes this a surface rather than a delete button:
+
+> **A retraction is a write.** Clearing the field is the wrong primitive, because RS-12 made the
+> write *be* the notification: erasing it leaves the dog in `ready_for_adoption` with a **Back
+> from foster** card and nothing in it — the arrival survives and its content vanishes, which is
+> a worse state for the person deciding than either the paragraph or no card. So a withdrawn
+> profile must carry a sentence saying it was withdrawn by the foster, and
+> `adoption_profile_source` must stop saying `"agent"`.
+
+Two consequences worth stating rather than re-deriving:
+
+1. **Replacement is already built; visibility is not.** `send_adoption_profile_to_shelter`
+   overwrites unconditionally, so "the agent rewrites it and re-sends" works today. It is
+   unreachable in practice because the foster cannot read what would be replaced. That reorders
+   PH-21: the expensive half is the read path, not a new write path.
+2. **The write goes through the agent, and `firestore.rules` does not move.** A foster cannot
+   write `dogs` (RS-6 scoped `update` to `isStaff`), and widening that to let a foster edit a
+   dog document would hand every foster their shelter's roster. The Admin SDK made the
+   paragraph; the same path un-says it, gated by the existing approval modal like every other
+   dangerous tool. This is the README's standing "don't fix it by loosening `firestore.rules`"
+   arriving at a third site.
 Correcting `CLAUDE.md` is Sharang's, not this loop's.
 
 ## Task queue
@@ -164,128 +161,140 @@ Correcting `CLAUDE.md` is Sharang's, not this loop's.
 **The routing that put truthfulness items in the third-ranked doc still holds, and it is worth
 restating once rather than re-narrated each run.** The 2026-08-31 re-rank exists to stop this
 doc's small, tidy, headlessly-verifiable items consuming every execute run while the shelter
-surface waits — and it does not cover PH-17, PH-19 or PH-20. Those are not scaffolding; they
-are the product asserting things about a real animal that nobody observed, which is the class
-of defect this doc was founded on (PH-1). They sit here because this doc owns truthfulness, not
-because production-hardening has been re-ranked. *(The three-run narration of how PH-17 and
-PH-19 were found, queued and shipped is now told by their Ledger rows and by "The line is
-tense, not topic" above; it was cut on 2026-09-12 under the README's rule that a design answer
-stops earning its length once something else restates it.)*
+surface waits — and it does not cover PH-17, PH-19, PH-20 or PH-21. Those are not scaffolding;
+they are the product asserting things about a real animal that nobody observed, which is the
+class of defect this doc was founded on (PH-1). They sit here because this doc owns
+truthfulness, not because production-hardening has been re-ranked.
 
-**2026-09-12 — PH-20 joins PH-18, and the `[large]` slot stays in this doc for a fourth
-consecutive run.** PH-19 shipped the day it was queued, which emptied the slot everywhere and
-left PH-18 — small — as the only open item in the repo. So the README's fallback chain was run
-in full again: the queue held nothing big, every gated note is still gated on a *person* and
-not on code (RS-8, RS-6b, RS-12b, PH-13, PH-7b, PH-15b — re-read, unchanged), and the third
-link, **measure**, was used. It was used the way 2026-09-11 recommended — *point the last
-method at another consumer rather than invent a new method* — and that recommendation paid off
-twice over, because **the lead PH-19 left was half wrong and the half that was right was bigger
-than it looked**:
+**2026-09-13 — PH-21 replaces PH-20, and the `[large]` slot stays in this doc for a fifth
+consecutive run.** PH-20 shipped the day it was queued (PR #79), which again emptied the slot
+everywhere and again left PH-18 — small — as the only open item in the repo. The README's
+fallback chain was run in full: the queue held nothing big; every gated note is still gated on a
+*person* and not on code (RS-8, RS-6b, RS-12b, PH-13, PH-7b, PH-15b — re-read, unchanged, and
+`git log --all --since=2026-09-10` is this loop's own commits only); so the third link,
+**measure**, was used. What was measured is PH-20's own parting lead, which is the third
+consecutive run of *pointing the last method at another consumer rather than inventing a new
+method*. Two things generalise from it:
 
-- **The Match prompts pass the tense test, and that is a result rather than a non-finding.**
-  Every value `MatchChatView`'s three `quickActions` interpolate — `dog.name`,
-  `foster.pickup.date`, `foster.pickup.time`, `dog.shelter.name` — is a record the foster or
-  the shelter actually wrote, and the screen does not render at all without `foster.pickup`
-  (`MatchChatView.tsx:23`). Nothing to fix. The lead can be struck.
-- **The Post Foster half is not a prompt problem at all**, which is why it is PH-20 and
-  `[large]` rather than the one-line edit the lead implied. See the design section directly
-  above: the defect is that the app persists one model-written paragraph as a record about a
-  real animal, and all three of the things shaping that paragraph — the system prompt's ask,
-  its missing content guardrail, and a tool that returns absence as silence — push toward
-  filling gaps rather than naming them.
+- **A lead that names a missing write path can be hiding a missing read path, and the read path
+  is why nobody noticed.** The lead said the paragraph cannot be retracted. True — and the
+  reason it has never mattered is that **no foster has ever seen one**, so nobody has been in a
+  position to disagree with it. Measuring the readers before the writers is what turned a button
+  into a surface. Generalised: when a lead describes something a user *cannot do*, check first
+  whether they can *see* the thing they cannot do it to.
+- **The tense test has now been asked of output, of input, and of persistence, and the fourth
+  question is audience.** PH-17 asked what the page may print, PH-19 what the model may be told,
+  PH-20 what the model may assert. PH-21 asks *who is shown the assertion* — and the answer
+  measured out as "only the party who cannot verify it, never the two who can". That is not a
+  new rule so much as the same one reaching the last of its four faces.
 
 `DogProfile.ageMonths`'s `Math.max(1, …)` floor is the one lead left untouched and it survives
 unchanged: it reports "1-month-old" for a dog entered as 0 years, which is a rounding today and
 an assertion the moment anything reads it as one.
 
+- **PH-21 `[large]` — the paragraph a model wrote about a real dog is invisible to the two
+  people who could correct it, and permanent.** The measurement and the design answer are in
+  "A retraction is a write, not an erasure" above; build from there, not from this summary.
+  Four parts, all of them required for the item to be coherent — a read path with no way to act
+  on it is the state the app is in today:
 
-- **PH-20 `[large]` — shipped 2026-09-12 (PR #__); the Ledger row is the full account.** The
-  spec is archived verbatim in
-  [`archive/production-hardening-ph20-2026-09-12.md`](archive/production-hardening-ph20-2026-09-12.md).
-  Re-verifying it against `main` before building found **nothing wrong** for the second
-  consecutive `[large]` item — both traps it named were real, `adoption.ts:151-156` is exactly
-  where it says, and the tool returns `snap.to_dict()` as described. The follow-up it asked be
-  noted rather than built is below, unqueued.
+  1. **Show the foster what was sent.** In `web/src/phases/postfoster/PostFosterView.tsx`,
+     replace the `foster.readyForAdoption` banner at `:70-74` with a card that renders
+     `dog.adoption_profile` in full when it exists, labelled from `adoption_profile_source` —
+     *"Drafted by the Pawthway assistant from your journal"* for `"agent"`. Read it off the dog
+     document the view already has; do **not** re-derive it from the chat transcript, which is a
+     different record and may not be the text that landed. When `readyForAdoption` is true and
+     `adoption_profile` is absent, say that plainly rather than keeping the old sentence — the
+     two documents disagreeing is a state the screen must be able to render.
+  2. **Show the adopter.** `PublicAdoptionView` / `AdoptionProfileBody` render the paragraph as
+     its own attributed section. It must be **visibly attributed and visibly separate** from the
+     foster's own words (`Foster.adoptionNote`, which `AdoptionProfile.tsx` already renders as
+     "A note from the foster") — the whole point of `adoption_profile_source` is that a reader
+     can tell a drafted paragraph from a written one. Unattributed, this makes the page worse,
+     not better.
+  3. **A withdrawal path.** A new `@tool(dangerous=True)` in `src/agent/builtin/adoption.py` —
+     `withdraw_adoption_profile(foster_id, dog_id, reason)` — which **writes rather than
+     clears**: `adoption_profile` becomes a sentence naming the withdrawal and the foster's
+     stated reason, and `adoption_profile_source` becomes `"foster_withdrawn"` (widen the union
+     on `Dog` in `web/src/types.ts`). It must **not** touch `status`: a dog that came back from
+     foster is still back from foster, and `ready_for_adoption` is RS-12's arrival state, not a
+     claim about the paragraph. Add a quick action to `PostFosterView`'s `AgentChatPanel` and a
+     `toolLabels.ts` entry, matching the two already there.
+  4. **Tell the shelter which it is reading.** `ShelterRosterView.tsx:236-237` renders the
+     paragraph bare. It gains the same attribution line, and a withdrawn profile reads as a
+     withdrawal rather than as a description — staff are deciding whether a real animal gets
+     listed, and PH-20 wrote `adoption_profile_source` for precisely this reader.
 
-- **Unqueued lead from PH-20, for `dogathon-plan`: `adoption_profile` cannot be retracted.**
-  Nothing in the app clears it, so a paragraph the foster later disagrees with is permanent on
-  a real dog's record, read by shelter staff at `/shelter/dogs`. `adoption_profile_source`
-  now says the agent wrote it, which is what makes a retraction path buildable — the roster can
-  tell the two apart. Labelling it there is the smaller half; the write path is the larger.
+  **Tests.** `tests/test_adoption.py` (12 cases today) gains the withdrawal tool: it writes the
+  sentence and the source, it leaves `status` alone, and it fails cleanly on a dog id that
+  doesn't exist — `conftest.py`'s fake `update()` raises on a missing document, which is the
+  behaviour that makes the last case meaningful. `ShelterRosterView.test.tsx` gains an
+  attributed-render case and a withdrawn-render case. **Verification is the tests plus
+  `npm run build`/`test`/`lint` and `pytest`** — reaching Post Foster live needs a completed
+  journey on a signed-in account, which an unattended run cannot do; say so in the ledger row
+  rather than implying otherwise.
 
-- **PH-19 `[large]` — shipped 2026-09-11 (PR #77); the Ledger row is the full account.** The
-  spec is archived verbatim in
-  [`archive/production-hardening-ph19-2026-09-11.md`](archive/production-hardening-ph19-2026-09-11.md).
-  Unusually, **re-verifying it against `main` before building found nothing wrong** — all four
-  findings stood, and both roster counts (9 of 19 with no `needs`; 0 of the 10 recorded values
-  medical) re-measured exactly. That is the first time in three `[large]` items, and the
-  standing habit is still worth its cost: it cost ten minutes and the two previous items were
-  both materially wrong. One thing the spec asserted in passing *was* false, and it was the
-  code's own comment rather than the spec's claim — see the row.
+  **One thing to re-verify before building, because three consecutive specs were wrong in the
+  same direction:** confirm `PostFosterView` still holds the raw dog document (it calls
+  `normalizeDog(raw)`, which spreads `...d`, so `adoption_profile` should pass through
+  `RichDog` — check `web/src/lib/dog.ts` rather than assuming), and confirm the banner is still
+  at `:70-74`.
 
-- **PH-17 `[large]` — shipped 2026-09-10 (PR #75); the Ledger row is the full account.** The
-  spec and the finding behind it are archived verbatim (link in the section above), since the
-  shipped code and the ledger row are now two tellings of the same story. Two things the spec
-  did not know, both recorded in the row: there were no `adoption` tests to add cases to, and
-  the medical record needed a *source* invented for it, not just a deletion.
+- **PH-17, PH-19 and PH-20 `[large]` — all shipped** (PRs #75, #77, #79). Ledger rows below are
+  the full accounts; specs archived verbatim. The habit of re-verifying a spec against `main`
+  before building is six runs old and still worth its cost — nothing wrong on PH-19 and PH-20,
+  something materially wrong on PH-17 and on PH-18 three times.
 
-- **PH-18 — the emergency screen makes two claims it cannot support.**
+- **PH-18 — the emergency screen makes claims it cannot support.** *(Entry rewritten
+  2026-09-13: six rounds of re-verification had accreted as six layers of line-drift
+  narration on top of a spec that changed three times. What follows is the spec as it now
+  stands, with only the corrections that are still live. The superseded rounds are in the git
+  history of this file and are not worth a reader's time.)*
+
   `web/src/phases/careplan/Emergency.tsx` renders a hand-drawn SVG street map labelled
-  "Presidio Park" and "Bay" with a pin for the nearest vet — a picture of nowhere, on the
-  screen someone opens when something is wrong — and `emergencyContacts` offers "VCA SF
-  Veterinary Specialists · Nearest 24h emergency · 1.2 mi · Open now" and "Copper's Dream
-  Rescue · Foster coordinator · On-call today" regardless of where the foster is or which
-  shelter the dog came from. **The two national lines stay** — Pet Poison Helpline and ASPCA
-  Animal Poison Control are published, correct for any US caller, and claim nothing local.
-  The coordinator row comes from the dog's own `shelter` (`normalizeDog()` already supplies
-  it) or does not render; the "nearest" row loses `distanceMi` and "Open now" unless
-  something computed them, and says plainly that no 24h vet is recorded for this area.
-  Delete the decorative map rather than labelling it. Verify by rendering with a dog whose
-  shelter is not Copper's Dream and reading the screen for anything still guessed.
-  **Grounded 2026-09-10 in PH-17's rule rather than stated on its own** — see "The line is
-  tense, not topic" above: `1.2 mi` and `Open now` fail the same test a seeded weight fails,
-  which is why this is the same defect and not a neighbouring one. The seam is written there
-  too: PH-18 touches the contacts and the map only, never the `summary` prop or `data.ts`'s
-  journal and milestone exports. **PH-17 shipped first and discharged its half of the seam** —
-  `summary` is already optional (`Emergency.tsx:10`) and already renders "Not recorded" three
-  times when absent (`:166`, `:170`, `:174`), so PH-18 is now strictly the contacts array and
-  the map. **Re-verified against `main` 2026-09-11, after PH-17 landed; three corrections.**
-  (a) The line citation above was stale — PR #75 moved 163 lines out of `data.ts`, so
-  `emergencyContacts` is at **`data.ts:204-228`**, not 339-353. (b) **The defect would survive
-  its own fix, the same way PH-17's nearly did.** `Emergency.tsx:130` resolves the headline vet
-  as `contacts.find((c) => c.distanceMi != null) ?? contacts[0]` — so dropping the VCA row
-  makes the fallback bite and the screen renders **Pet Poison Helpline under the heading
-  "Nearest 24-hour vet"**, with `nearest.phone` on a *Call Vet Now* button. The two national
-  rows are the ones PH-18 correctly keeps, which is exactly what makes them the fallback. The
-  nearest-vet card must become conditional on there being a nearest vet, not merely stripped of
-  its claims; `nearest` is dereferenced unguarded at `:150`, `:152` and `:156`. (c) One more
-  guessed number rides the map rather than the data: `:113` renders `{nearest.distanceMi} mi ·
-  4 min`, and the **4 min** is a hardcoded travel time no one computed. It dies with the map,
-  so it costs nothing — but it should be named rather than discovered. *(`dog.weightLbs`
-  rendering as `0 lbs` at `:137` and `:178` is **PH-19's**, not PH-18's — same file, different
-  defect, and the seam is that PH-18 touches only `contacts` and `VetMap`.)* *(A line
-  for the ledger, not a code change: `CLAUDE.md` lists "Emergency Mode (24h vet map)" as
-  explicitly out of scope, and it shipped anyway. The scope note is stale.)*
-  **Re-verified against `main` again 2026-09-12, after PH-19 landed in this same file; two
-  corrections, one of them material.** (a) Line drift, as expected from a PR that edited
-  `Emergency.tsx`: the unguarded `nearest` dereferences are now `:150`, `:153`, `:155` and
-  `:159` (the `tel:` href), not `:150`/`:152`/`:156`; `:130` and `:113` are both unmoved, and
-  `data.ts:204-228` is exactly right. The `:137`/`:178` weight guards this entry set aside as
-  PH-19's **shipped** — `:182` now reads "Not recorded" — so that half of the seam is closed
-  and PH-18 is strictly `contacts` and `VetMap`. (b) **The fix as written cannot be built as
-  written, and this is the third consecutive item whose spec was wrong in the same direction.**
-  It says the coordinator row "comes from the dog's own `shelter`" — but **no shelter record
-  anywhere in this app carries a phone number.** `Shelter` is `{id, name, short, address, lat,
-  lng}` (`shelters.ts:1-3`) and `Dog.shelter` is the same six fields (`types.ts:104`). An
-  `EmergencyContact` row is rendered as a `tel:` link, so sourcing the row from the shelter
-  yields a name, a role and **no way to call anyone**. Decide that deliberately: either the
-  coordinator row renders without a call action, or it does not render at all. Do not add a
-  `phone` to `Shelter` to make the row work — that field would have to be *filled*, and
-  inventing it is the defect PH-18 exists to remove. (c) The acute part this entry never
-  named: **both local phone numbers are invented**, and one of them belongs to an organisation
-  that does not exist — `shelters.ts:13` records Copper's Dream Rescue as *"from the product
-  spec"*. A made-up number on the screen a foster opens when something is wrong is a worse
-  failure than a made-up distance, and it is the same delete.
+  "Presidio Park" and "Bay" with a pin for the nearest vet — a picture of nowhere, on the screen
+  someone opens when something is wrong — and `emergencyContacts` (`data.ts:204-228`) offers
+  "VCA SF Veterinary Specialists · Nearest 24h emergency · 1.2 mi · Open now" and "Copper's
+  Dream Rescue · Foster coordinator · On-call today" regardless of where the foster is or which
+  shelter the dog came from. `:113` renders `{nearest.distanceMi} mi · 4 min`, and the **4 min**
+  is a hardcoded travel time nobody computed; it dies with the map. **The two national lines
+  stay** — Pet Poison Helpline and ASPCA Animal Poison Control are published, correct for any US
+  caller, and claim nothing local. Delete the decorative map rather than labelling it.
+  Grounded in the tense test above: `1.2 mi` and `Open now` fail it exactly as a seeded weight
+  does. **The seam:** PH-18 touches `contacts` and `VetMap` only — never `summary` (already
+  optional and already rendering "Not recorded"), never `data.ts`'s journal and milestone
+  exports, never `weightLbs` (PH-19 shipped that half; `:182` now reads "Not recorded").
+
+  Three corrections that are still live, each found by re-verifying rather than by building:
+
+  - **The defect would survive its own fix.** `:130` resolves the headline vet as
+    `contacts.find((c) => c.distanceMi != null) ?? contacts[0]`, so dropping the VCA row makes
+    the fallback bite and the screen renders **Pet Poison Helpline under the heading "Nearest
+    24-hour vet"**, with `nearest.phone` on a *Call Vet Now* button. The two national rows are
+    the ones PH-18 correctly keeps, which is exactly what makes them the fallback. The
+    nearest-vet card must become **conditional on there being a nearest vet**, not merely
+    stripped of its claims; `nearest` is dereferenced unguarded at `:150`, `:153`, `:155` and
+    `:159` (the `tel:` href).
+  - **The coordinator row cannot be sourced as written.** This entry used to say it "comes from
+    the dog's own `shelter`" — but **no shelter record anywhere in this app carries a phone
+    number.** `Shelter` is `{id, name, short, address, lat, lng}` (`shelters.ts:1-3`) and
+    `Dog.shelter` is the same six fields (`types.ts:104`), while an `EmergencyContact` renders
+    as a `tel:` link. Decide deliberately: either the row renders without a call action, or it
+    does not render at all. **Do not add a `phone` to `Shelter` to make the row work** — that
+    field would have to be *filled*, and inventing it is the defect PH-18 exists to remove.
+  - **Both local phone numbers are invented, and one belongs to an organisation that does not
+    exist** — `shelters.ts:13` records Copper's Dream Rescue as *"from the product spec"*. A
+    made-up number on the screen a foster opens in an emergency is worse than a made-up
+    distance, and it is the same delete.
+
+  Verify by rendering with a dog whose shelter is not Copper's Dream and reading the screen for
+  anything still guessed. *(A line for the ledger, not a code change: `CLAUDE.md` lists
+  "Emergency Mode (24h vet map)" as explicitly out of scope, and it shipped anyway. The scope
+  note is stale.)* **Re-verified against `main` 2026-09-13 — a seventh consecutive run, and the
+  first with no corrections at all**: PR #79 touched only `adoption.py`, `server.py`, `types.ts`
+  and tests, so every citation above re-reads exactly. The habit is not free and has now paid
+  three times; a run that finds nothing is the evidence that it is converging, not that it
+  should stop.
 
 - **PH-14, PH-15 and PH-16 — all shipped 2026-08-30** (PRs #47, #48, #49); the Ledger
   rows are the full account. Between them: `deleteAccount()` clears the agent transcript
@@ -314,30 +323,24 @@ them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
 
-- 2026-09-12 — PH-20 `[large]` — PR #__ — **The one paragraph this app keeps because a model
+- 2026-09-12 — PH-20 `[large]` — PR #79 — **The one paragraph this app keeps because a model
   wrote it now has to name what nobody recorded.** `generate_adoption_profile` returns a
   seventh key, `missing` — computed the way `adoption.ts:151-156` computes its own, plus the
-  two the page doesn't need and the model does (no weight from either source, no `needs` on the
-  dog) — and each entry is a **sentence about what did not happen** rather than a field name,
-  for PH-19's reason: a bare token reads as "nothing there". `PAWTHWAY_SYSTEM`'s adoption
+  two the page doesn't need and the model does — and each entry is a **sentence about what did
+  not happen** rather than a field name, for PH-19's reason. `PAWTHWAY_SYSTEM`'s adoption
   paragraph loses the word **"specific"** (the word doing the damage over sparse, nullable
-  inputs), keeps "warm", and gains the content guardrail the pickup paragraph already had —
-  every detail from the tool result, gaps stated plainly, *"a short paragraph that is true of
-  this dog is correct when the care log is thin; a fuller one that is true of some dog is
-  not"*. `send_adoption_profile_to_shelter` writes `adoption_profile_source: "agent"` beside
-  the text, with an optional field on `Dog` and nothing rendering it yet. **The harness needed
-  building before the tests could be written**, which the spec had not costed: `tests/conftest.py`
-  had no `update()` and no `order_by().stream()`, so neither of this module's two tools could be
-  driven at all — that is why `adoption` had no tests, not oversight. The fake's `update()`
-  **raises on a missing document** rather than creating one, or a test would pass against a dog
-  nobody seeded. `tests/test_adoption.py` is new (12 cases; 34 → 46), covering all seven gaps,
-  none, the exact subset, the two joins most likely to be got wrong (a shelter weight is not a
-  weigh-in; a vet visit is not a weight), and the `notified_shelter`/`arcade_messaging_available`
-  split. Backend import, `compileall` and `pytest` green; frontend build, test and lint green
-  with no new warnings. **Not verifiable live by an unattended run** — reaching Post Foster
-  needs a completed foster journey on a signed-in account, so the tests are the verification.
-  The retraction path the spec asked be noted rather than built is left as an unqueued lead in
-  the Task queue.
+  inputs), keeps "warm", and gains the content guardrail the pickup paragraph already had:
+  *"a short paragraph that is true of this dog is correct when the care log is thin; a fuller
+  one that is true of some dog is not"*. `send_adoption_profile_to_shelter` writes
+  `adoption_profile_source: "agent"` beside the text — **nothing renders it yet, which is half
+  of what PH-21 is for**. **The harness needed building before the tests could be written**,
+  which the spec had not costed: `tests/conftest.py` had no `update()` and no
+  `order_by().stream()`, so neither of this module's two tools could be driven at all — that is
+  why `adoption` had no tests, not oversight. The fake's `update()` **raises on a missing
+  document** rather than creating one, or a test would pass against a dog nobody seeded.
+  `tests/test_adoption.py` is new (12 cases; 34 → 46). Backend and frontend checks green.
+  **Not verifiable live by an unattended run** — reaching Post Foster needs a completed journey
+  on a signed-in account, so the tests are the verification.
 
 - 2026-09-11 — PH-19 `[large]` — PR #77 — **The Care Plan brief stops asserting things nobody
   recorded, and stops calling training notes medical.** `DogProfile.medicalFlags` → `careNeeds`
