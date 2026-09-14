@@ -183,65 +183,41 @@ Compressed:
   the defect would have survived its own fix. Archived verbatim on 2026-09-12 in
   [`archive/readme-large-slot-2026-09-12.md`](archive/readme-large-slot-2026-09-12.md), because
   the two entries below are now its third, fourth, fifth and sixth restatements.
-- **2026-09-11 — the fifth link, and it is the fourth link pointed at a second consumer.**
-  PH-17 shipped (#75), which emptied the `[large]` slot everywhere and left PH-18 — small — as
-  the only open item in the repo. So the chain was run in full for the first time since
-  2026-09-08: **read the queue** (nothing big), **re-read the gated notes** (every one is gated
-  on a *person*, unchanged — RS-8, RS-6b, RS-12b, PH-13, PH-7b, PH-15b), then **measure**. What
-  was measured is the 2026-09-09 move applied to a different consumer: provenance again, but of
-  what the **model** is told rather than what the adoption page prints — every value in
-  `buildAgentBrief`'s output traced back to where it is written. It produced **PH-19**, and the
-  slot sits in the third doc for the third consecutive run. Three things worth carrying:
-  - **A method is reusable against a second consumer, and that is cheaper than a new method.**
-    The four fallbacks so far each invented a new thing to measure. This run did not: it took
-    2026-09-09's move and asked it of a different reader of the same data, and found a defect
-    affecting **all nineteen dogs** — `brief.ts:42` says "No medical flags." for the 9 with no
-    `needs` recorded, and mislabels behavioural notes as medical for the other 10, none of whose
-    `needs` values are medical. Before inventing a fifth surface to measure, ask who else reads
-    the surface you measured last.
-  - **An enumerated absence is a claim.** The design answer this run, in
-    `production-hardening.md`: a page can render "Not recorded", but a prompt that enumerates a
-    field cannot stay silent about it, so **any template whose empty branch is prose rather than
-    nothing converts a missing record into an assertion.** Grep for that shape, not for the
-    field. It is the tense test surviving a move from output to input, and it is why PH-19 is a
-    surface rather than a one-line change.
-  - **The 2026-09-10 lesson held for a fifth run, against PH-18.** Re-verifying the one item
-    already in the queue found its line citations stale (PR #75 moved 163 lines out of
-    `data.ts`), one hardcoded number it had not named, and — the expensive one — that **PH-18's
-    fix would have re-introduced the defect it fixes**: `Emergency.tsx:130` falls back to
-    `contacts[0]`, so deleting the guessed "nearest vet" row makes the screen render *Pet Poison
-    Helpline* under the heading "Nearest 24-hour vet", on a *Call Vet Now* button. That is the
-    same shape as PH-17's "two write paths and there are four", found the same way, one run
-    apart. **Re-verify the queue entry, not only the shipped claim** is now the loop's most
-    reliably productive habit.
+- **2026-09-11 / 09-12 — the fifth and sixth links, and both are the fourth link pointed at a
+  second consumer.** PH-19 came from tracing every value in `buildAgentBrief`'s output back to
+  where it is written; PH-20 came from asking the same of `generate_adoption_profile`, which was
+  PH-19's own parting lead. Three things survive compression: **a method is reusable against a
+  second consumer, and that is cheaper than inventing a new one**; **a lead is a measurement
+  too, and half of PH-19's was wrong** (the Match prompts pass the tense test — a result, not a
+  non-finding); and **re-verifying the queue entry, not only the shipped claim, paid for itself
+  six consecutive runs** — against PH-18 it found a fix that would have re-introduced its own
+  defect, then a spec that could not be built as written because no shelter record in this app
+  carries a phone number. Both entries verbatim in
+  [`archive/readme-large-slot-2026-09-13.md`](archive/readme-large-slot-2026-09-13.md).
 
-- **2026-09-12 — the sixth link, and it is the first time the fallback found the *same* method
-  already had a second answer waiting.** PH-19 shipped the day it was queued, so the chain ran
-  in full again: **read the queue** (only PH-18, small), **re-read the gated notes** (all six
-  still gated on a person), then **measure** — and the thing measured was the lead PH-19 itself
-  left, which is 2026-09-11's "ask who else reads the surface you measured last" taken at its
-  word for a second consecutive run. It produced **PH-20**, and the `[large]` slot sits in the
-  third doc for a fourth consecutive run. Three things generalise:
-  - **A lead is a measurement too, and half of this one was wrong.** PH-19 named the Match and
-    Post Foster prompts together. Match **passes** — every value its three `quickActions`
-    interpolate is a record someone wrote, and the screen does not render without
-    `foster.pickup`. Post Foster is not a prompt problem at all but a persisted-record one, so
-    it is `[large]` rather than the one-line edit the lead implied. Striking half a lead and
-    growing the other half is the normal outcome of checking one, not an unusual one.
-  - **When a fix teaches one reader of a dataset to handle absence, check every other reader of
-    that dataset before calling it shipped.** `buildAdoptionProfile` computes a `missing` list
-    for exactly PH-19's reason; `generate_adoption_profile` hands the *same three sources* to a
-    model and returns them raw. The second consumer is cheaper to fix than the first — the
-    design work is already done — and it is the one nobody notices, because the first was the
-    one visibly broken. This is the fourth-link method moved down a layer: not a second
-    surface, a second consumer of the same records.
-  - **Re-verifying the queue entry paid for itself a sixth consecutive run, and this time it
-    found an item that could not be built as written.** PH-18 says the coordinator row should
-    come from the dog's own shelter — and **no shelter record in this app carries a phone
-    number**, while the row renders as a `tel:` link. Also unnamed until now: both local
-    numbers are invented, one for an organisation that does not exist. Three items running,
-    the spec has been wrong in the same direction — fixing the named thing would have left or
-    re-created the defect.
+- **2026-09-13 — the seventh link, and it is the sixth pointed at the lead the sixth left.**
+  PH-20 shipped the day it was queued (#79), emptying the slot everywhere and again leaving
+  PH-18 as the only open item. Chain run in full: queue holds nothing big, all six gated notes
+  still gated on a *person* (RS-8, RS-6b, RS-12b, PH-13, PH-7b, PH-15b — re-read, unchanged),
+  then **measure** — PH-20's own parting lead, which is the third consecutive run of pointing
+  the last method at another consumer rather than inventing one. It produced **PH-21**, and the
+  slot sits in the third doc for a fifth consecutive run. Two things generalise:
+  - **A lead that names a missing write path can be hiding a missing read path, and the read
+    path is why nobody noticed.** The lead said the agent-written adoption paragraph cannot be
+    retracted. True — and the reason it has never mattered is that **no foster has ever seen
+    one**: its only reader anywhere in the frontend is `ShelterRosterView.tsx:236`, so neither
+    the foster who could say it is wrong nor the adopter it was written for is shown it. A
+    retraction button on a paragraph nobody can read is not a fix. **When a lead describes
+    something a user cannot do, check first whether they can see the thing they cannot do it
+    to.**
+  - **Consolidating beats compressing once a doc has one rule told four ways.**
+    `production-hardening.md` went 386 → 437 with this run's additions and came back to **389**
+    — under for a second consecutive run — mostly by merging four sections (PH-17's, PH-19's,
+    PH-20's and the tense test's) into one that states the rule four times and preambles it
+    once. That is the 2026-09-12 "cut the layer that points at a layer" rule finding its next
+    shape: when several layers each point at a *different* archive but say the same thing,
+    the cut is a merge, not a deletion. Also cut: six rounds of line-drift narration on PH-18's
+    entry, rewritten as the spec that now stands plus the three corrections still live.
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -300,8 +276,12 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 39 files as of 2026-09-12** — counted with `ls`, because the running tally this sentence used to carry had drifted from the directory (it read "twenty-eight" on 2026-09-10, when a count would have said thirty-five). This run added four: three from `production-hardening.md` and one from this file. Count it, don't increment it. (this run added three: two from
-`production-hardening.md` and one from this file). The eleven-entry narration of which doc was
+**`archive/` holds 42 files as of 2026-09-13** — counted with `ls`, because the running tally
+this sentence used to carry had drifted from the directory (it read "twenty-eight" on
+2026-09-10, when a count would have said thirty-five). **Count it, don't increment it** — and
+the sentence itself proved the point a second time on 2026-09-13, when it was found carrying
+two contradictory parentheticals about how many the *previous* run had added. This run added
+two: one from `production-hardening.md` and one from this file. The eleven-entry narration of which doc was
 how many lines on which date is now in
 [`archive/readme-docsize-2026-09-10.md`](archive/readme-docsize-2026-09-10.md) — archived for
 exactly the reason the `[large]` slot log was archived the run before, which is the rule
@@ -378,7 +358,10 @@ second time, and three placeholders across two sections resolved by one `gh pr l
 *(2026-09-10: RS-4's three placeholders — its queue entry, the M4 section and its ledger row —
 all resolve to **#72**. Three in one doc from one shipped item, still one `gh pr list`.)* *(2026-09-11: PH-17's two — its queue entry and its ledger row — both resolve to **#75**,
 backfilled in the same run that compressed the row, which is again the cheapest moment: the row
-was being rewritten anyway.)*
+was being rewritten anyway.)* *(2026-09-13: PH-20's two — its queue entry and its
+ledger row — resolve to **#79**, backfilled in the run that merged the queue entry into a
+four-line shipped-items bullet. Three runs running, the placeholder has been resolved while the
+row was being rewritten for length anyway, which is now the rule rather than the coincidence.)*
 
 **A standing lesson from 2026-08-28, worth generalising past the one bug.**
 DC-1 shipped with its verification recorded honestly as *"verified locally on
