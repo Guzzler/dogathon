@@ -15,6 +15,7 @@ const DEFAULT_DANGEROUS = [
   "save_intake",
   "record_swipe",
   "send_adoption_profile_to_shelter",
+  "withdraw_adoption_profile",
 ];
 
 interface QuickAction {

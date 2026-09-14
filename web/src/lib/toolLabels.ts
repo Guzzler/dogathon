@@ -28,6 +28,7 @@ const LABELS: Record<string, Label> = {
 
   generate_adoption_profile: { running: "Gathering everything for the profile", done: "Gathered profile details", icon: "✨" },
   send_adoption_profile_to_shelter: { running: "Sending the profile to the shelter", done: "Sent the profile to the shelter", icon: "📤" },
+  withdraw_adoption_profile: { running: "Withdrawing the write-up", done: "Withdrew the write-up", icon: "↩️" },
 
   fetch_url: { running: "Reading a web page", done: "Read a web page", icon: "🌐" },
   calculate: { running: "Working out the numbers", done: "Worked out the numbers", icon: "🧮" },
@@ -61,6 +62,8 @@ export function toolConsequence(name: string): string {
       return "This records your decision on this dog.";
     case "send_adoption_profile_to_shelter":
       return "This sends the adoption profile to the shelter. They'll see it right away.";
+    case "withdraw_adoption_profile":
+      return "This replaces the write-up on the shelter's copy with a note saying you withdrew it, and why. It doesn't change the dog's status.";
     default:
       return "This makes a change that other people can see.";
   }

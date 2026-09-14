@@ -15,6 +15,7 @@ import {
   type TriState,
 } from "../../lib/shelterDog";
 import type { Dog, DogSize } from "../../types";
+import { ProfileAttribution } from "../../components/ProfileAttribution";
 
 /**
  * The shelter's own roster (RS-6) -- M3's "second source adapter". A staff member adds a dog
@@ -234,7 +235,13 @@ function ReturnedDog({ dog }: { dog: Dog }) {
       </div>
 
       {dog.adoption_profile ? (
-        <p className="shelter__profile">{dog.adoption_profile}</p>
+        <>
+          {/* PH-21. Staff decide from this paragraph whether a real animal gets listed, so
+              they are told which they are reading: a draft the assistant wrote, or a
+              retraction the foster asked for. Bare, it read as the shelter's own record. */}
+          <ProfileAttribution source={dog.adoption_profile_source} />
+          <p className="shelter__profile">{dog.adoption_profile}</p>
+        </>
       ) : (
         <p className="muted shelter__profile">
           No write-up came back with them &mdash; they were marked ready without one.

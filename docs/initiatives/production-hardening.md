@@ -92,8 +92,10 @@ And the routing rule that found it, which is the reusable half:
 > the design work is done — and it is the one nobody notices, because the first reader is the
 > one that was visibly broken.
 
-**4 — audience (PH-21, who is shown the assertion).** Open; the measurement and the design
-answer are the section directly below.
+**4 — audience (PH-21, who is shown the assertion).** Shipped 2026-09-13; the measurement
+and the design answer are the section directly below, and what the build added to them is
+PH-21's ledger row. The answer the measurement gave: the assertion reached only the party
+who cannot verify it, never the two who can.
 
 *Archives, in order: [PH-17's finding and the original tense-test working](archive/production-hardening-ph17-2026-09-10.md)
 and [the 2026-09-10 section in full](archive/production-hardening-tensetest-2026-09-11.md);
@@ -192,53 +194,12 @@ method*. Two things generalise from it:
 unchanged: it reports "1-month-old" for a dog entered as 0 years, which is a rounding today and
 an assertion the moment anything reads it as one.
 
-- **PH-21 `[large]` — the paragraph a model wrote about a real dog is invisible to the two
-  people who could correct it, and permanent.** The measurement and the design answer are in
-  "A retraction is a write, not an erasure" above; build from there, not from this summary.
-  Four parts, all of them required for the item to be coherent — a read path with no way to act
-  on it is the state the app is in today:
-
-  1. **Show the foster what was sent.** In `web/src/phases/postfoster/PostFosterView.tsx`,
-     replace the `foster.readyForAdoption` banner at `:70-74` with a card that renders
-     `dog.adoption_profile` in full when it exists, labelled from `adoption_profile_source` —
-     *"Drafted by the Pawthway assistant from your journal"* for `"agent"`. Read it off the dog
-     document the view already has; do **not** re-derive it from the chat transcript, which is a
-     different record and may not be the text that landed. When `readyForAdoption` is true and
-     `adoption_profile` is absent, say that plainly rather than keeping the old sentence — the
-     two documents disagreeing is a state the screen must be able to render.
-  2. **Show the adopter.** `PublicAdoptionView` / `AdoptionProfileBody` render the paragraph as
-     its own attributed section. It must be **visibly attributed and visibly separate** from the
-     foster's own words (`Foster.adoptionNote`, which `AdoptionProfile.tsx` already renders as
-     "A note from the foster") — the whole point of `adoption_profile_source` is that a reader
-     can tell a drafted paragraph from a written one. Unattributed, this makes the page worse,
-     not better.
-  3. **A withdrawal path.** A new `@tool(dangerous=True)` in `src/agent/builtin/adoption.py` —
-     `withdraw_adoption_profile(foster_id, dog_id, reason)` — which **writes rather than
-     clears**: `adoption_profile` becomes a sentence naming the withdrawal and the foster's
-     stated reason, and `adoption_profile_source` becomes `"foster_withdrawn"` (widen the union
-     on `Dog` in `web/src/types.ts`). It must **not** touch `status`: a dog that came back from
-     foster is still back from foster, and `ready_for_adoption` is RS-12's arrival state, not a
-     claim about the paragraph. Add a quick action to `PostFosterView`'s `AgentChatPanel` and a
-     `toolLabels.ts` entry, matching the two already there.
-  4. **Tell the shelter which it is reading.** `ShelterRosterView.tsx:236-237` renders the
-     paragraph bare. It gains the same attribution line, and a withdrawn profile reads as a
-     withdrawal rather than as a description — staff are deciding whether a real animal gets
-     listed, and PH-20 wrote `adoption_profile_source` for precisely this reader.
-
-  **Tests.** `tests/test_adoption.py` (12 cases today) gains the withdrawal tool: it writes the
-  sentence and the source, it leaves `status` alone, and it fails cleanly on a dog id that
-  doesn't exist — `conftest.py`'s fake `update()` raises on a missing document, which is the
-  behaviour that makes the last case meaningful. `ShelterRosterView.test.tsx` gains an
-  attributed-render case and a withdrawn-render case. **Verification is the tests plus
-  `npm run build`/`test`/`lint` and `pytest`** — reaching Post Foster live needs a completed
-  journey on a signed-in account, which an unattended run cannot do; say so in the ledger row
-  rather than implying otherwise.
-
-  **One thing to re-verify before building, because three consecutive specs were wrong in the
-  same direction:** confirm `PostFosterView` still holds the raw dog document (it calls
-  `normalizeDog(raw)`, which spreads `...d`, so `adoption_profile` should pass through
-  `RichDog` — check `web/src/lib/dog.ts` rather than assuming), and confirm the banner is still
-  at `:70-74`.
+- **PH-21 `[large]` — shipped 2026-09-13 (PR #__); the Ledger row is the full account.** The
+  four-part queue entry is archived verbatim in
+  [`archive/production-hardening-ph21-2026-09-13.md`](archive/production-hardening-ph21-2026-09-13.md);
+  the design section above stays, because it holds the measurement rather than the build
+  instructions. Its re-verification found nothing wrong, for the second consecutive run —
+  `PostFosterView` did still hold the raw dog document and the banner was still at `:70-74`.
 
 - **PH-17, PH-19 and PH-20 `[large]` — all shipped** (PRs #75, #77, #79). Ledger rows below are
   the full accounts; specs archived verbatim. The habit of re-verifying a spec against `main`
@@ -322,6 +283,32 @@ Per the README's "nobody uses this app yet", the length of that list is not debt
 them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
+
+- 2026-09-13 — PH-21 `[large]` — PR #__ — **The one paragraph a model wrote is now readable by
+  the two people who could correct it, attributed everywhere it appears, and retractable.**
+  Four parts, all shipped. `ProfileAttribution` + `lib/adoptionSource.ts` is **one line and one
+  class** for all three surfaces (`.profile-attrib`, withdrawn as a data attribute) — the shape
+  `design-consistency.md` asked for when it saw three views each about to write their own.
+  `AdoptionProfileBody` gains a **"The assistant's write-up"** section above the foster's note,
+  which lands parts 1 and 2 in one place: both the foster's page and the shared adoption link
+  render that body, so the paragraph is not printed twice on the same screen. **That is the one
+  deliberate departure from the spec**, which asked for a card in `PostFosterView` as well; what
+  the banner at `:70-74` became instead is the disagreement the spec correctly insisted the
+  screen must be able to render — `readyForAdoption` lives on `fosters/{uid}` and the text on
+  `dogs/{id}`, so with a profile the banner points down the page at the words themselves, and
+  without one it says the shelter sees the same blank. `withdraw_adoption_profile` **writes
+  rather than clears** and leaves `status` untouched: since RS-12 the write *is* the
+  notification, so a blank field would leave a **Back from foster** card with nothing in it —
+  the arrival surviving while its content vanished. `Dog.adoption_profile_source` widens to
+  `"agent" | "foster_withdrawn"`, and the third state — **absent** — needed a line the spec had
+  not named: "Source not recorded", because guessing "the foster" for a pre-field record is the
+  same invention the tense test rules out. `server.py`'s prompt gains the correct-or-withdraw
+  branch and the instruction never to tell a foster it was taken down. Tests: 4 backend cases
+  (`test_adoption.py` 12 → 16), 3 for `attributionFor`, 2 rendered roster cases (115 → 120).
+  Build, test, lint (8 warnings, all pre-existing — the pure half moved to `lib/` rather than
+  trip `only-export-components`) and pytest all green. **Not verified live**, as the spec said
+  to say plainly: producing a `ready_for_adoption` dog at all needs a completed journey on a
+  signed-in account.
 
 - 2026-09-12 — PH-20 `[large]` — PR #79 — **The one paragraph this app keeps because a model
   wrote it now has to name what nobody recorded.** `generate_adoption_profile` returns a

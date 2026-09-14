@@ -181,3 +181,54 @@ def test_send_requires_both_arguments(fake_db):
     seed(fake_db)
     with pytest.raises(ValueError):
         adoption.send_adoption_profile_to_shelter(foster_id=FOSTER_ID, dog_id=DOG_ID)
+
+
+# --- withdrawing it again (PH-21) -------------------------------------------------
+#
+# A retraction is a write, not an erasure. Since RS-12 the paragraph *is* the notification,
+# so clearing the field would leave the dog in `ready_for_adoption` with a "Back from foster"
+# card and nothing in it -- the arrival surviving while its content vanishes, which is worse
+# for the staff member deciding than either the paragraph or no card. These four cases pin
+# the three properties that makes it: it writes, it says who, and it leaves `status` alone.
+
+
+def test_withdrawing_writes_a_sentence_rather_than_clearing(fake_db):
+    seed(fake_db)
+    adoption.send_adoption_profile_to_shelter(
+        foster_id=FOSTER_ID, dog_id=DOG_ID, profile_text="Juno has never had an accident indoors."
+    )
+    adoption.withdraw_adoption_profile(
+        foster_id=FOSTER_ID, dog_id=DOG_ID, reason="she did have accidents, twice in week one"
+    )
+    dog = fake_db.docs[f"dogs/{DOG_ID}"]
+    assert dog["adoption_profile"], "the field must not go blank -- the shelter reads it"
+    assert "accidents, twice in week one" in dog["adoption_profile"]
+    assert "never had an accident indoors" not in dog["adoption_profile"]
+    assert dog["adoption_profile_source"] == "foster_withdrawn"
+
+
+def test_withdrawing_leaves_the_dog_back_from_foster(fake_db):
+    """`ready_for_adoption` is RS-12's arrival state, not a claim about the paragraph."""
+    seed(fake_db)
+    adoption.send_adoption_profile_to_shelter(
+        foster_id=FOSTER_ID, dog_id=DOG_ID, profile_text="Juno is a calm terrier mix."
+    )
+    result = adoption.withdraw_adoption_profile(
+        foster_id=FOSTER_ID, dog_id=DOG_ID, reason="the breed is wrong"
+    )
+    assert fake_db.docs[f"dogs/{DOG_ID}"]["status"] == "ready_for_adoption"
+    assert fake_db.docs[f"dogs/{DOG_ID}"]["name"] == "Juno", "update() must not replace the record"
+    assert result["status_unchanged"] is True
+
+
+def test_withdrawing_refuses_an_unknown_dog(fake_db):
+    seed(fake_db)
+    with pytest.raises(KeyError):
+        adoption.withdraw_adoption_profile(foster_id=FOSTER_ID, dog_id="d-nope", reason="wrong dog")
+
+
+def test_withdrawing_requires_a_reason(fake_db):
+    """A retraction with no reason is a blank where a sentence has to be."""
+    seed(fake_db)
+    with pytest.raises(ValueError):
+        adoption.withdraw_adoption_profile(foster_id=FOSTER_ID, dog_id=DOG_ID, reason="   ")

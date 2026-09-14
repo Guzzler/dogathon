@@ -67,10 +67,24 @@ export function PostFosterView() {
         </span>
       </div>
 
+      {/* PH-21. This used to assert that a profile was with the shelter without ever
+          consulting the profile: the banner reads `fosters/{uid}.readyForAdoption` and the
+          paragraph lives on `dogs/{id}`. One tool writes both, so they agree today -- but the
+          screen has to be able to render them disagreeing, and it has to point the foster at
+          the text itself, which is rendered in full and attributed further down the page. */}
       {foster.readyForAdoption && (
-        <div className="pw-banner pw-banner--success">
-          🎉 {dog.name}'s adoption profile is with the shelter. Thank you for fostering!
-        </div>
+        dog.adoption_profile ? (
+          <div className="pw-banner pw-banner--success">
+            🎉 {dog.name}'s write-up is with the shelter — it's below, under “The assistant's
+            write-up”. Read it: if anything in it is wrong about {dog.name}, ask the agent to
+            withdraw it.
+          </div>
+        ) : (
+          <div className="pw-banner">
+            {dog.name} is marked ready for adoption, but no write-up came back with them. The
+            shelter sees the same blank.
+          </div>
+        )
       )}
 
       {profile.missing.length > 0 && (
@@ -106,6 +120,12 @@ export function PostFosterView() {
               quickActions={[
                 { label: "Draft adoption profile", message: `Generate an adoption profile for ${dog.name} using their care log, and show me the draft.` },
                 { label: "Send to shelter", message: `Send ${dog.name}'s adoption profile to the shelter now.` },
+                ...(dog.adoption_profile && dog.adoption_profile_source !== "foster_withdrawn"
+                  ? [{
+                      label: "Withdraw the write-up",
+                      message: `Withdraw ${dog.name}'s adoption profile — something in it is wrong. Ask me what, then withdraw it with my reason.`,
+                    }]
+                  : []),
               ]}
             />
           </div>
