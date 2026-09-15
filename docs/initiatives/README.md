@@ -219,6 +219,32 @@ Compressed:
     the cut is a merge, not a deletion. Also cut: six rounds of line-drift narration on PH-18's
     entry, rewritten as the spec that now stands plus the three corrections still live.
 
+- **2026-09-14 — the eighth link, and it is the first that stops pointing at the last consumer.**
+  PH-21 shipped the day it was queued (#81), the third such run running, emptying the slot
+  everywhere and again leaving PH-18 as the only open item. Chain run in full: queue holds
+  nothing big, all six gated notes still gated on a *person* (RS-8, RS-6b, RS-12b, PH-13, PH-7b,
+  PH-15b — re-read, unchanged), then **measure**. What is new is *what* was measured. The
+  previous three runs each pointed the same method at the next consumer of one dataset, the
+  adoption profile, and that vein is worked out. This run pointed the method at **the convention
+  two writers share** rather than at a field, and produced **PH-22**. The slot sits in the third
+  doc for a sixth consecutive run. Three things generalise:
+  - **A stated contract is the cheapest measurement there is, because it names its own callee.**
+    `shelterDog.ts:120-122` says an omitted key is "not recorded, which `normalizeDog()` already
+    knows how to render". Checking it is opening one file. It had been false since RS-6 shipped
+    it — `normalizeDog()` fills the absence with `6`, `"medium"`, and a breed regex — and the
+    comment was written *by* the careful path *about* the careless one, which is why nobody
+    reading either file alone would catch it.
+  - **Where a codebase is visibly careful is where it is least worth measuring.** `compat()`'s
+    three-way (unknown scores −4, not −26) is reasoned about in a comment, documented in
+    `CLAUDE.md`, and is the first thing anyone finds when asking whether this app handles
+    unknowns. It is also downstream of a normaliser that already erased the unknown from two of
+    the three largest terms in the same score. **Measure the layer that runs before the one that
+    advertises its care.**
+  - **A doc's note to another doc is worth three sentences.** `design-consistency.md` had left
+    one bullet asking that PH-21's attribution line be one class across three views, for PR #11's
+    reason; PH-21 shipped exactly that (`ProfileAttribution` + one class). The note was carried
+    forward this run to PH-22, which has seven such sites.
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
@@ -276,12 +302,21 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 42 files as of 2026-09-13** — counted with `ls`, because the running tally
+**`archive/` holds 48 files as of 2026-09-14** — counted with `ls`, because the running tally
 this sentence used to carry had drifted from the directory (it read "twenty-eight" on
 2026-09-10, when a count would have said thirty-five). **Count it, don't increment it** — and
 the sentence itself proved the point a second time on 2026-09-13, when it was found carrying
-two contradictory parentheticals about how many the *previous* run had added. This run added
-two: one from `production-hardening.md` and one from this file. The eleven-entry narration of which doc was
+two contradictory parentheticals about how many the *previous* run had added. The 2026-09-13
+run added two; **this run added five**, one per initiative doc plus a second from
+`production-hardening.md` and one from this file, because queuing PH-22 pushed all three docs over at once — the first
+time that has happened. Two landed under (DC 400, RS 397) and **`production-hardening.md` did
+not: 412, over by twelve, a fifth over-run on that doc in six runs.** Recorded rather than
+hidden, per the rule below, and the 2026-09-11 prescription still looks right: that doc is
+structurally at its ceiling. What is now clear after five attempts is that the next cut there
+has to come out of the **Task queue**, which is 217 of its 412 lines — not from prose, not from
+the Ledger, and not from "Needs a human", all of which have been tried. The queue is that size
+because it carries two full specs at once (PH-18, open since 2026-09-09, and PH-22); a run that
+ships PH-18 buys back a hundred lines without anyone compressing anything. The eleven-entry narration of which doc was
 how many lines on which date is now in
 [`archive/readme-docsize-2026-09-10.md`](archive/readme-docsize-2026-09-10.md) — archived for
 exactly the reason the `[large]` slot log was archived the run before, which is the rule
@@ -330,38 +365,17 @@ rewrite history in it. If a task shipped smaller or different than queued,
 say so in the line rather than editing the original queue entry after the
 fact.
 
-**On `PR #__` placeholders.** execute writes its ledger row in the same
-commit as the code, before the PR exists, so it cannot know its own number
-and has been writing `PR #__`. All three docs had one as of 2026-08-26
-(PH-3, RS-3, DC-1 — backfilled to #23, #24, #25 in that run). This is a
-real ordering constraint, not sloppiness, so the convention is: **execute
-leaves `PR #__` and plan backfills it on the next run** from
-`gh pr list --state merged`. If execute can cheaply amend the row after
-opening the PR, better — but don't block a merge on it. The convention is
-working as designed: PH-5 was the only outstanding placeholder on 2026-08-28
-and was backfilled to #29 that run; on 2026-08-29 all three of that week's
-shipped items carried one and were backfilled together — DC-6 → #32,
-PH-7 → #33, RS-2 → #34. Later the same day a second execute run added four more,
-backfilled on the following plan run — PH-9 → #36, PH-8 → #37, RS-7 → #38, and
-RS-7's follow-up → #39. Four placeholders from one run is the most so far and
-still cost one `gh pr list` to resolve, so the convention is holding; if it ever
-stops being cheap, the fix is execute amending its own row after opening the PR,
-not plan guessing. *(2026-08-30: three more — PH-10 → #43, PH-11 → #44,
-PH-12 → #45 — backfilled at the same moment those rows were moved into the
-ledger archive, which is the cheapest time to do it: the rows were being
-rewritten anyway.)* *(2026-09-06: DC-5 and its rider DC-2 both carried one and
-both resolve to the same **#65**, since the rider convention puts two items in one PR —
-which is the first time a single number has filled two placeholders.)* *(2026-09-07: DC-7's
-queue entry and ledger row both backfilled to **#67**.)* *(2026-09-08: DC-8 and DC-9 both
-resolve to **#69** — the rider convention filling two placeholders with one number for the
-second time, and three placeholders across two sections resolved by one `gh pr list`.)*
-*(2026-09-10: RS-4's three placeholders — its queue entry, the M4 section and its ledger row —
-all resolve to **#72**. Three in one doc from one shipped item, still one `gh pr list`.)* *(2026-09-11: PH-17's two — its queue entry and its ledger row — both resolve to **#75**,
-backfilled in the same run that compressed the row, which is again the cheapest moment: the row
-was being rewritten anyway.)* *(2026-09-13: PH-20's two — its queue entry and its
-ledger row — resolve to **#79**, backfilled in the run that merged the queue entry into a
-four-line shipped-items bullet. Three runs running, the placeholder has been resolved while the
-row was being rewritten for length anyway, which is now the rule rather than the coincidence.)*
+**On `PR #__` placeholders.** execute writes its ledger row in the same commit as the code,
+before the PR exists, so it cannot know its own number. That is a real ordering constraint, not
+sloppiness, so the convention is: **execute leaves `PR #__` and plan backfills it on the next
+run** from `gh pr list --state merged`. It has held without exception since 2026-08-26 and every
+backfill has cost exactly one `gh pr list`, including the run that resolved four at once — so if
+it ever stops being cheap, the fix is execute amending its own row after opening the PR, not plan
+guessing. Two things the log established and worth keeping: **one PR number can fill two or three
+placeholders** (the rider convention puts two items in one PR; RS-4 left three in one doc), and
+**the cheapest moment to backfill is while the row is being rewritten for length anyway**, which
+has been true on each of the last four runs. Full backfill log verbatim in
+[`archive/readme-placeholders-2026-09-14.md`](archive/readme-placeholders-2026-09-14.md).
 
 **A standing lesson from 2026-08-28, worth generalising past the one bug.**
 DC-1 shipped with its verification recorded honestly as *"verified locally on
