@@ -112,51 +112,18 @@ Sharang, not a doc edit. *(A second one joins it this run, from PH-21's measurem
 of `buildAdoptionProfile` and silent about the agent-written paragraph. Correcting it is
 Sharang's, not this loop's.)*
 
-### A retraction is a write, not an erasure — and nobody but the shelter can read the paragraph at all (2026-09-13)
+### A retraction is a write — archived 2026-09-14
 
-PH-20 closed the question of what the model may assert and left one behind, recorded as an
-unqueued lead: **`adoption_profile` cannot be retracted.** Measuring it — every reader and every
-writer of that field, traced to the surface it renders on — found the lead was the smaller half
-of the defect, and the larger half is the reason the smaller one is hard to notice:
-
-- **The foster never sees what was sent.** `PostFosterView.tsx:70-74` renders *"{dog}'s adoption
-  profile is with the shelter. Thank you for fostering!"* keyed on `foster.readyForAdoption`,
-  and **nothing in that view renders `dog.adoption_profile`**. The text is available to it —
-  `dogs` is `allow read: if true` (`firestore.rules:13`), `normalizeDog()` spreads `...d`, and
-  `PostFosterView` already holds the matched dog — it is simply not shown. So the one person who
-  can tell whether a sentence about this dog is true reads a banner saying a paragraph exists.
-- **The adopter never sees it either.** `PublicAdoptionView` — the shared link, the surface the
-  paragraph is *written for* — builds its body from `buildAdoptionProfile` and does not read
-  `adoption_profile`. Grep confirms the field's only frontend reader anywhere is
-  `ShelterRosterView.tsx:236-237`. A profile written for adopters reaches staff and stops.
-- **`adoption_profile_source` is written and rendered nowhere.** PH-20 added it for exactly this
-  purpose; its three occurrences are `adoption.py`, `types.ts` and a test.
-- **Two documents carry one claim and can disagree.** The banner reads
-  `fosters/{uid}.readyForAdoption`; the paragraph lives on `dogs/{id}`. One tool writes both, so
-  they agree today — but the banner asserts the paragraph's existence without consulting it.
-
-The design answer, which is what makes this a surface rather than a delete button:
-
-> **A retraction is a write.** Clearing the field is the wrong primitive, because RS-12 made the
-> write *be* the notification: erasing it leaves the dog in `ready_for_adoption` with a **Back
-> from foster** card and nothing in it — the arrival survives and its content vanishes, which is
-> a worse state for the person deciding than either the paragraph or no card. So a withdrawn
-> profile must carry a sentence saying it was withdrawn by the foster, and
-> `adoption_profile_source` must stop saying `"agent"`.
-
-Two consequences worth stating rather than re-deriving:
-
-1. **Replacement is already built; visibility is not.** `send_adoption_profile_to_shelter`
-   overwrites unconditionally, so "the agent rewrites it and re-sends" works today. It is
-   unreachable in practice because the foster cannot read what would be replaced. That reorders
-   PH-21: the expensive half is the read path, not a new write path.
-2. **The write goes through the agent, and `firestore.rules` does not move.** A foster cannot
-   write `dogs` (RS-6 scoped `update` to `isStaff`), and widening that to let a foster edit a
-   dog document would hand every foster their shelter's roster. The Admin SDK made the
-   paragraph; the same path un-says it, gated by the existing approval modal like every other
-   dangerous tool. This is the README's standing "don't fix it by loosening `firestore.rules`"
-   arriving at a third site.
-Correcting `CLAUDE.md` is Sharang's, not this loop's.
+PH-21 shipped (PR #81) and its ledger row is the fuller telling, so the design section that
+produced it moved verbatim to
+[`archive/production-hardening-ph21design-2026-09-14.md`](archive/production-hardening-ph21design-2026-09-14.md).
+Three things from it are still load-bearing and are stated here rather than one hop away:
+**a retraction is a write, not an erasure** (since RS-12 the write *is* the notification, so a
+cleared field leaves a **Back from foster** card with nothing in it); **the write goes through
+the agent and `firestore.rules` does not move** (a foster cannot write `dogs`, and widening
+that would hand every foster their shelter's roster); and the method — *measure every reader
+and every writer of a field, traced to the surface it renders on* — which is what PH-22 below
+reuses against a different field.
 
 ## Task queue
 
@@ -168,33 +135,126 @@ they are the product asserting things about a real animal that nobody observed, 
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
-**2026-09-13 — PH-21 replaces PH-20, and the `[large]` slot stays in this doc for a fifth
-consecutive run.** PH-20 shipped the day it was queued (PR #79), which again emptied the slot
-everywhere and again left PH-18 — small — as the only open item in the repo. The README's
-fallback chain was run in full: the queue held nothing big; every gated note is still gated on a
-*person* and not on code (RS-8, RS-6b, RS-12b, PH-13, PH-7b, PH-15b — re-read, unchanged, and
-`git log --all --since=2026-09-10` is this loop's own commits only); so the third link,
-**measure**, was used. What was measured is PH-20's own parting lead, which is the third
-consecutive run of *pointing the last method at another consumer rather than inventing a new
-method*. Two things generalise from it:
+**2026-09-14 — PH-22 replaces PH-21, and the `[large]` slot stays in this doc for a sixth
+consecutive run.** PH-21 shipped the day it was queued (PR #81) — the third run running that a
+`[large]` item has been queued and built inside 24 hours — which again emptied the slot
+everywhere and again left PH-18, small, as the only open item in the repo. The README's fallback
+chain was re-run rather than carried over: the queue held nothing big; every gated note is still
+gated on a *person* and not on code (RS-8, RS-6b, RS-12b, PH-13, PH-7b, PH-15b — re-read,
+unchanged, and `git log --all --since=2026-09-11` is this loop's own commits only); so the third
+link, **measure**, was used for the sixth time.
 
-- **A lead that names a missing write path can be hiding a missing read path, and the read path
-  is why nobody noticed.** The lead said the paragraph cannot be retracted. True — and the
-  reason it has never mattered is that **no foster has ever seen one**, so nobody has been in a
-  position to disagree with it. Measuring the readers before the writers is what turned a button
-  into a surface. Generalised: when a lead describes something a user *cannot do*, check first
-  whether they can *see* the thing they cannot do it to.
-- **The tense test has now been asked of output, of input, and of persistence, and the fourth
-  question is audience.** PH-17 asked what the page may print, PH-19 what the model may be told,
-  PH-20 what the model may assert. PH-21 asks *who is shown the assertion* — and the answer
-  measured out as "only the party who cannot verify it, never the two who can". That is not a
-  new rule so much as the same one reaching the last of its four faces.
+**What was measured, and why it is not a sixth restatement of the same thing.** PH-19, PH-20 and
+PH-21 each pointed the previous run's method at the next consumer of one dataset — the adoption
+profile — and that vein is worked out. This run pointed the *method* (every writer and every
+reader of a field, traced to the surface it renders on) at a different target: not a field, but
+**the convention the writers share**. Both of this app's two dog-writing paths deliberately omit
+a field they have no value for, and `shelterDog.ts:120-122` states the contract out loud —
+*"an absent key is 'not recorded', which `normalizeDog()` already knows how to render."* It
+does not. That produced **PH-22**, and the thing that generalises is the target selection:
 
-`DogProfile.ageMonths`'s `Math.max(1, …)` floor is the one lead left untouched and it survives
-unchanged: it reports "1-month-old" for a dog entered as 0 years, which is a rounding today and
-an assertion the moment anything reads it as one.
+- **A convention is measurable, and a stated contract is the cheapest kind to check** — it names
+  its own callee, so the measurement is "open that file and see". This one had been wrong since
+  RS-6 shipped it, in a comment written *by* the careful path, *about* the careless one.
+- **The honesty affordance and the erasure can sit in different files, and the affordance is the
+  one everybody reads.** `compat()`'s deliberate three-way is documented in `CLAUDE.md`, was
+  reasoned about in a code comment, and is the first thing anyone finds when asking whether this
+  app handles unknowns. It is also downstream of a normaliser that has already removed the
+  unknown from two of the three biggest scoring terms. **Where a codebase is visibly careful is
+  where it is least worth measuring; measure the layer that runs before it.**
 
-- **PH-21 `[large]` — shipped 2026-09-13 (PR #__); the Ledger row is the full account.** The
+`DogProfile.ageMonths`'s `Math.max(1, ...)` floor survives unchanged as the one untouched lead:
+it reports "1-month-old" for a dog entered as 0 years, a rounding today and an assertion the
+moment anything reads it as one. **`normalizeDog`'s `ageLabel` has the same floor** (`dog.ts:66`)
+— noted here rather than folded into PH-22, whose seam is deliberately narrow.
+
+### A default is honest when it is a fallback for the layout, and dishonest when it is an answer (2026-09-14)
+
+The tense test asks whether a value could be *wrong about a specific animal*. A derived default
+can be both at once, which is why this one needed a line drawn rather than a deletion: `size:
+"medium"` stops a card's layout from breaking, and the very same value printed on a row labelled
+**Size** answers a question the shelter never answered. So:
+
+> **A default is a fallback when it feeds geometry and a claim when it feeds a labelled row or a
+> sentence.** Keep it for the first; the second must render the absence. The test is not what the
+> value *is*, it is whether a reader could mistake it for something someone recorded.
+
+Two consequences, both of which keep this from becoming a thirty-site refactor:
+
+1. **`RichDog` does not become nullable everywhere.** The non-null fields stay, because layout
+   genuinely needs them; what is missing is the *provenance* beside them, and the codebase
+   already has the idiom for it twice over — `adoption_profile_source` (PH-21) and
+   `dogPhotoOrNull()`'s branch on `source` (RS-6). A `derived` set on `RichDog`, or nullable
+   siblings beside the non-null ones, is one decision for execute to make; either satisfies the
+   rule, and neither requires every render site to learn about absence.
+2. **A score is a ranking, not an answer, so the number itself needs no "not recorded" state** —
+   but it does need to stop pretending its input was known, which is exactly what `compat()`'s
+   −4 already does for the four fields the normaliser passes through. Extending that to size and
+   energy is the same decision applied one layer earlier, not a new one.
+
+- **PH-22 `[large]` — the absence both writers carefully record is erased by the layer that
+  renders it.** *(Queued 2026-09-14. This doc owns it for the same reason it owns PH-17/19/20/21
+  — truthfulness — and not because production-hardening has been re-ranked; see the routing note
+  at the top of this queue. It lands on Discovery, which is Eesha's phase: `gh pr list --state
+  open` was empty when it was queued, but check again before building.)*
+
+  **The measurement, so nobody rebuilds it.** Both dog-writing paths omit rather than null a
+  field they have no value for — `dogFromForm()` (`web/src/lib/shelterDog.ts:124-157`, asserted
+  by `shelterDog.test.ts:87`) and the importer's `to_dog()`. `normalizeDog()`
+  (`web/src/lib/dog.ts:48-70`) then fills five of those absences with confident values:
+  `foster_weeks` -> **6** and `"6 weeks"` (`:49`, `:62-63`); `size` with no weight ->
+  **`"medium"`** (`:53`); `energy_level` -> `guessEnergy()` (`:31-38`), a **breed regex** —
+  `collie|husky|terrier|shepherd|russell|cattle` scores 4 — plus age thresholds; `photo` -> a
+  hash of the dog's **id** into a placedog stand-in; `shelter` -> `shelterFor()`.
+
+  **Coverage against the committed roster** (`data/dogs.json`, 19 dogs): `foster_weeks` **0/19**
+  and `foster_length` **0/19**, so *every dog in the real roster* renders "6 weeks" — and once
+  `pickup.date` exists, `fosterWindow()` (`lib/foster.ts:73`) turns that 6 into a **countdown, a
+  progress bar and an end date**: "12 days left", "Last day", "3 days over". A date a real foster
+  plans around, arithmetic all the way down from a constant. By contrast `size` and
+  `energy_level` are **19/19**, supplied by `enrichment.json` from the shelter's own write-up —
+  so those two derivations never fire on the scraped roster and *do* fire on a dog a shelter
+  types in through RS-6, which is the inverse of where you would want them.
+
+  **Read sites** (the "answer" half, every one of them a labelled row or prose):
+  `SwipeDeck.tsx:163` (`{fosterLength} foster`), `DogDetailView.tsx:98` and **`:153`** (a
+  `Row k="Foster length"`), `SavedView.tsx:140` and `:166`, `HubView.tsx:88`,
+  `PostFosterView.tsx:48`. Plus `matchReasons()` (`matching.ts:68-84`), which renders the derived
+  values as sentences to the foster — *"Zoomies energy, exactly the pace you picked"*,
+  *"Medium — right in your size range"*, *"An easy first foster"*.
+
+  **The sharp half: the honesty is downstream of the erasure.** `compat()` (`matching.ts:17`)
+  scores an unknown **−4 rather than −26**, deliberately, and `:40-42` do the same for grooming
+  and coat. But `scoreDog` takes a `RichDog`, so `d.size` and `d.energyLevel` **cannot be unknown
+  by the time it runs** — and those two feed the largest terms in the score
+  (`22 - |pref - size|*0.4` and `22 - |pref - energy|*11`, against a base of 52). The documented
+  care applies only to the four fields the normaliser leaves alone.
+
+  **One stale claim to correct inside this diff.** `matching.ts:50` justifies the −4 by *"the
+  score >= 45 cutoff in DiscoveryView"*. **There is no cutoff.** `DiscoveryView.tsx:34-35`
+  carries the opposite comment — *"No match-score cutoff: the real roster is small, so a weak
+  match still beats no dog at all"* — and `:36-38` filter on the search string only, then sort.
+  The −4 is still correct; its reason is **ranking**, not admission, and the comment should say
+  so. *(`CLAUDE.md` repeats the same dead cutoff under "Unknown is not a claim". A sentence to
+  Sharang, not a doc edit — this loop does not edit that file.)*
+
+  **The seam, deliberately narrow.** PH-22 touches `foster_weeks`/`foster_length`, `size` and
+  `energy_level` only. It does **not** touch the photo fallback (RS-6 solved that half with
+  `source`, and `dogPhotoOrNull()` is the precedent this item follows rather than a problem to
+  fix); it does **not** touch `shelterFor()`, documented as the seeded-demo fallback and already
+  declined by `dogFromForm()` rather than invented; it does **not** touch `parseLegacyLength()`,
+  which reads a value someone actually wrote; it does **not** widen `compat()`'s existing
+  three-way; and it does **not** touch `ageLabel`'s one-month floor, the lead left standing above.
+
+  **Verify** by rendering Discovery, a dog profile, Saved and the Hub against the committed
+  roster — where `foster_weeks` is absent on all 19 — and reading every surface for a duration, a
+  size or an energy word still claiming to be recorded, including after setting a `pickup.date`
+  so the countdown branch runs. Unit tests are the real verification, since every affected
+  function is pure: `fosterWindow` with no total, `scoreDog` and `matchReasons` with an unknown
+  size and an unknown energy, and `normalizeDog` over a record carrying none of the three. Say
+  plainly in the ledger row what was and was not observed live.
+
+- **PH-21 `[large]` — shipped 2026-09-13 (PR #81); the Ledger row is the full account.** The
   four-part queue entry is archived verbatim in
   [`archive/production-hardening-ph21-2026-09-13.md`](archive/production-hardening-ph21-2026-09-13.md);
   the design section above stays, because it holds the measurement rather than the build
@@ -284,7 +344,7 @@ them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
 
-- 2026-09-13 — PH-21 `[large]` — PR #__ — **The one paragraph a model wrote is now readable by
+- 2026-09-13 — PH-21 `[large]` — PR #81 — **The one paragraph a model wrote is now readable by
   the two people who could correct it, attributed everywhere it appears, and retractable.**
   Four parts, all shipped. `ProfileAttribution` + `lib/adoptionSource.ts` is **one line and one
   class** for all three surfaces (`.profile-attrib`, withdrawn as a data attribute) — the shape
@@ -311,61 +371,37 @@ them, and do not add to it without reading the archived preamble first.
   signed-in account.
 
 - 2026-09-12 — PH-20 `[large]` — PR #79 — **The one paragraph this app keeps because a model
-  wrote it now has to name what nobody recorded.** `generate_adoption_profile` returns a
-  seventh key, `missing` — computed the way `adoption.ts:151-156` computes its own, plus the
-  two the page doesn't need and the model does — and each entry is a **sentence about what did
-  not happen** rather than a field name, for PH-19's reason. `PAWTHWAY_SYSTEM`'s adoption
-  paragraph loses the word **"specific"** (the word doing the damage over sparse, nullable
-  inputs), keeps "warm", and gains the content guardrail the pickup paragraph already had:
-  *"a short paragraph that is true of this dog is correct when the care log is thin; a fuller
-  one that is true of some dog is not"*. `send_adoption_profile_to_shelter` writes
-  `adoption_profile_source: "agent"` beside the text — **nothing renders it yet, which is half
-  of what PH-21 is for**. **The harness needed building before the tests could be written**,
-  which the spec had not costed: `tests/conftest.py` had no `update()` and no
-  `order_by().stream()`, so neither of this module's two tools could be driven at all — that is
-  why `adoption` had no tests, not oversight. The fake's `update()` **raises on a missing
-  document** rather than creating one, or a test would pass against a dog nobody seeded.
-  `tests/test_adoption.py` is new (12 cases; 34 → 46). Backend and frontend checks green.
-  **Not verifiable live by an unattended run** — reaching Post Foster needs a completed journey
-  on a signed-in account, so the tests are the verification.
+  wrote it now has to name what nobody recorded.** `generate_adoption_profile` returns a seventh
+  key, `missing`, each entry a *sentence about what did not happen* rather than a field name;
+  `PAWTHWAY_SYSTEM` loses the word **"specific"** and gains the pickup paragraph's content
+  guardrail; `send_adoption_profile_to_shelter` writes `adoption_profile_source: "agent"`. **The
+  harness needed building before the tests could be written**, which the spec had not costed —
+  `conftest.py` had no `update()` and no `order_by().stream()`, which is why this module had no
+  tests at all. The fake's `update()` **raises on a missing document**, or a test would pass
+  against a dog nobody seeded. Not verifiable live by an unattended run.
 
 - 2026-09-11 — PH-19 `[large]` — PR #77 — **The Care Plan brief stops asserting things nobody
-  recorded, and stops calling training notes medical.** `DogProfile.medicalFlags` → `careNeeds`
-  (the name `adoption.ts` already used for the same data) and `weightLbs: number | null`;
-  `brief.ts` drops the weight clause when there is no weight and the needs clause when there
-  are none. **Omitting the sentence turned out to be necessary and not sufficient**, which is
-  the one thing the design answer had not anticipated: the brief closes by telling the model
-  never to go beyond what it was given, so a silently-absent field reads as "nothing there"
-  just as confidently as "No medical flags." did. So `sayWhatIsMissing()` states each gap as a
-  gap — *"The shelter's record for Juniper does not include any care or behaviour needs and a
-  weight at intake. That is a gap in the paperwork, not a finding"* — which is the only form
-  that is both true and useful to a reader who cannot go and check. The same null weight is
-  now guarded on the emergency screen (`:137`, `:178` → "Not recorded"), and `askAbout`'s
-  offline fallbacks lose the age claim returned for nine-year-olds ("For a puppy X's age…")
-  and the prototype copy shipped to real fosters ("In the real app this would call an LLM…").
-  **One false claim found in the code, not in the spec**: `CarePlanView.tsx:45`'s comment
-  justified `?? 0` as reading "unknown in the Care Plan header", and no header renders
-  `weightLbs` at all — the only two readers were the emergency screen and the brief, and both
-  printed the zero as a fact. `brief.test.ts` is new (9 cases; 106 → 115), covering the three
-  shapes with no coverage plus the multi-gap sentence. Build, test and lint green, no new
-  warnings. **Not verified live** — Care Plan needs a sign-in this loop can't do; the brief is
-  a pure function and is covered by tests instead.
+  recorded, and stops calling training notes medical.** `medicalFlags` → `careNeeds`,
+  `weightLbs: number | null`, and the clauses drop when the values are absent. **Omitting the
+  sentence was necessary and not sufficient** — the brief's closing instruction makes silence
+  read as "nothing there" — so `sayWhatIsMissing()` states each gap *as* a gap, the only form
+  both true and useful to a reader who cannot go and check. **One false claim found in the code
+  rather than the spec**: `CarePlanView.tsx:45`'s comment justified `?? 0` as rendering in a
+  header that does not exist; both real readers printed the zero as a fact. 9 new tests.
+
+*(Both rows above are one-paragraph compressions. The full text — PH-20's account of the
+harness and PH-19's of the offline-fallback copy it also removed — is verbatim in
+[`archive/production-hardening-ledger-2026-09-14.md`](archive/production-hardening-ledger-2026-09-14.md).)*
 
 - 2026-09-10 — PH-17 `[large]` — PR #75 — **A demo dog's past no longer reaches a real
-  foster's document, or the adoption page.** `data.ts` splits by the tense test: advice stays,
-  `marty`/`seedMilestones`/`seedJournal`/`medicalSummary` move to `data.demo.ts` behind
-  `LOCAL_MODE`. **All four write paths are gone, not the two the spec named** — both setters
-  now fall back to `LOCAL_MODE ? seed : []`, which is what would have left the defect intact:
-  the first note a foster wrote saved the whole invented past underneath it. `adoption.ts`'s
-  `lastMilestoneWeight` branch is **deleted rather than guarded**. Two things the spec had
-  wrong, both expensive: there were no `adoption` tests to add cases to (`adoption.test.ts` is
-  new, 8 cases), and `medical` needed a *source designed* rather than chosen — nothing in this
-  app records a dog's vaccines, so it is now built from ticked `vaccine`/`medication` schedule
-  rows and `vet_visit` care-log entries, is `null` when all three are empty, and **allergies do
-  not render at all** ("None reported" is a clean bill of health nobody gave). Build, test
-  (98 → 106) and lint all green. **Not verified live** — `web/.env` is configured here, so the
-  app is not in `LOCAL_MODE` and Care Plan needs a sign-in this loop can't do. Full 28-line row
-  verbatim in the [2026-09-11 ledger archive](archive/production-hardening-ledger-2026-09-11.md).
+  foster's document, or the adoption page.** `data.ts` splits by the tense test; the seed moves
+  to `data.demo.ts` behind `LOCAL_MODE`. **All four write paths were gone, not the two the spec
+  named** — the first note a foster wrote had been saving the whole invented past underneath it.
+  Two things the spec had wrong, both expensive: `adoption` had no tests to add cases to, and
+  `medical` needed a *source designed* rather than chosen, so it is now built from ticked
+  schedule rows and `vet_visit` entries, `null` when empty, with **allergies not rendering at
+  all** ("None reported" is a clean bill of health nobody gave). Full 28-line row verbatim in
+  the [2026-09-11 ledger archive](archive/production-hardening-ledger-2026-09-11.md).
 
 *(Sixteen rows for **PH-1 … PH-16** stood here, each already a one-line compression of a
 longer row archived elsewhere. On 2026-09-12 they moved to

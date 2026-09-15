@@ -199,35 +199,35 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
     suggests**, because the pass above deleted 80 classes' worth of rules. Re-count before
     treating the parked retokenisation as the size it used to be.
 
-- **2026-09-09 — the queue is still empty on purpose, the `[large]` slot has left this doc,
-  and the `theme.css` lead above is mostly wrong.** Re-measuring the fifteen classes that
-  bullet names as *not* false positives — every `className="..."` and `className={...}`
-  literal under `web/src` against `.<name>` in `theme.css` — finds **eleven of them live**:
-  `shelter__form`, `shelter__form-row`, `shelter__label`, `shelter__error`, `signin__google`,
-  `signin__note`, `signin__fine`, `account__wipe`, `avatar`, `avatar--initial` and
-  `tabbar__link--account` all appear in a real `className`. Only the four `ap-*` rules
-  (`theme.css:557-564` — `.ap-row`, `.ap-when`, `.ap-manner`, `.ap-routine`) are genuinely
-  unreferenced. This is the README's 2026-09-07 lesson landing for the third consecutive run,
-  now against a *lead* rather than a shipped claim: the cheapest wrong measurement to find is
-  the one the last run just wrote. The lead survives, at a tenth of its stated size — four
-  rules, not fifteen — which is a reason to leave it a lead rather than promote it.
-  **Nothing is queued here this run, and that is a routing decision rather than an absence.**
-  execute works the queues top-down and this doc outranks `production-hardening.md`, so any
-  item added here — including the small, true, four-rule version of the lead above — would be
-  picked *before* **PH-17**, the repo's only `[large]` item and a defect in what the product
-  tells a stranger about a real animal. That is precisely the treadmill the 2026-08-31 re-rank
-  exists to stop, arriving from the other direction. The `carePlan.css` literal re-count is
-  untouched and still wants doing before the parked retokenisation is sized.
+- **2026-09-09 — the `theme.css` lead above is mostly wrong, and shrinks to a tenth of its
+  stated size.** Re-measuring every `className` literal under `web/src` against `.<name>` in
+  `theme.css` found **eleven of the fifteen classes live**, including all four `shelter__*`, all
+  three `signin__*` and both `avatar*`. Only the four `ap-*` rules (`theme.css:557-564`) are
+  genuinely unreferenced. That is the README's 2026-09-07 lesson landing against a *lead* rather
+  than a shipped claim: the cheapest wrong measurement to find is the one the last run just
+  wrote. **The lead survives at four rules, not fifteen, which is a reason to leave it a lead
+  rather than promote it.** Working verbatim in
+  [`archive/design-consistency-themecss-lead-2026-09-14.md`](archive/design-consistency-themecss-lead-2026-09-14.md).
 
-- **2026-09-10 through 2026-09-13 — still empty, still the same routing decision, re-checked
+- **2026-09-10 through 2026-09-14 — still empty, still the same routing decision, re-checked
   rather than carried over.** `production-hardening.md` has held the repo's `[large]` slot for
-  five consecutive runs (PH-17, PH-19, PH-20, and now PH-21), and execute works the queues
+  six consecutive runs (PH-17, PH-19, PH-20, PH-21, and now PH-22), and execute works the queues
   top-down: anything added here — including the true four-rule `ap-*` version of the `theme.css`
   lead above — would be picked ahead of it. The `carePlan.css` literal re-count is still
-  untouched and still wants doing before the parked retokenisation is sized. **A note for
-  whoever eventually queues PH-21's frontend half**: parts 1, 2 and 4 of it add an attribution
-  line to three separate views, which is exactly the shape of the incident this doc exists for
-  (PR #11). Whoever builds it should introduce *one* class for that line, not three.
+  untouched and still wants doing before the parked retokenisation is sized.
+  - **The note this doc left for PH-21 was taken, and it is worth recording as a win rather than
+    deleting as spent.** It asked that the attribution line appearing on three views be *one*
+    class and not three, for PR #11's reason. PH-21 shipped `ProfileAttribution` plus
+    `lib/adoptionSource.ts` — one line and one class (`.profile-attrib`, the withdrawn state a
+    data attribute) for all three surfaces. A one-bullet note in the second-ranked doc changed
+    the shape of an item built out of the third, at a cost of three sentences.
+  - **The same note now applies to PH-22**, which is queued in `production-hardening.md` and
+    lands on Discovery. It has to render "not recorded" for a foster duration, a size and an
+    energy level across **seven** call sites (`SwipeDeck`, `DogDetailView` twice, `SavedView`
+    twice, `HubView`, `PostFosterView`). That is the PR #11 shape again and then some: whoever
+    builds it should introduce **one** way of rendering an unrecorded value — a shared component
+    or a single class — not seven inline ternaries, and should check whether PH-21's
+    `.profile-attrib` is already that thing before adding a second one.
 
 - **DC-8 `[large]` (with DC-9) — shipped 2026-09-07 (PR #69); the Ledger row is the full
   account.** Care Plan's breakpoints step with the frame and `.cp-stage` caps at `--content-w`
