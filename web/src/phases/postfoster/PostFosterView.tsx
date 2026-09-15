@@ -8,7 +8,8 @@ import { daysSincePickup } from "../../phases/careplan/data";
 import { useAdoptionHighlights } from "../../lib/highlights";
 import { AgentChatPanel } from "../../components/AgentChatPanel";
 import { buildAdoptionProfile, noteTextsFor } from "../../lib/adoption";
-import { normalizeDog } from "../../lib/dog";
+import { normalizeDog, recordedStay } from "../../lib/dog";
+import { Unrecorded } from "../../components/Unrecorded";
 import { fosterWindow } from "../../lib/foster";
 import { AdoptionProfileBody } from "./AdoptionProfile";
 
@@ -45,7 +46,7 @@ export function PostFosterView() {
     );
   }
 
-  const win = fosterWindow(dog.fosterWeeks, dog.fosterLength, foster.pickup?.date);
+  const win = fosterWindow(...recordedStay(dog), foster.pickup?.date);
   const shareUrl = `${window.location.origin}/adoption/${dog.id}`;
   const journalCount = journal.length + entries.length;
 
@@ -61,7 +62,9 @@ export function PostFosterView() {
       </div>
 
       <div className="row" style={{ gap: 7, flexWrap: "wrap", marginBottom: 14 }}>
-        <span className="chip butter" style={{ fontWeight: 800 }}>🗓️ Fostered {win.total}</span>
+        <span className="chip butter" style={{ fontWeight: 800 }}>
+          🗓️ {win.total ? `Fostered ${win.total}` : <Unrecorded what="Foster length" />}
+        </span>
         <span className={`chip ${journalCount ? "sage" : ""}`} style={{ fontWeight: 800 }}>
           📔 {journalCount ? `${journalCount} journal entries` : "Journal empty — using sample content"}
         </span>

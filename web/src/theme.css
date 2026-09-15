@@ -868,6 +868,16 @@ input,textarea,select{font-family:inherit}
   display:flex;gap:6px;align-items:baseline;
 }
 .profile-attrib[data-withdrawn]{color:var(--coral)}
+
+/* PH-22. One class for a value nobody recorded, shared by the nine sites that used to print a
+   derived default as the shelter's answer. Renderer is `components/Unrecorded.tsx`. Deliberately
+   quiet rather than alarming -- an unrecorded field is normal in a real listing, and styling it
+   as an error would push staff toward filling it with a guess, which is the defect this exists
+   to remove. `currentColor` at reduced opacity so it reads correctly on the dark photo overlay
+   in Discovery as well as on cream. */
+.unrecorded{
+  font-weight:600;font-style:italic;color:currentColor;opacity:.62;
+}
 .shelter__form{
   display:flex;flex-direction:column;gap:12px;width:100%;
   padding:18px;border-radius:var(--r-lg);background:var(--card);border:1px solid var(--line);

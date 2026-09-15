@@ -1,8 +1,29 @@
 import type { Dog, DogSize } from "../types";
 import { shelterFor, type Shelter } from "./shelters";
 
+/**
+ * Which of the three guaranteed fields below this app *invented* rather than read (PH-22).
+ *
+ * Both dog-writing paths — `dogFromForm()` and the importer's `to_dog()` — deliberately omit a
+ * field they have no value for, and `normalizeDog()` then fills the hole so a card can lay
+ * itself out. That fallback is honest right up until the same value is printed on a row
+ * labelled **Size**, or turned into "12 days left". A default is a fallback when it feeds
+ * geometry and a claim when it feeds a labelled row or a sentence; this flag is what lets a
+ * render site tell the two apart without every field becoming nullable.
+ */
+export interface DerivedFields {
+  /** No `foster_weeks` and no parseable `foster_length` — the 6 is ours. */
+  fosterWeeks: boolean;
+  /** No `size` and no `weight_lbs` to bucket — the "medium" is ours. */
+  size: boolean;
+  /** No `energy_level` — the number came out of `guessEnergy()`'s breed regex. */
+  energyLevel: boolean;
+}
+
 /** A dog with every Discovery field guaranteed — derived where the record didn't have one. */
 export interface RichDog extends Dog {
+  /** What was derived rather than recorded. Never render a `true` field as a fact. */
+  derived: DerivedFields;
   shelter: Shelter;
   size: DogSize;
   energyLevel: number;
@@ -28,7 +49,11 @@ export const sizeFromWeight = (lbs: number): DogSize => (lbs < 25 ? "small" : lb
  */
 export const MANUAL_SOURCE = "shelter-manual";
 
-/** Rough energy guess for records seeded before `energy_level` existed. */
+/**
+ * Rough energy guess for records seeded before `energy_level` existed. A breed regex is a
+ * stereotype, not an observation, so anything reading this must consult `derived.energyLevel`
+ * before printing it as the shelter's answer.
+ */
 function guessEnergy(d: Dog): number {
   if (d.age_years >= 8) return 0;
   if (d.age_years >= 6) return 1;
@@ -46,13 +71,24 @@ const photoFor = (d: Dog) => {
 };
 
 export function normalizeDog(d: Dog): RichDog {
-  const weeks = d.foster_weeks ?? parseLegacyLength(d.foster_length) ?? 6;
+  // Each of the three is resolved to `null` first and defaulted second, so the question
+  // "did anyone record this?" survives the defaulting instead of being answered by it.
+  const recordedWeeks = d.foster_weeks ?? parseLegacyLength(d.foster_length);
+  // Bucketing a weight the shelter *did* record is a restatement, not an invention, so it
+  // counts as recorded. Having neither is the case with nothing behind it.
+  const recordedSize = d.size ?? (d.weight_lbs != null ? sizeFromWeight(d.weight_lbs) : null);
+  const weeks = recordedWeeks ?? 6;
   return {
     ...d,
+    derived: {
+      fosterWeeks: recordedWeeks == null,
+      size: recordedSize == null,
+      energyLevel: d.energy_level == null,
+    },
     // A real org travels on the record; shelterFor() is the seeded-demo fallback.
     shelter: d.shelter ?? shelterFor(d.shelter_id, d.id),
     // A published size bucket is better evidence than a weight we had to infer.
-    size: d.size ?? (d.weight_lbs != null ? sizeFromWeight(d.weight_lbs) : "medium"),
+    size: recordedSize ?? "medium",
     energyLevel: d.energy_level ?? guessEnergy(d),
     groomingLevel: d.grooming ?? null,
     coatLength: d.coat ?? null,
@@ -71,6 +107,15 @@ export function normalizeDog(d: Dog): RichDog {
           : `${d.age_years} yrs`,
   };
 }
+
+/**
+ * The recorded expected stay and its label, or `[null, null]` when nobody recorded one — the
+ * argument pair `fosterWindow()` wants (PH-22). Spread it: `fosterWindow(...recordedStay(d), p)`.
+ * It lives here rather than at the four call sites so none of them has to remember that
+ * `fosterWeeks` is always populated and only sometimes true.
+ */
+export const recordedStay = (d: RichDog): [number | null, string | null] =>
+  d.derived.fosterWeeks ? [null, null] : [d.fosterWeeks, d.fosterLength];
 
 /** "1 week", "6 weeks", "3 months" — months once a stay passes two. */
 export function formatWeeks(weeks: number): string {

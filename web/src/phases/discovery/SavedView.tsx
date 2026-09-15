@@ -4,13 +4,14 @@ import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useApplication } from "../../hooks/useApplication";
 import { useDogs } from "../../hooks/useDogs";
-import { normalizeDog, thumbBackground, type RichDog } from "../../lib/dog";
+import { normalizeDog, recordedStay, thumbBackground, type RichDog } from "../../lib/dog";
 import { scoreDog } from "../../lib/matching";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
 import { approvalBadge, approvalDecision, composeApprovalChecklist } from "../../lib/applicationView";
 import { createApplication, setApplicationStatus } from "../../lib/applications";
 import { fosterDocId } from "../../lib/session";
+import { Unrecorded } from "../../components/Unrecorded";
 
 const STAGES = ["Applied", "Under review", "Approved", "Pickup"];
 
@@ -137,7 +138,9 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
             <span className="chip sage" style={{ fontSize: 11.5 }}>{scoreDog(d, foster?.intake)}%</span>
           </div>
           <div className="muted" style={{ marginTop: 2 }}>{d.breed} · {d.ageLabel}</div>
-          <div className="muted" style={{ marginTop: 3 }}>{d.shelter.short} · 🗓️ {d.fosterLength}</div>
+          <div className="muted" style={{ marginTop: 3 }}>
+            {d.shelter.short} · 🗓️ {d.derived.fosterWeeks ? <Unrecorded what="Stay" /> : d.fosterLength}
+          </div>
         </div>
       </button>
       <div className="row" style={{ gap: 9, marginTop: 12 }}>
@@ -163,7 +166,7 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
   // Progress mirrors the Match phase's own checklist rather than inventing a second source --
   // including the join, so this timeline and the Match view can't disagree about whether the
   // shelter has finished its half.
-  const win = fosterWindow(d.fosterWeeks, d.fosterLength, foster?.pickup?.date);
+  const win = fosterWindow(...recordedStay(d), foster?.pickup?.date);
   const approval = composeApprovalChecklist(foster?.approvalChecklist ?? [], application?.checklist ?? null);
   const approved = approval.length > 0 && approval.every(c => c.done);
   const activeIdx = foster?.pickup ? 3 : approved ? 2 : 1;
@@ -198,7 +201,9 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
         <div style={{ width: 58, height: 58, borderRadius: 16, flexShrink: 0, background: thumbBackground(d, 300, 300) }} />
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontWeight: 800, fontSize: 16 }}>{d.name}</div>
-          <div className="muted" style={{ marginTop: 2 }}>{d.shelter.short} · 🗓️ {win.total}</div>
+          <div className="muted" style={{ marginTop: 2 }}>
+            {d.shelter.short} · 🗓️ {win.total ?? <Unrecorded what="Stay" />}
+          </div>
         </div>
       </button>
 

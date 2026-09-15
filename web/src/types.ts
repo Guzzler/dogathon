@@ -95,8 +95,10 @@ export interface Dog {
    */
   adoption_profile_source?: "agent" | "foster_withdrawn";
 
-  // Added for Discovery. All optional — dogs seeded before these existed still
-  // render, because `normalizeDog()` derives sensible values from the fields above.
+  // Added for Discovery. All optional — dogs seeded before these existed still render,
+  // because `normalizeDog()` derives values from the fields above. A derived value is a
+  // fallback for the *layout* only: it is flagged on `RichDog.derived` and every surface that
+  // would print it as the shelter's answer renders "Not recorded" instead (PH-22).
   /** Preferred over deriving from weight — a published bucket beats a guessed number. */
   size?: DogSize;
   shelter_id?: string;

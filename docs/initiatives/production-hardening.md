@@ -130,43 +130,17 @@ reuses against a different field.
 **The routing that put truthfulness items in the third-ranked doc still holds, and it is worth
 restating once rather than re-narrated each run.** The 2026-08-31 re-rank exists to stop this
 doc's small, tidy, headlessly-verifiable items consuming every execute run while the shelter
-surface waits — and it does not cover PH-17, PH-19, PH-20 or PH-21. Those are not scaffolding;
+surface waits — and it does not cover PH-17, PH-19, PH-20, PH-21 or PH-22. Those are not scaffolding;
 they are the product asserting things about a real animal that nobody observed, which is the
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
-**2026-09-14 — PH-22 replaces PH-21, and the `[large]` slot stays in this doc for a sixth
-consecutive run.** PH-21 shipped the day it was queued (PR #81) — the third run running that a
-`[large]` item has been queued and built inside 24 hours — which again emptied the slot
-everywhere and again left PH-18, small, as the only open item in the repo. The README's fallback
-chain was re-run rather than carried over: the queue held nothing big; every gated note is still
-gated on a *person* and not on code (RS-8, RS-6b, RS-12b, PH-13, PH-7b, PH-15b — re-read,
-unchanged, and `git log --all --since=2026-09-11` is this loop's own commits only); so the third
-link, **measure**, was used for the sixth time.
-
-**What was measured, and why it is not a sixth restatement of the same thing.** PH-19, PH-20 and
-PH-21 each pointed the previous run's method at the next consumer of one dataset — the adoption
-profile — and that vein is worked out. This run pointed the *method* (every writer and every
-reader of a field, traced to the surface it renders on) at a different target: not a field, but
-**the convention the writers share**. Both of this app's two dog-writing paths deliberately omit
-a field they have no value for, and `shelterDog.ts:120-122` states the contract out loud —
-*"an absent key is 'not recorded', which `normalizeDog()` already knows how to render."* It
-does not. That produced **PH-22**, and the thing that generalises is the target selection:
-
-- **A convention is measurable, and a stated contract is the cheapest kind to check** — it names
-  its own callee, so the measurement is "open that file and see". This one had been wrong since
-  RS-6 shipped it, in a comment written *by* the careful path, *about* the careless one.
-- **The honesty affordance and the erasure can sit in different files, and the affordance is the
-  one everybody reads.** `compat()`'s deliberate three-way is documented in `CLAUDE.md`, was
-  reasoned about in a code comment, and is the first thing anyone finds when asking whether this
-  app handles unknowns. It is also downstream of a normaliser that has already removed the
-  unknown from two of the three biggest scoring terms. **Where a codebase is visibly careful is
-  where it is least worth measuring; measure the layer that runs before it.**
-
-`DogProfile.ageMonths`'s `Math.max(1, ...)` floor survives unchanged as the one untouched lead:
-it reports "1-month-old" for a dog entered as 0 years, a rounding today and an assertion the
-moment anything reads it as one. **`normalizeDog`'s `ageLabel` has the same floor** (`dog.ts:66`)
-— noted here rather than folded into PH-22, whose seam is deliberately narrow.
+**2026-09-14 — PH-22 was queued and shipped on the same run, the fourth running.** The
+`[large]` slot has sat in this doc for six consecutive runs and is empty again. How the slot was
+found is in `README.md`'s fallback chain; *what* it found — a convention rather than a field,
+and a stated contract as the cheapest measurement there is — is in the Ledger row and in
+[`archive/production-hardening-ph22-2026-09-14.md`](archive/production-hardening-ph22-2026-09-14.md).
+The rule it produced is the section directly below, and that is the part worth keeping here.
 
 ### A default is honest when it is a fallback for the layout, and dishonest when it is an answer (2026-09-14)
 
@@ -192,79 +166,20 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
    −4 already does for the four fields the normaliser passes through. Extending that to size and
    energy is the same decision applied one layer earlier, not a new one.
 
-- **PH-22 `[large]` — the absence both writers carefully record is erased by the layer that
-  renders it.** *(Queued 2026-09-14. This doc owns it for the same reason it owns PH-17/19/20/21
-  — truthfulness — and not because production-hardening has been re-ranked; see the routing note
-  at the top of this queue. It lands on Discovery, which is Eesha's phase: `gh pr list --state
-  open` was empty when it was queued, but check again before building.)*
+- **PH-22 `[large]` — shipped 2026-09-14 (PR #__); the Ledger row is the full account.** The
+  queue entry, with its coverage counts and its read-site census, is archived verbatim in
+  [`archive/production-hardening-ph22-2026-09-14.md`](archive/production-hardening-ph22-2026-09-14.md),
+  along with the two things re-verification found it had missed. The design section above stays
+  in this doc, because it holds the rule rather than the build instructions.
 
-  **The measurement, so nobody rebuilds it.** Both dog-writing paths omit rather than null a
-  field they have no value for — `dogFromForm()` (`web/src/lib/shelterDog.ts:124-157`, asserted
-  by `shelterDog.test.ts:87`) and the importer's `to_dog()`. `normalizeDog()`
-  (`web/src/lib/dog.ts:48-70`) then fills five of those absences with confident values:
-  `foster_weeks` -> **6** and `"6 weeks"` (`:49`, `:62-63`); `size` with no weight ->
-  **`"medium"`** (`:53`); `energy_level` -> `guessEnergy()` (`:31-38`), a **breed regex** —
-  `collie|husky|terrier|shepherd|russell|cattle` scores 4 — plus age thresholds; `photo` -> a
-  hash of the dog's **id** into a placedog stand-in; `shelter` -> `shelterFor()`.
-
-  **Coverage against the committed roster** (`data/dogs.json`, 19 dogs): `foster_weeks` **0/19**
-  and `foster_length` **0/19**, so *every dog in the real roster* renders "6 weeks" — and once
-  `pickup.date` exists, `fosterWindow()` (`lib/foster.ts:73`) turns that 6 into a **countdown, a
-  progress bar and an end date**: "12 days left", "Last day", "3 days over". A date a real foster
-  plans around, arithmetic all the way down from a constant. By contrast `size` and
-  `energy_level` are **19/19**, supplied by `enrichment.json` from the shelter's own write-up —
-  so those two derivations never fire on the scraped roster and *do* fire on a dog a shelter
-  types in through RS-6, which is the inverse of where you would want them.
-
-  **Read sites** (the "answer" half, every one of them a labelled row or prose):
-  `SwipeDeck.tsx:163` (`{fosterLength} foster`), `DogDetailView.tsx:98` and **`:153`** (a
-  `Row k="Foster length"`), `SavedView.tsx:140` and `:166`, `HubView.tsx:88`,
-  `PostFosterView.tsx:48`. Plus `matchReasons()` (`matching.ts:68-84`), which renders the derived
-  values as sentences to the foster — *"Zoomies energy, exactly the pace you picked"*,
-  *"Medium — right in your size range"*, *"An easy first foster"*.
-
-  **The sharp half: the honesty is downstream of the erasure.** `compat()` (`matching.ts:17`)
-  scores an unknown **−4 rather than −26**, deliberately, and `:40-42` do the same for grooming
-  and coat. But `scoreDog` takes a `RichDog`, so `d.size` and `d.energyLevel` **cannot be unknown
-  by the time it runs** — and those two feed the largest terms in the score
-  (`22 - |pref - size|*0.4` and `22 - |pref - energy|*11`, against a base of 52). The documented
-  care applies only to the four fields the normaliser leaves alone.
-
-  **One stale claim to correct inside this diff.** `matching.ts:50` justifies the −4 by *"the
-  score >= 45 cutoff in DiscoveryView"*. **There is no cutoff.** `DiscoveryView.tsx:34-35`
-  carries the opposite comment — *"No match-score cutoff: the real roster is small, so a weak
-  match still beats no dog at all"* — and `:36-38` filter on the search string only, then sort.
-  The −4 is still correct; its reason is **ranking**, not admission, and the comment should say
-  so. *(`CLAUDE.md` repeats the same dead cutoff under "Unknown is not a claim". A sentence to
-  Sharang, not a doc edit — this loop does not edit that file.)*
-
-  **The seam, deliberately narrow.** PH-22 touches `foster_weeks`/`foster_length`, `size` and
-  `energy_level` only. It does **not** touch the photo fallback (RS-6 solved that half with
-  `source`, and `dogPhotoOrNull()` is the precedent this item follows rather than a problem to
-  fix); it does **not** touch `shelterFor()`, documented as the seeded-demo fallback and already
-  declined by `dogFromForm()` rather than invented; it does **not** touch `parseLegacyLength()`,
-  which reads a value someone actually wrote; it does **not** widen `compat()`'s existing
-  three-way; and it does **not** touch `ageLabel`'s one-month floor, the lead left standing above.
-
-  **Verify** by rendering Discovery, a dog profile, Saved and the Hub against the committed
-  roster — where `foster_weeks` is absent on all 19 — and reading every surface for a duration, a
-  size or an energy word still claiming to be recorded, including after setting a `pickup.date`
-  so the countdown branch runs. Unit tests are the real verification, since every affected
-  function is pure: `fosterWindow` with no total, `scoreDog` and `matchReasons` with an unknown
-  size and an unknown energy, and `normalizeDog` over a record carrying none of the three. Say
-  plainly in the ledger row what was and was not observed live.
-
-- **PH-21 `[large]` — shipped 2026-09-13 (PR #81); the Ledger row is the full account.** The
-  four-part queue entry is archived verbatim in
-  [`archive/production-hardening-ph21-2026-09-13.md`](archive/production-hardening-ph21-2026-09-13.md);
-  the design section above stays, because it holds the measurement rather than the build
-  instructions. Its re-verification found nothing wrong, for the second consecutive run —
-  `PostFosterView` did still hold the raw dog document and the banner was still at `:70-74`.
-
-- **PH-17, PH-19 and PH-20 `[large]` — all shipped** (PRs #75, #77, #79). Ledger rows below are
-  the full accounts; specs archived verbatim. The habit of re-verifying a spec against `main`
-  before building is six runs old and still worth its cost — nothing wrong on PH-19 and PH-20,
-  something materially wrong on PH-17 and on PH-18 three times.
+- **PH-14/15/16, PH-17, PH-19, PH-20 and PH-21 — all shipped** (PRs #47, #48, #49, #75, #77,
+  #79, #81). Each Ledger row below is the full account and each spec is archived verbatim; these
+  bullets had become a third layer pointing at the second, so they are one line now. Two things
+  they carried that are not in the rows: PH-15's live rules check is **PH-15b under "Needs a
+  human"**, so don't read PH-15 as verified end to end; and the habit of re-verifying a spec
+  against `main` before building is **eight runs old** — nothing wrong on PH-19, PH-20 or
+  PH-21's own re-check, something materially wrong on PH-17, on PH-22's read-site census, and on
+  PH-18 three times.
 
 - **PH-18 — the emergency screen makes claims it cannot support.** *(Entry rewritten
   2026-09-13: six rounds of re-verification had accreted as six layers of line-drift
@@ -317,14 +232,6 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
   three times; a run that finds nothing is the evidence that it is converging, not that it
   should stop.
 
-- **PH-14, PH-15 and PH-16 — all shipped 2026-08-30** (PRs #47, #48, #49); the Ledger
-  rows are the full account. Between them: `deleteAccount()` clears the agent transcript
-  through `POST /reset` before touching anything else and refuses to proceed if it can't,
-  redacts `fosterName` and marks every application `withdrawn`, and `applications`'s foster
-  update branch pins every field but `fosterName`. **The live rules check two of them asked
-  for could not be run and is PH-15b under "Needs a human"** — read it before treating
-  those as verified end to end.
-
 ### Needs a human — PARKED, not pending; archived 2026-09-11
 
 Three items, all parked, none discharged, each wanting a signed-in human this loop cannot be:
@@ -343,6 +250,62 @@ Per the README's "nobody uses this app yet", the length of that list is not debt
 them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
+
+- 2026-09-14 — PH-22 `[large]` — PR #__ — **`normalizeDog()` still fills the three holes a
+  card's layout needs, but it now writes down that it had to, and nine surfaces stopped printing
+  the filling as the shelter's answer.** `RichDog` gains `derived: {fosterWeeks, size,
+  energyLevel}`, set by resolving each field to `null` first and defaulting second — so the
+  question "did anyone record this?" survives the defaulting instead of being answered by it.
+  Two borderline cases were called deliberately and are tested as such: **bucketing a recorded
+  `weight_lbs` counts as recorded** (restating a weight is not inventing a size), and so does
+  `parseLegacyLength()` on free text somebody wrote. `fosterWindow()` takes `number | null` and
+  returns `recorded: false` with a null total, null label, no bar and no `endDate` — which is
+  the sharp half, because `foster_weeks` is absent on **all 19** roster dogs, so every countdown
+  this app has ever shown a foster ("12 days left", an end date, a progress bar) was arithmetic
+  from a constant. Rendering goes through **one** component, `components/Unrecorded.tsx` plus
+  one class — the shape `design-consistency.md` asked for, and `ProfileAttribution` was checked
+  first and is a different thing (it attributes a *paragraph* whose author is in doubt; this is
+  an inline stand-in for a *value* nobody supplied). `matchReasons()` **says nothing** rather
+  than saying "Not recorded": a slot promised a value gets the component, a sentence that was
+  never owed gets silence.
+
+  **Re-verifying the spec against `main` paid for an eighth consecutive run**, and this time on
+  the census rather than on a line number: the entry named seven read sites and there are nine.
+  It missed `AdoptionProfile.tsx:48` — `sizeLabel(dog.size)` on the **shared adoption link**,
+  the one surface in this app read by a stranger deciding about a real animal, and the exact
+  surface PH-17, PH-20 and PH-21 each hardened in turn — and `DogDetailView.tsx:94`'s subhead.
+  It also did not name `MapView.tsx:81`, where the "easy" sort filters on `energyLevel <= 2`: a
+  claim wearing a filter's clothes, and it sat one `&&` away from `good_with_kids === true`,
+  which had been refusing unrecorded answers correctly all along. Both are in this PR.
+
+  In scoring, `compat()`'s documented three-way is extended one layer earlier rather than
+  widened: unknown size scores `0` and unknown energy `-4`, each slightly below its term's
+  midpoint, so a recorded match outranks an unknown and an unknown outranks a recorded mismatch.
+  Every home/experience rule now waits on its input having been recorded — the case that makes
+  this concrete is a dog named "Border collie" with no `energy_level`, which `guessEnergy()`
+  scored 4 and which then paid both the apartment and the first-timer penalty on the strength of
+  its name. `matching.ts:50`'s justification cited a `score >= 45` cutoff in `DiscoveryView`;
+  **there has never been one**, and `DiscoveryView.tsx:34-35` carries the opposite comment. The
+  reason is ranking, not admission, and the comment now says so. *(`CLAUDE.md` repeats the same
+  dead cutoff under "Unknown is not a claim" — a sentence for Sharang; this loop does not edit
+  that file.)* Two **stated contracts that were false** are corrected in place:
+  `shelterDog.ts`'s "an absent key is 'not recorded', which `normalizeDog()` already knows how
+  to render" (wrong since RS-6, and written *by* the careful path *about* the careless one) and
+  the same claim in `types.ts`.
+
+  Tests: 12 new (`dog.test.ts` is new — 7 cases on the flags and `recordedStay`; 4 in
+  `matching.test.ts` pinning the match > unknown > mismatch ordering and the collie; 1 in
+  `foster.test.ts` for the no-window branch), 120 → **132**, all green, plus build and lint
+  (8 warnings, byte-identical to `main`). **Not verified live, and this one could have been:**
+  dev servers cannot be started from an unattended run, so nothing was rendered in a browser.
+  Every affected function is pure and every one is now covered, but the visual claim — that
+  `.unrecorded` reads correctly on the dark photo overlay in Discovery as well as on cream — is
+  reasoned about, not observed. Worth two minutes from whoever is next in front of it.
+
+  Untouched, as the spec's seam said: the photo fallback (RS-6 solved it with `source`),
+  `shelterFor()`, `parseLegacyLength()`, `compat()`'s existing three-way, and `ageLabel`'s
+  one-month floor — still the one standing lead, now in two places (`dog.ts:66` and
+  `DogProfile.ageMonths`).
 
 - 2026-09-13 — PH-21 `[large]` — PR #81 — **The one paragraph a model wrote is now readable by
   the two people who could correct it, attributed everywhere it appears, and retractable.**
