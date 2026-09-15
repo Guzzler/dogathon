@@ -10,6 +10,7 @@ import { activeApplication, applicationStage } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
 import { createApplication } from "../../lib/applications";
 import { fosterDocId } from "../../lib/session";
+import { Unrecorded } from "../../components/Unrecorded";
 
 export function DogDetailView() {
   const { id = "" } = useParams();
@@ -91,11 +92,11 @@ export function DogDetailView() {
               </span>
             </div>
             <p className="sub" style={{ marginTop: 4, fontWeight: 700, color: "var(--ink-2)" }}>
-              {dog.ageLabel} · {dog.breed} · {sizeLabel(dog.size)}
+              {[dog.ageLabel, dog.breed, !dog.derived.size && sizeLabel(dog.size)].filter(Boolean).join(" · ")}
             </p>
             <div className="row" style={{ gap: 7, marginTop: 10, flexWrap: "wrap" }}>
               <span className="chip butter" style={{ fontWeight: 800 }}>
-                🗓️ {dog.fosterLength} foster
+                🗓️ {dog.derived.fosterWeeks ? <Unrecorded what="Foster length" /> : `${dog.fosterLength} foster`}
               </span>
               {dog.in_foster_home && (
                 <span className="chip sage" style={{ fontWeight: 800 }}>
@@ -130,16 +131,20 @@ export function DogDetailView() {
             <Section title="Requirements">
               <div className="card" style={{ padding: "4px 17px" }}>
                 <Row k="Energy">
-                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                    <div style={{ width: 74, height: 7, borderRadius: 100, background: "var(--cream-2)", overflow: "hidden" }}>
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${(dog.energyLevel / 4) * 100}%` }}
-                        transition={{ delay: .2, duration: .5 }}
-                        style={{ height: "100%", borderRadius: 100, background: "var(--coral)" }} />
+                  {dog.derived.energyLevel ? <Unrecorded /> : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <div style={{ width: 74, height: 7, borderRadius: 100, background: "var(--cream-2)", overflow: "hidden" }}>
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${(dog.energyLevel / 4) * 100}%` }}
+                          transition={{ delay: .2, duration: .5 }}
+                          style={{ height: "100%", borderRadius: 100, background: "var(--coral)" }} />
+                      </div>
+                      <b style={{ fontSize: 13.5 }}>{ENERGY_WORD[dog.energyLevel]}</b>
                     </div>
-                    <b style={{ fontSize: 13.5 }}>{ENERGY_WORD[dog.energyLevel]}</b>
-                  </div>
+                  )}
                 </Row>
-                <Row k="Size"><b>{sizeLabel(dog.size)}{dog.weight_lbs != null && ` · ${dog.weight_lbs} lb`}</b></Row>
+                <Row k="Size">
+                  {dog.derived.size ? <Unrecorded /> : <b>{sizeLabel(dog.size)}{dog.weight_lbs != null && ` · ${dog.weight_lbs} lb`}</b>}
+                </Row>
                 {(dog.groomingLevel || dog.coatLength) && (
                   <Row k="Grooming"><b>
                     {[dog.groomingLevel && (dog.groomingLevel === "low" ? "Low" : "High"),
@@ -149,8 +154,14 @@ export function DogDetailView() {
                 <Row k="Good with kids"><Yes ok={dog.good_with_kids} /></Row>
                 <Row k="Good with dogs"><Yes ok={dog.good_with_dogs} /></Row>
                 <Row k="Good with cats"><Yes ok={dog.goodWithCats} /></Row>
-                <Row k="First-time friendly"><Yes ok={dog.energyLevel <= 2} /></Row>
-                <Row k="Foster length"><b>{dog.fosterLength}</b></Row>
+                {/* Derived from energy, so it inherits energy's provenance: `Yes ok={null}` would
+                    read "Not tested", which claims someone tried and couldn't tell. */}
+                <Row k="First-time friendly">
+                  {dog.derived.energyLevel ? <Unrecorded /> : <Yes ok={dog.energyLevel <= 2} />}
+                </Row>
+                <Row k="Foster length">
+                  {dog.derived.fosterWeeks ? <Unrecorded /> : <b>{dog.fosterLength}</b>}
+                </Row>
                 {dog.needsList.length > 0 && <Row k="You'd need" last><b>{dog.needsList.join(", ")}</b></Row>}
               </div>
             </Section>

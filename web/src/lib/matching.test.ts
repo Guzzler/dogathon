@@ -109,3 +109,52 @@ describe("matchReasons", () => {
     expect(matchReasons(dog(), everything)).toHaveLength(4);
   });
 });
+
+/**
+ * PH-22. `compat()`'s unknown-is-not-a-no only ever covered the four fields the normaliser
+ * leaves alone; `size` and `energyLevel` feed the two largest terms in the score and could not
+ * be unknown by the time `scoreDog` saw them. These pin the ordering that fixes: a recorded
+ * match beats an unknown, and an unknown beats a recorded mismatch.
+ */
+describe("an unrecorded size or energy", () => {
+  const picky: FosterIntake = { pref_size: 0, pref_energy: 0, pref_home: "apartment", pref_experience: "first" };
+
+  it("ranks between a recorded match and a recorded mismatch on size", () => {
+    const match = scoreDog(dog({ size: "small", weight_lbs: undefined }), picky);
+    const unknown = scoreDog(dog({ size: undefined, weight_lbs: undefined }), picky);
+    const mismatch = scoreDog(dog({ size: "large", weight_lbs: undefined }), picky);
+    expect(match).toBeGreaterThan(unknown);
+    expect(unknown).toBeGreaterThan(mismatch);
+  });
+
+  it("ranks between a recorded match and a recorded mismatch on energy", () => {
+    const match = scoreDog(dog({ energy_level: 0 }), picky);
+    const unknown = scoreDog(dog({ energy_level: undefined }), picky);
+    const mismatch = scoreDog(dog({ energy_level: 4 }), picky);
+    expect(match).toBeGreaterThan(unknown);
+    expect(unknown).toBeGreaterThan(mismatch);
+  });
+
+  it("does not let an apartment penalty fire on a breed regex's guess", () => {
+    // `guessEnergy()` scores a collie 4, which used to cost this dog the apartment penalty and
+    // the first-timer penalty on the strength of its name. Two dogs differing only in whether
+    // the 4 was recorded must not score the same.
+    const guessed = dog({ breed: "Border collie", energy_level: undefined });
+    const recorded = dog({ breed: "Border collie", energy_level: 4 });
+    expect(guessed.energyLevel).toBe(4);
+    expect(guessed.derived.energyLevel).toBe(true);
+    expect(scoreDog(guessed, picky)).toBeGreaterThan(scoreDog(recorded, picky));
+  });
+
+  it("says nothing about a size or a pace it had to guess", () => {
+    const wants: FosterIntake = { pref_size: 50, pref_energy: 2, pref_experience: "first" };
+    // Same dog, recorded: both sentences appear.
+    expect(matchReasons(dog(), wants).join(" | ")).toMatch(/size range/);
+    expect(matchReasons(dog(), wants).join(" | ")).toMatch(/pace you picked/);
+    // Stripped of both: silence, not a sentence off a breed regex.
+    const guessed = matchReasons(dog({ size: undefined, weight_lbs: undefined, energy_level: undefined }), wants);
+    expect(guessed.join(" | ")).not.toMatch(/size range/);
+    expect(guessed.join(" | ")).not.toMatch(/energy/);
+    expect(guessed.join(" | ")).not.toMatch(/easy first foster/i);
+  });
+});

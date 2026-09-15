@@ -15,26 +15,47 @@ export const prefs = (i: FosterIntake | undefined) => ({
 
 const compat = (ok: boolean | null | undefined) => (ok == null ? -4 : ok ? 6 : -26);
 
+/**
+ * PH-22: the same three-way as `compat()`, one layer earlier.
+ *
+ * `compat()`'s unknown-is-not-a-no is this app's documented care about missing data, and it
+ * only ever applied to the four fields `normalizeDog()` leaves alone. `d.size` and
+ * `d.energyLevel` cannot be unknown by the time `scoreDog` sees them — the normaliser filled
+ * them — and they feed the two largest terms in the whole score. So the unknown case has to be
+ * read off `derived` instead, and it lands *slightly below* each term's midpoint: a recorded
+ * good match should outrank an unknown, and an unknown should outrank a recorded mismatch.
+ *
+ * A score is a ranking, not an answer, so there is no "not recorded" state for the number
+ * itself — only a stop to pretending its input was known.
+ */
+const UNKNOWN_SIZE = 0;    // term spans [-18, 22]
+const UNKNOWN_ENERGY = -4; // term spans [-22, 22]
+
 export function scoreDog(d: RichDog, intake: FosterIntake | undefined): number {
   const p = prefs(intake);
+  const knownSize = !d.derived.size;
+  const knownEnergy = !d.derived.energyLevel;
   let s = 52;
 
-  s += 22 - Math.abs(p.size - SIZE_POS[d.size]) * 0.4;
-  s += 22 - Math.abs(p.energy - d.energyLevel) * 11;
+  s += knownSize ? 22 - Math.abs(p.size - SIZE_POS[d.size]) * 0.4 : UNKNOWN_SIZE;
+  s += knownEnergy ? 22 - Math.abs(p.energy - d.energyLevel) * 11 : UNKNOWN_ENERGY;
 
+  // Every rule below is a claim about this specific dog ("too big for an apartment"), so each
+  // one waits on its input actually having been recorded. Needs-based rules read `needsList`,
+  // which the normaliser never invents, so they fire regardless.
   if (p.home === "apartment") {
-    if (d.size === "large") s -= 14;
-    if (d.energyLevel >= 4) s -= 12;
+    if (knownSize && d.size === "large") s -= 14;
+    if (knownEnergy && d.energyLevel >= 4) s -= 12;
     if (d.needsList.some(n => /yard|fence/i.test(n))) s -= 16;
   }
   if (p.home === "townhouse") {
-    if (d.size === "large") s -= 6;
+    if (knownSize && d.size === "large") s -= 6;
     if (d.needsList.some(n => /yard|fence/i.test(n))) s -= 8;
   }
-  if (p.home === "houseYard" && d.energyLevel >= 3) s += 8;
+  if (p.home === "houseYard" && knownEnergy && d.energyLevel >= 3) s += 8;
 
-  if (p.experience === "first") { if (d.energyLevel <= 1) s += 10; if (d.energyLevel >= 4) s -= 12; }
-  if (p.experience === "experienced" && d.energyLevel >= 3) s += 6;
+  if (p.experience === "first" && knownEnergy) { if (d.energyLevel <= 1) s += 10; if (d.energyLevel >= 4) s -= 12; }
+  if (p.experience === "experienced" && knownEnergy && d.energyLevel >= 3) s += 6;
 
   const t = p.tags;
   const isPuppy = d.age_years < 1;
@@ -46,8 +67,10 @@ export function scoreDog(d: RichDog, intake: FosterIntake | undefined): number {
   if (t.includes("coatShort")) s += d.coatLength == null ? 0 : d.coatLength === "short" ? 8 : -8;
   if (t.includes("coatLong"))  s += d.coatLength == null ? 0 : d.coatLength === "long" ? 8 : -8;
   // Three-way, and the middle case matters: real listings leave compatibility blank
-  // constantly. Scoring unknown as a hard no would push honest records under the
-  // score >= 45 cutoff in DiscoveryView, making real data look emptier than invented data.
+  // constantly. Scoring unknown as a hard no would sink honest records below invented ones in
+  // Discovery's ordering, making real data look emptier than invented data. (It is ranking,
+  // not admission: this comment used to cite a `score >= 45` cutoff in DiscoveryView, and
+  // there has never been one -- `DiscoveryView.tsx` filters on the search string only.)
   if (t.includes("kidsGood"))  s += compat(d.good_with_kids);
   if (t.includes("withDogs"))  s += compat(d.good_with_dogs);
   if (t.includes("withCats"))  s += compat(d.goodWithCats);
@@ -58,14 +81,20 @@ export function scoreDog(d: RichDog, intake: FosterIntake | undefined): number {
 /** The same inputs as scoreDog, in plain language, for the "Why you match" section. */
 export function matchReasons(d: RichDog, intake: FosterIntake | undefined): string[] {
   const p = prefs(intake);
+  const knownSize = !d.derived.size;
+  const knownEnergy = !d.derived.energyLevel;
   const out: string[] = [];
-  if (Math.abs(p.size - SIZE_POS[d.size]) <= 25) out.push(`${sizeLabel(d.size)} — right in your size range`);
+  // Every line here is a sentence shown to the foster about this dog, so a derived input
+  // produces no sentence at all -- "Zoomies energy, exactly the pace you picked" off a breed
+  // regex is the plainest form of the defect PH-22 exists to remove. Saying nothing is the
+  // honest output; `Unrecorded` is for a slot that was promised a value, and this list has none.
+  if (knownSize && Math.abs(p.size - SIZE_POS[d.size]) <= 25) out.push(`${sizeLabel(d.size)} — right in your size range`);
   const de = Math.abs(p.energy - d.energyLevel);
-  if (de === 0) out.push(`${ENERGY_WORD[d.energyLevel]} energy, exactly the pace you picked`);
-  else if (de === 1) out.push(`${ENERGY_WORD[d.energyLevel]} energy, close to your pace`);
-  if (p.home === "apartment" && d.size !== "large" && d.energyLevel <= 2) out.push("Settles well in an apartment");
-  if (p.home === "houseYard" && d.energyLevel >= 3) out.push("Would make full use of your yard");
-  if (p.experience === "first" && d.energyLevel <= 2) out.push("An easy first foster");
+  if (knownEnergy && de === 0) out.push(`${ENERGY_WORD[d.energyLevel]} energy, exactly the pace you picked`);
+  else if (knownEnergy && de === 1) out.push(`${ENERGY_WORD[d.energyLevel]} energy, close to your pace`);
+  if (p.home === "apartment" && knownSize && knownEnergy && d.size !== "large" && d.energyLevel <= 2) out.push("Settles well in an apartment");
+  if (p.home === "houseYard" && knownEnergy && d.energyLevel >= 3) out.push("Would make full use of your yard");
+  if (p.experience === "first" && knownEnergy && d.energyLevel <= 2) out.push("An easy first foster");
   const isPuppy = d.age_years < 1;
   if (p.tags.includes("puppy") && isPuppy) out.push("A puppy — matches what you asked for");
   if (p.tags.includes("adult") && !isPuppy) out.push("Grown adult — past the puppy chaos");

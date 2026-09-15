@@ -118,8 +118,14 @@ export function dogIdFor(shelterId: string, name: string, suffix: string): strin
  * shelter and is never typed, so there is no path by which a form submits someone else's id
  * (the rules refuse it besides).
  *
- * Optional fields are *omitted* rather than written as null, matching `to_dog()`: an absent
- * key is "not recorded", which `normalizeDog()` already knows how to render.
+ * Optional fields are *omitted* rather than written as null, matching `to_dog()`. An absent key
+ * means "not recorded", and as of PH-22 that survives the trip through `normalizeDog()`: it
+ * still fills `foster_weeks`, `size` and `energy_level` so a card can lay itself out, but it
+ * also records on `RichDog.derived` that it had to, and every surface that prints one of the
+ * three renders "Not recorded" instead. Before PH-22 this comment was simply wrong, and had
+ * been since RS-6 shipped it -- a dog typed in here was the *most* likely record in the app to
+ * carry invented facts, because the scraped roster at least gets size and energy from the
+ * shelter's own write-up.
  */
 export function dogFromForm(v: DogFormValues, shelterId: string, now: string): Omit<Dog, "id"> {
   const weight = v.weightLbs.trim() ? Number(v.weightLbs) : null;

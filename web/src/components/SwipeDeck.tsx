@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, useMotionValue, useTransform } from "motion/react";
 import { dogPhotoOrNull, type RichDog } from "../lib/dog";
 import { distanceMi } from "../lib/matching";
+import { Unrecorded } from "./Unrecorded";
 
 type Props = {
   dogs: RichDog[];
@@ -160,7 +161,7 @@ export function CardShell({ dog, me, score, behind }: {
               {[dog.breed, dog.weight_lbs != null && `${dog.weight_lbs} lb`, `${miles.toFixed(1)} mi away`].filter(Boolean).join(" · ")}
             </div>
             <div style={{ fontSize: 13.5, opacity: .95, marginTop: 6, fontWeight: 800 }}>
-              🗓️ {dog.fosterLength} foster
+              🗓️ {dog.derived.fosterWeeks ? <Unrecorded what="Foster length" /> : `${dog.fosterLength} foster`}
             </div>
             <div style={{ display: "flex", gap: 6, marginTop: 11, flexWrap: "wrap" }}>
               {dog.traitList.slice(0, 3).map(t => (

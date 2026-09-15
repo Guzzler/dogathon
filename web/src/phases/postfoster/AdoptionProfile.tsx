@@ -45,7 +45,8 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
 
       <h1 style={{ fontSize: 32, marginTop: 20 }}>{dog.name}</h1>
       <p className="sub" style={{ marginTop: 5, fontWeight: 700, color: "var(--ink-2)" }}>
-        {dog.ageLabel} · {dog.breed} · {sizeLabel(dog.size)} · {profile.weight.value}
+        {[dog.ageLabel, dog.breed, !dog.derived.size && sizeLabel(dog.size), profile.weight.value]
+          .filter(Boolean).join(" · ")}
         {profile.weight.source === "shelter" && <span className="ap-src"> · intake weight</span>}
       </p>
 

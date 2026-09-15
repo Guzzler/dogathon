@@ -54,29 +54,45 @@ export function applicationStage(a: ActiveApplication): { verb: string; to: stri
 const DAY = 86_400_000;
 
 export interface FosterWindow {
-  /** Total commitment, e.g. "6 weeks" / "3 months". */
-  total: string;
+  /** False when nobody recorded an expected stay — see `recorded` below. */
+  recorded: boolean;
+  /** Total commitment, e.g. "6 weeks" / "3 months". `null` when unrecorded. */
+  total: string | null;
   /** Set once a pickup date exists — until then there's nothing to count down from. */
   started: boolean;
   daysLeft: number;
-  /** "5 weeks left", "3 days left", "Last day", "2 days over". */
-  leftLabel: string;
+  /** "5 weeks left", "3 days left", "Last day", "2 days over". `null` when unrecorded. */
+  leftLabel: string | null;
   /** 0–1, for progress bars. */
   progress: number;
   endDate: Date | null;
 }
 
+/** What a dog with no recorded stay produces: no total, no countdown, no bar (PH-22). */
+const NO_WINDOW: FosterWindow = {
+  recorded: false, total: null, started: false, daysLeft: 0,
+  leftLabel: null, progress: 0, endDate: null,
+};
+
 /**
  * The countdown is anchored to `pickup.date` from the Match phase — that's when the dog
  * actually arrives, so it's the only honest start. Before pickup we only show the total.
+ *
+ * PH-22: `totalWeeks` is nullable because it has to be. Every dog in the committed roster is
+ * missing `foster_weeks`, `normalizeDog()` used to fill that with 6, and this function turned
+ * the 6 into "12 days left", a progress bar and an end date — a date a foster plans around,
+ * arithmetic all the way down from a constant. Pass `null` (via `RichDog.derived.fosterWeeks`)
+ * and every one of those goes away rather than rendering a number nobody chose.
  */
 export function fosterWindow(
-  totalWeeks: number,
-  totalLabel: string,
+  totalWeeks: number | null,
+  totalLabel: string | null,
   pickupDate: string | null | undefined,
 ): FosterWindow {
+  if (totalWeeks == null || totalLabel == null) return NO_WINDOW;
+
   const base: FosterWindow = {
-    total: totalLabel, started: false, daysLeft: totalWeeks * 7,
+    recorded: true, total: totalLabel, started: false, daysLeft: totalWeeks * 7,
     leftLabel: `${totalLabel} commitment`, progress: 0, endDate: null,
   };
   if (!pickupDate) return base;
@@ -103,7 +119,7 @@ export function fosterWindow(
   else if (daysLeft < 56) leftLabel = `${Math.round(daysLeft / 7)} weeks left`;
   else leftLabel = `${Math.round(daysLeft / 30.4)} months left`;
 
-  return { total: totalLabel, started: true, daysLeft, leftLabel, progress, endDate: end };
+  return { recorded: true, total: totalLabel, started: true, daysLeft, leftLabel, progress, endDate: end };
 }
 
 /* ---------- journey navigation ---------- */

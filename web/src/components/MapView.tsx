@@ -78,7 +78,9 @@ export default function MapView({ dogs, me, scoreOf, onOpen }: {
     let out = selS ? selS.dogs : dogs;
     // Deliberately excludes unknowns: a "first-time friendly" filter should be conservative,
     // and leaving a dog out is not a claim about it.
-    if (!selS && sort === "easy") out = out.filter(d => d.energyLevel <= 2 && d.good_with_kids === true);
+    // `good_with_kids === true` already refuses an unrecorded answer; PH-22 makes energy do the
+    // same, so "Easy first foster" can't be satisfied by a breed regex's guess.
+    if (!selS && sort === "easy") out = out.filter(d => !d.derived.energyLevel && d.energyLevel <= 2 && d.good_with_kids === true);
     if (!selS && sort === "small") out = out.filter(d => d.size === "small");
     const copy = [...out];
     if (sort === "near") copy.sort((a, b) => distanceMi(me, a.shelter) - distanceMi(me, b.shelter));

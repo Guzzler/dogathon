@@ -22,6 +22,25 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("fosterWindow with no recorded stay", () => {
+  /**
+   * PH-22. Every dog in the committed roster is missing `foster_weeks`, so this branch is the
+   * real roster's normal case. What it must not produce is the old behaviour: a countdown, a
+   * progress bar and an end date computed from `normalizeDog()`'s constant 6.
+   */
+  it("produces no total, no countdown, no bar and no end date, pickup or not", () => {
+    for (const pickup of [null, "2026-03-01"]) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(at(2026, 3, 15));
+      expect(fosterWindow(null, null, pickup)).toEqual({
+        recorded: false, total: null, started: false, daysLeft: 0,
+        leftLabel: null, progress: 0, endDate: null,
+      });
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("fosterWindow", () => {
   it("shows the commitment instead of a countdown while there is no pickup date", () => {
     expect(windowOn(at(2026, 3, 15), null)).toMatchObject({
