@@ -135,12 +135,13 @@ they are the product asserting things about a real animal that nobody observed, 
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
-**2026-09-14 — PH-22 was queued and shipped on the same run, the fourth running.** The
-`[large]` slot has sat in this doc for six consecutive runs and is empty again. How the slot was
-found is in `README.md`'s fallback chain; *what* it found — a convention rather than a field,
-and a stated contract as the cheapest measurement there is — is in the Ledger row and in
+**2026-09-15 — PH-22 shipped the day it was queued (PR #83), the fifth such run running, and
+the slot is now filled by a *label*: PH-18 is marked `[large]` below.** It was always screen-
+sized — a hand-drawn map to delete, a headline card to make conditional, and two invented
+phone numbers to remove — and it has been the only open item in the repo since 2026-09-09
+while five runs went looking elsewhere for something big. How PH-22's slot was found is in
+`README.md`'s fallback chain; what it found is its Ledger row and
 [`archive/production-hardening-ph22-2026-09-14.md`](archive/production-hardening-ph22-2026-09-14.md).
-The rule it produced is the section directly below, and that is the part worth keeping here.
 
 ### A default is honest when it is a fallback for the layout, and dishonest when it is an answer (2026-09-14)
 
@@ -166,7 +167,7 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
    −4 already does for the four fields the normaliser passes through. Extending that to size and
    energy is the same decision applied one layer earlier, not a new one.
 
-- **PH-22 `[large]` — shipped 2026-09-14 (PR #__); the Ledger row is the full account.** The
+- **PH-22 `[large]` — shipped 2026-09-14 (PR #83); the Ledger row is the full account.** The
   queue entry, with its coverage counts and its read-site census, is archived verbatim in
   [`archive/production-hardening-ph22-2026-09-14.md`](archive/production-hardening-ph22-2026-09-14.md),
   along with the two things re-verification found it had missed. The design section above stays
@@ -181,7 +182,7 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
   PH-21's own re-check, something materially wrong on PH-17, on PH-22's read-site census, and on
   PH-18 three times.
 
-- **PH-18 — the emergency screen makes claims it cannot support.** *(Entry rewritten
+- **PH-18 `[large]` — the emergency screen makes claims it cannot support.** *(Entry rewritten
   2026-09-13: six rounds of re-verification had accreted as six layers of line-drift
   narration on top of a spec that changed three times. What follows is the spec as it now
   stands, with only the corrections that are still live. The superseded rounds are in the git
@@ -189,7 +190,7 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
 
   `web/src/phases/careplan/Emergency.tsx` renders a hand-drawn SVG street map labelled
   "Presidio Park" and "Bay" with a pin for the nearest vet — a picture of nowhere, on the screen
-  someone opens when something is wrong — and `emergencyContacts` (`data.ts:204-228`) offers
+  someone opens when something is wrong — and `emergencyContacts` (`data.ts:204-229`) offers
   "VCA SF Veterinary Specialists · Nearest 24h emergency · 1.2 mi · Open now" and "Copper's
   Dream Rescue · Foster coordinator · On-call today" regardless of where the foster is or which
   shelter the dog came from. `:113` renders `{nearest.distanceMi} mi · 4 min`, and the **4 min**
@@ -223,14 +224,28 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
     made-up number on the screen a foster opens in an emergency is worse than a made-up
     distance, and it is the same delete.
 
+  - **The two rows PH-18 keeps are the two the screen has never shown properly, and one of
+    them has never rendered at all.** `:131` resolves the poison tile as
+    `contacts.find((c) => /poison/i.test(c.role))` — and neither national line's **role** is
+    "poison": both read `"Toxin ingestion"` (`data.ts:216-228`). The names match the regex;
+    the field it is tested against does not. So `poison` is `undefined` on every render, the
+    `{poison && ...}` quick-action at `:187` has never appeared, and both honest rows fall
+    through to `other` and render as ghost buttons under **"Other contacts"** at the bottom of
+    the screen. Verified by evaluating the predicate against all four shipped roles: `[false,
+    false, false, false]`. Fix the field, not the regex — `role` is the right thing to branch
+    on for a *category*, so the rows want a category (`kind: "poison" | "vet" | "shelter"`),
+    not a second substring test.
+
   Verify by rendering with a dog whose shelter is not Copper's Dream and reading the screen for
-  anything still guessed. *(A line for the ledger, not a code change: `CLAUDE.md` lists
+  anything still guessed, and by confirming a poison line reaches the quick-action row rather
+  than "Other contacts". *(A line for the ledger, not a code change: `CLAUDE.md` lists
   "Emergency Mode (24h vet map)" as explicitly out of scope, and it shipped anyway. The scope
-  note is stale.)* **Re-verified against `main` 2026-09-13 — a seventh consecutive run, and the
-  first with no corrections at all**: PR #79 touched only `adoption.py`, `server.py`, `types.ts`
-  and tests, so every citation above re-reads exactly. The habit is not free and has now paid
-  three times; a run that finds nothing is the evidence that it is converging, not that it
-  should stop.
+  note is stale.)* **Re-verified against `main` 2026-09-15 — a ninth consecutive run, and the
+  first in three to find something**: PR #83 touched nothing this entry cites, so every line
+  number re-reads (`data.ts`'s array is 204–**229**, off by one in the old wording), but
+  re-reading the screen *whole* rather than only the cited lines produced the correction above.
+  That is the habit's fourth paid run out of nine, and it sharpens what "re-verify" means:
+  checking the citations is not checking the claim.
 
 ### Needs a human — PARKED, not pending; archived 2026-09-11
 
@@ -251,7 +266,7 @@ them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
 
-- 2026-09-14 — PH-22 `[large]` — PR #__ — **`normalizeDog()` still fills the three holes a
+- 2026-09-14 — PH-22 `[large]` — PR #83 — **`normalizeDog()` still fills the three holes a
   card's layout needs, but it now writes down that it had to, and nine surfaces stopped printing
   the filling as the shelter's answer.** `RichDog` gains `derived: {fosterWeeks, size,
   energyLevel}`, set by resolving each field to `null` first and defaulting second — so the

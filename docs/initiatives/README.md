@@ -183,16 +183,11 @@ Compressed:
   the defect would have survived its own fix. Archived verbatim on 2026-09-12 in
   [`archive/readme-large-slot-2026-09-12.md`](archive/readme-large-slot-2026-09-12.md), because
   the two entries below are now its third, fourth, fifth and sixth restatements.
-- **2026-09-11 / 09-12 — the fifth and sixth links, and both are the fourth link pointed at a
-  second consumer.** PH-19 came from tracing every value in `buildAgentBrief`'s output back to
-  where it is written; PH-20 came from asking the same of `generate_adoption_profile`, which was
-  PH-19's own parting lead. Three things survive compression: **a method is reusable against a
-  second consumer, and that is cheaper than inventing a new one**; **a lead is a measurement
-  too, and half of PH-19's was wrong** (the Match prompts pass the tense test — a result, not a
-  non-finding); and **re-verifying the queue entry, not only the shipped claim, paid for itself
-  six consecutive runs** — against PH-18 it found a fix that would have re-introduced its own
-  defect, then a spec that could not be built as written because no shelter record in this app
-  carries a phone number. Both entries verbatim in
+- **2026-09-11 / 09-12 — the fifth and sixth links: the fourth link pointed at a second
+  consumer** (PH-19 from `buildAgentBrief`, PH-20 from `generate_adoption_profile`, which was
+  PH-19's own parting lead). **A method is reusable against a second consumer, and that is
+  cheaper than inventing a new one**; **a lead is a measurement too, and half of PH-19's was
+  wrong**. Verbatim in
   [`archive/readme-large-slot-2026-09-13.md`](archive/readme-large-slot-2026-09-13.md).
 
 - **2026-09-13 — the seventh link, and it is the sixth pointed at the lead the sixth left.**
@@ -210,14 +205,11 @@ Compressed:
     retraction button on a paragraph nobody can read is not a fix. **When a lead describes
     something a user cannot do, check first whether they can see the thing they cannot do it
     to.**
-  - **Consolidating beats compressing once a doc has one rule told four ways.**
-    `production-hardening.md` went 386 → 437 with this run's additions and came back to **389**
-    — under for a second consecutive run — mostly by merging four sections (PH-17's, PH-19's,
-    PH-20's and the tense test's) into one that states the rule four times and preambles it
-    once. That is the 2026-09-12 "cut the layer that points at a layer" rule finding its next
-    shape: when several layers each point at a *different* archive but say the same thing,
-    the cut is a merge, not a deletion. Also cut: six rounds of line-drift narration on PH-18's
-    entry, rewritten as the spec that now stands plus the three corrections still live.
+  - **Consolidating beats compressing once a doc has one rule told four ways.** Merging four
+    sections of `production-hardening.md` (PH-17's, PH-19's, PH-20's and the tense test's) into
+    one that states the rule four times and preambles it once took it 437 → **389**. When
+    several layers each point at a *different* archive but say the same thing, the cut is a
+    merge, not a deletion.
 
 - **2026-09-14 — the eighth link, and it is the first that stops pointing at the last consumer.**
   PH-21 shipped the day it was queued (#81), the third such run running, emptying the slot
@@ -240,10 +232,31 @@ Compressed:
     unknowns. It is also downstream of a normaliser that already erased the unknown from two of
     the three largest terms in the same score. **Measure the layer that runs before the one that
     advertises its care.**
-  - **A doc's note to another doc is worth three sentences.** `design-consistency.md` had left
-    one bullet asking that PH-21's attribution line be one class across three views, for PR #11's
-    reason; PH-21 shipped exactly that (`ProfileAttribution` + one class). The note was carried
-    forward this run to PH-22, which has seven such sites.
+  - **A doc's note to another doc is worth three sentences.** `design-consistency.md`'s
+    one-bullet request that PH-21's attribution be one class across three views shipped exactly
+    that; carried forward to PH-22, it shipped `Unrecorded` + one class across nine sites.
+
+- **2026-09-15 — the ninth link, and it is the first link again: the slot was a label all
+  along.** PH-22 shipped the day it was queued (PR #83), the fifth such run running, emptying
+  the slot everywhere and leaving PH-18 as the only open item — for the seventh run in a row.
+  Five consecutive runs then went looking for something big while **PH-18 sat there being
+  something big**: a hand-drawn map of nowhere to delete, a headline card to make conditional,
+  two invented phone numbers to remove, on the screen someone opens when something is wrong.
+  It is marked `[large]` now. Two things generalise:
+  - **The first link is not spent after it works once.** The 2026-09-01/02/03 entries
+    established "re-read the queue before inventing", and the four runs after them each found
+    their slot by measuring, which quietly turned the chain into *measure first*. The queue had
+    held a `[large]` item the whole time; nobody re-read it because the last four runs had
+    taught that re-reading was the step that comes back empty.
+  - **Checking the citations is not checking the claim.** PH-18 has now been re-verified nine
+    consecutive runs. Runs seven and eight found nothing, because both checked whether the line
+    numbers still resolved — and they did. This run re-read the *screen* instead and found that
+    `/poison/i.test(c.role)` matches none of the four shipped roles (all read `"Toxin
+    ingestion"`; the regex belongs on `name`), so the Poison Control quick-action has **never
+    rendered** and both national lines — the only two rows on that screen PH-18 was going to
+    keep — fall through to "Other contacts" at the bottom. The invented one is the headline
+    with a red *Call Vet Now* button beneath it. A re-verification that only re-resolves
+    citations converges on nothing; the thing being verified is the claim.
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -302,21 +315,18 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 48 files as of 2026-09-14** — counted with `ls`, because the running tally
+**`archive/` holds 50 files as of 2026-09-15** — counted with `ls`, because the running tally
 this sentence used to carry had drifted from the directory (it read "twenty-eight" on
 2026-09-10, when a count would have said thirty-five). **Count it, don't increment it** — and
 the sentence itself proved the point a second time on 2026-09-13, when it was found carrying
-two contradictory parentheticals about how many the *previous* run had added. The 2026-09-13
-run added two; **this run added five**, one per initiative doc plus a second from
-`production-hardening.md` and one from this file, because queuing PH-22 pushed all three docs over at once — the first
-time that has happened. Two landed under (DC 400, RS 397) and **`production-hardening.md` did
-not: 412, over by twelve, a fifth over-run on that doc in six runs.** Recorded rather than
-hidden, per the rule below, and the 2026-09-11 prescription still looks right: that doc is
-structurally at its ceiling. What is now clear after five attempts is that the next cut there
-has to come out of the **Task queue**, which is 217 of its 412 lines — not from prose, not from
-the Ledger, and not from "Needs a human", all of which have been tried. The queue is that size
-because it carries two full specs at once (PH-18, open since 2026-09-09, and PH-22); a run that
-ships PH-18 buys back a hundred lines without anyone compressing anything. The eleven-entry narration of which doc was
+two contradictory parentheticals about how many the *previous* run had added. The 2026-09-13 run added two, the 2026-09-14 run five; **this run added one**, and all four
+docs landed under (PH 390, DC 397, RS 397, README 396). The 2026-09-14 prediction held exactly:
+it said `production-hardening.md` was at 412 because it carried two full specs at once and that
+**shipping one of them buys back a hundred lines without anyone compressing anything**. PH-22
+shipped and the doc is 390 — a twenty-two-line fall from deleting a spec, against six lines
+added to PH-18 and a paragraph rewritten. That is worth keeping over the five over-run
+narrations it replaces: **a doc at its ceiling because it holds two specs is not over-long, it
+is mid-flight**, and the cheapest thing to do about it is ship. The eleven-entry narration of which doc was
 how many lines on which date is now in
 [`archive/readme-docsize-2026-09-10.md`](archive/readme-docsize-2026-09-10.md) — archived for
 exactly the reason the `[large]` slot log was archived the run before, which is the rule

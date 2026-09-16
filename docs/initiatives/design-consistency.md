@@ -169,17 +169,11 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
 
 ## Task queue
 
-- **DC-10 `[large]` — shipped 2026-09-08 (PR #71); the Ledger row is the full account.** The
-  two stylesheets are down to what the app renders, and the measurement the queue entry was
-  written from was itself over-reported by five classes — see the row. Its original spec is
-  archived verbatim alongside the design answer, since both orderings it turned on are now
-  restated by the settled section above.
-
-- **DC-4 — shipped 2026-09-08 (PR #71) as a rider on DC-10**, which is what its own entry
-  invited and the DC-9-on-DC-8 precedent it cited. `ci.yml`'s `frontend` job now has three
-  guard steps; the new one is **"Palette change notice"**. Verified on a throwaway commit the
-  way DC-1 asked and DC-6 actually did — both cases, though locally rather than on a real
-  Actions run. See the Ledger row for exactly what that does and does not prove.
+- **DC-10 `[large]` and DC-4 — both shipped 2026-09-08 (PR #71), DC-4 as a rider; the Ledger
+  rows are the full account.** The two stylesheets are down to what the app renders (the
+  entry's own measurement over-reported by five classes), and `ci.yml`'s `frontend` job gained
+  a third guard step, **"Palette change notice"** — verified on throwaway commits locally, not
+  on a real Actions run, which is the DC-1 caveat and still open.
 
 - **This doc's queue is now empty of open items, and the repo's `[large]` slot is empty with
   it (2026-09-08, left for `dogathon-plan`).** DC-10 and DC-4 were the last two, so
@@ -221,6 +215,15 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
     `lib/adoptionSource.ts` — one line and one class (`.profile-attrib`, the withdrawn state a
     data attribute) for all three surfaces. A one-bullet note in the second-ranked doc changed
     the shape of an item built out of the third, at a cost of three sentences.
+  - **2026-09-15 — the `carePlan.css` re-count this bullet kept asking for is done, and the
+    parked retokenisation is a little over half the size it is recorded as.** Counted the same
+    way the 2026-09-07 figure was: **24 hex literals and 38 `rgb(`/`rgba(` — 62, not ~115 —
+    against 133 `var(--` uses**, in 1136 lines across 129 distinct class selectors. DC-8's
+    re-homing and DC-10's deletion pass took the literals down with the rules they lived in, so
+    the number in "What's parked" describes a file that no longer exists. **It stays parked
+    anyway** — the bar there is "someone commissions a palette pass on purpose", which is about
+    intent and not about volume, and 62 literals is still a repaint by volume. What changes is
+    that whoever commissions it is now sizing it honestly.
   - **The same note now applies to PH-22**, which is queued in `production-hardening.md` and
     lands on Discovery. It has to render "not recorded" for a foster duration, a size and an
     energy level across **seven** call sites (`SwipeDeck`, `DogDetailView` twice, `SavedView`
@@ -249,18 +252,12 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
 - **DC-3 — CLOSED 2026-08-28.** The guard had never once evaluated a diff (depth-1 checkout,
   no merge base, `|| true` failing open); DC-6 fixed both, verified from real Actions runs.
   Diagnosis in [`archive/design-consistency-dc3-2026-09-07.md`](archive/design-consistency-dc3-2026-09-07.md).
-- **DC-4 — the original spec (2026-08-26; ungated 2026-08-28); the open entry is at the top of
-  this queue.** PR #11's damage was spread across five files, so DC-1's stray-literal check
-  would have caught *part* of it — the `:root` token rewrite and the `pawthwayTheme.palette`
-  rewrite, which were the actual repaint, not at all. Fix the **reporting** half, not the
-  failing half: when a PR's diff touches `web/src/theme.css` or `web/src/brand.ts`, emit a
-  `::warning::` plus a `$GITHUB_STEP_SUMMARY` block naming the files and showing the changed
-  token lines. It must **not** `exit 1` — editing the palette on purpose is allowed, and this
-  doc's goal is that a repaint be *visible in review*, not blocked. Add it as a step in
-  `ci.yml`'s `frontend` job beside "Design token guard", reusing the same `origin/main...HEAD`
-  diff, which DC-6 made resolve. Verify on two throwaway commits the way DC-1 was: a
-  `theme.css` `:root` edit produces the warning and a **green** job; a PR touching neither
-  exempt file produces no warning at all.
+- **DC-4's original spec (2026-08-26) — archived 2026-09-15** to
+  [`archive/design-consistency-dc4spec-2026-09-15.md`](archive/design-consistency-dc4spec-2026-09-15.md).
+  It was a spec pointing at the shipped entry at the top of this queue, which points at the
+  Ledger row: the README's "cut the layer that points at a layer" applied. Read it before
+  changing what the palette notice reports — the reasoning for warning rather than failing is
+  only there.
 - **DC-5 `[large]` — shipped 2026-09-05 (PR #65); the Ledger row is the full account.** The
   frame widens and the two screens that suffered from the cap use the room. This doc has now
   held the repo's `[large]` slot for four consecutive runs (DC-5, DC-7, DC-8, DC-10).
@@ -273,13 +270,13 @@ review of this doc, or a design pass explicitly commissioned as its own
 initiative) decides one is worth doing on purpose. `plan` should not propose
 them from its own judgment about what looks nicer.
 
-**Added 2026-09-07: retokenising `carePlan.css`'s ~115 color literals is parked too.** The
-number is measured and recorded in the settled section above (42 hex, 73 `rgba(`, against 218
-`var()` uses, including four near-identical creams and a purple outside the palette), and DC-8
-is explicitly scoped to exclude it. Replacing 115 literals is a repaint by volume even when
-every resolved value is preserved byte-for-byte — DC-7 needed three new tokens to move *six*
-rules and recorded them as a finding rather than a chore. It stops being parked when someone
-commissions a palette pass on purpose, which is the same bar as the paragraph above.
+**Added 2026-09-07: retokenising `carePlan.css`'s color literals is parked too — now measured
+at 62, not the ~115 this paragraph carried until 2026-09-15** (see the re-count in the queue;
+the settled section's 42/73/218 figures predate DC-8 and DC-10 and describe a file that no
+longer exists, four near-identical creams and an off-palette purple included). Replacing them
+is a repaint by volume even when every resolved value is preserved byte-for-byte — DC-7 needed
+three new tokens to move *six* rules. It stops being parked when someone commissions a palette
+pass on purpose, which is the same bar as the paragraph above.
 
 **No longer parked:** restructuring `.shell`/`.phone`/`.tabbar`. Sharang made
 that call on 2026-08-26 — see the device-agnostic decision above; DC-5 is the

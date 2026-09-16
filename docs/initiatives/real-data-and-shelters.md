@@ -192,30 +192,30 @@ taken by the M4 drift check, which is unrelated and independent of these.)
   is evidence, and *what you measured against* is part of the claim.** Full narration verbatim
   in [`archive/real-data-and-shelters-largeslot-2026-09-14.md`](archive/real-data-and-shelters-largeslot-2026-09-14.md).
 
+- **2026-09-15 — the slot is in `production-hardening.md` for a seventh consecutive run, and
+  this time it was *labelled* rather than measured for.** Fallbacks re-run against this doc
+  again and unchanged: queue empty, no gate opened (RS-12b, RS-6b and RS-8 all still want a
+  signed-in human; M5 still wants a shelter; `git log --all --since=2026-09-12` is this loop's
+  own commits only). Nothing new is implied for this doc — PH-22, whose fix covered the half of
+  RS-6 that RS-6 could not see, shipped as PR #83 and `dogFromForm()`'s omission convention is
+  now safe as written.
+
 - **2026-09-14 — the `[large]` slot is in `production-hardening.md` for a sixth consecutive
   run, and nothing here has changed.** All three fallbacks re-run against this doc again: queue
   empty, no gate opened (RS-12b, RS-6b and RS-8 all still want a signed-in human; M5 still wants
   a shelter; `git log --all --since=2026-09-11` is this loop's own commits only), and measuring
   produced PH-22 one doc over. **But PH-22 is partly about this doc's own work, and that is worth
-  saying here rather than only there.** RS-6's `dogFromForm()` deliberately *omits* an optional
-  field it has no value for — `foster_weeks`, `size`, `energy_level` — and says so in a comment
-  asserting that "`normalizeDog()` already knows how to render" an absent key. It does not; it
-  fills all three with confident defaults. So **a dog a real shelter types in through the RS-6
-  form is currently the *most* likely record to carry invented facts**, because the scraped
-  roster gets `size` and `energy_level` from `enrichment.json` and a hand-entered one gets them
-  from a breed regex. Nothing about the form is wrong and no RS item is implied — the form was
-  right and its callee was not — but whoever builds PH-22 is fixing the half of RS-6 that RS-6
-  could not see, and should read this bullet before assuming the omission convention is safe.
+  saying here rather than only there.** RS-6's `dogFromForm()` omits fields it has no value for
+  — `foster_weeks`, `size`, `energy_level` — and asserted in a comment that `normalizeDog()`
+  "already knows how to render" an absent key. It did not; it filled all three with defaults
+  from a breed regex, making a hand-entered dog the *most* likely record to carry invented
+  facts, while the scraped roster got real values from `enrichment.json`. The form was right
+  and its callee was not. **PH-22 (PR #83) fixed the callee**, so the convention is now safe.
 
-- **2026-09-13 — the fifth consecutive run, recorded for the same reason.** All three fallbacks re-run against this doc rather than
-  carried over: the queue is empty, no gate has opened (RS-12b, RS-6b and RS-8 all still want a
-  signed-in human; M5 still wants a shelter; `git log --all --since=2026-09-10` is this loop's
-  own commits only), and measuring found PH-21 one doc over rather than anything here. Worth
-  recording *here* rather than only there: PH-21's fourth part lands on
-  `ShelterRosterView.tsx`, which is this doc's surface. It does not change what staff can do —
-  it labels the paragraph they already read with who wrote it — so it is correctly PH-21's and
-  not a new RS item, but whoever builds it is editing M3's screen and should read RS-12's
-  ledger row first.
+- **2026-09-13 — the fifth consecutive run, same three fallbacks, same outcome; PH-21 was found
+  one doc over.** Its one note for this doc: PH-21 edits `ShelterRosterView.tsx`, M3's screen,
+  to label the paragraph staff already read with who wrote it. Correctly PH-21's and not an RS
+  item, but read RS-12's ledger row before touching that view.
 
 - **RS-4 — shipped 2026-09-09 (PR #72); the Ledger row is the full account.** M4 is closed:
   `.github/workflows/import-dogs.yml` has a weekly `schedule:` trigger, the scheduled path is
