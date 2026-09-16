@@ -201,29 +201,31 @@ export const scheduleBlocks: ScheduleBlock[] = [
   },
 ];
 
+/**
+ * Only what is true for every caller, everywhere. Both lines below are published national
+ * numbers that claim nothing about where a foster is or which shelter a dog came from.
+ *
+ * Two rows used to sit above them and both were invented (PH-18): "VCA SF Veterinary
+ * Specialists · Nearest 24h emergency · 1.2 mi · Open now" was a distance and an opening state
+ * nobody computed for anybody, and "Copper's Dream Rescue · Foster coordinator · (415) 554-3030"
+ * was a phone number for an organisation that does not exist. On the screen someone opens when
+ * something is wrong, a plausible wrong number is worse than a blank.
+ *
+ * A real `kind: "vet"` row belongs here the day something can source one for an actual
+ * location. Until then the nearest-vet card does not render at all.
+ */
 export const emergencyContacts: EmergencyContact[] = [
-  {
-    name: "VCA SF Veterinary Specialists",
-    role: "Nearest 24h emergency",
-    phone: "(415) 401-9200",
-    distanceMi: 1.2,
-    hours: "Open now · 24 hrs",
-  },
-  {
-    name: "Copper's Dream Rescue",
-    role: "Foster coordinator",
-    phone: "(415) 554-3030",
-    hours: "On-call today",
-  },
   {
     name: "Pet Poison Helpline",
     role: "Toxin ingestion",
+    kind: "poison",
     phone: "(855) 764-7661",
     hours: "24 hrs",
   },
   {
     name: "ASPCA Animal Poison Control",
     role: "Toxin ingestion",
+    kind: "poison",
     phone: "(888) 426-4435",
     hours: "24 hrs",
   },

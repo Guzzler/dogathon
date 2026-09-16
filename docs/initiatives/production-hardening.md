@@ -143,6 +143,12 @@ while five runs went looking elsewhere for something big. How PH-22's slot was f
 `README.md`'s fallback chain; what it found is its Ledger row and
 [`archive/production-hardening-ph22-2026-09-14.md`](archive/production-hardening-ph22-2026-09-14.md).
 
+**PH-18 then shipped the same day it was re-labelled**, the sixth such run running, and **this
+queue is now empty** — no open item, gated or otherwise, outside "Needs a human". The label ran
+out at the same moment the queue did, so the next run's `[large]` slot has nothing to re-read
+here; the two leads PH-18's Ledger row names (a dead keyframe, a button that has never done
+anything) are notes for plan, not queue items, and neither is big.
+
 ### A default is honest when it is a fallback for the layout, and dishonest when it is an answer (2026-09-14)
 
 The tense test asks whether a value could be *wrong about a specific animal*. A derived default
@@ -182,70 +188,11 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
   PH-21's own re-check, something materially wrong on PH-17, on PH-22's read-site census, and on
   PH-18 three times.
 
-- **PH-18 `[large]` — the emergency screen makes claims it cannot support.** *(Entry rewritten
-  2026-09-13: six rounds of re-verification had accreted as six layers of line-drift
-  narration on top of a spec that changed three times. What follows is the spec as it now
-  stands, with only the corrections that are still live. The superseded rounds are in the git
-  history of this file and are not worth a reader's time.)*
-
-  `web/src/phases/careplan/Emergency.tsx` renders a hand-drawn SVG street map labelled
-  "Presidio Park" and "Bay" with a pin for the nearest vet — a picture of nowhere, on the screen
-  someone opens when something is wrong — and `emergencyContacts` (`data.ts:204-229`) offers
-  "VCA SF Veterinary Specialists · Nearest 24h emergency · 1.2 mi · Open now" and "Copper's
-  Dream Rescue · Foster coordinator · On-call today" regardless of where the foster is or which
-  shelter the dog came from. `:113` renders `{nearest.distanceMi} mi · 4 min`, and the **4 min**
-  is a hardcoded travel time nobody computed; it dies with the map. **The two national lines
-  stay** — Pet Poison Helpline and ASPCA Animal Poison Control are published, correct for any US
-  caller, and claim nothing local. Delete the decorative map rather than labelling it.
-  Grounded in the tense test above: `1.2 mi` and `Open now` fail it exactly as a seeded weight
-  does. **The seam:** PH-18 touches `contacts` and `VetMap` only — never `summary` (already
-  optional and already rendering "Not recorded"), never `data.ts`'s journal and milestone
-  exports, never `weightLbs` (PH-19 shipped that half; `:182` now reads "Not recorded").
-
-  Three corrections that are still live, each found by re-verifying rather than by building:
-
-  - **The defect would survive its own fix.** `:130` resolves the headline vet as
-    `contacts.find((c) => c.distanceMi != null) ?? contacts[0]`, so dropping the VCA row makes
-    the fallback bite and the screen renders **Pet Poison Helpline under the heading "Nearest
-    24-hour vet"**, with `nearest.phone` on a *Call Vet Now* button. The two national rows are
-    the ones PH-18 correctly keeps, which is exactly what makes them the fallback. The
-    nearest-vet card must become **conditional on there being a nearest vet**, not merely
-    stripped of its claims; `nearest` is dereferenced unguarded at `:150`, `:153`, `:155` and
-    `:159` (the `tel:` href).
-  - **The coordinator row cannot be sourced as written.** This entry used to say it "comes from
-    the dog's own `shelter`" — but **no shelter record anywhere in this app carries a phone
-    number.** `Shelter` is `{id, name, short, address, lat, lng}` (`shelters.ts:1-3`) and
-    `Dog.shelter` is the same six fields (`types.ts:104`), while an `EmergencyContact` renders
-    as a `tel:` link. Decide deliberately: either the row renders without a call action, or it
-    does not render at all. **Do not add a `phone` to `Shelter` to make the row work** — that
-    field would have to be *filled*, and inventing it is the defect PH-18 exists to remove.
-  - **Both local phone numbers are invented, and one belongs to an organisation that does not
-    exist** — `shelters.ts:13` records Copper's Dream Rescue as *"from the product spec"*. A
-    made-up number on the screen a foster opens in an emergency is worse than a made-up
-    distance, and it is the same delete.
-
-  - **The two rows PH-18 keeps are the two the screen has never shown properly, and one of
-    them has never rendered at all.** `:131` resolves the poison tile as
-    `contacts.find((c) => /poison/i.test(c.role))` — and neither national line's **role** is
-    "poison": both read `"Toxin ingestion"` (`data.ts:216-228`). The names match the regex;
-    the field it is tested against does not. So `poison` is `undefined` on every render, the
-    `{poison && ...}` quick-action at `:187` has never appeared, and both honest rows fall
-    through to `other` and render as ghost buttons under **"Other contacts"** at the bottom of
-    the screen. Verified by evaluating the predicate against all four shipped roles: `[false,
-    false, false, false]`. Fix the field, not the regex — `role` is the right thing to branch
-    on for a *category*, so the rows want a category (`kind: "poison" | "vet" | "shelter"`),
-    not a second substring test.
-
-  Verify by rendering with a dog whose shelter is not Copper's Dream and reading the screen for
-  anything still guessed, and by confirming a poison line reaches the quick-action row rather
-  than "Other contacts". *(A line for the ledger, not a code change: `CLAUDE.md` lists
-  "Emergency Mode (24h vet map)" as explicitly out of scope, and it shipped anyway. The scope
-  note is stale.)* **Re-verified against `main` 2026-09-15 — a ninth consecutive run, and the
-  first in three to find something**: PR #83 touched nothing this entry cites, so every line
-  number re-reads (`data.ts`'s array is 204–**229**, off by one in the old wording), but
-  re-reading the screen *whole* rather than only the cited lines produced the correction above.
-  That is the habit's fourth paid run out of nine, and it sharpens what "re-verify" means:
-  checking the citations is not checking the claim.
+- **PH-18 `[large]` — shipped 2026-09-15 (PR #__); the Ledger row is the full account.** The
+  queue entry, with nine runs of re-verification on it, is archived verbatim in
+  [`archive/production-hardening-ph18-2026-09-15.md`](archive/production-hardening-ph18-2026-09-15.md).
+  Read it before adding any local row back to `emergencyContacts` — it is the record of what a
+  distance, an opening state and a coordinator's phone number cost when nothing sources them.
 
 ### Needs a human — PARKED, not pending; archived 2026-09-11
 
@@ -265,6 +212,45 @@ Per the README's "nobody uses this app yet", the length of that list is not debt
 them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
+
+- 2026-09-15 — PH-18 `[large]` — PR #__ — **The emergency screen no longer tells a foster
+  anything nobody recorded, and the two rows it was meant to keep now render where they were
+  always meant to.** Deleted: a 120-line hand-drawn SVG of Presidio Park, the Bay, a blue route
+  and a "1.2 mi · 4 min" chip whose travel time nobody computed; the "VCA SF Veterinary
+  Specialists · 1.2 mi · Open now" row; and "Copper's Dream Rescue · Foster coordinator ·
+  (415) 554-3030" — an invented number for an organisation that does not exist, on the screen
+  someone opens in an emergency. `emergencyContacts` is now the two published national poison
+  lines and nothing else.
+
+  **Three things the build turned up that the spec had only half of.** (1) The spec's central
+  correction held exactly: stripping the vet row alone would have promoted Pet Poison Helpline
+  into a card headed "Nearest 24-hour vet" under a *Call Vet Now* button, because `nearest` was
+  `find(c => c.distanceMi != null) ?? contacts[0]`. The card is now conditional on
+  `kind === "vet"` and there is no such row, so it renders an honest "No 24-hour vet on file"
+  instead — which means **the delete needed a replacement, not just a guard**: a screen with a
+  hole where the vet was is its own kind of wrong answer. (2) `EmergencyContact` gains
+  `kind: "vet" | "poison" | "shelter"`, per the spec's "fix the field, not the regex". Both
+  poison lines now render as quick actions rather than one, because a category is a filter and a
+  substring test was a `find`. (3) The coordinator row resolves the way the spec's second
+  correction demanded and no other way: **no call action at all.** `DogProfile` gains
+  `shelter?: {name, address}` from the dog's own record, so "Who else to tell" names the real
+  shelter with its real address and offers no `tel:`. No `phone` was added to `Shelter`; that
+  field would have had to be filled.
+
+  Verified by `Emergency.test.tsx` (13 assertions, `renderToStaticMarkup` like
+  `ShelterRosterView.test.tsx`), which locks both invisible halves: that no contact is promoted
+  into the vet card, and that both poison lines reach the quick-action row rather than "Other
+  contacts". A dev server could not be started from this unattended run, so the screen was
+  verified as rendered markup rather than in a browser — the tests assert the exact strings a
+  foster reads, including the absence of "Presidio Park", "<svg" and "4 min".
+
+  **Two leads, neither taken.** `@keyframes cp-pulse-dot` in `carePlan.css:780` is referenced by
+  nothing in `web/src` — dead when the map went, possibly dead before. And the "What to do now ·
+  Triage guide" button at the bottom of the quick-action row is a `<button>` with no `onClick`:
+  it has never done anything, which is a different defect from claiming something false, and
+  outside this seam. *(Also, for Sharang rather than a doc edit: `CLAUDE.md` still lists
+  "Emergency Mode (24h vet map)" as explicitly out of scope, and the map shipped anyway —
+  though as of this PR the out-of-scope line is true again.)*
 
 - 2026-09-14 — PH-22 `[large]` — PR #83 — **`normalizeDog()` still fills the three holes a
   card's layout needs, but it now writes down that it had to, and nine surfaces stopped printing

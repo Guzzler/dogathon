@@ -19,6 +19,13 @@ export interface DogProfile {
   careNeeds: string[];
   backstory: string;
   photoUrl?: string;
+  /**
+   * Where this dog came from, for the one screen that needs to say who else to tell. Name and
+   * address only, because that is all a `Shelter` holds — no shelter record in this app carries
+   * a phone number, and adding one would mean filling it, which is the invention the emergency
+   * screen was cleaned of.
+   */
+  shelter?: { name: string; address: string };
 }
 
 export type TaskKind =
@@ -133,7 +140,16 @@ export interface MedicalSummary {
 
 export interface EmergencyContact {
   name: string;
+  /** Display copy for the row ("Toxin ingestion"). Never branched on — see `kind`. */
   role: string;
+  /**
+   * What the screen does with this row, as a category rather than a substring of `role`.
+   * The emergency screen used to resolve its poison tile with `/poison/i.test(c.role)`, and
+   * neither national line's role is the word "poison" (both read "Toxin ingestion"), so the
+   * tile never rendered once and both honest rows fell through to "Other contacts" at the
+   * bottom. A category the data states is the fix; a second substring test is the same bug.
+   */
+  kind: "vet" | "poison" | "shelter";
   phone: string;
   distanceMi?: number;
   hours?: string;
