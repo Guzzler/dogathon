@@ -777,11 +777,6 @@
   gap: 12px;
 }
 
-@keyframes cp-pulse-dot {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.7); opacity: 0.55; }
-}
-
 /* Was `.cp-emergency-map-card`. The map it wrapped was a drawing of nowhere and is gone
    (PH-18); the card is now just the nearest-vet headline, and only renders when there is one. */
 .cp-emergency-nearest-card {

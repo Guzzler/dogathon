@@ -147,7 +147,12 @@ while five runs went looking elsewhere for something big. How PH-22's slot was f
 queue is now empty** — no open item, gated or otherwise, outside "Needs a human". The label ran
 out at the same moment the queue did, so the next run's `[large]` slot has nothing to re-read
 here; the two leads PH-18's Ledger row names (a dead keyframe, a button that has never done
-anything) are notes for plan, not queue items, and neither is big.
+anything) are notes for plan, not queue items, and neither is big. **2026-09-16 — both are
+closed, and one was closed before it was written down.** The "What to do now · Triage guide"
+`<button>` is already gone: PR #85's own diff deletes it when the quick-action row became
+`poison.map(...)`, so the row's "neither taken" is wrong about its own PR (left as written, per
+the ledger convention, and corrected here). `@keyframes cp-pulse-dot` — referenced by nothing
+under `web/`, dead since the map went — was deleted in the follow-up PR with no other change.
 
 ### A default is honest when it is a fallback for the layout, and dishonest when it is an answer (2026-09-14)
 
@@ -188,7 +193,7 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
   PH-21's own re-check, something materially wrong on PH-17, on PH-22's read-site census, and on
   PH-18 three times.
 
-- **PH-18 `[large]` — shipped 2026-09-15 (PR #__); the Ledger row is the full account.** The
+- **PH-18 `[large]` — shipped 2026-09-15 (PR #85); the Ledger row is the full account.** The
   queue entry, with nine runs of re-verification on it, is archived verbatim in
   [`archive/production-hardening-ph18-2026-09-15.md`](archive/production-hardening-ph18-2026-09-15.md).
   Read it before adding any local row back to `emergencyContacts` — it is the record of what a
@@ -213,7 +218,7 @@ them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
 
-- 2026-09-15 — PH-18 `[large]` — PR #__ — **The emergency screen no longer tells a foster
+- 2026-09-15 — PH-18 `[large]` — PR #85 — **The emergency screen no longer tells a foster
   anything nobody recorded, and the two rows it was meant to keep now render where they were
   always meant to.** Deleted: a 120-line hand-drawn SVG of Presidio Park, the Bay, a blue route
   and a "1.2 mi · 4 min" chip whose travel time nobody computed; the "VCA SF Veterinary
