@@ -105,7 +105,7 @@ describe("MatchView, once the shelter has decided", () => {
     const html = screen({});
     expect(html).toContain("Waiting on shelter review");
     expect(html).not.toContain("said no this time");
-    expect(html).toContain("Schedule pickup");
+    expect(html).toContain("Request a pickup");
   });
 
   it("still says the shelter approved you when only its own steps are ticked", () => {
@@ -116,12 +116,13 @@ describe("MatchView, once the shelter has decided", () => {
   it("replaces a fully-ticked checklist's badge and screen when the application is declined", () => {
     // The case the whole precedence exists for: before RS-11 this rendered
     // "Approved — schedule pickup" on an application that had been refused.
+    // (The copy is "Request a pickup" since PH-23; the point of the case is unchanged.)
     const html = screen({ status: "declined", checklistDone: true });
     expect(html).toContain("couldn&#x27;t approve this application");
     expect(html).toContain("said no this time");
     expect(html).toContain("Browse other dogs");
     // The checklist, the scheduler and the hand-off to Care Plan are all gone.
-    expect(html).not.toContain("Schedule pickup");
+    expect(html).not.toContain("Request a pickup");
     expect(html).not.toContain("Get ready at home");
     expect(html).not.toContain("start Care Plan");
   });
@@ -129,7 +130,7 @@ describe("MatchView, once the shelter has decided", () => {
   it("declines loudly even when the foster has done nothing yet", () => {
     const html = screen({ status: "declined", checklistDone: false });
     expect(html).toContain("said no this time");
-    expect(html).not.toContain("Schedule pickup");
+    expect(html).not.toContain("Request a pickup");
   });
 
   it("shows an approval on the badge without unlocking the scheduler", () => {
@@ -137,7 +138,7 @@ describe("MatchView, once the shelter has decided", () => {
     // that moment books a slot for a home visit that hasn't happened.
     const html = screen({ status: "approved", checklistDone: false });
     expect(html).toContain("SF SPCA approved your application");
-    expect(html).toContain("🔒 Schedule pickup");
+    expect(html).toContain("🔒 Request a pickup");
     expect(html).toContain("Get ready at home");
   });
 
@@ -147,5 +148,52 @@ describe("MatchView, once the shelter has decided", () => {
       expect(html).toContain("Waiting on shelter review");
       expect(html).not.toContain("said no this time");
     }
+  });
+});
+
+/**
+ * PH-23. What this screen is allowed to say about a pickup.
+ *
+ * Nothing had ever told Pawthway a shelter's opening days, appointment times or notice period,
+ * and the screen printed all three under a real organisation's real street address. These cases
+ * pin the absence: a claim that is gone needs a test, or the next person to write warm copy puts
+ * it back. They are rendered rather than driven, so what they prove is the markup -- a dev server
+ * cannot be started from the unattended run that wrote them.
+ */
+describe("MatchView, on what it knows about the shelter's availability", () => {
+  it("does not tell the foster which days the shelter is closed", () => {
+    const html = screen({ checklistDone: true });
+    expect(html).not.toContain("Closed Sundays");
+    expect(html).not.toContain("Closed Sunday");
+    // ...and says instead that it doesn't know, in the one shared phrasing (PH-22's Unrecorded).
+    expect(html).toContain("opening days and times not recorded");
+  });
+
+  it("asks for a time rather than offering one", () => {
+    const html = screen({ checklistDone: true });
+    expect(html).toContain("Request a pickup");
+    expect(html).not.toContain("Schedule pickup");
+    // The window is the app's, in the app's own voice -- never "shelters need".
+    expect(html).toContain("Pawthway takes requests");
+    expect(html).not.toContain("shelters need");
+  });
+
+  it("calls a requested slot requested, on the card and on the timeline", () => {
+    const html = screen({
+      checklistDone: true,
+      pickup: { date: "2099-06-12", time: "1:30 PM", location: "201 Alabama St" },
+    });
+    expect(html).toContain("Pickup requested");
+    expect(html).toContain("hasn&#x27;t confirmed it");
+    expect(html).toContain("Change request");
+    // The last stage is *reached* and never ticked: activeStage() returns 3, so exactly the
+    // three before it carry data-done. A fourth would be the screen answering for the shelter.
+    expect(html.match(/data-done="true"/g)?.length).toBe(3);
+    expect(html).toContain('data-now="true"');
+  });
+
+  it("still keeps the scheduler locked until both sides have finished", () => {
+    const html = screen({ checklistDone: false });
+    expect(html).toContain("🔒 Request a pickup");
   });
 });

@@ -7,13 +7,12 @@ import { useDogs } from "../../hooks/useDogs";
 import { PickupScheduler } from "../../components/PickupScheduler";
 import { DemoShelterPanel } from "../../components/DemoShelterPanel";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_PREP_CHECKLIST, checklistOwner } from "../../checklists";
-import { approvalBadge, approvalDecision, composeApprovalChecklist } from "../../lib/applicationView";
+import { APPLICATION_STAGES, activeStage, approvalBadge, approvalDecision, composeApprovalChecklist } from "../../lib/applicationView";
 import { normalizeDog, thumbBackground } from "../../lib/dog";
 import { downloadIcs } from "../../lib/calendar";
 import { DEMO_MODE } from "../../lib/demoMode";
 import type { ChecklistItem, Pickup } from "../../types";
 
-const STAGES = ["Applied", "Under review", "Approved", "Pickup"];
 
 export function MatchView() {
   const navigate = useNavigate();
@@ -62,7 +61,7 @@ export function MatchView() {
   // The badge tracks only the shelter's own review; scheduling needs both sides finished.
   const shelterApproved = shelterSteps.length > 0 && shelterSteps.every((i) => i.done);
   const approved = approval.length > 0 && approval.every((i) => i.done);
-  const activeIdx = foster.pickup ? 3 : approved ? 2 : 1;
+  const activeIdx = activeStage(approved, Boolean(foster.pickup));
   // The shelter's verdict, which is a different question from "is the paperwork finished".
   // It replaces the badge, and `declined` replaces the whole screen below it -- but it never
   // unlocks the scheduler and never ticks anybody's boxes. See approvalDecision().
@@ -115,7 +114,7 @@ export function MatchView() {
           <div className={`chip ${badge.tone}`} style={{ fontWeight: 800 }}>{badge.label}</div>
           {decision !== "declined" && (
             <div className="tl">
-              {STAGES.map((label, n) => (
+              {APPLICATION_STAGES.map((label, n) => (
                 <div key={label} className="tl-step" data-done={n < activeIdx} data-now={n === activeIdx}>
                   <span className="tl-dot">{n < activeIdx ? "✓" : ""}</span>
                   <small>{label}</small>
@@ -134,10 +133,10 @@ export function MatchView() {
 
         {/* Pickup */}
         <div>
-          <div className="eyebrow" style={{ marginBottom: 9 }}>Schedule pickup</div>
+          <div className="eyebrow" style={{ marginBottom: 9 }}>{foster.pickup ? "Pickup requested" : "Request a pickup"}</div>
           {!approved ? (
             <>
-              <button className="btn" disabled>🔒 Schedule pickup</button>
+              <button className="btn" disabled>🔒 Request a pickup</button>
               <p className="muted" style={{ textAlign: "center", marginTop: 8, fontSize: 12 }}>
                 {shelterApproved
                   ? "Finish your own steps to unlock this."
@@ -153,6 +152,12 @@ export function MatchView() {
                   <div className="muted" style={{ marginTop: 2 }}>{foster.pickup.time} · {foster.pickup.location}</div>
                 </div>
               </div>
+              {/* PH-23: this card used to read as a booking. Nothing has answered it -- the
+                  request is only on the foster's own record, and no shelter can see it yet. */}
+              <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>
+                You asked for this time. {dog.shelter.short} hasn't confirmed it — message them
+                below to agree the day.
+              </p>
               <div className="row" style={{ gap: 8, marginTop: 13 }}>
                 <button
                   type="button"
@@ -174,7 +179,7 @@ export function MatchView() {
                   style={{ flex: 1, margin: 0 }}
                   onClick={() => patchFoster({ pickup: null })}
                 >
-                  Reschedule
+                  Change request
                 </button>
               </div>
             </motion.div>
@@ -190,7 +195,7 @@ export function MatchView() {
             <div className="chat-entry__icon" aria-hidden="true">💬</div>
             <div className="chat-entry__body">
               <div className="chat-entry__title">Message {dog.shelter.short}</div>
-              <div className="chat-entry__sub">Parking, what to bring, how long it takes</div>
+              <div className="chat-entry__sub">Confirm the day · parking, what to bring, how long it takes</div>
             </div>
             <span className="chat-entry__chevron" aria-hidden="true">›</span>
           </button>
@@ -200,7 +205,7 @@ export function MatchView() {
           className="btn sm"
           style={{ margin: "2px auto 0" }}
           disabled={!foster.pickup}
-          title={!foster.pickup ? "Schedule pickup first" : undefined}
+          title={!foster.pickup ? "Request a pickup first" : undefined}
           onClick={goToCarePlan}
         >
           I've got {dog.name} → start Care Plan

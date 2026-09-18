@@ -8,12 +8,11 @@ import { normalizeDog, recordedStay, thumbBackground, type RichDog } from "../..
 import { scoreDog } from "../../lib/matching";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
-import { approvalBadge, approvalDecision, composeApprovalChecklist } from "../../lib/applicationView";
+import { APPLICATION_STAGES, activeStage, approvalBadge, approvalDecision, composeApprovalChecklist } from "../../lib/applicationView";
 import { createApplication, setApplicationStatus } from "../../lib/applications";
 import { fosterDocId } from "../../lib/session";
 import { Unrecorded } from "../../components/Unrecorded";
 
-const STAGES = ["Applied", "Under review", "Approved", "Pickup"];
 
 export function SavedView() {
   const navigate = useNavigate();
@@ -169,12 +168,12 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
   const win = fosterWindow(...recordedStay(d), foster?.pickup?.date);
   const approval = composeApprovalChecklist(foster?.approvalChecklist ?? [], application?.checklist ?? null);
   const approved = approval.length > 0 && approval.every(c => c.done);
-  const activeIdx = foster?.pickup ? 3 : approved ? 2 : 1;
+  const activeIdx = activeStage(approved, Boolean(foster?.pickup));
   const decision = approvalDecision(application?.status);
   const declined = decision === "declined";
   const badge = approvalBadge(decision, d.shelter.short, {
     tone: approved ? "sage" : "butter",
-    label: approved ? "✓ Approved — schedule pickup" : "⏳ Waiting for approval",
+    label: approved ? "✓ Approved — request a pickup" : "⏳ Waiting for approval",
   });
 
   // Best-effort by design: the status write is the shelter's copy of the same fact, and a
@@ -225,7 +224,7 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
       ) : (
         <>
           <div className="tl">
-            {STAGES.map((label, n) => (
+            {APPLICATION_STAGES.map((label, n) => (
               <div key={label} className="tl-step" data-done={n < activeIdx} data-now={n === activeIdx}>
                 <span className="tl-dot">{n < activeIdx ? "✓" : ""}</span>
                 <small>{label}</small>
@@ -235,7 +234,7 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
 
           <p className="muted" style={{ marginTop: 14, lineHeight: 1.5 }}>
             {approved
-              ? `${d.shelter.short} approved you. Finish home prep and lock in a pickup time.`
+              ? `${d.shelter.short} approved you. Finish home prep and ask them for a pickup time.`
               : `${d.shelter.short} works through the approval checklist with you — open Match to see what's outstanding.`}
           </p>
 

@@ -135,80 +135,18 @@ they are the product asserting things about a real animal that nobody observed, 
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
-- **PH-23 `[large]` — the pickup handoff stops speaking for the shelter.** *(Queued 2026-09-17.)*
-  Four of the five phases have been measured against the tense test; **Match never had been**.
-  Measuring it found the defect in its most direct form yet — the app states a specific real
-  organisation's opening days, appointment times, notice period, paperwork duration and what to
-  bring, in that organisation's own first-person voice, and nobody recorded any of it.
-
-  **The census — six claims in three files.** Written out rather than summarised, because a wrong
-  census is what re-verification has caught on PH-17, PH-18 and PH-22:
-  1. `web/src/components/PickupScheduler.tsx:9` — `CLOSED_DAYS = new Set([0, 1])` disables every
-     Sunday and Monday, and the comment at `:8` states the source outright: *"Shelters in this
-     world are closed Sun/Mon -- gives the calendar real gaps to show off."*
-  2. `:114` — printed to the foster as **"Closed Sundays & Mondays"**, under a card headed "Pickup
-     happens at {shelter.name}" with that shelter's real street address at `:70`.
-  3. `:6` — `TIME_SLOTS`, six specific appointment times (9:00 AM … 4:30 PM) nobody published.
-  4. `:10` — `LEAD_DAYS = 2`, printed at `:114` as "earliest pickup is 2 days out", commented
-     *"shelters need a couple days' notice after approval"*.
-  5. `web/src/lib/calendar.ts:61` — the `.ics` DESCRIPTION: *"Bring a carrier or leash and collar,
-     a towel, and proof of address. Allow about 30 minutes for paperwork."* This one **leaves the
-     app** — it is downloaded into the foster's real calendar and survives anything corrected later.
-  6. `src/agent/server.py:79-83` — the system prompt **instructs the model to assert** the same two:
-     "what to bring (carrier or leash and collar, a towel, proof of address), how long the handoff
-     takes (about 30 minutes of paperwork and a walkthrough)".
-
-  **What makes this one item rather than six.** The prompt already carries its own correction and
-  withholds it from exactly these facts: two sentences later, `server.py:83-85` says *"You don't
-  have real parking maps or staff rosters -- speak generally rather than inventing specifics."* The
-  rule was known, written down, and applied only to the facts nobody had got around to inventing.
-  And `:76-78` tells the model the foster *"sees this chat as talking to their shelter's foster
-  coordinator, so answer in that voice"* — so an invented pickup requirement arrives wearing the
-  shelter's authority. That is PH-21's audience axis with the borrowing running the other way.
-
-  **The design answer, and the constraint that forces it.** The obvious fix — have the shelter
-  publish its hours, since M3 built the shelter side — **is blocked by `firestore.rules` as
-  written**, checked rather than assumed: `match /shelters/{shelterId}` (`:86-89`) is `read: if
-  request.auth.uid in resource.data.staffUids` and `write: if false`. A foster cannot read that
-  document at all, staff cannot write it, and widening the read would hand every foster their
-  shelter's `staffUids` list. So:
-
-  > **No shelter has ever had a channel through which to tell this app any of it, so the fix is to
-  > stop saying it — and the replacement is the channel that already exists.** The honest form of
-  > all four logistics facts is the agent chat at `MatchView.tsx:188-195`, whose subtitle already
-  > reads *"Parking, what to bring, how long it takes"* and whose prompt already knows to speak
-  > generally. The app's job is to route the question there, not to pre-answer it.
-
-  **Scope.**
-  - `PickupScheduler.tsx`: delete `CLOSED_DAYS` and the "Closed Sundays & Mondays" clause. Keep
-    `LEAD_DAYS`/`WINDOW_DAYS` as the **app's** booking window and say so in the copy — never
-    "shelters need". `TIME_SLOTS` stays as a chooser (a foster must name a time) but the screen
-    stops implying availability: the confirm verb becomes **Request**, not **Schedule** — PH-18's
-    finding that a delete needs a replacement, not just a guard.
-  - `MatchView.tsx`: the confirmed-pickup card at `:147-185` and `STAGES`' fourth stage read as a
-    booking; label them requested-not-confirmed. **`activeIdx` at `:65` advances to "Pickup" on the
-    foster's own tap** — the timeline is treating the foster's intent as the shelter's answer.
-  - `calendar.ts`: cut the bring-list and the "30 minutes" sentence from `:61`. **Keep
-    `durationMinutes ?? 45` at `:47`** — the 2026-09-14 rule directly below: an `.ics` needs a
-    `DTEND`, so 45 minutes is geometry, while "about 30 minutes for paperwork" is a claim. The two
-    disagreeing today is itself the tell.
-  - `server.py`: cut the two enumerations from `:79-83`, keep the "speak generally" instruction, and
-    leave the `get_dog`/`get_foster` grounding as it is.
-
-  **Verification.** `cd web && npm run build && npm test && ./node_modules/.bin/tsc --noEmit` (not
-  `npx tsc` — see "Six settled things"), plus `uv run pytest`. Add rendered cases in
-  `MatchView.test.tsx`'s existing `renderToStaticMarkup` style asserting "Closed Sundays" is absent,
-  and `pickupIcs` cases asserting the description carries no bring-list and no duration claim while
-  `DTEND` still lands 45 minutes after `DTSTART`. A dev server cannot be started from an unattended
-  run: say plainly what was rendered versus reasoned about.
-
-  **Out of scope, named so it is not half-done: the request/confirm round trip.** Making the slot
-  genuinely confirmed means the shelter answering it, and the shape is proven already by RS-10/RS-11
-  (one writer per field, each side composes). Its cost is a **new foster branch on `applications`'s
-  `update` rule**: today `firestore.rules:74-81` permits the foster exactly one write — `status:
-  "withdrawn"` with `fosterId`/`shelterId`/`dogId`/`createdAt`/`checklist` all pinned — and the
-  `!! fosterName` warning at `:68-73` must be read before touching it. That is its own item.
-  **PH-23 must not widen a rule.**
+- **PH-23 `[large]` — shipped 2026-09-17; the Ledger row is the full account.** All six claims
+  are gone and each has a replacement rather than a hole: the calendar no longer greys out days
+  nobody published, the verb is **Request**, the timeline's fourth stage is **Pickup requested**,
+  the `.ics` says the slot is still only asked for, and the prompt is told not to confirm on the
+  shelter's behalf. Two things worth keeping out of the row. **The census was right about all six
+  and short by one** — `server.py`'s third parenthetical ("what goes home with the dog (medical
+  records, current food, any meds)") is the same class of claim sitting in the same sentence, and
+  leaving it would have been the item's own finding — *look for the exemption next to the rule* —
+  repeated by the fix. And **the timeline is drawn by two screens, not one**: `SavedView` carried a
+  byte-identical `STAGES` and `activeIdx`, so the labels now live in `applicationView.ts` as
+  `APPLICATION_STAGES` + `activeStage()`. The request/confirm round trip remains out of scope and
+  unbuilt; **no rule was widened**.
 
 **2026-09-15 / 09-16 — PH-22 then PH-18 shipped the day each was queued, emptying this queue
 entirely, and PH-18's two parting leads are both closed** (the "Triage guide" `<button>` was
@@ -396,3 +334,30 @@ which names for each of them where the uncompressed text lives. A compression of
 is the cheapest thing in a doc at its ceiling to cut, because nothing is lost that was not
 already two hops away — this is the README's "the Ledger is the first place to look" rule
 reaching the end of what it can give on this doc.)*
+- 2026-09-17 — PH-23 `[large]` — PR #__ — **the pickup handoff stops speaking for the shelter.**
+  All six claims in the census went, each with a replacement rather than a deletion (PH-18's rule):
+  `CLOSED_DAYS` and "Closed Sundays & Mondays" are gone and the footnote says
+  `Unrecorded`'s one phrasing — *"SF SPCA's opening days and times not recorded"* — followed by the
+  booking window **in Pawthway's own voice** ("Pawthway takes requests from 2 days out to 28 days
+  ahead"), never "shelters need"; `TIME_SLOTS` stays a chooser and the confirm verb is **Request**;
+  `MatchView`'s card says *"You asked for this time. SF SPCA hasn't confirmed it"* with **Change
+  request** replacing **Reschedule**; `calendar.ts`'s DESCRIPTION drops the bring-list and the
+  "about 30 minutes" and says the slot is still a request, while `durationMinutes ?? 45` **stays**
+  because a `DTEND` is geometry; `server.py` loses the two enumerations, keeps "speak generally",
+  and gains an instruction never to confirm the slot on the shelter's behalf — the model was being
+  told to answer in the shelter's first-person plural about a time no shelter had seen.
+  **Two things the spec had not named.** The census was one short: the same sentence in `server.py`
+  carried a *third* parenthetical, and leaving it while cutting its two neighbours would have
+  reproduced the exact failure the item diagnosed. And `SavedView` drew the same timeline from a
+  byte-identical duplicate of `STAGES`/`activeIdx`, so relabelling one screen would have made the
+  two disagree — both now read `APPLICATION_STAGES` and `activeStage()` from `applicationView.ts`,
+  which is the DC note about one class for one claim applied to a literal. Saved's badge and
+  copy ("Approved — request a pickup", "ask them for a pickup time") and the Hub and Care Plan
+  pointers into Match moved with it, because a screen that says "schedule pickup" and a screen that
+  says "request" are the same disagreement one level out.
+  **Verified**: `npm run build`, `npm test` (**149 passed**, 7 new — 4 rendered `MatchView` cases
+  in the existing `renderToStaticMarkup` style, 3 `pickupIcs` cases), `./node_modules/.bin/tsc
+  --noEmit`, `npm run lint` (8 warnings, the same 8 as `main` — diffed against a stash), and
+  `uv run pytest` 55 passed. A dev server cannot be started from an unattended run: what is proven
+  is the **markup and the strings**, not how the calendar feels to tap. **No rule was widened**, and
+  the request/confirm round trip is still unbuilt and still its own item.

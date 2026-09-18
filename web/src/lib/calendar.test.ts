@@ -63,3 +63,28 @@ describe("pickupIcs", () => {
     expect(build()).toContain("LOCATION:201 Alabama St\\, San Francisco");
   });
 });
+
+/**
+ * PH-23. The .ics is the one thing here that leaves the app, so a claim in it survives
+ * anything corrected later -- it is downloaded into the foster's real calendar. It used to
+ * tell them what to bring and that paperwork takes about thirty minutes, neither of which any
+ * shelter had said.
+ */
+describe("pickupIcs, on what it is allowed to assert", () => {
+  it("carries no bring-list and no duration claim", () => {
+    const description = /^DESCRIPTION:(.*)$/m.exec(build())?.[1] ?? "";
+    expect(description).not.toMatch(/carrier|leash|towel|proof of address/i);
+    expect(description).not.toMatch(/30 minutes|thirty minutes|paperwork/i);
+  });
+
+  it("says the slot is still only a request", () => {
+    const description = /^DESCRIPTION:(.*)$/m.exec(build())?.[1] ?? "";
+    expect(description).toMatch(/requested/i);
+    expect(description).toMatch(/still has to confirm/i);
+  });
+
+  it("still blocks out 45 minutes, because a DTEND is geometry and not a claim", () => {
+    const span = localTime(build(), "DTEND").getTime() - localTime(build(), "DTSTART").getTime();
+    expect(span).toBe(45 * 60_000);
+  });
+});
