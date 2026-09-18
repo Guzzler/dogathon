@@ -24,7 +24,7 @@ const PHASE_COPY: Record<FosterPhase, { title: string; body: string; cta: string
   },
   match: {
     title: "Get ready for pickup",
-    body: "Finish the approval checklist, prep your home, and schedule pickup.",
+    body: "Finish the approval checklist, prep your home, and request a pickup.",
     cta: "Go to Match",
     to: "/match",
   },

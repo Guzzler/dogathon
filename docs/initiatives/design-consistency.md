@@ -210,10 +210,12 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
   - **A note this doc leaves for another doc is worth three sentences.** It asked that PH-21's
     attribution line be one class across three views; PH-21 shipped `ProfileAttribution` +
     `lib/adoptionSource.ts`, exactly that. Carried forward to PH-22, it shipped `Unrecorded.tsx`
-    plus one class across nine sites. **The same note now applies to PH-23**, which changes copy on
-    the pickup card, the scheduler's footnote and the confirm button: whoever builds it should not
-    invent a fourth way to say "the shelter hasn't told us" when `Unrecorded` and
-    `ProfileAttribution` already exist.
+    plus one class across nine sites. The note was carried to PH-23 and
+    **taken on 2026-09-17**: the scheduler's footnote renders `Unrecorded` rather than a fourth
+    phrasing, and the same run found the inverse of the same defect one level out — `MatchView` and
+    `SavedView` each held a byte-identical `STAGES` literal and `activeIdx` expression for one
+    timeline, now `APPLICATION_STAGES` + `activeStage()` in `applicationView.ts`. **Three for three**,
+    and the cheapest place this doc has found work is a note left for another doc.
 
 - **DC-8 `[large]` (with DC-9) — shipped 2026-09-07 (PR #69); the Ledger row is the full
   account.** Care Plan's breakpoints step with the frame and `.cp-stage` caps at `--content-w`

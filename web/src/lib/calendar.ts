@@ -1,7 +1,11 @@
 /**
- * Builds an .ics file for a confirmed pickup so the date lands in the foster's
- * real calendar instead of only living in this app. Everything is generated in
- * the browser -- there's no calendar integration to configure.
+ * Builds an .ics file for a *requested* pickup so the date lands in the foster's real calendar
+ * instead of only living in this app. Everything is generated in the browser -- there's no
+ * calendar integration to configure.
+ *
+ * This file leaves the app and survives anything corrected later, which is why PH-23 treated it
+ * as the worst of the six places the app spoke for the shelter: the DESCRIPTION used to tell the
+ * foster what to bring and how long the handoff takes, and no shelter had told us either.
  */
 const SLOT = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
 
@@ -44,6 +48,10 @@ export function pickupIcs(ev: PickupEvent): string | null {
   if (!y || !m || !d) return null;
 
   const start = new Date(y, m - 1, d, slot.hour, slot.minute);
+  // 45 minutes is geometry, not a claim: an .ics needs a DTEND, and a calendar entry with no
+  // width is unreadable. It is deliberately not printed anywhere as "how long this takes" --
+  // the DESCRIPTION used to say "about 30 minutes for paperwork", which nobody had measured
+  // at any shelter, and the two numbers disagreeing was the tell (PH-23).
   const end = new Date(start.getTime() + (ev.durationMinutes ?? 45) * 60_000);
 
   return [
@@ -58,7 +66,7 @@ export function pickupIcs(ev: PickupEvent): string | null {
     `SUMMARY:${escape(`Pick up ${ev.dogName}`)}`,
     `LOCATION:${escape(ev.location)}`,
     `DESCRIPTION:${escape(
-      `Foster pickup for ${ev.dogName} at ${ev.shelterName}. Bring a carrier or leash and collar, a towel, and proof of address. Allow about 30 minutes for paperwork.`,
+      `Foster pickup for ${ev.dogName} at ${ev.shelterName}. This is the time you requested in Pawthway -- ${ev.shelterName} still has to confirm it. Message them in the app to agree the day and what to bring.`,
     )}`,
     "END:VEVENT",
     "END:VCALENDAR",

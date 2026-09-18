@@ -205,7 +205,7 @@ export function CarePlanView() {
           <h2>Finish the Match phase first</h2>
           <p className="cp-mini-meta">
             Your Care Plan unlocks once you've been matched with a dog. Head to Match to
-            confirm approval and schedule pickup.
+            confirm approval and request a pickup.
           </p>
           <button className="cp-btn cp-btn--primary" onClick={() => navigate("/match")}>
             Open Match →

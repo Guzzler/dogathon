@@ -1,14 +1,25 @@
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
+import { Unrecorded } from "./Unrecorded";
 import type { Shelter } from "../lib/shelters";
 import type { Pickup } from "../types";
 
+/**
+ * Nothing on this screen is a shelter's published availability, and PH-23 is what it cost to
+ * find that out: it used to disable every Sunday and Monday and print "Closed Sundays &
+ * Mondays" under a real organisation's real street address, sourced from a comment that said
+ * "shelters in this world are closed Sun/Mon -- gives the calendar real gaps to show off".
+ *
+ * No shelter has ever had a channel through which to tell Pawthway its hours -- a foster
+ * cannot even read `shelters/{id}` (`firestore.rules`), so this is not a field somebody
+ * forgot to fill in. So the screen asks for a time instead of offering one, and the two
+ * constants below are the *app's* booking window, said in the app's own voice. If a real
+ * shelter ever publishes hours, that is the moment to narrow the calendar again -- not before.
+ */
 const TIME_SLOTS = ["9:00 AM", "10:30 AM", "12:00 PM", "1:30 PM", "3:00 PM", "4:30 PM"];
 const WEEKDAY_HEAD = ["S", "M", "T", "W", "T", "F", "S"];
-// Shelters in this world are closed Sun/Mon -- gives the calendar real gaps to show off.
-const CLOSED_DAYS = new Set([0, 1]);
-const LEAD_DAYS = 2; // shelters need a couple days' notice after approval
-const WINDOW_DAYS = 28;
+const LEAD_DAYS = 2;      // how soon Pawthway lets a request be made, not a shelter's notice period
+const WINDOW_DAYS = 28;   // how far ahead Pawthway lets one be made
 
 function toISO(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -40,7 +51,9 @@ export function PickupScheduler({ shelter, onConfirm }: Props) {
     for (let i = 0; i < firstWeekday; i++) out.push({ date: null, iso: null, available: false });
     for (let day = 1; day <= daysInMonth; day++) {
       const d = new Date(year, month, day);
-      const available = d >= minDate && d <= maxDate && !CLOSED_DAYS.has(d.getDay());
+      // In-window is the only thing we know. Which days a shelter actually opens is not ours
+      // to grey out -- see the note at the top of this file.
+      const available = d >= minDate && d <= maxDate;
       out.push({ date: d, iso: toISO(d), available });
     }
     return out;
@@ -111,7 +124,10 @@ export function PickupScheduler({ shelter, onConfirm }: Props) {
           );
         })}
       </div>
-      <p className="muted" style={{ marginTop: 10, fontSize: 11.5 }}>Closed Sundays &amp; Mondays · earliest pickup is {LEAD_DAYS} days out</p>
+      <p className="muted" style={{ marginTop: 10, fontSize: 11.5 }}>
+        <Unrecorded what={`${shelter.short}'s opening days and times`} /> — pick what suits you and
+        they'll confirm. Pawthway takes requests from {LEAD_DAYS} days out to {WINDOW_DAYS} days ahead.
+      </p>
 
       {selectedDate && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 16 }}>
@@ -144,7 +160,8 @@ export function PickupScheduler({ shelter, onConfirm }: Props) {
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           style={{ width: "100%", marginTop: 16 }}
         >
-          {saving ? "Scheduling…" : `Schedule for ${selectedLabel} · ${selectedTime}`}
+          {/* "Request", not "Schedule": this writes the foster's own intent and nothing else. */}
+          {saving ? "Sending request…" : `Request ${selectedLabel} · ${selectedTime}`}
         </motion.button>
       )}
     </div>

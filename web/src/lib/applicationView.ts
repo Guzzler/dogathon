@@ -234,3 +234,23 @@ export function approvalBadge(
       return fallback;
   }
 }
+
+/**
+ * The status timeline, owned here because two screens draw it and they must not disagree —
+ * Match (`MatchView`) and the Applications tab (`SavedView`) both read the same `pickup` and
+ * `approvalChecklist` back out, and a duplicated literal is how DC-7 happened.
+ *
+ * The fourth stage says **requested**, which is PH-23: it advances on the foster's own tap, so
+ * labelling it "Pickup" made the timeline present the foster's intent as the shelter's answer.
+ * No shelter has ever had a way to answer — see `PickupScheduler` — so the honest end of this
+ * timeline is a request sitting with somebody, not a booking.
+ */
+export const APPLICATION_STAGES = ["Applied", "Under review", "Approved", "Pickup requested"];
+
+/**
+ * Which stage is current. `hasPickup` is the foster's own request, which is why it can only
+ * reach the last stage and never mark it done — `data-done` is `n < activeStage(...)`.
+ */
+export function activeStage(approved: boolean, hasPickup: boolean): number {
+  return hasPickup ? 3 : approved ? 2 : 1;
+}
