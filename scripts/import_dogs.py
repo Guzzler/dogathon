@@ -28,6 +28,9 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import NoReturn
+
+import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -39,6 +42,13 @@ from shelters import sfspca                 # noqa: E402
 # Mirrors MANUAL_SOURCE in web/src/lib/dog.ts -- the provenance a dog carries when a shelter
 # typed it in through the roster form (RS-6) rather than this scrape producing it.
 MANUAL_SOURCE = "shelter-manual"
+
+# The weekly drift check (.github/workflows/import-dogs.yml, `schedule`) has three states to
+# tell apart: drifted, clean, and *could not look*. A scrape that cannot reach the shelter is
+# the third, and reporting it as either of the first two is the exact lie the check exists to
+# catch -- so it gets its own exit code (EX_TEMPFAIL, the conventional "try again later")
+# rather than sharing 1 with a genuine import error. Nothing is written on this path.
+EXIT_UNREACHABLE = 75
 
 DOGS_JSON = ROOT / "data" / "dogs.json"
 ENRICHMENT = ROOT / "data" / "enrichment.json"
@@ -63,7 +73,16 @@ def main() -> None:
         print(f"re-baking {len(raw)} dogs from {cache.name}")
     else:
         print("scraping sfspca.org…")
-        raw = sfspca.scrape(delay=args.delay)
+        try:
+            raw = sfspca.scrape(delay=args.delay)
+        except httpx.HTTPError as exc:
+            _unreachable(f"{type(exc).__name__}: {exc}")
+        # An empty result is the same failure wearing different clothes. scrape() swallows
+        # per-page errors and returns whatever it got, so a site refusing every request yields
+        # [] rather than raising -- and writing that out would replace the roster with nothing
+        # and then report the emptiness as drift.
+        if not raw:
+            _unreachable("the scrape returned no dogs at all")
         cache.write_text(json.dumps(raw, indent=2) + "\n")
         print(f"  {len(raw)} dogs")
 
@@ -102,6 +121,13 @@ def main() -> None:
         _push_to_firestore(dogs, plan_only=args.plan)
 
     _summarise(dogs)
+
+
+def _unreachable(detail: str) -> NoReturn:
+    """Stop with EXIT_UNREACHABLE, having touched nothing on disk or in Firestore."""
+    print(f"could not reach sfspca.org — {detail}")
+    print("nothing written: the committed roster is unchanged and its freshness is unknown.")
+    raise SystemExit(EXIT_UNREACHABLE)
 
 
 def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
