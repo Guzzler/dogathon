@@ -130,29 +130,94 @@ reuses against a different field.
 **The routing that put truthfulness items in the third-ranked doc still holds, and it is worth
 restating once rather than re-narrated each run.** The 2026-08-31 re-rank exists to stop this
 doc's small, tidy, headlessly-verifiable items consuming every execute run while the shelter
-surface waits — and it does not cover PH-17, PH-19, PH-20, PH-21 or PH-22. Those are not scaffolding;
+surface waits — and it does not cover PH-17, PH-19, PH-20, PH-21, PH-22, PH-18 or PH-23. Those are not scaffolding;
 they are the product asserting things about a real animal that nobody observed, which is the
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
-**2026-09-15 — PH-22 shipped the day it was queued (PR #83), the fifth such run running, and
-the slot is now filled by a *label*: PH-18 is marked `[large]` below.** It was always screen-
-sized — a hand-drawn map to delete, a headline card to make conditional, and two invented
-phone numbers to remove — and it has been the only open item in the repo since 2026-09-09
-while five runs went looking elsewhere for something big. How PH-22's slot was found is in
-`README.md`'s fallback chain; what it found is its Ledger row and
-[`archive/production-hardening-ph22-2026-09-14.md`](archive/production-hardening-ph22-2026-09-14.md).
+- **PH-23 `[large]` — the pickup handoff stops speaking for the shelter.** *(Queued 2026-09-17.)*
+  Four of the five phases have been measured against the tense test; **Match never had been**.
+  Measuring it found the defect in its most direct form yet — the app states a specific real
+  organisation's opening days, appointment times, notice period, paperwork duration and what to
+  bring, in that organisation's own first-person voice, and nobody recorded any of it.
 
-**PH-18 then shipped the same day it was re-labelled**, the sixth such run running, and **this
-queue is now empty** — no open item, gated or otherwise, outside "Needs a human". The label ran
-out at the same moment the queue did, so the next run's `[large]` slot has nothing to re-read
-here; the two leads PH-18's Ledger row names (a dead keyframe, a button that has never done
-anything) are notes for plan, not queue items, and neither is big. **2026-09-16 — both are
-closed, and one was closed before it was written down.** The "What to do now · Triage guide"
-`<button>` is already gone: PR #85's own diff deletes it when the quick-action row became
-`poison.map(...)`, so the row's "neither taken" is wrong about its own PR (left as written, per
-the ledger convention, and corrected here). `@keyframes cp-pulse-dot` — referenced by nothing
-under `web/`, dead since the map went — was deleted in the follow-up PR with no other change.
+  **The census — six claims in three files.** Written out rather than summarised, because a wrong
+  census is what re-verification has caught on PH-17, PH-18 and PH-22:
+  1. `web/src/components/PickupScheduler.tsx:9` — `CLOSED_DAYS = new Set([0, 1])` disables every
+     Sunday and Monday, and the comment at `:8` states the source outright: *"Shelters in this
+     world are closed Sun/Mon -- gives the calendar real gaps to show off."*
+  2. `:114` — printed to the foster as **"Closed Sundays & Mondays"**, under a card headed "Pickup
+     happens at {shelter.name}" with that shelter's real street address at `:70`.
+  3. `:6` — `TIME_SLOTS`, six specific appointment times (9:00 AM … 4:30 PM) nobody published.
+  4. `:10` — `LEAD_DAYS = 2`, printed at `:114` as "earliest pickup is 2 days out", commented
+     *"shelters need a couple days' notice after approval"*.
+  5. `web/src/lib/calendar.ts:61` — the `.ics` DESCRIPTION: *"Bring a carrier or leash and collar,
+     a towel, and proof of address. Allow about 30 minutes for paperwork."* This one **leaves the
+     app** — it is downloaded into the foster's real calendar and survives anything corrected later.
+  6. `src/agent/server.py:79-83` — the system prompt **instructs the model to assert** the same two:
+     "what to bring (carrier or leash and collar, a towel, proof of address), how long the handoff
+     takes (about 30 minutes of paperwork and a walkthrough)".
+
+  **What makes this one item rather than six.** The prompt already carries its own correction and
+  withholds it from exactly these facts: two sentences later, `server.py:83-85` says *"You don't
+  have real parking maps or staff rosters -- speak generally rather than inventing specifics."* The
+  rule was known, written down, and applied only to the facts nobody had got around to inventing.
+  And `:76-78` tells the model the foster *"sees this chat as talking to their shelter's foster
+  coordinator, so answer in that voice"* — so an invented pickup requirement arrives wearing the
+  shelter's authority. That is PH-21's audience axis with the borrowing running the other way.
+
+  **The design answer, and the constraint that forces it.** The obvious fix — have the shelter
+  publish its hours, since M3 built the shelter side — **is blocked by `firestore.rules` as
+  written**, checked rather than assumed: `match /shelters/{shelterId}` (`:86-89`) is `read: if
+  request.auth.uid in resource.data.staffUids` and `write: if false`. A foster cannot read that
+  document at all, staff cannot write it, and widening the read would hand every foster their
+  shelter's `staffUids` list. So:
+
+  > **No shelter has ever had a channel through which to tell this app any of it, so the fix is to
+  > stop saying it — and the replacement is the channel that already exists.** The honest form of
+  > all four logistics facts is the agent chat at `MatchView.tsx:188-195`, whose subtitle already
+  > reads *"Parking, what to bring, how long it takes"* and whose prompt already knows to speak
+  > generally. The app's job is to route the question there, not to pre-answer it.
+
+  **Scope.**
+  - `PickupScheduler.tsx`: delete `CLOSED_DAYS` and the "Closed Sundays & Mondays" clause. Keep
+    `LEAD_DAYS`/`WINDOW_DAYS` as the **app's** booking window and say so in the copy — never
+    "shelters need". `TIME_SLOTS` stays as a chooser (a foster must name a time) but the screen
+    stops implying availability: the confirm verb becomes **Request**, not **Schedule** — PH-18's
+    finding that a delete needs a replacement, not just a guard.
+  - `MatchView.tsx`: the confirmed-pickup card at `:147-185` and `STAGES`' fourth stage read as a
+    booking; label them requested-not-confirmed. **`activeIdx` at `:65` advances to "Pickup" on the
+    foster's own tap** — the timeline is treating the foster's intent as the shelter's answer.
+  - `calendar.ts`: cut the bring-list and the "30 minutes" sentence from `:61`. **Keep
+    `durationMinutes ?? 45` at `:47`** — the 2026-09-14 rule directly below: an `.ics` needs a
+    `DTEND`, so 45 minutes is geometry, while "about 30 minutes for paperwork" is a claim. The two
+    disagreeing today is itself the tell.
+  - `server.py`: cut the two enumerations from `:79-83`, keep the "speak generally" instruction, and
+    leave the `get_dog`/`get_foster` grounding as it is.
+
+  **Verification.** `cd web && npm run build && npm test && ./node_modules/.bin/tsc --noEmit` (not
+  `npx tsc` — see "Six settled things"), plus `uv run pytest`. Add rendered cases in
+  `MatchView.test.tsx`'s existing `renderToStaticMarkup` style asserting "Closed Sundays" is absent,
+  and `pickupIcs` cases asserting the description carries no bring-list and no duration claim while
+  `DTEND` still lands 45 minutes after `DTSTART`. A dev server cannot be started from an unattended
+  run: say plainly what was rendered versus reasoned about.
+
+  **Out of scope, named so it is not half-done: the request/confirm round trip.** Making the slot
+  genuinely confirmed means the shelter answering it, and the shape is proven already by RS-10/RS-11
+  (one writer per field, each side composes). Its cost is a **new foster branch on `applications`'s
+  `update` rule**: today `firestore.rules:74-81` permits the foster exactly one write — `status:
+  "withdrawn"` with `fosterId`/`shelterId`/`dogId`/`createdAt`/`checklist` all pinned — and the
+  `!! fosterName` warning at `:68-73` must be read before touching it. That is its own item.
+  **PH-23 must not widen a rule.**
+
+**2026-09-15 / 09-16 — PH-22 then PH-18 shipped the day each was queued, emptying this queue
+entirely, and PH-18's two parting leads are both closed** (the "Triage guide" `<button>` was
+already gone in PR #85's own diff, so that row's "neither taken" is wrong about its own PR — left
+as written per the ledger convention; the dead `@keyframes cp-pulse-dot` went in PR #86). The
+run-by-run narration of how the `[large]` slot was found and emptied over those two runs is
+verbatim in
+[`archive/production-hardening-queuenarration-2026-09-17.md`](archive/production-hardening-queuenarration-2026-09-17.md);
+the README's fallback chain tells the same story once, which is why it is not told twice here.
 
 ### A default is honest when it is a fallback for the layout, and dishonest when it is an answer (2026-09-14)
 
@@ -178,26 +243,19 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
    −4 already does for the four fields the normaliser passes through. Extending that to size and
    energy is the same decision applied one layer earlier, not a new one.
 
-- **PH-22 `[large]` — shipped 2026-09-14 (PR #83); the Ledger row is the full account.** The
-  queue entry, with its coverage counts and its read-site census, is archived verbatim in
-  [`archive/production-hardening-ph22-2026-09-14.md`](archive/production-hardening-ph22-2026-09-14.md),
-  along with the two things re-verification found it had missed. The design section above stays
-  in this doc, because it holds the rule rather than the build instructions.
-
-- **PH-14/15/16, PH-17, PH-19, PH-20 and PH-21 — all shipped** (PRs #47, #48, #49, #75, #77,
-  #79, #81). Each Ledger row below is the full account and each spec is archived verbatim; these
-  bullets had become a third layer pointing at the second, so they are one line now. Two things
-  they carried that are not in the rows: PH-15's live rules check is **PH-15b under "Needs a
-  human"**, so don't read PH-15 as verified end to end; and the habit of re-verifying a spec
-  against `main` before building is **eight runs old** — nothing wrong on PH-19, PH-20 or
-  PH-21's own re-check, something materially wrong on PH-17, on PH-22's read-site census, and on
-  PH-18 three times.
-
-- **PH-18 `[large]` — shipped 2026-09-15 (PR #85); the Ledger row is the full account.** The
-  queue entry, with nine runs of re-verification on it, is archived verbatim in
-  [`archive/production-hardening-ph18-2026-09-15.md`](archive/production-hardening-ph18-2026-09-15.md).
-  Read it before adding any local row back to `emergencyContacts` — it is the record of what a
-  distance, an opening state and a coordinator's phone number cost when nothing sources them.
+- **Every PH item through PH-22 is shipped** (PRs #47, #48, #49, #75, #77, #79, #81, #83), and
+  **PH-18 `[large]` shipped 2026-09-15** (PR #85, with #86 as its follow-up). Each Ledger row below
+  is the full account and each spec is archived verbatim —
+  [PH-22's](archive/production-hardening-ph22-2026-09-14.md),
+  [PH-18's](archive/production-hardening-ph18-2026-09-15.md) (nine runs of re-verification on it;
+  read it before adding any local row back to `emergencyContacts`), and the rest named in the
+  [2026-09-12 ledger archive](archive/production-hardening-ledger-2026-09-12.md). Three things they
+  carried that the rows do not: PH-15's live rules check is **PH-15b under "Needs a human"**, so
+  don't read PH-15 as verified end to end; the habit of re-verifying a spec against `main` before
+  building is now **nine runs old**, and it found nothing wrong on PH-19, PH-20 or PH-21 and
+  something materially wrong on PH-17, on PH-22's read-site census, and on PH-18 three times; and
+  the design section directly above stays in this doc because it holds the rule rather than the
+  build instructions.
 
 ### Needs a human — PARKED, not pending; archived 2026-09-11
 
@@ -257,87 +315,46 @@ them, and do not add to it without reading the archived preamble first.
   "Emergency Mode (24h vet map)" as explicitly out of scope, and the map shipped anyway —
   though as of this PR the out-of-scope line is true again.)*
 
-- 2026-09-14 — PH-22 `[large]` — PR #83 — **`normalizeDog()` still fills the three holes a
-  card's layout needs, but it now writes down that it had to, and nine surfaces stopped printing
-  the filling as the shelter's answer.** `RichDog` gains `derived: {fosterWeeks, size,
-  energyLevel}`, set by resolving each field to `null` first and defaulting second — so the
-  question "did anyone record this?" survives the defaulting instead of being answered by it.
-  Two borderline cases were called deliberately and are tested as such: **bucketing a recorded
-  `weight_lbs` counts as recorded** (restating a weight is not inventing a size), and so does
-  `parseLegacyLength()` on free text somebody wrote. `fosterWindow()` takes `number | null` and
-  returns `recorded: false` with a null total, null label, no bar and no `endDate` — which is
-  the sharp half, because `foster_weeks` is absent on **all 19** roster dogs, so every countdown
-  this app has ever shown a foster ("12 days left", an end date, a progress bar) was arithmetic
-  from a constant. Rendering goes through **one** component, `components/Unrecorded.tsx` plus
-  one class — the shape `design-consistency.md` asked for, and `ProfileAttribution` was checked
-  first and is a different thing (it attributes a *paragraph* whose author is in doubt; this is
-  an inline stand-in for a *value* nobody supplied). `matchReasons()` **says nothing** rather
-  than saying "Not recorded": a slot promised a value gets the component, a sentence that was
-  never owed gets silence.
+- 2026-09-14 — PH-22 `[large]` — PR #83 — **`normalizeDog()` still fills the three holes a card's
+  layout needs, but it now writes down that it had to, and nine surfaces stopped printing the
+  filling as the shelter's answer.** `RichDog` gains `derived: {fosterWeeks, size, energyLevel}`,
+  resolved to `null` first and defaulted second, so "did anyone record this?" survives the
+  defaulting. Rendering goes through **one** component (`components/Unrecorded.tsx` + one class) —
+  the shape `design-consistency.md` asked for — while `matchReasons()` says *nothing* rather than
+  "Not recorded": a slot promised a value gets the component, a sentence never owed gets silence.
+  The sharp half: `foster_weeks` is absent on **all 19** roster dogs, so every countdown this app
+  has ever shown a foster was arithmetic from a constant. In scoring, `compat()`'s three-way moved
+  one layer earlier (unknown size `0`, unknown energy `-4`), and the case that makes it concrete is
+  a dog named "Border collie" with no `energy_level` that `guessEnergy()` scored 4 and which then
+  paid both the apartment and the first-timer penalty on the strength of its name.
+  **Re-verifying the spec against `main` paid for an eighth consecutive run, this time on the
+  census**: it named seven read sites and there were nine — the miss being `AdoptionProfile.tsx:48`,
+  the shared adoption link, the one surface a stranger reads when deciding about a real animal.
+  Two **stated contracts that were false** are corrected in place (`shelterDog.ts`'s and
+  `types.ts`'s claim that `normalizeDog()` "already knows how to render" an absent key), as is
+  `matching.ts:50`'s citation of a `score >= 45` cutoff in `DiscoveryView` that **has never
+  existed**. Tests 120 → **132**, all green, plus build and lint. **Not verified live, and this one
+  could have been** — every affected function is pure and covered, but that `.unrecorded` reads
+  correctly on Discovery's dark photo overlay is reasoned about, not observed. One standing lead:
+  `ageLabel`'s one-month floor, in two places (`dog.ts:66`, `DogProfile.ageMonths`).
 
-  **Re-verifying the spec against `main` paid for an eighth consecutive run**, and this time on
-  the census rather than on a line number: the entry named seven read sites and there are nine.
-  It missed `AdoptionProfile.tsx:48` — `sizeLabel(dog.size)` on the **shared adoption link**,
-  the one surface in this app read by a stranger deciding about a real animal, and the exact
-  surface PH-17, PH-20 and PH-21 each hardened in turn — and `DogDetailView.tsx:94`'s subhead.
-  It also did not name `MapView.tsx:81`, where the "easy" sort filters on `energyLevel <= 2`: a
-  claim wearing a filter's clothes, and it sat one `&&` away from `good_with_kids === true`,
-  which had been refusing unrecorded answers correctly all along. Both are in this PR.
+- 2026-09-13 — PH-21 `[large]` — PR #81 — **The one paragraph a model wrote is now readable by the
+  two people who could correct it, attributed everywhere it appears, and retractable.**
+  `ProfileAttribution` + `lib/adoptionSource.ts` is **one line and one class** across all three
+  surfaces. The **one deliberate departure from the spec**: instead of a second card in
+  `PostFosterView`, the paragraph lands once in `AdoptionProfileBody` — both the foster's page and
+  the shared link render that body, so it is not printed twice on one screen, and the banner became
+  the disagreement the spec insisted the screen must be able to render (`readyForAdoption` lives on
+  `fosters/{uid}`, the text on `dogs/{id}`). `withdraw_adoption_profile` **writes rather than
+  clears** and leaves `status` untouched: since RS-12 the write *is* the notification, so a blank
+  field would leave a **Back from foster** card with nothing in it. The third state — the field
+  simply **absent** — needed a line the spec had not named: "Source not recorded", because guessing
+  "the foster" for a pre-field record is the same invention the tense test rules out. Tests 115 →
+  120 plus 4 backend cases; all green. **Not verified live**: producing a `ready_for_adoption` dog
+  needs a completed journey on a signed-in account.
 
-  In scoring, `compat()`'s documented three-way is extended one layer earlier rather than
-  widened: unknown size scores `0` and unknown energy `-4`, each slightly below its term's
-  midpoint, so a recorded match outranks an unknown and an unknown outranks a recorded mismatch.
-  Every home/experience rule now waits on its input having been recorded — the case that makes
-  this concrete is a dog named "Border collie" with no `energy_level`, which `guessEnergy()`
-  scored 4 and which then paid both the apartment and the first-timer penalty on the strength of
-  its name. `matching.ts:50`'s justification cited a `score >= 45` cutoff in `DiscoveryView`;
-  **there has never been one**, and `DiscoveryView.tsx:34-35` carries the opposite comment. The
-  reason is ranking, not admission, and the comment now says so. *(`CLAUDE.md` repeats the same
-  dead cutoff under "Unknown is not a claim" — a sentence for Sharang; this loop does not edit
-  that file.)* Two **stated contracts that were false** are corrected in place:
-  `shelterDog.ts`'s "an absent key is 'not recorded', which `normalizeDog()` already knows how
-  to render" (wrong since RS-6, and written *by* the careful path *about* the careless one) and
-  the same claim in `types.ts`.
-
-  Tests: 12 new (`dog.test.ts` is new — 7 cases on the flags and `recordedStay`; 4 in
-  `matching.test.ts` pinning the match > unknown > mismatch ordering and the collie; 1 in
-  `foster.test.ts` for the no-window branch), 120 → **132**, all green, plus build and lint
-  (8 warnings, byte-identical to `main`). **Not verified live, and this one could have been:**
-  dev servers cannot be started from an unattended run, so nothing was rendered in a browser.
-  Every affected function is pure and every one is now covered, but the visual claim — that
-  `.unrecorded` reads correctly on the dark photo overlay in Discovery as well as on cream — is
-  reasoned about, not observed. Worth two minutes from whoever is next in front of it.
-
-  Untouched, as the spec's seam said: the photo fallback (RS-6 solved it with `source`),
-  `shelterFor()`, `parseLegacyLength()`, `compat()`'s existing three-way, and `ageLabel`'s
-  one-month floor — still the one standing lead, now in two places (`dog.ts:66` and
-  `DogProfile.ageMonths`).
-
-- 2026-09-13 — PH-21 `[large]` — PR #81 — **The one paragraph a model wrote is now readable by
-  the two people who could correct it, attributed everywhere it appears, and retractable.**
-  Four parts, all shipped. `ProfileAttribution` + `lib/adoptionSource.ts` is **one line and one
-  class** for all three surfaces (`.profile-attrib`, withdrawn as a data attribute) — the shape
-  `design-consistency.md` asked for when it saw three views each about to write their own.
-  `AdoptionProfileBody` gains a **"The assistant's write-up"** section above the foster's note,
-  which lands parts 1 and 2 in one place: both the foster's page and the shared adoption link
-  render that body, so the paragraph is not printed twice on the same screen. **That is the one
-  deliberate departure from the spec**, which asked for a card in `PostFosterView` as well; what
-  the banner at `:70-74` became instead is the disagreement the spec correctly insisted the
-  screen must be able to render — `readyForAdoption` lives on `fosters/{uid}` and the text on
-  `dogs/{id}`, so with a profile the banner points down the page at the words themselves, and
-  without one it says the shelter sees the same blank. `withdraw_adoption_profile` **writes
-  rather than clears** and leaves `status` untouched: since RS-12 the write *is* the
-  notification, so a blank field would leave a **Back from foster** card with nothing in it —
-  the arrival surviving while its content vanished. `Dog.adoption_profile_source` widens to
-  `"agent" | "foster_withdrawn"`, and the third state — **absent** — needed a line the spec had
-  not named: "Source not recorded", because guessing "the foster" for a pre-field record is the
-  same invention the tense test rules out. `server.py`'s prompt gains the correct-or-withdraw
-  branch and the instruction never to tell a foster it was taken down. Tests: 4 backend cases
-  (`test_adoption.py` 12 → 16), 3 for `attributionFor`, 2 rendered roster cases (115 → 120).
-  Build, test, lint (8 warnings, all pre-existing — the pure half moved to `lib/` rather than
-  trip `only-export-components`) and pytest all green. **Not verified live**, as the spec said
-  to say plainly: producing a `ready_for_adoption` dog at all needs a completed journey on a
-  signed-in account.
+*(Both rows are compressions. Full text verbatim in
+[`archive/production-hardening-ledger-2026-09-17.md`](archive/production-hardening-ledger-2026-09-17.md).)*
 
 - 2026-09-12 — PH-20 `[large]` — PR #79 — **The one paragraph this app keeps because a model
   wrote it now has to name what nobody recorded.** `generate_adoption_profile` returns a seventh

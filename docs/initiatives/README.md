@@ -190,73 +190,47 @@ Compressed:
   wrong**. Verbatim in
   [`archive/readme-large-slot-2026-09-13.md`](archive/readme-large-slot-2026-09-13.md).
 
-- **2026-09-13 — the seventh link, and it is the sixth pointed at the lead the sixth left.**
-  PH-20 shipped the day it was queued (#79), emptying the slot everywhere and again leaving
-  PH-18 as the only open item. Chain run in full: queue holds nothing big, all six gated notes
-  still gated on a *person* (RS-8, RS-6b, RS-12b, PH-13, PH-7b, PH-15b — re-read, unchanged),
-  then **measure** — PH-20's own parting lead, which is the third consecutive run of pointing
-  the last method at another consumer rather than inventing one. It produced **PH-21**, and the
-  slot sits in the third doc for a fifth consecutive run. Two things generalise:
-  - **A lead that names a missing write path can be hiding a missing read path, and the read
-    path is why nobody noticed.** The lead said the agent-written adoption paragraph cannot be
-    retracted. True — and the reason it has never mattered is that **no foster has ever seen
-    one**: its only reader anywhere in the frontend is `ShelterRosterView.tsx:236`, so neither
-    the foster who could say it is wrong nor the adopter it was written for is shown it. A
-    retraction button on a paragraph nobody can read is not a fix. **When a lead describes
-    something a user cannot do, check first whether they can see the thing they cannot do it
-    to.**
-  - **Consolidating beats compressing once a doc has one rule told four ways.** Merging four
-    sections of `production-hardening.md` (PH-17's, PH-19's, PH-20's and the tense test's) into
-    one that states the rule four times and preambles it once took it 437 → **389**. When
-    several layers each point at a *different* archive but say the same thing, the cut is a
-    merge, not a deletion.
+- **2026-09-13 / 09-14 / 09-15 — the seventh, eighth and ninth links, verbatim in
+  [`archive/readme-large-slot-2026-09-17.md`](archive/readme-large-slot-2026-09-17.md).** Compressed
+  to what they established: **a lead that names a missing write path can be hiding a missing read
+  path, and the read path is why nobody noticed** (PH-21 — the agent's paragraph could not be
+  retracted, and the reason it had never mattered is that no foster could see it; *when a lead
+  describes something a user cannot do, check first whether they can see the thing they cannot do
+  it to*); **a stated contract is the cheapest measurement there is, because it names its own
+  callee**, and **where a codebase is visibly careful is where it is least worth measuring — measure
+  the layer that runs before the one that advertises its care** (PH-22); and **the first link is not
+  spent after it works once** (PH-18 sat in the queue being screen-sized for five runs while each
+  went looking elsewhere, because the four runs before them had taught that re-reading the queue
+  comes back empty). With it: **checking the citations is not checking the claim** — PH-18 was
+  re-verified nine consecutive runs, two of which found nothing because they only re-resolved line
+  numbers, and the ninth re-read the screen and found the Poison Control quick-action had never once
+  rendered.
 
-- **2026-09-14 — the eighth link, and it is the first that stops pointing at the last consumer.**
-  PH-21 shipped the day it was queued (#81), the third such run running, emptying the slot
-  everywhere and again leaving PH-18 as the only open item. Chain run in full: queue holds
-  nothing big, all six gated notes still gated on a *person* (RS-8, RS-6b, RS-12b, PH-13, PH-7b,
-  PH-15b — re-read, unchanged), then **measure**. What is new is *what* was measured. The
-  previous three runs each pointed the same method at the next consumer of one dataset, the
-  adoption profile, and that vein is worked out. This run pointed the method at **the convention
-  two writers share** rather than at a field, and produced **PH-22**. The slot sits in the third
-  doc for a sixth consecutive run. Three things generalise:
-  - **A stated contract is the cheapest measurement there is, because it names its own callee.**
-    `shelterDog.ts:120-122` says an omitted key is "not recorded, which `normalizeDog()` already
-    knows how to render". Checking it is opening one file. It had been false since RS-6 shipped
-    it — `normalizeDog()` fills the absence with `6`, `"medium"`, and a breed regex — and the
-    comment was written *by* the careful path *about* the careless one, which is why nobody
-    reading either file alone would catch it.
-  - **Where a codebase is visibly careful is where it is least worth measuring.** `compat()`'s
-    three-way (unknown scores −4, not −26) is reasoned about in a comment, documented in
-    `CLAUDE.md`, and is the first thing anyone finds when asking whether this app handles
-    unknowns. It is also downstream of a normaliser that already erased the unknown from two of
-    the three largest terms in the same score. **Measure the layer that runs before the one that
-    advertises its care.**
-  - **A doc's note to another doc is worth three sentences.** `design-consistency.md`'s
-    one-bullet request that PH-21's attribution be one class across three views shipped exactly
-    that; carried forward to PH-22, it shipped `Unrecorded` + one class across nine sites.
-
-- **2026-09-15 — the ninth link, and it is the first link again: the slot was a label all
-  along.** PH-22 shipped the day it was queued (PR #83), the fifth such run running, emptying
-  the slot everywhere and leaving PH-18 as the only open item — for the seventh run in a row.
-  Five consecutive runs then went looking for something big while **PH-18 sat there being
-  something big**: a hand-drawn map of nowhere to delete, a headline card to make conditional,
-  two invented phone numbers to remove, on the screen someone opens when something is wrong.
-  It is marked `[large]` now. Two things generalise:
-  - **The first link is not spent after it works once.** The 2026-09-01/02/03 entries
-    established "re-read the queue before inventing", and the four runs after them each found
-    their slot by measuring, which quietly turned the chain into *measure first*. The queue had
-    held a `[large]` item the whole time; nobody re-read it because the last four runs had
-    taught that re-reading was the step that comes back empty.
-  - **Checking the citations is not checking the claim.** PH-18 has now been re-verified nine
-    consecutive runs. Runs seven and eight found nothing, because both checked whether the line
-    numbers still resolved — and they did. This run re-read the *screen* instead and found that
-    `/poison/i.test(c.role)` matches none of the four shipped roles (all read `"Toxin
-    ingestion"`; the regex belongs on `name`), so the Poison Control quick-action has **never
-    rendered** and both national lines — the only two rows on that screen PH-18 was going to
-    keep — fall through to "Other contacts" at the bottom. The invented one is the headline
-    with a red *Call Vet Now* button beneath it. A re-verification that only re-resolves
-    citations converges on nothing; the thing being verified is the claim.
+- **2026-09-17 — the tenth link: the phase nobody had measured, plus the first run in three weeks
+  to find a shipped thing broken in production.** PH-18 shipped (#85, with #86 as its follow-up) and
+  the queue was empty in **all three docs** — the first time that has happened with no label left to
+  find, so links one and two were genuinely exhausted rather than skipped. Three things generalise:
+  - **Enumerate the surfaces, not the datasets.** The previous five runs each pointed the tense test
+    at another *consumer of one dataset* (the adoption profile, then the roster's derived fields).
+    Asking instead which of the **five phases** had never been measured named **Match** immediately —
+    and it produced the defect in its most direct form yet: `PickupScheduler.tsx:8` states its own
+    source outright (*"Shelters in this world are closed Sun/Mon -- gives the calendar real gaps to
+    show off"*) and `:114` prints it to a foster under a real shelter's real street address. That is
+    **PH-23**, and the slot sits in the third doc for an eighth consecutive run.
+  - **A prompt that carries its own correction is a measurement waiting to be read.**
+    `server.py:79-83` enumerates what to bring and how long the handoff takes; `:83-85` then says
+    *"You don't have real parking maps or staff rosters -- speak generally rather than inventing
+    specifics."* The rule was written down and applied only to the facts nobody had got around to
+    inventing. **Look for the exemption next to the rule**, not for the rule's absence.
+  - **"Verified locally, not in the environment it runs in" came due twice on the same run, and
+    resolved in opposite directions.** The 2026-08-28 lesson says treat that phrasing as an open
+    item to go and check on a named run. Checked both: DC-4's palette notice **works** — PR #83's
+    real Actions log carries the annotation naming the right file — and RS-4's weekly roster drift
+    check **has never once run to completion**, failing `403` on SF SPCA's sitemap from the GitHub
+    runner's IP (the same URL returns `200` from a residential connection with no `User-Agent`, so
+    no header will fix it). **M4 is reopened as RS-13.** The lesson's value is not that the caveat
+    predicts failure; it is that only a real run tells you which of the two you have, and a loop
+    that never goes back to look accumulates both kinds indistinguishably.
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -315,22 +289,28 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 50 files as of 2026-09-15** — counted with `ls`, because the running tally
-this sentence used to carry had drifted from the directory (it read "twenty-eight" on
-2026-09-10, when a count would have said thirty-five). **Count it, don't increment it** — and
-the sentence itself proved the point a second time on 2026-09-13, when it was found carrying
-two contradictory parentheticals about how many the *previous* run had added. The 2026-09-13 run added two, the 2026-09-14 run five; **this run added one**, and all four
-docs landed under (PH 390, DC 397, RS 397, README 396). The 2026-09-14 prediction held exactly:
-it said `production-hardening.md` was at 412 because it carried two full specs at once and that
-**shipping one of them buys back a hundred lines without anyone compressing anything**. PH-22
-shipped and the doc is 390 — a twenty-two-line fall from deleting a spec, against six lines
-added to PH-18 and a paragraph rewritten. That is worth keeping over the five over-run
-narrations it replaces: **a doc at its ceiling because it holds two specs is not over-long, it
-is mid-flight**, and the cheapest thing to do about it is ship. The eleven-entry narration of which doc was
-how many lines on which date is now in
-[`archive/readme-docsize-2026-09-10.md`](archive/readme-docsize-2026-09-10.md) — archived for
-exactly the reason the `[large]` slot log was archived the run before, which is the rule
-directly below. What that narration established, and what is worth keeping here:
+**`archive/` holds 59 files as of 2026-09-17** — counted with `ls`, because the running tally this
+sentence used to carry had drifted from the directory (it read "twenty-eight" on 2026-09-10, when a
+count would have said thirty-five). **Count it, don't increment it.** **This run added eight** — by
+far the most of any run — and all four docs landed under: README 374, DC 382, RS 392, PH 398. The
+eleven-entry narration of which doc was how many lines on which date is in
+[`archive/readme-docsize-2026-09-10.md`](archive/readme-docsize-2026-09-10.md). Two things this
+run's own arithmetic establishes, worth keeping because they are the first counter-examples to the
+2026-09-14 rule directly above ("a doc at its ceiling because it holds two specs is mid-flight, so
+ship it"):
+
+- **An empty queue is the *worst* moment for doc size, not the best.** All three queues were empty
+  and all three docs were within two lines of the ceiling — 381, 397, 397 — because nothing held a
+  spec whose shipping would buy lines back. A queue refill then costs full price. `real-data-and-
+  shelters.md` needed **five separate cuts** (three ledger rows, two settled sections, the shared-
+  decisions block, and six shipped-item bullets consolidated into one) to absorb a single
+  queue item, and went 397 → 432 → 392 on the way.
+- **Consolidating shipped-item bullets is the cheapest cut left once the obvious layers are gone.**
+  Six bullets in `real-data-and-shelters.md` each said "RS-n shipped; the Ledger row is the full
+  account" — twenty-two lines to say what one sentence says, and every one of them individually
+  looked load-bearing. Same shape in `production-hardening.md`, same cut. This is the "layer that
+  points at a layer" rule applied to the **queue** rather than to prose or the Ledger, which is
+  where it had been applied on the four runs before.
 
 - **The Ledger is the first place to look when a doc is over, not the last** (2026-08-30). Both
   docs went back over 400 within two days of archiving *narrative*, and almost none of the
@@ -397,3 +377,5 @@ a ledger row says a thing was verified locally but not in the environment it
 runs in, that is an **open item**, not a completed one — plan should treat it
 as something to go and check, on a named next run, rather than as a
 disclaimer that has been discharged by being written down.
+
+
