@@ -67,10 +67,12 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   [`archive/real-data-and-shelters-settled-2026-09-17.md`](archive/real-data-and-shelters-settled-2026-09-17.md).
   What is *not* closed is that **no human has driven any of it end to end** — RS-6b, RS-12b and
   RS-8 under "Needs a human".
-- **2026-09-17 — the roster's only staleness signal has never run.** RS-4's weekly
-  `import-dogs.yml` schedule fired for the first time on 2026-09-14 and failed `403` scraping SF
-  SPCA's sitemap from the GitHub runner; the same URL returns `200` from a residential IP with no
-  `User-Agent`. **M4 is reopened**; RS-13 in the queue is the honest-reporting fix.
+- **2026-09-17 — the roster's only staleness signal has still never run, and now says so.**
+  RS-4's weekly `import-dogs.yml` schedule fired for the first time on 2026-09-14 and failed `403`
+  scraping SF SPCA's sitemap from the GitHub runner; the same URL returns `200` from a residential
+  IP with no `User-Agent`. RS-13 (shipped the same day) makes that outcome reportable rather than a
+  skipped step — *drifted, clean, or could not look*. **M4 stays reopened**: the check is honest,
+  and it still cannot look. RS-13b under "Needs a human" is the only thing that changes that.
 
 ## Milestones (compressed; full narrative in the archive)
 
@@ -86,11 +88,12 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   shelter that isn't SF SPCA, with zero scraping risk. RS-2 shipped the gate and
   RS-5 the inbox; RS-6 is the remaining third. Build from the queue items, not
   from this paragraph.
-- **M4 — decided 2026-08-26, shipped 2026-09-09 as RS-4 (PR #72). **Reopened 2026-09-17** —
-  the cadence exists and has never once run to completion, because the scrape 403s from a
-  GitHub-hosted runner's IP range. **RS-13** in the queue is the honest-reporting fix; a scrape
-  that can actually run weekly needs an unblocked address, which is infrastructure a person owns.
-  The original reasoning (yes to a cadence, no to Cloud Scheduler; weekly, plan-only, always
+- **M4 — decided 2026-08-26, shipped 2026-09-09 as RS-4 (PR #72), reopened 2026-09-17, and
+  **still open after RS-13**.** The cadence exists, reports honestly, and has never once run to
+  completion: the scrape 403s from a GitHub-hosted runner's IP range. RS-13 shipped the
+  honest-reporting half (a week with no check files an issue saying the freshness is *unknown*);
+  the other half is an unblocked address, which is infrastructure a person owns — **RS-13b**. The
+  original reasoning (yes to a cadence, no to Cloud Scheduler; weekly, plan-only, always
   re-scraping) is in the archive and the outcome is the RS-4 Ledger row.
 - **M5 — a second automated source (RescueGroups.org), gated on demonstrated
   need.** Don't build it until M3 has one real shelter using the admin surface;
@@ -142,53 +145,17 @@ don't "fix" the second by loosening `firestore.rules`.
 
 ### The items
 
-- **RS-13 — the weekly drift check has never once succeeded, and cannot as written.** *(Queued
-  2026-09-17.)* **M4 is not closed.** RS-4 shipped on 2026-09-09 saying plainly that the scheduled
-  branch could not be dispatched, so *"the first real proof arrives the Monday after merge."* That
-  Monday was **2026-09-14**, the run is
-  [`35054...`/`34827471420`](https://github.com/Guzzler/dogathon/actions/runs/34827471420), and it
-  **failed**: step 6 "Import" exited 1 on
-  `httpx.HTTPStatusError: Client error '403 Forbidden' for url
-  'https://www.sfspca.org/sfspca-adoption-sitemap.xml'` (`scripts/shelters/sfspca.py:97`,
-  `r.raise_for_status()` inside `dog_urls`). Steps 7–9 — the uncommitted-changes check, the drift
-  detection and the report — were all `skipped`, so the one thing the workflow exists to produce
-  has never been produced.
-
-  **The 403 is the runner's IP, not a bot policy, and this was measured rather than assumed.** From
-  a residential connection the same URL returns **200 with no `User-Agent` header at all**, and 200
-  again with a browser UA — two `curl` calls, 2026-09-17. So SF SPCA has not changed its policy and
-  **no header, UA string or politeness delay will fix this**: the block is on the datacentre range
-  GitHub-hosted runners live in. That also rules out moving the job to Cloud Run, which is the same
-  kind of address.
-
-  **What this does *not* license.** Do **not** add `--from-cache` to the scheduled branch. RS-4's
-  own Ledger row explains why the scheduled path re-scrapes *by construction*: a cached replay diffs
-  the committed data against itself and reports "no drift" forever. A green weekly check that cannot
-  detect drift is worse than a red one, and it is the tense test in CI — a job whose green means
-  "nothing changed" when it actually means "we never looked" is the same defect this loop has been
-  fixing in the UI all fortnight.
-
-  **The design question, left for plan rather than pre-decided here**, because it turns on something
-  only Sharang can settle: a self-hosted runner is the one place a scrape can run from an unblocked
-  address, and that is infrastructure a person has to own, not a PR. So RS-13 is scoped to making the
-  workflow **honest about which of the three states it is in** — drifted, clean, or *could not
-  look* — and nothing more:
-  - `.github/workflows/import-dogs.yml`: let the Import step's scrape failure be **caught rather
-    than fatal** on the `schedule` event only (manual dispatch should still go red — a human is
-    watching it). Distinguish a reachability failure from a real import error; a 403/timeout on the
-    sitemap is the former.
-  - When the scrape could not run, file or update the report saying **exactly that**, reusing the
-    existing single-issue mechanism (`roster-drift` label, one open issue, comment on repeat) that
-    RS-4 already built — do not open a second issue stream. The issue body must say the roster's
-    freshness is **unknown**, not that it is clean.
-  - Leave every manual path byte-for-byte unchanged, as RS-4 did, and verify it the way RS-4 did:
-    replay the shell for all three event types rather than reading it.
-
-  **Verification.** `gh workflow run import-dogs.yml --ref <branch>` with defaults (plan-only,
-  cached) must still pass exactly as it does on `main`. The scheduled branch still cannot be
-  dispatched, so what is provable is the argument replay plus the new branch's parsing; say so.
-  Then **check the next Monday's real run** — the same discipline that found this one, and the
-  README's standing 2026-08-28 lesson arriving for the second time in three weeks.
+- **RS-13 — shipped 2026-09-17; the Ledger row is the full account.** The weekly check reports
+  three outcomes instead of two, and the third says the roster's freshness is **unknown** rather
+  than clean. `scripts/import_dogs.py` exits `75` (`EXIT_UNREACHABLE`) when it cannot reach the
+  shelter, having written nothing; `import-dogs.yml`'s scheduled branch catches 75 and only 75 and
+  files that as the same one `roster-drift` issue. Two things worth keeping out of the row: **the
+  empty scrape is the same failure wearing different clothes** — `sfspca.scrape()` swallows
+  per-page errors and returns `[]`, so a site refusing every request would have replaced the
+  roster with nothing and reported the emptiness as drift — and **what RS-13 deliberately does not
+  do is make the scrape work.** It cannot: the block is on the address range GitHub-hosted runners
+  live in, so a cadence that can actually look needs a runner nobody in this repo owns. That is
+  **RS-13b** under "Needs a human", and **M4 stays reopened** until it exists.
 
 - **Every M3 item is shipped and each has a Ledger row, which is the account** — RS-6 `[large]`
   (PR #54, M3's third surface), RS-10 `[large]` (PR #56, the checklist join, which ungated RS-11),
@@ -230,6 +197,14 @@ shelter, per the section below.
   facts. The form was right and its callee was not; the convention is now safe as written.
 
 ### Needs a human, not a queue item
+
+- **RS-13b — a runner with an address sfspca.org will answer.** RS-13 made the weekly check
+  honest about not being able to look; it did not make it able to look, and no PR can. SF SPCA
+  answers `200` to an ordinary connection with no `User-Agent` and `403` to GitHub-hosted runners,
+  so the roster can only be checked on a cadence from a machine somebody owns — a self-hosted
+  runner, or a scheduled re-bake on a laptop. Until then the drift signal is a person running
+  `uv run python scripts/import_dogs.py --dry-run`, and the weekly issue says so in those words.
+  **M4 is not closed by RS-13.**
 
 - **RS-9 — DONE 2026-08-29, by Sharang, in-session.** The `applications`
   composite index is `READY`; RS-5 is unblocked. RS-7's deploy had failed
@@ -382,11 +357,24 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   first real proof arrives the Monday after merge."* It arrived on **2026-09-14 and failed 403**.
   Full row verbatim in
   [`archive/real-data-and-shelters-rs4-2026-09-17.md`](archive/real-data-and-shelters-rs4-2026-09-17.md).
-
-
-
-
-
-
-
-
+- 2026-09-17 — RS-13 — PR #__ — **the weekly roster check now has a third outcome, and it is the
+  honest one: *could not look*.** `scripts/import_dogs.py` gained `EXIT_UNREACHABLE = 75`
+  (`EX_TEMPFAIL`) and exits with it, having written nothing, when the scrape raises `httpx.HTTPError`
+  — and, the part the spec had not named, **when a fresh scrape returns zero dogs**. That second
+  case is the dangerous one: `sfspca.scrape()` catches per-page errors and returns what it got, so a
+  site refusing every request yields `[]` rather than raising, and the old code would have written
+  an empty `data/dogs.json`, diffed it, and filed *drift* — the emptiest possible roster reported as
+  news about the dogs. `import-dogs.yml`'s scheduled branch now catches **75 and only 75**, sets
+  `steps.import.outputs.reachable`, and routes to one of two report steps; the drift step gained
+  `reachable == 'true'` to its `if`, because a clean working tree after a scrape that never ran is
+  exactly the "no drift" lie this item exists to remove. Both reports share the one `roster-drift`
+  issue (`TITLE` picked by whichever branch ran) rather than opening a second stream, per RS-4.
+  **Manual dispatch is byte-for-byte unchanged and still goes red on 75** — a human is watching
+  that one. **Verified**: `uv run pytest` 55 passed, five of them new in `tests/test_import_dogs.py`
+  (403, connect timeout, empty scrape, a `ValueError` that must *not* become 75, and the happy path),
+  each asserting the committed data files were not written; plus the Import step's shell replayed
+  outside Actions for all three event types × four exit codes (7 cases), which is how RS-4 was
+  verified and the only way to see the scheduled branch at all. The scheduled branch still cannot be
+  dispatched, so what remains unobserved is the issue body on a real run — **check the 2026-09-21
+  run**, the same discipline that found this defect. What RS-13 does **not** do is make the scrape
+  work; that is RS-13b and M4 stays reopened.

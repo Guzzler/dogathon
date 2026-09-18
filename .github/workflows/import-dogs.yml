@@ -12,6 +12,16 @@ name: Import dog roster (Firestore)
 # longer matches the committed roster. It is **plan-only by construction** — there is no
 # input it can set and no branch it can take that writes to Firestore.
 #
+# It has three outcomes, not two, and RS-13 exists because it used to have two. The first
+# scheduled run (2026-09-14) exited 1 on a 403 from sfspca.org's sitemap — GitHub-hosted
+# runners share a datacentre address range the site refuses, while the same URL returns 200
+# from a residential connection with no User-Agent at all — and every reporting step after it
+# was skipped, so the one thing this workflow exists to produce had never been produced and
+# nothing said so. The scheduled branch now reports **drifted, clean, or could not look**, and
+# the third says the roster's freshness is *unknown* rather than fine. Do NOT "fix" the 403 by
+# adding --from-cache here: a cached replay diffs the committed data against itself and reports
+# no drift forever, which is the same lie wearing a green tick.
+#
 # Scheduled workflows only ever run from the default branch, so editing the cron on a
 # branch changes nothing until it merges; GitHub also disables them after 60 days with no
 # repository activity, which for this repo would itself be the signal worth noticing.
@@ -64,6 +74,7 @@ jobs:
       # --from-cache replays data/sfspca_scrape.json rather than hitting the shelter, so a
       # re-run costs them nothing. Re-scraping is opt-in and paced at one request/second.
       - name: Import
+        id: import
         env:
           GOOGLE_CLOUD_PROJECT: pawthway-hackathon
           FIREBASE_PROJECT_ID: pawthway-hackathon
@@ -84,7 +95,24 @@ jobs:
             [ "${{ inputs.rescrape }}" = "true" ] || ARGS="$ARGS --from-cache"
           fi
           echo "running: import_dogs.py $ARGS"
-          uv run python scripts/import_dogs.py $ARGS | tee "$RUNNER_TEMP/import.log"
+          # A scrape that cannot reach the shelter is not an import error, and on the weekly
+          # check it must not be reported as one. import_dogs.py exits 75 (EX_TEMPFAIL) for
+          # that case and nothing else, so `schedule` catches 75 and only 75 and hands the
+          # reporting steps below an "unknown freshness" state. Manual dispatch still goes red
+          # on every non-zero exit, 75 included — a human is watching that one.
+          status=0
+          uv run python scripts/import_dogs.py $ARGS | tee "$RUNNER_TEMP/import.log" || status=$?
+          if [ "$status" = "0" ]; then
+            echo "reachable=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$status" = "75" ]; then
+            echo "reachable=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Could not reach sfspca.org — the committed roster is unchanged"
+            echo "::warning::and its freshness is unknown this week. Reported as an issue."
+            exit 0
+          fi
+          exit "$status"
 
       # A manual re-scrape produces a roster the repo doesn't have yet; surface it so
       # someone can commit it rather than letting Firestore and data/dogs.json drift apart.
@@ -99,9 +127,11 @@ jobs:
           fi
 
       # Quiet when nothing moved: a weekly check that speaks every week stops being read.
+      # Only meaningful when the scrape actually ran — otherwise the working tree is clean
+      # because nobody looked, and this step would report that as "no drift".
       - name: Detect roster drift
         id: drift
-        if: ${{ github.event_name == 'schedule' }}
+        if: ${{ github.event_name == 'schedule' && steps.import.outputs.reachable == 'true' }}
         run: |
           if git diff --quiet -- data/dogs.json data/sfspca_scrape.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -110,6 +140,7 @@ jobs:
             exit 0
           fi
           echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "title=Dog roster has drifted from sfspca.org" >> "$GITHUB_OUTPUT"
           {
             echo "The weekly re-scrape of sfspca.org no longer matches the roster committed"
             echo "to this repo. **Nothing was written** — the scheduled run is plan-only."
@@ -134,26 +165,65 @@ jobs:
             echo
             echo "<sub>Filed by the weekly drift check in \`.github/workflows/import-dogs.yml\`"
             echo "— [run ${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}).</sub>"
-          } > "$RUNNER_TEMP/drift.md"
-          cat "$RUNNER_TEMP/drift.md" >> "$GITHUB_STEP_SUMMARY"
+          } > "$RUNNER_TEMP/report.md"
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+
+      # The third outcome. A week in which the roster could not be checked is a fact about the
+      # roster, so it gets the same treatment as drift rather than a silent green tick — but it
+      # says *unknown*, never clean.
+      - name: Report that the roster could not be checked
+        id: unknown
+        if: ${{ github.event_name == 'schedule' && steps.import.outputs.reachable == 'false' }}
+        run: |
+          echo "reported=true" >> "$GITHUB_OUTPUT"
+          echo "title=Weekly roster check could not reach sfspca.org" >> "$GITHUB_OUTPUT"
+          {
+            echo "**The weekly roster check could not run.** The re-scrape of sfspca.org did"
+            echo "not complete, so **the freshness of the committed roster is unknown** — this"
+            echo "is not a report that it is current, and no drift detection ran."
+            echo
+            echo "**Nothing was written.** The committed \`data/dogs.json\` and"
+            echo "\`data/sfspca_scrape.json\` are untouched, and the scheduled run is plan-only"
+            echo "regardless, so Firestore was never asked for a diff either."
+            echo
+            echo "Known cause: the site refuses requests from the address range GitHub-hosted"
+            echo "runners live in (403 on the sitemap), while the same URL answers 200 from an"
+            echo "ordinary connection with no User-Agent at all. No header, UA string or delay"
+            echo "changes that, so checking the roster on a cadence needs a runner with an"
+            echo "unblocked address. Until there is one, re-bake by hand with"
+            echo '`uv run python scripts/import_dogs.py --dry-run` and read the diff.'
+            echo
+            echo '### What the import printed'
+            echo
+            echo '```'
+            tail -n 25 "$RUNNER_TEMP/import.log"
+            echo '```'
+            echo
+            echo "<sub>Filed by the weekly drift check in \`.github/workflows/import-dogs.yml\`"
+            echo "— [run ${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}).</sub>"
+          } > "$RUNNER_TEMP/report.md"
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
 
       # One issue, reused. Opening a fresh one every Monday until someone re-bakes turns a
       # useful signal into a backlog of identical tickets, so an already-open report gets a
-      # comment instead.
-      - name: File or update the drift report
-        if: ${{ steps.drift.outputs.changed == 'true' }}
+      # comment instead. Both scheduled outcomes that need a human share that one issue: they
+      # are the same request ("the roster needs looking at"), and two ticket streams for it is
+      # how a signal stops being read.
+      - name: File or update the roster report
+        if: ${{ steps.drift.outputs.changed == 'true' || steps.unknown.outputs.reported == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ steps.drift.outputs.title || steps.unknown.outputs.title }}
         run: |
           gh label create roster-drift --force --color D4A017 \
             --description "The committed dog roster no longer matches the shelter's site"
           existing=$(gh issue list --label roster-drift --state open --limit 1 \
             --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body-file "$RUNNER_TEMP/drift.md"
+            gh issue comment "$existing" --body-file "$RUNNER_TEMP/report.md"
             echo "commented on existing issue #$existing"
           else
             gh issue create --label roster-drift \
-              --title "Dog roster has drifted from sfspca.org" \
-              --body-file "$RUNNER_TEMP/drift.md"
+              --title "$TITLE" \
+              --body-file "$RUNNER_TEMP/report.md"
           fi
