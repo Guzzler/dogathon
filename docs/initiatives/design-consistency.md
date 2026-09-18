@@ -172,65 +172,48 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
 - **DC-10 `[large]` and DC-4 — both shipped 2026-09-08 (PR #71), DC-4 as a rider; the Ledger
   rows are the full account.** The two stylesheets are down to what the app renders (the
   entry's own measurement over-reported by five classes), and `ci.yml`'s `frontend` job gained
-  a third guard step, **"Palette change notice"** — verified on throwaway commits locally, not
-  on a real Actions run, which is the DC-1 caveat and still open.
+  a third guard step, **"Palette change notice"**. It shipped verified locally but not in CI —
+  **that caveat is discharged as of 2026-09-17**; see the top of this queue for the real run.
 
-- **This doc's queue is now empty of open items, and the repo's `[large]` slot is empty with
-  it (2026-09-08, left for `dogathon-plan`).** DC-10 and DC-4 were the last two, so
-  `design-consistency.md` — which had held the slot for four consecutive runs (DC-5, DC-7,
-  DC-8, DC-10) — holds nothing. Across all three docs the only open item is **RS-4**, a
-  workflow trigger that is small by construction, so this is not an empty-queue audit case
-  yet; it is one refill away from being one. Two leads for whoever queues next, both from this
-  run rather than invented:
-  - **`theme.css` has never had the pass the other two just had.** DC-10 ruled it out of scope
-    on purpose: 22 of its 224 classes look unreferenced but most are false positives
-    (`is-on`, `is-active`, `has-error`, `leaflet-*` come from libraries or from constructed
-    names), and a handful do not — `shelter__form`, `shelter__form-row`, `shelter__label`,
-    `shelter__error`, `signin__google`, `signin__note`, `signin__fine`, `account__wipe`,
-    `avatar`, `avatar--initial`, `ap-row`, `ap-when`, `ap-manner`, `ap-routine`,
-    `tabbar__link--account`. That is a one-class-at-a-time item, not a sweep, and it is small.
-  - **`carePlan.css`'s ~115 color literals are now a smaller problem than the number
-    suggests**, because the pass above deleted 80 classes' worth of rules. Re-count before
-    treating the parked retokenisation as the size it used to be.
+- **2026-09-17 — DC-4's palette notice has now fired on real Actions runs, and the DC-1 caveat on
+  it is discharged.** This was a standing open item, not a disclaimer: DC-4 shipped "verified on
+  throwaway commits locally, not on a real Actions run", and the README's 2026-08-28 lesson says a
+  thing verified locally but not in the environment it runs in is something to go and check on a
+  named run. Checked this run. **Two merged PRs have edited a palette-source file since it
+  shipped** — PR #81 and PR #83, both touching `web/src/theme.css` — and PR #83's `frontend` job
+  log carries the real annotation:
+  `##[warning]This PR edits the palette source (web/src/theme.css). The design-token guard exempts
+  these files by design, so nothing here fails -- but a token change repaints every screen at once.`
+  The right file is named and the step did not fail the build, which is what it was designed to do.
+  **This is the opposite outcome to DC-3**, whose guard had never once evaluated a diff in CI
+  despite working locally — so the lesson holds in both directions, and the only way to tell which
+  one you have is to read a real run's log. What remains unobserved is the step *summary* body (the
+  "Changed token and color lines" block) and the `$tokens`-empty branch; nothing turns on them, and
+  both are visible to anyone who opens the next palette PR's summary.
 
-- **2026-09-09 — the `theme.css` lead above is mostly wrong, and shrinks to a tenth of its
-  stated size.** Re-measuring every `className` literal under `web/src` against `.<name>` in
-  `theme.css` found **eleven of the fifteen classes live**, including all four `shelter__*`, all
-  three `signin__*` and both `avatar*`. Only the four `ap-*` rules (`theme.css:557-564`) are
-  genuinely unreferenced. That is the README's 2026-09-07 lesson landing against a *lead* rather
-  than a shipped claim: the cheapest wrong measurement to find is the one the last run just
-  wrote. **The lead survives at four rules, not fifteen, which is a reason to leave it a lead
-  rather than promote it.** Working verbatim in
-  [`archive/design-consistency-themecss-lead-2026-09-14.md`](archive/design-consistency-themecss-lead-2026-09-14.md).
-
-- **2026-09-10 through 2026-09-14 — still empty, still the same routing decision, re-checked
-  rather than carried over.** `production-hardening.md` has held the repo's `[large]` slot for
-  six consecutive runs (PH-17, PH-19, PH-20, PH-21, and now PH-22), and execute works the queues
-  top-down: anything added here — including the true four-rule `ap-*` version of the `theme.css`
-  lead above — would be picked ahead of it. The `carePlan.css` literal re-count is still
-  untouched and still wants doing before the parked retokenisation is sized.
-  - **The note this doc left for PH-21 was taken, and it is worth recording as a win rather than
-    deleting as spent.** It asked that the attribution line appearing on three views be *one*
-    class and not three, for PR #11's reason. PH-21 shipped `ProfileAttribution` plus
-    `lib/adoptionSource.ts` — one line and one class (`.profile-attrib`, the withdrawn state a
-    data attribute) for all three surfaces. A one-bullet note in the second-ranked doc changed
-    the shape of an item built out of the third, at a cost of three sentences.
-  - **2026-09-15 — the `carePlan.css` re-count this bullet kept asking for is done, and the
-    parked retokenisation is a little over half the size it is recorded as.** Counted the same
-    way the 2026-09-07 figure was: **24 hex literals and 38 `rgb(`/`rgba(` — 62, not ~115 —
-    against 133 `var(--` uses**, in 1136 lines across 129 distinct class selectors. DC-8's
-    re-homing and DC-10's deletion pass took the literals down with the rules they lived in, so
-    the number in "What's parked" describes a file that no longer exists. **It stays parked
-    anyway** — the bar there is "someone commissions a palette pass on purpose", which is about
-    intent and not about volume, and 62 literals is still a repaint by volume. What changes is
-    that whoever commissions it is now sizing it honestly.
-  - **The same note now applies to PH-22**, which is queued in `production-hardening.md` and
-    lands on Discovery. It has to render "not recorded" for a foster duration, a size and an
-    energy level across **seven** call sites (`SwipeDeck`, `DogDetailView` twice, `SavedView`
-    twice, `HubView`, `PostFosterView`). That is the PR #11 shape again and then some: whoever
-    builds it should introduce **one** way of rendering an unrecorded value — a shared component
-    or a single class — not seven inline ternaries, and should check whether PH-21's
-    `.profile-attrib` is already that thing before adding a second one.
+- **2026-09-08 through 2026-09-15 — this queue has been empty of open items for nine runs, and the
+  routing decision is unchanged and re-checked rather than carried over.** `production-hardening.md`
+  holds the repo's `[large]` slot (PH-17, PH-19, PH-20, PH-21, PH-22, PH-18, and now PH-23) and
+  execute works the queues top-down, so anything added here would be picked ahead of it. The four
+  bullets that narrated those runs are verbatim in
+  [`archive/design-consistency-routing-2026-09-17.md`](archive/design-consistency-routing-2026-09-17.md).
+  Three things from them survive because they are facts rather than narration:
+  - **The `theme.css` dead-rule lead is four rules, not fifteen classes.** Re-measuring every
+    `className` literal under `web/src` found eleven of the fifteen candidates live, including all
+    four `shelter__*`, all three `signin__*` and both `avatar*`. Only the four `ap-*` rules
+    (`theme.css:557-564`) are genuinely unreferenced — **a reason to leave it a lead rather than
+    promote it**, and the cheapest wrong measurement to find is the one the last run just wrote.
+  - **`carePlan.css` carries 62 color literals, not ~115** (24 hex, 38 `rgb(`/`rgba(`, against 133
+    `var(--` uses, in 1136 lines across 129 class selectors — counted 2026-09-15). DC-8's re-homing
+    and DC-10's deletion took the literals down with the rules they lived in. It **stays parked**:
+    the bar there is intent, not volume.
+  - **A note this doc leaves for another doc is worth three sentences.** It asked that PH-21's
+    attribution line be one class across three views; PH-21 shipped `ProfileAttribution` +
+    `lib/adoptionSource.ts`, exactly that. Carried forward to PH-22, it shipped `Unrecorded.tsx`
+    plus one class across nine sites. **The same note now applies to PH-23**, which changes copy on
+    the pickup card, the scheduler's footnote and the confirm button: whoever builds it should not
+    invent a fourth way to say "the shelter hasn't told us" when `Unrecorded` and
+    `ProfileAttribution` already exist.
 
 - **DC-8 `[large]` (with DC-9) — shipped 2026-09-07 (PR #69); the Ledger row is the full
   account.** Care Plan's breakpoints step with the frame and `.cp-stage` caps at `--content-w`
@@ -395,3 +378,5 @@ queued work.
     been observed on a real Actions run.** Per the README, that makes it something to go and
     check on a named next run, not a disclaimer discharged by being written down. The first
     PR to touch `theme.css` or `brand.ts` is the check; it costs one glance at the summary.
+
+

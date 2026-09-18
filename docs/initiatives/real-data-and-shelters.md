@@ -17,13 +17,10 @@ half is optional — a fully automated shelter side ships a stale or wrong
 listing to someone hoping to foster a specific dog; a fully manual one never
 scales past one shelter.
 
-**Archived 2026-08-29, and repeatedly since.** This doc keeps arriving at the README's
-~400-line threshold, so settled sections are snapshotted verbatim into
-[`archive/`](archive/) and compressed here to a decision plus a pointer. The 2026-08-29
-snapshot holds the settled M1 / M2 / M4 narrative and the "where this stands" section as
-they stood; the [2026-09-03 one](archive/real-data-and-shelters-2026-09-03.md) holds the
-application round-trip design section and RS-10's full ledger row. Read the archive for the reasoning
-behind a settled decision; read this file for what is open.
+**Archived 2026-08-29, and repeatedly since.** This doc keeps arriving at the README's ~400-line
+threshold, so settled sections are snapshotted verbatim into [`archive/`](archive/) and compressed
+here to a decision plus a pointer. Read the archive for the reasoning behind a settled decision;
+read this file for what is open.
 
 ## Where this actually stands (verified against `main`; each line dated by the run that checked it)
 
@@ -60,26 +57,20 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
 - **The `applications` composite index (`shelterId` ASC, `createdAt` DESC) is
   `READY`** — RS-7 (PRs #38, #39) wired the deploy target, RS-9 supplied the IAM
   grant. RS-5's query has a serving index to run against.
-- **2026-09-03 — the application round trip is closed in both directions, and the design
-  sections that specified it are now descriptions of shipped code.** RS-10 joined the two
-  checklist halves by `owner`; RS-11 threaded `application.status` into the foster side under
-  the `declined` > `withdrawn` > `approved` > checklist precedence and made withdrawing write
-  `withdrawn` back. Both are compressed into the settled-design block below. What is *not*
-  closed is that no human has driven it end to end.
-- **2026-09-04 — `applications` is no longer empty, and the read rule is proven.** Three
-  `fixture-` rows written with Sharang present; the inbox renders them signed in as staff, and
-  both staff writes (a checklist tick, `Mark approved`) succeed. RS-5b is discharged; the
-  README's "zero documents in the `applications` collection" line is now stale.
-- **2026-09-05 — both halves of that gap are closed (RS-12).** The paragraph the agent writes
-  at the end of a journey now renders in full in a **Back from foster** group at the top of
-  `ShelterRosterView`, and a returned dog is offered **List for adoption** / **Mark adopted**
-  instead of the wrong verb. `rosterActions()` (plural) and `groupRoster()` decide both in
-  `web/src/lib/shelterDog.ts`, unit tested across all six `DogStatus` values. No rules change was
-  needed — RS-6's `update` rule already permits a status-only write on your own shelter's dog.
-  `send_adoption_profile_to_shelter`'s `notified_shelter` is now `True` because that write landed,
-  with Arcade reported separately as `arcade_messaging_available`. Nothing signed-in was verified:
-  see RS-12b.
-
+- **2026-09-03 / 09-04 / 09-05 — M3 is finished and its two round trips are closed.** RS-10
+  joined the checklist halves by `owner`; RS-11 threaded `application.status` into the foster side
+  and made withdrawing write `withdrawn` back; RS-5b proved the staff branch of `applications`'s
+  read rule serves the list query (three `fixture-` rows, seeded with Sharang present, still in
+  production); RS-12 landed the returned dog and the agent's paragraph on a surface staff
+  demonstrably read. Each has a Ledger row, which is the account; the three dated bullets that
+  used to restate them are verbatim in
+  [`archive/real-data-and-shelters-settled-2026-09-17.md`](archive/real-data-and-shelters-settled-2026-09-17.md).
+  What is *not* closed is that **no human has driven any of it end to end** — RS-6b, RS-12b and
+  RS-8 under "Needs a human".
+- **2026-09-17 — the roster's only staleness signal has never run.** RS-4's weekly
+  `import-dogs.yml` schedule fired for the first time on 2026-09-14 and failed `403` scraping SF
+  SPCA's sitemap from the GitHub runner; the same URL returns `200` from a residential IP with no
+  `User-Agent`. **M4 is reopened**; RS-13 in the queue is the honest-reporting fix.
 
 ## Milestones (compressed; full narrative in the archive)
 
@@ -95,10 +86,12 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   shelter that isn't SF SPCA, with zero scraping risk. RS-2 shipped the gate and
   RS-5 the inbox; RS-6 is the remaining third. Build from the queue items, not
   from this paragraph.
-- **M4 — decided 2026-08-26, shipped 2026-09-09 as RS-4 (PR #72). Closed.** Yes to a cadence,
-  no to Cloud Scheduler; weekly, plan-only, and always re-scraping. The reasoning is in the
-  archive and the outcome is the RS-4 Ledger row — this bullet no longer carries the spec,
-  because the shipped workflow does.
+- **M4 — decided 2026-08-26, shipped 2026-09-09 as RS-4 (PR #72). **Reopened 2026-09-17** —
+  the cadence exists and has never once run to completion, because the scrape 403s from a
+  GitHub-hosted runner's IP range. **RS-13** in the queue is the honest-reporting fix; a scrape
+  that can actually run weekly needs an unblocked address, which is infrastructure a person owns.
+  The original reasoning (yes to a cadence, no to Cloud Scheduler; weekly, plan-only, always
+  re-scraping) is in the archive and the outcome is the RS-4 Ledger row.
 - **M5 — a second automated source (RescueGroups.org), gated on demonstrated
   need.** Don't build it until M3 has one real shelter using the admin surface;
   a second automated source before the manual path is proven just adds a second
@@ -106,35 +99,28 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
 
 ## Settled design, all three shipped — compressed 2026-09-04
 
-Three design sections used to sit here in full: **RS-6**'s photo source (a pasted URL into
-`photo_urls`, no uploads, and `dogPhotoOrNull()` keyed off `source` so the placedog fallback
-never fires for a hand-entered dog), **RS-10**'s checklist join (one writer per field — shelter
-items on `applications/{id}.checklist`, foster items on `fosters/{uid}`, each view composing
-both, never mirroring), and **RS-11**'s round trip plus the precedence that resolves it
-(`declined` > `withdrawn` > `approved` > checklist-derived; `approved` replaces the badge but
-never unlocks pickup; an absent application must never render as a decline). All three are now
-descriptions of shipped code, so per the README's 2026-09-02 rule they are the longer of two
-tellings and the ledger rows are the shorter. Full text, verbatim, in the
-[2026-09-04 archive](archive/real-data-and-shelters-2026-09-04.md); RS-10's original spec and
-its rejected alternatives remain in the
+Three invariants, kept because they are what a regression would break; the design sections that
+argued them are the longer telling and are archived. **RS-6's photo source**: a pasted URL into
+`photo_urls`, no uploads, `dogPhotoOrNull()` keyed off `source` so the placedog fallback never
+fires for a hand-entered dog. **RS-10's checklist join**: one writer per field — shelter items on
+`applications/{id}.checklist`, foster items on `fosters/{uid}`, each view composing both, **never
+mirroring**. **RS-11's precedence**: `declined` > `withdrawn` > `approved` > checklist-derived;
+`approved` replaces the badge but never unlocks pickup; an absent application must never render as
+a decline. Full text in the [2026-09-04 archive](archive/real-data-and-shelters-2026-09-04.md) and,
+for RS-10's rejected alternatives, the
 [RS-10 archive](archive/real-data-and-shelters-rs10-2026-09-02.md).
 
-## Settled — "notify the shelter" means the dashboard (2026-09-04, shipped 2026-09-05)
+## Settled — "notify the shelter" means the dashboard (2026-09-04, shipped 2026-09-05 as RS-12)
 
-PH-1 had said since 2026-08-24 that a real notification path was *downstream of M3*; M3
-finished while nobody re-read that sentence. The answer, once someone did: **the
-notification is a surface, not a message.** Not email and not Arcade — wiring either would
-mean choosing an address for an organization Pawthway has no relationship with, which is
-the conversation this doc keeps saying is Sharang's to have. A shelter that signs in to
-`/shelter` has already told us where it reads. So the dog comes back **on the shelter's own
-roster, with the agent's profile rendered in full**, `ready_for_adoption` is an arrival that
-sits above `available` rather than a resting state, and the offered action is **List for
-adoption** / **Mark adopted** rather than the untruthful `retire`. `notified_shelter` is
-then true because a write landed somewhere a shelter demonstrably reads (RS-5b), not
-because a capability exists. Shipped as RS-12 (PR #63), which discharges PH-1. Full text of
-the specification, verbatim, in the
-[2026-09-05 design archive](archive/real-data-and-shelters-2026-09-05.md); what the build
-found that the spec hadn't is RS-12's ledger row.
+**The notification is a surface, not a message.** Not email and not Arcade — wiring either would
+mean choosing an address for an organization Pawthway has no relationship with, which is the
+conversation this doc keeps saying is Sharang's to have. A shelter that signs in to `/shelter` has
+already told us where it reads, so the dog comes back on its own roster with the agent's profile
+rendered in full, and `notified_shelter` is true because a write landed somewhere staff
+demonstrably read (RS-5b), not because a capability exists. This discharges **PH-1**. Full
+specification and the section that argued it, verbatim, in the
+[2026-09-05 design archive](archive/real-data-and-shelters-2026-09-05.md) and
+[`archive/real-data-and-shelters-settled-2026-09-17.md`](archive/real-data-and-shelters-settled-2026-09-17.md).
 
 ## Task queue
 
@@ -147,89 +133,101 @@ taken by the M4 drift check, which is unrelated and independent of these.)
 
 ### Decisions that apply to all three (Sharang, 2026-08-26)
 
-- **Both sides are device-agnostic.** The shelter side is desk-shaped work, built
-  responsive and **outside** the 430px `.phone` frame — while staying usable on a
-  phone, because a staff member approving one application from their pocket is a
-  real case. The foster side is DC-5 in `design-consistency.md`, separately.
-- **Staff-ness is resolved by query, never a document read.** Shipped that way in
-  RS-2; the derivation is in the
-  [2026-08-29 archive](archive/real-data-and-shelters-2026-08-29.md). Don't
-  re-derive it, and don't "fix" it by loosening `firestore.rules`.
+Both are in the README's "already decided" list and a third telling here, so: **both sides are
+device-agnostic** (the shelter side responsive and *outside* the 430px `.phone` frame, still usable
+from a pocket; the foster side is DC-5), and **staff-ness is resolved by an `array-contains` query,
+never a document read** (shipped in RS-2; derivation in the
+[2026-08-29 archive](archive/real-data-and-shelters-2026-08-29.md)). Don't re-derive either, and
+don't "fix" the second by loosening `firestore.rules`.
 
 ### The items
 
-- **RS-6 — shipped 2026-09-01 (PR #54); Ledger row is the full account.** **M3's third surface
-  is built**, so the milestone's remaining work is the two round trips between the sides —
-  RS-10 (checklist) and RS-11 (status) — not another screen.
+- **RS-13 — the weekly drift check has never once succeeded, and cannot as written.** *(Queued
+  2026-09-17.)* **M4 is not closed.** RS-4 shipped on 2026-09-09 saying plainly that the scheduled
+  branch could not be dispatched, so *"the first real proof arrives the Monday after merge."* That
+  Monday was **2026-09-14**, the run is
+  [`35054...`/`34827471420`](https://github.com/Guzzler/dogathon/actions/runs/34827471420), and it
+  **failed**: step 6 "Import" exited 1 on
+  `httpx.HTTPStatusError: Client error '403 Forbidden' for url
+  'https://www.sfspca.org/sfspca-adoption-sitemap.xml'` (`scripts/shelters/sfspca.py:97`,
+  `r.raise_for_status()` inside `dog_urls`). Steps 7–9 — the uncommitted-changes check, the drift
+  detection and the report — were all `skipped`, so the one thing the workflow exists to produce
+  has never been produced.
 
-- **RS-10 `[large]` — shipped 2026-09-02 (PR #56); Ledger row is the full account.** The design
-  section above is the compressed decision; the spec and queue item are archived verbatim in
-  [`archive/real-data-and-shelters-rs10-2026-09-02.md`](archive/real-data-and-shelters-rs10-2026-09-02.md).
-  It ungates RS-11, which now sits at the top of this queue.
+  **The 403 is the runner's IP, not a bot policy, and this was measured rather than assumed.** From
+  a residential connection the same URL returns **200 with no `User-Agent` header at all**, and 200
+  again with a browser UA — two `curl` calls, 2026-09-17. So SF SPCA has not changed its policy and
+  **no header, UA string or politeness delay will fix this**: the block is on the datacentre range
+  GitHub-hosted runners live in. That also rules out moving the job to Cloud Run, which is the same
+  kind of address.
 
-- **RS-11 `[large]` — shipped 2026-09-03 (PRs #58, #59); Ledger rows are the full account.**
-  The round trip is closed in both directions. The `[large]` slot it emptied is refilled by
-  RS-12 below — the first time in four runs that re-reading the queue did *not* produce one
-  (see the README's 2026-09-04 note).
+  **What this does *not* license.** Do **not** add `--from-cache` to the scheduled branch. RS-4's
+  own Ledger row explains why the scheduled path re-scrapes *by construction*: a cached replay diffs
+  the committed data against itself and reports "no drift" forever. A green weekly check that cannot
+  detect drift is worse than a red one, and it is the tense test in CI — a job whose green means
+  "nothing changed" when it actually means "we never looked" is the same defect this loop has been
+  fixing in the UI all fortnight.
 
-- **RS-12 `[large]` — shipped 2026-09-05 (PR #63); the Ledger row is the full account.** Its
-  spec was compressed to a pointer on 2026-09-05, the same run that backfilled this number.
-  **PH-1 is discharged by this**, not by anything in `production-hardening.md`. One thing the
-  spec hadn't named: `rosterAction` had to become plural, because a returned dog wants two
-  moves and the singular signature couldn't say so. The signed-in half is RS-12b under
-  "Needs a human".
+  **The design question, left for plan rather than pre-decided here**, because it turns on something
+  only Sharang can settle: a self-hosted runner is the one place a scrape can run from an unblocked
+  address, and that is infrastructure a person has to own, not a PR. So RS-13 is scoped to making the
+  workflow **honest about which of the three states it is in** — drifted, clean, or *could not
+  look* — and nothing more:
+  - `.github/workflows/import-dogs.yml`: let the Import step's scrape failure be **caught rather
+    than fatal** on the `schedule` event only (manual dispatch should still go red — a human is
+    watching it). Distinguish a reachability failure from a real import error; a 403/timeout on the
+    sitemap is the former.
+  - When the scrape could not run, file or update the report saying **exactly that**, reusing the
+    existing single-issue mechanism (`roster-drift` label, one open issue, comment on repeat) that
+    RS-4 already built — do not open a second issue stream. The issue body must say the roster's
+    freshness is **unknown**, not that it is clean.
+  - Leave every manual path byte-for-byte unchanged, as RS-4 did, and verify it the way RS-4 did:
+    replay the shell for all three event types rather than reading it.
 
-- **This queue holds no `[large]` item, and that is a finding rather than a gap — established
-  2026-09-05, re-checked unchanged on each of the eight runs since.** M3 is finished (RS-2,
-  RS-5, RS-6, RS-10, RS-11, RS-12 all shipped; RS-5b proved a real staff account reads and
-  writes the inbox); M5 is gated on demonstrated need, which needs a real shelter, which needs
-  the conversation below; RS-4 was small by construction and has since shipped. **The top doc
-  has run out of buildable work, not out of work**, and routing one run's slot to another doc is
-  not a re-rank. Two cautions from those runs that apply directly to this doc's "Where this
-  actually stands" section, which is itself a list of dated measurements: DC-8 existed because
-  re-measuring found DC-7 had missed the repo's largest stylesheet, and DC-10 existed because
-  DC-8 had verified against a hand-built harness containing dead classes. **A dated measurement
-  is evidence, and *what you measured against* is part of the claim.** Full narration verbatim
-  in [`archive/real-data-and-shelters-largeslot-2026-09-14.md`](archive/real-data-and-shelters-largeslot-2026-09-14.md).
+  **Verification.** `gh workflow run import-dogs.yml --ref <branch>` with defaults (plan-only,
+  cached) must still pass exactly as it does on `main`. The scheduled branch still cannot be
+  dispatched, so what is provable is the argument replay plus the new branch's parsing; say so.
+  Then **check the next Monday's real run** — the same discipline that found this one, and the
+  README's standing 2026-08-28 lesson arriving for the second time in three weeks.
 
-- **2026-09-15 — the slot is in `production-hardening.md` for a seventh consecutive run, and
-  this time it was *labelled* rather than measured for.** Fallbacks re-run against this doc
-  again and unchanged: queue empty, no gate opened (RS-12b, RS-6b and RS-8 all still want a
-  signed-in human; M5 still wants a shelter; `git log --all --since=2026-09-12` is this loop's
-  own commits only). Nothing new is implied for this doc — PH-22, whose fix covered the half of
-  RS-6 that RS-6 could not see, shipped as PR #83 and `dogFromForm()`'s omission convention is
-  now safe as written.
+- **Every M3 item is shipped and each has a Ledger row, which is the account** — RS-6 `[large]`
+  (PR #54, M3's third surface), RS-10 `[large]` (PR #56, the checklist join, which ungated RS-11),
+  RS-11 `[large]` (PRs #58, #59, the round trip in both directions), RS-12 `[large]` (PR #63, which
+  **discharges PH-1** — not anything in `production-hardening.md`), and RS-7/RS-5 (PRs #38, #39,
+  #52, the deploy target and the inbox; RS-5's one open question was settled by RS-5b). These
+  bullets had each become a third layer pointing at a Ledger row that points at an archive, so they
+  are one line now. The signed-in halves are **RS-6b, RS-12b and RS-8** under "Needs a human".
 
-- **2026-09-14 — the `[large]` slot is in `production-hardening.md` for a sixth consecutive
-  run, and nothing here has changed.** All three fallbacks re-run against this doc again: queue
-  empty, no gate opened (RS-12b, RS-6b and RS-8 all still want a signed-in human; M5 still wants
-  a shelter; `git log --all --since=2026-09-11` is this loop's own commits only), and measuring
-  produced PH-22 one doc over. **But PH-22 is partly about this doc's own work, and that is worth
-  saying here rather than only there.** RS-6's `dogFromForm()` omits fields it has no value for
-  — `foster_weeks`, `size`, `energy_level` — and asserted in a comment that `normalizeDog()`
-  "already knows how to render" an absent key. It did not; it filled all three with defaults
-  from a breed regex, making a hand-entered dog the *most* likely record to carry invented
-  facts, while the scraped roster got real values from `enrichment.json`. The form was right
-  and its callee was not. **PH-22 (PR #83) fixed the callee**, so the convention is now safe.
-
-- **2026-09-13 — the fifth consecutive run, same three fallbacks, same outcome; PH-21 was found
-  one doc over.** Its one note for this doc: PH-21 edits `ShelterRosterView.tsx`, M3's screen,
-  to label the paragraph staff already read with who wrote it. Correctly PH-21's and not an RS
-  item, but read RS-12's ledger row before touching that view.
-
-- **RS-4 — shipped 2026-09-09 (PR #72); the Ledger row is the full account.** M4 is closed:
-  `.github/workflows/import-dogs.yml` has a weekly `schedule:` trigger, the scheduled path is
-  plan-only-and-re-scraping *by construction* rather than by input default, and drift is
-  reported as one reused GitHub issue. Every manual input and default is byte-for-byte
-  unchanged. **This empties the last open item across all three initiative docs.**
+- **RS-4 — shipped 2026-09-09 (PR #72), and its claim to have closed M4 did not survive its own
+  first real run.** The weekly trigger, the plan-only-by-construction scheduled path and the
+  one-reused-issue drift report all shipped exactly as specified — and the scrape 403s from a
+  GitHub runner, so none of it has ever produced a report. **RS-13 above is the fix**; this bullet
+  used to say "M4 is closed" and "this empties the last open item across all three initiative
+  docs", and the second half was true.
 
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
-- **RS-7 (PR #38/#39) and RS-5 (PR #52) — shipped, and RS-5's one open question is now
-  answered.** Whether the `||` read rule actually serves the staff list query was settled on
-  2026-09-04 by seeding three fixtures and reading them signed in as staff: it does. See RS-5b
-  under "Needs a human", which is DONE.
+- **This doc has held no `[large]` item since 2026-09-05, and that is still a finding rather than
+  a gap — re-checked this run and unchanged.** M3 is finished; M5 is gated on demonstrated need,
+  which needs a real shelter, which needs the conversation below. **RS-13 does not change it**: it
+  is a workflow honesty fix, small by construction, and it sits above the repo's `[large]` item in
+  `production-hardening.md`, which execute — working top-down — should reach in the same run. The
+  top doc has run out of *buildable* work, not out of work. Full narration of the nine runs that
+  established this, and the two cautions it produced about a dated measurement being evidence whose
+  *measured-against* is part of the claim, verbatim in
+  [`archive/real-data-and-shelters-largeslot-2026-09-14.md`](archive/real-data-and-shelters-largeslot-2026-09-14.md).
+
+- **2026-09-13 through 2026-09-15 — three runs recorded the same routing outcome here** (this queue
+  empty, every gate still gated on a person, the `[large]` slot found in `production-hardening.md`),
+  and they are compressed to this line per the README's rule that a chronological log grows like a
+  ledger — verbatim in
+  [`archive/real-data-and-shelters-routing-2026-09-17.md`](archive/real-data-and-shelters-routing-2026-09-17.md).
+  The one substantive thing they carried is worth keeping: **PH-22 (PR #83) fixed the callee behind
+  RS-6's `dogFromForm()`**, which omits `foster_weeks`, `size` and `energy_level` and asserted in a
+  comment that `normalizeDog()` "already knows how to render" an absent key. It did not — it filled
+  all three from a breed regex, making a hand-entered dog the *most* likely record to carry invented
+  facts. The form was right and its callee was not; the convention is now safe as written.
 
 ### Needs a human, not a queue item
 
@@ -303,15 +301,12 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status as of 2026-09-12: re-checked this run — `git log --all` and a grep across `docs/`
-turn up no commit, no doc edit from Sharang and no note anywhere in the repo saying this has
-happened — `git log --all --since=2026-09-09` is fourteen commits, every one of them this
-loop's own PRs. Re-checked, not carried over. Recorded so a future run doesn't mistake the passage of
-time for progress. It is worth saying plainly now that M3 is finished: the shelter side is
-complete enough that this is the only thing standing between it and a real user. **As of
-2026-09-05 that has a second consequence** — it is also the only thing standing between this
-doc and its next `[large]` item, per the queue note above. The loop cannot route around it,
-and should stop looking for a way to.)*
+*(Status re-checked **2026-09-17**, not carried over: `git log --all --since=2026-09-14` is this
+loop's own PRs and nothing else, and a grep across `docs/` turns up no commit, no doc edit from
+Sharang and no note anywhere saying this has happened. Recorded so a future run doesn't mistake
+the passage of time for progress. Now that M3 is finished this is the only thing standing between
+the shelter side and a real user — and, per the queue note above, between this doc and its next
+`[large]` item. The loop cannot route around it and should stop looking for a way to.)*
 
 ## Ledger
 
@@ -356,42 +351,42 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   of `applications`'s read rule serves the list query.** Three fixtures seeded, all three render at
   `/shelter`, both staff write paths succeed. It could not be answered against an empty collection
   because Firestore evaluates a list rule per candidate document.
-- 2026-09-05 — RS-12 `[large]` — PR #63 — **the dog comes back, and the shelter sees it — which
-  is what "notify the shelter" now means.** `adoption_profile` had been written by the agent
-  since the first Post Foster turn and read by **nothing** — the app's most expensive turn
-  produced a paragraph that reached no human but the foster who watched it stream. It now lands
-  in a **Back from foster** group at the *top* of `ShelterRosterView`, rendered in full with no
-  clamp. `rosterAction` (singular) became **`rosterActions` (plural)**, because
-  `ready_for_adoption` is the one status wanting two moves — the shape change the item implied
-  and didn't name. **No rules change**, confirmed before writing one: both actions are
-  status-only writes on a dog the shelter already owns. `notified_shelter` is now `True`
-  *because the write landed on a surface RS-5b proved staff read*, with `notified_via:
-  "shelter_roster"` and Arcade demoted to `arcade_messaging_available` — two claims, two fields.
-  `server.py`'s system prompt moved with it. This discharges **PH-1**. Nothing signed-in was
-  verified; that half is RS-12b. Full 35-line row verbatim in the
-  [2026-09-06 ledger archive](archive/real-data-and-shelters-ledger-2026-09-06.md).
-- 2026-09-09 — RS-4 — PR #72 — **the roster now tells us when it goes stale, weekly, without
-  ever being able to write.** A `schedule: "0 9 * * 1"` trigger joins the existing
-  `workflow_dispatch` on `import-dogs.yml`. The one detail M4 said decides whether the task is
-  worth doing at all is enforced structurally, not by default: the scheduled branch builds
-  `ARGS="--plan"` from `github.event_name` and never appends `--from-cache`, so it always
-  re-scrapes (a cached replay diffs the committed data against itself and reports "no drift"
-  forever) and there is **no input it can set and no branch it can take that writes to
-  Firestore**. Both manual paths resolve to exactly the argument strings they did before —
-  checked by replaying the shell for all three events, not by reading it. **Chose the issue
-  over the `::error::` fallback** the item offered, and reused rather than reopened: one
-  `roster-drift` label (created with `--force`, so a missing label can't fail the run), one
-  open issue, a *comment* on it if a later week still drifts — a weekly check that files an
-  identical ticket every Monday until someone re-bakes is a backlog, not a signal. Quiet when
-  the diff is empty: one line to the step summary and nothing else. `permissions:` gains
-  `issues: write`; `concurrency: import-dogs` is untouched, as asked, and already prevents a
-  scheduled run overlapping a manual one. Two things the spec hadn't named. The report needed
-  a body richer than a diff stat, so the import output is `tee`'d and the `firestore plan`
-  block is `sed`'d out of it — a reader wants to know how many docs *would* change, not only
-  which files did. And the existing "Check for uncommitted roster changes" step was pinned to
-  `github.event_name == 'workflow_dispatch'`: `inputs.rescrape` is empty on a schedule event
-  so it was already inert there, but relying on that is relying on a falsy empty string.
-  **Verified by dispatching the branch's own workflow** (`--ref feat/roster-drift-check`,
-  defaults untouched: plan-only, cached) — see the row's PR for the run. The scheduled branch
-  itself cannot be dispatched, so what is proven about it is the argument replay plus the
-  file parsing, not a live green run; the first real proof arrives the Monday after merge.
+- 2026-09-05 — RS-12 `[large]` — PR #63 — **the dog comes back, and the shelter sees it — which is
+  what "notify the shelter" now means.** `adoption_profile` had been written by the agent since the
+  first Post Foster turn and read by **nothing**; it now lands in a **Back from foster** group at
+  the *top* of `ShelterRosterView`, rendered in full with no clamp. `rosterAction` became
+  **`rosterActions`** (plural), because `ready_for_adoption` is the one status wanting two moves.
+  **No rules change**, confirmed before writing one: both actions are status-only writes on a dog
+  the shelter already owns. `notified_shelter` is now `True` *because the write landed on a surface
+  RS-5b proved staff read*, with Arcade demoted to `arcade_messaging_available` — two claims, two
+  fields. This discharges **PH-1**. Nothing signed-in was verified; that half is RS-12b. Full row
+  verbatim in
+  [`archive/real-data-and-shelters-rs12row-2026-09-17.md`](archive/real-data-and-shelters-rs12row-2026-09-17.md).
+- 2026-09-09 — RS-4 — PR #72 — **the roster was given a weekly way to say it had gone stale —
+  which then turned out not to be able to run at all; see RS-13.** A `schedule: "0 9 * * 1"` trigger
+  joined the existing `workflow_dispatch` on `import-dogs.yml`. The detail that decides whether the
+  task is worth doing is enforced structurally rather than by default: the scheduled branch builds
+  `ARGS="--plan"` from `github.event_name` and never appends `--from-cache`, so it always re-scrapes
+  (a cached replay diffs the committed data against itself and reports "no drift" forever) and there
+  is **no input it can set and no branch it can take that writes to Firestore**. Both manual paths
+  resolve to exactly the argument strings they did before, checked by replaying the shell for all
+  three events rather than by reading it. **Chose the issue over the `::error::` fallback**, and
+  reused rather than reopened: one `roster-drift` label, one open issue, a *comment* if a later week
+  still drifts — a weekly check that files an identical ticket every Monday is a backlog, not a
+  signal. Two things the spec hadn't named: the report needed a body richer than a diff stat, so the
+  import output is `tee`'d and the `firestore plan` block `sed`'d out of it; and the existing
+  "Check for uncommitted roster changes" step was pinned to `workflow_dispatch` rather than relying
+  on `inputs.rescrape` being a falsy empty string on a schedule event. **Verified by dispatching
+  the branch's own workflow** (plan-only, cached). The scheduled branch itself cannot be dispatched,
+  so what was proven was the argument replay plus the file parsing — and the row said so: *"the
+  first real proof arrives the Monday after merge."* It arrived on **2026-09-14 and failed 403**.
+  Full row verbatim in
+  [`archive/real-data-and-shelters-rs4-2026-09-17.md`](archive/real-data-and-shelters-rs4-2026-09-17.md).
+
+
+
+
+
+
+
+
