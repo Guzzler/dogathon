@@ -177,15 +177,16 @@ shelter, per the section below.
 
 - **This doc has held no `[large]` item since 2026-09-05, and that is still a finding rather than
   a gap — re-checked this run and unchanged.** M3 is finished; M5 is gated on demonstrated need,
-  which needs a real shelter, which needs the conversation below. **RS-13 does not change it**: it
-  is a workflow honesty fix, small by construction, and it sits above the repo's `[large]` item in
-  `production-hardening.md`, which execute — working top-down — should reach in the same run. The
+  which needs a real shelter, which needs the conversation below. RS-13 shipped (PR #88) and did not change it: it was a workflow honesty fix, small by
+  construction. **Re-checked 2026-09-18 and unchanged for a tenth run** — the repo's `[large]`
+  slot is PH-24 in `production-hardening.md`, a ninth consecutive run in the third doc, which is
+  routing for one run and not a re-rank. The
   top doc has run out of *buildable* work, not out of work. Full narration of the nine runs that
   established this, and the two cautions it produced about a dated measurement being evidence whose
   *measured-against* is part of the claim, verbatim in
   [`archive/real-data-and-shelters-largeslot-2026-09-14.md`](archive/real-data-and-shelters-largeslot-2026-09-14.md).
 
-- **2026-09-13 through 2026-09-15 — three runs recorded the same routing outcome here** (this queue
+- **2026-09-13 through 2026-09-18 — six runs recorded the same routing outcome here** (this queue
   empty, every gate still gated on a person, the `[large]` slot found in `production-hardening.md`),
   and they are compressed to this line per the README's rule that a chronological log grows like a
   ledger — verbatim in
@@ -276,7 +277,7 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status re-checked **2026-09-17**, not carried over: `git log --all --since=2026-09-14` is this
+*(Status re-checked **2026-09-18**, not carried over: `git log --all --since=2026-09-15` is this
 loop's own PRs and nothing else, and a grep across `docs/` turns up no commit, no doc edit from
 Sharang and no note anywhere saying this has happened. Recorded so a future run doesn't mistake
 the passage of time for progress. Now that M3 is finished this is the only thing standing between
@@ -357,7 +358,7 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   first real proof arrives the Monday after merge."* It arrived on **2026-09-14 and failed 403**.
   Full row verbatim in
   [`archive/real-data-and-shelters-rs4-2026-09-17.md`](archive/real-data-and-shelters-rs4-2026-09-17.md).
-- 2026-09-17 — RS-13 — PR #__ — **the weekly roster check now has a third outcome, and it is the
+- 2026-09-17 — RS-13 — PR #88 — **the weekly roster check now has a third outcome, and it is the
   honest one: *could not look*.** `scripts/import_dogs.py` gained `EXIT_UNREACHABLE = 75`
   (`EX_TEMPFAIL`) and exits with it, having written nothing, when the scrape raises `httpx.HTTPError`
   — and, the part the spec had not named, **when a fresh scrape returns zero dogs**. That second

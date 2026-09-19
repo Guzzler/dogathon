@@ -50,6 +50,10 @@ below is an index entry, not an account.
 
 ## The tense test, and the four faces it has been asked in — consolidated 2026-09-13
 
+*(A **fifth** — what an input *control* may record — was added 2026-09-18 and sits below the
+queue, because it is a design answer PH-24 still depends on. All four here watch a value leaving
+the app; it watches one arriving, and is the first about the **foster** rather than a dog.)*
+
 Four sections stood here, one per shipped item, each a rule plus a preamble plus a pointer to
 the archive holding its working. They are one rule asked four times, so they are one section.
 The statements below are verbatim; everything that surrounded them is in the archives named at
@@ -135,25 +139,76 @@ they are the product asserting things about a real animal that nobody observed, 
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
-- **PH-23 `[large]` — shipped 2026-09-17; the Ledger row is the full account.** All six claims
-  are gone and each has a replacement rather than a hole: the calendar no longer greys out days
-  nobody published, the verb is **Request**, the timeline's fourth stage is **Pickup requested**,
-  the `.ics` says the slot is still only asked for, and the prompt is told not to confirm on the
-  shelter's behalf. Two things worth keeping out of the row. **The census was right about all six
-  and short by one** — `server.py`'s third parenthetical ("what goes home with the dog (medical
-  records, current food, any meds)") is the same class of claim sitting in the same sentence, and
-  leaving it would have been the item's own finding — *look for the exemption next to the rule* —
-  repeated by the fix. And **the timeline is drawn by two screens, not one**: `SavedView` carried a
-  byte-identical `STAGES` and `activeIdx`, so the labels now live in `applicationView.ts` as
-  `APPLICATION_STAGES` + `activeStage()`. The request/confirm round trip remains out of scope and
-  unbuilt; **no rule was widened**.
+- **PH-24 `[large]` — the questionnaire records two answers the foster may never have given, and
+  a third to a question it never asked.** Queued 2026-09-18. Measured this run by asking which of
+  the five phases had never been put through the tense test: Discovery (PH-22), Care Plan (PH-18,
+  PH-19), Post Foster (PH-20, PH-21) and Match (PH-23) all had. **Onboarding had not**, and it is
+  the one surface that *writes* rather than renders.
+
+  **The root, and it is three lines.** `OnboardingView.tsx:45-46` opens the size slider at `50`
+  and the energy slider at `2`. `:53`'s `canNext = [!!experience, true, true, !!home, true, true]`
+  makes steps 1 and 2 — the two sliders — advanceable **without being touched**, while the two
+  pill questions (experience, home) are correctly required and the tag step is honestly optional
+  (`[]` really is "none selected"). `finish()` at `:73-74` then writes `pref_size: sizePref` and
+  `pref_energy: energyPref` **unconditionally**. A foster who tapped Continue twice has "Medium"
+  and "A daily walk, then settle" in Firestore as answers.
+
+  **And `:69` is worse, because the question does not exist.** `time_availability` is derived
+  from the energy slider — `energyPref >= 3 ? "A lot (home most of the day)" : "A little (WFH some
+  days)"`. Onboarding never asks about time. `get_foster()` (`foster.py:65-77`) returns the whole
+  document, so **the agent is told how much of the day a foster is home** on the strength of a
+  slider they may not have moved, answering a question nobody put to them. `size_preference` and
+  `energy_preference` at `:70-71` are the same defaults in a second shape.
+
+  **The five read sites, enumerated — this is the census, and per eight runs of precedent, verify
+  it against `main` before building:**
+  1. `HubView.tsx:137-138` — the "What you're looking for" card prints the size bucket and
+     `${ENERGY_WORD[p.energy]} energy` as chips under a heading that says these are the foster's
+     answers. A **labelled row**, so the 2026-09-14 rule applies at full strength.
+  2. `matching.ts:93` — `"exactly the pace you picked"`, and `:91` `"right in your size range"`.
+     PH-22 guarded both on `knownSize`/`knownEnergy`, which are properties of the **dog**; the
+     `p.size`/`p.energy` half was never guarded. This is the "second reader" rule from PH-20
+     arriving from the other side of the same comparison.
+  3. `matching.ts:39-40` — `scoreDog`'s two largest terms. Ranking, not an answer, so per the
+     2026-09-14 rule the number needs no absent state — but `UNKNOWN_SIZE`/`UNKNOWN_ENERGY`
+     (`:30-31`) exist for exactly this and currently only fire on the dog side.
+  4. `DiscoveryView.tsx:142-146` — the filter sheet's sliders, under the sentence **"Straight from
+     your questionnaire."** The sliders themselves are controls and stay where they are (geometry);
+     the sentence is the claim.
+  5. `OnboardingView.tsx:199-201` — the summary screen's own chips, which show "Medium" back to a
+     foster as something they said, one tap before it is written.
+
+  **What to build.** Track whether each slider was moved (two booleans in `OnboardingView`'s
+  existing `useState` block is enough — the sliders keep their resting positions and nothing about
+  how the step looks or feels changes), and **omit** `pref_size` / `pref_energy` / `size_preference`
+  / `energy_preference` from the written `intake` when they were not. **Omit `time_availability`
+  entirely, always** — it answers an unasked question and no amount of touch-tracking makes it
+  true; adding a sixth step to ask it is out of scope and its own item. Then branch the five sites
+  on the field's presence: `Unrecorded` for (1), the existing idiom and now four-for-four per
+  `design-consistency.md`; **silence** for (2), per `matchReasons()`' own comment that a sentence
+  never owed gets no `Unrecorded`; the existing `UNKNOWN_*` constants for (3); and for (4) a
+  sentence that does not claim the questionnaire supplied an untouched slider. (5) is a judgment
+  call for execute — showing the resting value back before writing it is arguably the moment it
+  stops being untouched, and either answer is defensible if the row is written down.
+
+  **Do not** make `FosterIntake`'s fields non-optional, do not add a `derived` bag (see the design
+  section above for why this case is the opposite of PH-22's), and do not touch `firestore.rules` —
+  nothing here changes who may write what.
+
+  **Verification.** `npm test` (149 today; `matching.test.ts` has 12 cases and is where the
+  `prefs()` half belongs), `npm run build`, `./node_modules/.bin/tsc --noEmit` — **not** `npx tsc`,
+  which resolves to an unrelated `tsc@2.0.4` — and `npm run lint` diffed against `main` for the
+  same 8 warnings. `uv run pytest` should be unchanged; if `foster.py` moves at all, say why. The
+  case that proves it: an intake written by tapping Continue through both sliders has neither
+  `pref_size` nor `time_availability` as keys, the Hub renders `Unrecorded` rather than "Medium",
+  and `matchReasons()` returns no size or pace sentence.
+
+- **PH-23 `[large]` — shipped 2026-09-17 (PR #89); the Ledger row is the full account**, including
+  both things the spec had not named. The request/confirm round trip is still unbuilt.
 
 **2026-09-15 / 09-16 — PH-22 then PH-18 shipped the day each was queued, emptying this queue
-entirely, and PH-18's two parting leads are both closed** (the "Triage guide" `<button>` was
-already gone in PR #85's own diff, so that row's "neither taken" is wrong about its own PR — left
-as written per the ledger convention; the dead `@keyframes cp-pulse-dot` went in PR #86). The
-run-by-run narration of how the `[large]` slot was found and emptied over those two runs is
-verbatim in
+entirely, and PH-18's two parting leads are both closed** (PR #85's own diff, and PR #86). The
+run-by-run narration is verbatim in
 [`archive/production-hardening-queuenarration-2026-09-17.md`](archive/production-hardening-queuenarration-2026-09-17.md);
 the README's fallback chain tells the same story once, which is why it is not told twice here.
 
@@ -181,19 +236,53 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
    −4 already does for the four fields the normaliser passes through. Extending that to size and
    energy is the same decision applied one layer earlier, not a new one.
 
-- **Every PH item through PH-22 is shipped** (PRs #47, #48, #49, #75, #77, #79, #81, #83), and
-  **PH-18 `[large]` shipped 2026-09-15** (PR #85, with #86 as its follow-up). Each Ledger row below
-  is the full account and each spec is archived verbatim —
+- **Every PH item through PH-23 is shipped** (PRs #47, #48, #49, #75, #77, #79, #81, #83, #85,
+  #86, #89), each with a Ledger row that is the full account and a spec archived verbatim —
   [PH-22's](archive/production-hardening-ph22-2026-09-14.md),
-  [PH-18's](archive/production-hardening-ph18-2026-09-15.md) (nine runs of re-verification on it;
-  read it before adding any local row back to `emergencyContacts`), and the rest named in the
-  [2026-09-12 ledger archive](archive/production-hardening-ledger-2026-09-12.md). Three things they
-  carried that the rows do not: PH-15's live rules check is **PH-15b under "Needs a human"**, so
-  don't read PH-15 as verified end to end; the habit of re-verifying a spec against `main` before
-  building is now **nine runs old**, and it found nothing wrong on PH-19, PH-20 or PH-21 and
-  something materially wrong on PH-17, on PH-22's read-site census, and on PH-18 three times; and
-  the design section directly above stays in this doc because it holds the rule rather than the
-  build instructions.
+  [PH-18's](archive/production-hardening-ph18-2026-09-15.md) (nine runs of re-verification; read
+  it before adding any local row back to `emergencyContacts`), and the rest named in the
+  [2026-09-12 ledger archive](archive/production-hardening-ledger-2026-09-12.md). One thing the
+  rows do not carry: PH-15's live rules check is **PH-15b under "Needs a human"**, so don't read
+  PH-15 as verified end to end.
+
+### The fifth face: what an input *control* may record (2026-09-18)
+
+The four faces above ask what a page may print, what a model may be told, what a model may
+assert, and who is shown the assertion. All four watch a value **leaving** the app. This one
+watches a value **arriving**, and it is the first that does not involve a dog at all — the
+claim is about the **foster**.
+
+> A control has to render somewhere. A slider has a thumb, a stepper has a number, a range
+> input at rest sits where its `useState` put it. That resting position is geometry, exactly as
+> `size: "medium"` is. **It becomes a claim at the moment it is written down** — because a
+> stored `pref_size: 50` is indistinguishable from a foster who dragged the slider to the
+> middle on purpose, and every reader downstream is entitled to read it as an answer.
+
+So the rule, stated to be reusable against the next form somebody builds:
+
+> **A default a control renders is a fallback; the same default persisted is an answer.** A form
+> may only write a field the person actually supplied. Where it cannot tell, it must omit — not
+> annotate.
+
+**Why omit rather than annotate, when PH-22 annotated.** PH-22 could not omit: `RichDog.size`
+and `RichDog.energyLevel` are non-null because layout genuinely needs them, so the only place
+the provenance could live was a sibling `derived` set. `FosterIntake` has the opposite shape —
+`pref_size`, `pref_energy` and all four siblings are **already optional** (`types.ts:149-153`),
+`prefs()` **already** supplies `?? 50` / `?? 2` for ordering, and the agent's `save_intake`
+already defaults each of the six strings to `""`. Absence is representable at every layer;
+nothing is asking to be annotated. The generalisation worth keeping:
+
+> **Prefer absence to annotation wherever the schema can already carry absence.** A `derived`
+> bag is what you build when it cannot. Reaching for one first adds a parallel vocabulary to a
+> field that was nullable all along.
+
+**The consequence that makes this worth a run rather than a two-line patch.** `prefs()`'s
+`?? 50` / `?? 2` has a comment calling it an intake default "so a foster who skipped onboarding
+still gets sensible ordering" — and it can never fire for a foster who *finished* onboarding,
+because `finish()` writes both fields unconditionally. The fallback the codebase believes it
+has is dead code, and the defaults reach the render sites as recorded values instead. Fixing
+the write is what turns the existing fallback back on; the render sites are then branching on a
+field that is genuinely sometimes absent, for the first time.
 
 ### Needs a human — PARKED, not pending; archived 2026-09-11
 
@@ -214,85 +303,32 @@ them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
 
-- 2026-09-15 — PH-18 `[large]` — PR #85 — **The emergency screen no longer tells a foster
-  anything nobody recorded, and the two rows it was meant to keep now render where they were
-  always meant to.** Deleted: a 120-line hand-drawn SVG of Presidio Park, the Bay, a blue route
-  and a "1.2 mi · 4 min" chip whose travel time nobody computed; the "VCA SF Veterinary
-  Specialists · 1.2 mi · Open now" row; and "Copper's Dream Rescue · Foster coordinator ·
-  (415) 554-3030" — an invented number for an organisation that does not exist, on the screen
-  someone opens in an emergency. `emergencyContacts` is now the two published national poison
-  lines and nothing else.
+- 2026-09-15 — PH-18 `[large]` — PR #85 — **the emergency screen stopped telling a foster things
+  nobody recorded.** Gone: a hand-drawn SVG map of Presidio Park with a "1.2 mi · 4 min" chip
+  nobody computed, a "nearest 24-hour vet" row, and an invented phone number for an organisation
+  that does not exist — on the screen someone opens in an emergency. Three things the build
+  established that outlive the row: **a delete needs a replacement, not just a guard** (stripping
+  the vet row alone would have promoted a poison line into the card headed "Nearest 24-hour
+  vet", because `nearest` was a `find` on `distanceMi != null`); **fix the field, not the regex**
+  (`EmergencyContact` gained `kind`, because a category is a filter and a substring test was a
+  `find`); and the honest resolution of a contact nobody can verify is **no call action at all**,
+  not a plausible number. Full row verbatim in
+  [`archive/production-hardening-ph18row-2026-09-18.md`](archive/production-hardening-ph18row-2026-09-18.md).
 
-  **Three things the build turned up that the spec had only half of.** (1) The spec's central
-  correction held exactly: stripping the vet row alone would have promoted Pet Poison Helpline
-  into a card headed "Nearest 24-hour vet" under a *Call Vet Now* button, because `nearest` was
-  `find(c => c.distanceMi != null) ?? contacts[0]`. The card is now conditional on
-  `kind === "vet"` and there is no such row, so it renders an honest "No 24-hour vet on file"
-  instead — which means **the delete needed a replacement, not just a guard**: a screen with a
-  hole where the vet was is its own kind of wrong answer. (2) `EmergencyContact` gains
-  `kind: "vet" | "poison" | "shelter"`, per the spec's "fix the field, not the regex". Both
-  poison lines now render as quick actions rather than one, because a category is a filter and a
-  substring test was a `find`. (3) The coordinator row resolves the way the spec's second
-  correction demanded and no other way: **no call action at all.** `DogProfile` gains
-  `shelter?: {name, address}` from the dog's own record, so "Who else to tell" names the real
-  shelter with its real address and offers no `tel:`. No `phone` was added to `Shelter`; that
-  field would have had to be filled.
-
-  Verified by `Emergency.test.tsx` (13 assertions, `renderToStaticMarkup` like
-  `ShelterRosterView.test.tsx`), which locks both invisible halves: that no contact is promoted
-  into the vet card, and that both poison lines reach the quick-action row rather than "Other
-  contacts". A dev server could not be started from this unattended run, so the screen was
-  verified as rendered markup rather than in a browser — the tests assert the exact strings a
-  foster reads, including the absence of "Presidio Park", "<svg" and "4 min".
-
-  **Two leads, neither taken.** `@keyframes cp-pulse-dot` in `carePlan.css:780` is referenced by
-  nothing in `web/src` — dead when the map went, possibly dead before. And the "What to do now ·
-  Triage guide" button at the bottom of the quick-action row is a `<button>` with no `onClick`:
-  it has never done anything, which is a different defect from claiming something false, and
-  outside this seam. *(Also, for Sharang rather than a doc edit: `CLAUDE.md` still lists
-  "Emergency Mode (24h vet map)" as explicitly out of scope, and the map shipped anyway —
-  though as of this PR the out-of-scope line is true again.)*
-
-- 2026-09-14 — PH-22 `[large]` — PR #83 — **`normalizeDog()` still fills the three holes a card's
-  layout needs, but it now writes down that it had to, and nine surfaces stopped printing the
-  filling as the shelter's answer.** `RichDog` gains `derived: {fosterWeeks, size, energyLevel}`,
-  resolved to `null` first and defaulted second, so "did anyone record this?" survives the
-  defaulting. Rendering goes through **one** component (`components/Unrecorded.tsx` + one class) —
-  the shape `design-consistency.md` asked for — while `matchReasons()` says *nothing* rather than
-  "Not recorded": a slot promised a value gets the component, a sentence never owed gets silence.
-  The sharp half: `foster_weeks` is absent on **all 19** roster dogs, so every countdown this app
-  has ever shown a foster was arithmetic from a constant. In scoring, `compat()`'s three-way moved
-  one layer earlier (unknown size `0`, unknown energy `-4`), and the case that makes it concrete is
-  a dog named "Border collie" with no `energy_level` that `guessEnergy()` scored 4 and which then
-  paid both the apartment and the first-timer penalty on the strength of its name.
-  **Re-verifying the spec against `main` paid for an eighth consecutive run, this time on the
-  census**: it named seven read sites and there were nine — the miss being `AdoptionProfile.tsx:48`,
-  the shared adoption link, the one surface a stranger reads when deciding about a real animal.
-  Two **stated contracts that were false** are corrected in place (`shelterDog.ts`'s and
-  `types.ts`'s claim that `normalizeDog()` "already knows how to render" an absent key), as is
-  `matching.ts:50`'s citation of a `score >= 45` cutoff in `DiscoveryView` that **has never
-  existed**. Tests 120 → **132**, all green, plus build and lint. **Not verified live, and this one
-  could have been** — every affected function is pure and covered, but that `.unrecorded` reads
-  correctly on Discovery's dark photo overlay is reasoned about, not observed. One standing lead:
+- **2026-09-13 — PH-21 — PR #81; 2026-09-14 — PH-22 `[large]` — PR #83. Compressed 2026-09-18;
+  verbatim in [`archive/production-hardening-ledger-2026-09-18.md`](archive/production-hardening-ledger-2026-09-18.md).**
+  PH-21 made the one paragraph a model wrote readable, attributed and retractable by the two
+  people who could correct it — `ProfileAttribution` + `lib/adoptionSource.ts`, one line and one
+  class across three surfaces, with `withdraw_adoption_profile` **writing rather than clearing**
+  because since RS-12 the write *is* the notification. PH-22 made `normalizeDog()` write down
+  that it had filled a hole: `RichDog.derived`, nine surfaces stopped printing the filling as the
+  shelter's answer, and `foster_weeks` turned out absent on **all 19** roster dogs, so every
+  countdown this app has shown a foster was arithmetic from a constant. Three things from those
+  rows outlive them and are needed by PH-24 below: re-verifying a spec against `main` paid for an
+  eighth consecutive run by finding PH-22's read-site census **two short**; two *stated contracts*
+  were false in the same direction (`shelterDog.ts` and `types.ts` both claimed `normalizeDog()`
+  "already knows how to render" an absent key); and one standing lead is still untaken —
   `ageLabel`'s one-month floor, in two places (`dog.ts:66`, `DogProfile.ageMonths`).
-
-- 2026-09-13 — PH-21 `[large]` — PR #81 — **The one paragraph a model wrote is now readable by the
-  two people who could correct it, attributed everywhere it appears, and retractable.**
-  `ProfileAttribution` + `lib/adoptionSource.ts` is **one line and one class** across all three
-  surfaces. The **one deliberate departure from the spec**: instead of a second card in
-  `PostFosterView`, the paragraph lands once in `AdoptionProfileBody` — both the foster's page and
-  the shared link render that body, so it is not printed twice on one screen, and the banner became
-  the disagreement the spec insisted the screen must be able to render (`readyForAdoption` lives on
-  `fosters/{uid}`, the text on `dogs/{id}`). `withdraw_adoption_profile` **writes rather than
-  clears** and leaves `status` untouched: since RS-12 the write *is* the notification, so a blank
-  field would leave a **Back from foster** card with nothing in it. The third state — the field
-  simply **absent** — needed a line the spec had not named: "Source not recorded", because guessing
-  "the foster" for a pre-field record is the same invention the tense test rules out. Tests 115 →
-  120 plus 4 backend cases; all green. **Not verified live**: producing a `ready_for_adoption` dog
-  needs a completed journey on a signed-in account.
-
-*(Both rows are compressions. Full text verbatim in
-[`archive/production-hardening-ledger-2026-09-17.md`](archive/production-hardening-ledger-2026-09-17.md).)*
 
 - 2026-09-12 — PH-20 `[large]` — PR #79 — **The one paragraph this app keeps because a model
   wrote it now has to name what nobody recorded.** `generate_adoption_profile` returns a seventh
@@ -334,7 +370,7 @@ which names for each of them where the uncompressed text lives. A compression of
 is the cheapest thing in a doc at its ceiling to cut, because nothing is lost that was not
 already two hops away — this is the README's "the Ledger is the first place to look" rule
 reaching the end of what it can give on this doc.)*
-- 2026-09-17 — PH-23 `[large]` — PR #__ — **the pickup handoff stops speaking for the shelter.**
+- 2026-09-17 — PH-23 `[large]` — PR #89 — **the pickup handoff stops speaking for the shelter.**
   All six claims in the census went, each with a replacement rather than a deletion (PH-18's rule):
   `CLOSED_DAYS` and "Closed Sundays & Mondays" are gone and the footnote says
   `Unrecorded`'s one phrasing — *"SF SPCA's opening days and times not recorded"* — followed by the

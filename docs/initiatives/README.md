@@ -206,31 +206,37 @@ Compressed:
   numbers, and the ninth re-read the screen and found the Poison Control quick-action had never once
   rendered.
 
-- **2026-09-17 — the tenth link: the phase nobody had measured, plus the first run in three weeks
-  to find a shipped thing broken in production.** PH-18 shipped (#85, with #86 as its follow-up) and
-  the queue was empty in **all three docs** — the first time that has happened with no label left to
-  find, so links one and two were genuinely exhausted rather than skipped. Three things generalise:
-  - **Enumerate the surfaces, not the datasets.** The previous five runs each pointed the tense test
-    at another *consumer of one dataset* (the adoption profile, then the roster's derived fields).
-    Asking instead which of the **five phases** had never been measured named **Match** immediately —
-    and it produced the defect in its most direct form yet: `PickupScheduler.tsx:8` states its own
-    source outright (*"Shelters in this world are closed Sun/Mon -- gives the calendar real gaps to
-    show off"*) and `:114` prints it to a foster under a real shelter's real street address. That is
-    **PH-23**, and the slot sits in the third doc for an eighth consecutive run.
-  - **A prompt that carries its own correction is a measurement waiting to be read.**
-    `server.py:79-83` enumerates what to bring and how long the handoff takes; `:83-85` then says
-    *"You don't have real parking maps or staff rosters -- speak generally rather than inventing
-    specifics."* The rule was written down and applied only to the facts nobody had got around to
-    inventing. **Look for the exemption next to the rule**, not for the rule's absence.
-  - **"Verified locally, not in the environment it runs in" came due twice on the same run, and
-    resolved in opposite directions.** The 2026-08-28 lesson says treat that phrasing as an open
-    item to go and check on a named run. Checked both: DC-4's palette notice **works** — PR #83's
-    real Actions log carries the annotation naming the right file — and RS-4's weekly roster drift
-    check **has never once run to completion**, failing `403` on SF SPCA's sitemap from the GitHub
-    runner's IP (the same URL returns `200` from a residential connection with no `User-Agent`, so
-    no header will fix it). **M4 is reopened as RS-13.** The lesson's value is not that the caveat
-    predicts failure; it is that only a real run tells you which of the two you have, and a loop
-    that never goes back to look accumulates both kinds indistinguishably.
+- **2026-09-17 — the tenth link: enumerate the *surfaces*, not the datasets.** Five runs had each
+  pointed the tense test at another consumer of one dataset; asking instead which of the **five
+  phases** had never been measured named **Match** immediately and produced PH-23. With it: **look
+  for the exemption next to the rule** (`server.py` wrote down "speak generally rather than
+  inventing specifics" and then applied it only to the facts nobody had got around to inventing),
+  and **"verified locally, not in the environment it runs in" came due twice on one run and
+  resolved in opposite directions** — DC-4's palette notice works on a real Actions run, RS-4's
+  weekly roster check has never once completed (403 from the runner's IP), reopening M4 as RS-13.
+  Only a real run tells you which of the two you have. Verbatim in
+  [`archive/readme-large-slot-2026-09-18.md`](archive/readme-large-slot-2026-09-18.md).
+
+- **2026-09-18 — the eleventh link: the surface that *writes*.** The tenth link's method worked
+  again on its second use, which is the first thing worth recording — enumerating the five phases
+  a second time named the one still unmeasured, **Onboarding**, and it produced **PH-24** in under
+  a dozen reads. But the reason it had gone unmeasured ten runs running is the durable half:
+  every previous face of the tense test watched a value **leaving** the app — printed on a page,
+  put in a prompt, asserted by a model, shown to a reader. Onboarding is the only phase whose job
+  is to take a value **in**, so nothing in the accumulated method pointed at it. **A census of
+  render sites cannot find a defect in a write site**, and a loop that measures only what its
+  screens display will keep a form's defaults out of view indefinitely. Two smaller things it
+  established:
+  - **The fallback that proves the bug is often already in the code, dead.** `prefs()` supplies
+    `?? 50` / `?? 2` with a comment explaining it is for a foster who skipped onboarding — and it
+    can never fire, because `finish()` writes both fields unconditionally. **A defensive default
+    that cannot execute is evidence the value it defends against is being manufactured
+    upstream**, and it is cheaper to grep for than to reason about.
+  - **The third claim was the one nobody could have found by auditing answers.**
+    `time_availability` is derived from the energy slider and reaches the agent — a claim about
+    how much of the day a foster is home, answering a question the questionnaire **never asks**.
+    Auditing whether each stored answer is true would have passed it; only enumerating the
+    questions *asked* against the fields *written* shows a row with nothing above it.
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -289,10 +295,10 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 59 files as of 2026-09-17** — counted with `ls`, because the running tally this
+**`archive/` holds 62 files as of 2026-09-18** — counted with `ls`, because the running tally this
 sentence used to carry had drifted from the directory (it read "twenty-eight" on 2026-09-10, when a
-count would have said thirty-five). **Count it, don't increment it.** **This run added eight** — by
-far the most of any run — and all four docs landed under: README 374, DC 382, RS 392, PH 398. The
+count would have said thirty-five). **Count it, don't increment it.** The 2026-09-17 run added eight, by far the most of any run. **This run added three** and all four
+docs landed under: README 388, DC 388, RS 381, PH 399. The
 eleven-entry narration of which doc was how many lines on which date is in
 [`archive/readme-docsize-2026-09-10.md`](archive/readme-docsize-2026-09-10.md). Two things this
 run's own arithmetic establishes, worth keeping because they are the first counter-examples to the
@@ -359,7 +365,8 @@ fact.
 before the PR exists, so it cannot know its own number. That is a real ordering constraint, not
 sloppiness, so the convention is: **execute leaves `PR #__` and plan backfills it on the next
 run** from `gh pr list --state merged`. It has held without exception since 2026-08-26 and every
-backfill has cost exactly one `gh pr list`, including the run that resolved four at once — so if
+backfill has cost exactly one `gh pr list` — two more resolved on 2026-09-18 (RS-13 → #88,
+PH-23 → #89), including the run that resolved four at once — so if
 it ever stops being cheap, the fix is execute amending its own row after opening the PR, not plan
 guessing. Two things the log established and worth keeping: **one PR number can fill two or three
 placeholders** (the rider convention puts two items in one PR; RS-4 left three in one doc), and

@@ -191,9 +191,9 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
   "Changed token and color lines" block) and the `$tokens`-empty branch; nothing turns on them, and
   both are visible to anyone who opens the next palette PR's summary.
 
-- **2026-09-08 through 2026-09-15 — this queue has been empty of open items for nine runs, and the
+- **2026-09-08 through 2026-09-18 — this queue has been empty of open items for twelve runs, and the
   routing decision is unchanged and re-checked rather than carried over.** `production-hardening.md`
-  holds the repo's `[large]` slot (PH-17, PH-19, PH-20, PH-21, PH-22, PH-18, and now PH-23) and
+  holds the repo's `[large]` slot (PH-17, PH-19, PH-20, PH-21, PH-22, PH-18, PH-23, and now PH-24) and
   execute works the queues top-down, so anything added here would be picked ahead of it. The four
   bullets that narrated those runs are verbatim in
   [`archive/design-consistency-routing-2026-09-17.md`](archive/design-consistency-routing-2026-09-17.md).
@@ -214,8 +214,12 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
     **taken on 2026-09-17**: the scheduler's footnote renders `Unrecorded` rather than a fourth
     phrasing, and the same run found the inverse of the same defect one level out — `MatchView` and
     `SavedView` each held a byte-identical `STAGES` literal and `activeIdx` expression for one
-    timeline, now `APPLICATION_STAGES` + `activeStage()` in `applicationView.ts`. **Three for three**,
-    and the cheapest place this doc has found work is a note left for another doc.
+    timeline, now `APPLICATION_STAGES` + `activeStage()` in `applicationView.ts`. **Four for four as
+    of 2026-09-18**: PH-24 is specified to reuse `Unrecorded` on the Hub's "What you're looking for"
+    card rather than invent a fifth phrasing — and it carries the note's sharper half forward too,
+    that a sentence *never owed* gets silence rather than a stand-in (`matchReasons()`). The
+    cheapest place this doc has found work is still a note left for another doc, and the note now
+    travels with its own exception.
 
 - **DC-8 `[large]` (with DC-9) — shipped 2026-09-07 (PR #69); the Ledger row is the full
   account.** Care Plan's breakpoints step with the frame and `.cp-stage` caps at `--content-w`
