@@ -133,13 +133,17 @@ function LookingForCard({ intake }: { intake: FosterIntake }) {
   const [confirming, setConfirming] = useState(false);
   const p = prefs(intake);
 
-  const chips = [
-    p.size < 33 ? "Small" : p.size < 67 ? "Medium" : "Large",
-    `${ENERGY_WORD[p.energy]} energy`,
-    p.home ? HOME_LABEL[p.home] : null,
-    p.experience === "first" ? "First-time foster" : p.experience ? "Experienced foster" : null,
-    ...p.tags.map((t) => TAG_LABEL[t]),
-  ].filter(Boolean) as string[];
+  // "What you're looking for" is a labelled surface -- the heading says these are the foster's
+  // own answers -- so a slider they never moved renders as `Unrecorded`, not as the resting
+  // position dressed up as a choice (PH-24). Keyed separately from the label because two
+  // `Unrecorded` chips would otherwise collide.
+  const chips: { key: string; node: React.ReactNode }[] = [
+    { key: "size", node: p.sizeGiven ? (p.size < 33 ? "Small" : p.size < 67 ? "Medium" : "Large") : <Unrecorded what="Size" /> },
+    { key: "energy", node: p.energyGiven ? `${ENERGY_WORD[p.energy]} energy` : <Unrecorded what="Energy" /> },
+    ...(p.home ? [{ key: "home", node: HOME_LABEL[p.home] }] : []),
+    ...(p.experience ? [{ key: "exp", node: p.experience === "first" ? "First-time foster" : "Experienced foster" }] : []),
+    ...p.tags.map((t) => ({ key: `tag-${t}`, node: TAG_LABEL[t] })),
+  ];
 
   async function reset() {
     // Clearing intake sends them back through the front door.
@@ -152,7 +156,7 @@ function LookingForCard({ intake }: { intake: FosterIntake }) {
       <p className="hub-card__eyebrow">What you're looking for</p>
       <div className="looking-chips">
         {chips.map((c, n) => (
-          <span key={c} className={`chip ${["coral", "sage", "butter"][n % 3]}`}>{c}</span>
+          <span key={c.key} className={`chip ${["coral", "sage", "butter"][n % 3]}`}>{c.node}</span>
         ))}
       </div>
       {intake.restrictions && <p className="pw-muted looking-note">Note: {intake.restrictions}</p>}

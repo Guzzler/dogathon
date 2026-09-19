@@ -42,8 +42,14 @@ export function OnboardingView() {
   const [saving, setSaving] = useState(false);
 
   const [experience, setExperience] = useState<"first" | "experienced" | null>(null);
+  // PH-24: a slider has to render *somewhere*, so these resting positions are geometry --
+  // but the moment one is written to Firestore it becomes an answer, indistinguishable from a
+  // foster who dragged the thumb to the middle on purpose. Track the touch so `finish()` can
+  // omit what nobody supplied. Nothing about how either step looks or feels changes.
   const [sizePref, setSizePref] = useState(50);
+  const [sizeTouched, setSizeTouched] = useState(false);
   const [energyPref, setEnergyPref] = useState(2);
+  const [energyTouched, setEnergyTouched] = useState(false);
   const [home, setHome] = useState<Home | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
   const [restrictions, setRestrictions] = useState("");
@@ -63,15 +69,18 @@ export function OnboardingView() {
     try {
       // Written in both shapes: the six strings are what the agent's `get_foster()` reads,
       // the pref_* fields are what scoreDog() needs.
+      //
+      // Only fields the foster actually supplied go in. `pref_size`/`size_preference` and
+      // `pref_energy`/`energy_preference` are omitted when their slider was never moved, and
+      // `time_availability` is omitted always: it used to be derived from the energy slider,
+      // and onboarding has never asked how much of the day anyone is home. Every one of these
+      // is optional on `FosterIntake`, so absence needs no annotation -- see PH-24.
       const intake: FosterIntake = {
         living_arrangement: home === "apartment" ? "Apartment" : home === "townhouse" ? "Townhouse" : "House with yard",
         experience_level: experience === "first" ? "First-time foster" : "Experienced foster",
-        time_availability: energyPref >= 3 ? "A lot (home most of the day)" : "A little (WFH some days)",
-        size_preference: sizeWord(sizePref),
-        energy_preference: ENERGY_WORD[energyPref],
+        ...(sizeTouched ? { size_preference: sizeWord(sizePref), pref_size: sizePref } : {}),
+        ...(energyTouched ? { energy_preference: ENERGY_WORD[energyPref], pref_energy: energyPref } : {}),
         restrictions,
-        pref_size: sizePref,
-        pref_energy: energyPref,
         pref_home: home ?? undefined,
         pref_experience: experience ?? undefined,
         pref_tags: tags,
@@ -123,7 +132,7 @@ export function OnboardingView() {
                   <div className="muted">{SIZE_HINT[sizePref < 33 ? 0 : sizePref < 67 ? 1 : 2]}</div>
                 </div>
                 <input className="slider" type="range" min={0} max={100} value={sizePref} aria-label="Size preference"
-                  onChange={e => setSizePref(+e.target.value)} />
+                  onChange={e => { setSizePref(+e.target.value); setSizeTouched(true); }} />
                 <div className="ticks">
                   {["Small", "Medium", "Large"].map((l, n) => (
                     <span key={l} data-on={(sizePref < 33 ? 0 : sizePref < 67 ? 1 : 2) === n}>{l}</span>
@@ -138,14 +147,14 @@ export function OnboardingView() {
               <div style={{ marginTop: 34 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "0 2px", marginBottom: 26 }}>
                   {ENERGY_FACE.map((f, n) => (
-                    <motion.button key={n} onClick={() => setEnergyPref(n)} aria-label={ENERGY_WORD[n]}
+                    <motion.button key={n} onClick={() => { setEnergyPref(n); setEnergyTouched(true); }} aria-label={ENERGY_WORD[n]}
                       animate={{ scale: energyPref === n ? 1.32 : 1, opacity: energyPref === n ? 1 : .38 }}
                       transition={{ type: "spring", stiffness: 300, damping: 18 }}
                       style={{ fontSize: 27, lineHeight: 1 }}>{f}</motion.button>
                   ))}
                 </div>
                 <input className="slider" type="range" min={0} max={4} value={energyPref} aria-label="Energy preference"
-                  onChange={e => setEnergyPref(+e.target.value)} />
+                  onChange={e => { setEnergyPref(+e.target.value); setEnergyTouched(true); }} />
                 <div className="ticks"><span>Couch potato</span><span>Zoomies</span></div>
                 <motion.div key={energyPref} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                   style={{ textAlign: "center", marginTop: 22 }}>
@@ -196,9 +205,15 @@ export function OnboardingView() {
           )}
 
           {summary && (
+            // The summary says "Based on your answers", so it shows only answers. An untouched
+            // slider gets no chip rather than an `Unrecorded` one: this screen is a list of what
+            // the foster chose, not a set of labelled rows with a slot left empty, and showing
+            // "Medium" back one tap before writing it is exactly how a resting position gets
+            // mistaken for a decision. The Hub's card is the labelled surface and does use
+            // `Unrecorded`.
             <Summary chips={[
-              sizeWord(sizePref),
-              `${ENERGY_WORD[energyPref]} energy`,
+              ...(sizeTouched ? [sizeWord(sizePref)] : []),
+              ...(energyTouched ? [`${ENERGY_WORD[energyPref]} energy`] : []),
               home === "apartment" ? "Apartment-friendly" : home === "townhouse" ? "Townhouse-friendly" : "Yard to run in",
               experience === "first" ? "First-time buddy" : "Experienced foster",
               ...tags.map(t => TAG_LABEL[t]),

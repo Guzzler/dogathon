@@ -139,7 +139,17 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
         }}>
         <div style={{ width: 40, height: 4, borderRadius: 4, background: "var(--line)", margin: "0 auto 14px" }} />
         <h3>Adjust your filters</h3>
-        <p className="muted" style={{ marginTop: 5 }}>Straight from your questionnaire.</p>
+        {/*
+          The sliders themselves are controls and keep their resting positions -- that is
+          geometry. The sentence under them is the claim, and it is only true of a slider the
+          foster actually moved (PH-24). Moving one here writes it, so the alternative says so
+          rather than leaving the discrepancy unexplained.
+        */}
+        <p className="muted" style={{ marginTop: 5 }}>
+          {p.sizeGiven && p.energyGiven
+            ? "Straight from your questionnaire."
+            : "Anything you didn't answer starts in the middle — moving it here records it."}
+        </p>
 
         <div style={{ marginTop: 12 }}><DogGrow t={p.size / 100} /></div>
         <div className="row" style={{ justifyContent: "space-between", marginTop: 6, marginBottom: 2 }}>

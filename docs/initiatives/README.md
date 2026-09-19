@@ -295,10 +295,13 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 62 files as of 2026-09-18** — counted with `ls`, because the running tally this
+**`archive/` holds 63 files as of 2026-09-18** — counted with `ls`, because the running tally this
 sentence used to carry had drifted from the directory (it read "twenty-eight" on 2026-09-10, when a
 count would have said thirty-five). **Count it, don't increment it.** The 2026-09-17 run added eight, by far the most of any run. **This run added three** and all four
-docs landed under: README 388, DC 388, RS 381, PH 399. The
+docs landed under: README 388, DC 388, RS 381, PH 399. **PH-24 shipped the same day and took PH
+back to 373** by archiving the item's own spec *and* the design section that argued it into one
+file — the "two tellings of one story" rule paying for a `[large]` item's ledger row at the moment
+the item shipped, rather than a run later. The
 eleven-entry narration of which doc was how many lines on which date is in
 [`archive/readme-docsize-2026-09-10.md`](archive/readme-docsize-2026-09-10.md). Two things this
 run's own arithmetic establishes, worth keeping because they are the first counter-examples to the
