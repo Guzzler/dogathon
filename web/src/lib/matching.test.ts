@@ -158,3 +158,47 @@ describe("an unrecorded size or energy", () => {
     expect(guessed.join(" | ")).not.toMatch(/easy first foster/i);
   });
 });
+
+/**
+ * PH-24: the other half of the same comparison. `prefs()`'s `?? 50` / `?? 2` had never once
+ * fired for a foster who finished onboarding, because `finish()` wrote both fields whether or
+ * not the slider had been touched. Now that an untouched slider is omitted, these pin what an
+ * absent preference does: it still orders (a score is a ranking), and it never speaks.
+ */
+describe("an unanswered size or energy question", () => {
+  const answered: FosterIntake = { pref_size: 0, pref_energy: 0, pref_home: "apartment" };
+  const unanswered: FosterIntake = { pref_home: "apartment" };
+
+  it("ranks between a matching answer and a mismatching one on size", () => {
+    const small = dog({ size: "small", weight_lbs: undefined });
+    const match = scoreDog(small, answered);
+    const absent = scoreDog(small, unanswered);
+    const mismatch = scoreDog(small, { ...answered, pref_size: 100 });
+    expect(match).toBeGreaterThan(absent);
+    expect(absent).toBeGreaterThan(mismatch);
+  });
+
+  it("ranks between a matching answer and a mismatching one on energy", () => {
+    const calm = dog({ energy_level: 0 });
+    const match = scoreDog(calm, answered);
+    const absent = scoreDog(calm, unanswered);
+    const mismatch = scoreDog(calm, { ...answered, pref_energy: 4 });
+    expect(match).toBeGreaterThan(absent);
+    expect(absent).toBeGreaterThan(mismatch);
+  });
+
+  it("says nothing about a size range or a pace the foster never picked", () => {
+    const lines = matchReasons(dog(), { pref_experience: "first" }).join(" | ");
+    expect(lines).not.toMatch(/size range/);
+    expect(lines).not.toMatch(/pace you picked/);
+    expect(lines).not.toMatch(/close to your pace/);
+  });
+
+  it("still credits the dog for rules that do not read a slider", () => {
+    // An untouched slider says nothing about where the foster lives or how experienced they
+    // are, so those sentences must survive it.
+    const lines = matchReasons(dog({ energy_level: 1 }), { pref_home: "apartment", pref_experience: "first" });
+    expect(lines.join(" | ")).toMatch(/apartment/i);
+    expect(lines.join(" | ")).toMatch(/easy first foster/i);
+  });
+});

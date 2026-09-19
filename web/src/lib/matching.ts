@@ -4,10 +4,21 @@ import { ENERGY_WORD, sizeLabel, type RichDog } from "./dog";
 
 const SIZE_POS = { small: 0, medium: 50, large: 100 } as const;
 
-/** Intake defaults, so a foster who skipped onboarding still gets sensible ordering. */
+/**
+ * Intake defaults, so a foster who skipped onboarding still gets sensible ordering.
+ *
+ * PH-24: until onboarding stopped writing both sliders unconditionally, the `??` arms here
+ * were dead code -- every finished questionnaire supplied `pref_size` and `pref_energy`
+ * whether or not the foster had touched either slider, so the defaults arrived downstream
+ * as recorded answers instead of as fallbacks. They can now genuinely be absent, which is
+ * what `sizeGiven` / `energyGiven` report: the number is still there for ordering, but a
+ * caller printing it to the foster has to ask first whether anybody supplied it.
+ */
 export const prefs = (i: FosterIntake | undefined) => ({
   size: i?.pref_size ?? 50,
   energy: i?.pref_energy ?? 2,
+  sizeGiven: i?.pref_size != null,
+  energyGiven: i?.pref_energy != null,
   home: i?.pref_home,
   experience: i?.pref_experience,
   tags: i?.pref_tags ?? [],
@@ -33,8 +44,11 @@ const UNKNOWN_ENERGY = -4; // term spans [-22, 22]
 
 export function scoreDog(d: RichDog, intake: FosterIntake | undefined): number {
   const p = prefs(intake);
-  const knownSize = !d.derived.size;
-  const knownEnergy = !d.derived.energyLevel;
+  // Each term compares two values, so either side being unrecorded makes the comparison
+  // meaningless in the same way (PH-24). The dog's half comes off `derived`, the foster's off
+  // whether onboarding actually wrote the field.
+  const knownSize = !d.derived.size && p.sizeGiven;
+  const knownEnergy = !d.derived.energyLevel && p.energyGiven;
   let s = 52;
 
   s += knownSize ? 22 - Math.abs(p.size - SIZE_POS[d.size]) * 0.4 : UNKNOWN_SIZE;
@@ -43,19 +57,24 @@ export function scoreDog(d: RichDog, intake: FosterIntake | undefined): number {
   // Every rule below is a claim about this specific dog ("too big for an apartment"), so each
   // one waits on its input actually having been recorded. Needs-based rules read `needsList`,
   // which the normaliser never invents, so they fire regardless.
+  // These rules compare the dog against the *home* or the *experience level*, not against a
+  // slider, so they wait only on the dog's half being recorded (PH-22) -- a foster who never
+  // touched the size slider still lives in an apartment.
+  const dogSize = !d.derived.size;
+  const dogEnergy = !d.derived.energyLevel;
   if (p.home === "apartment") {
-    if (knownSize && d.size === "large") s -= 14;
-    if (knownEnergy && d.energyLevel >= 4) s -= 12;
+    if (dogSize && d.size === "large") s -= 14;
+    if (dogEnergy && d.energyLevel >= 4) s -= 12;
     if (d.needsList.some(n => /yard|fence/i.test(n))) s -= 16;
   }
   if (p.home === "townhouse") {
-    if (knownSize && d.size === "large") s -= 6;
+    if (dogSize && d.size === "large") s -= 6;
     if (d.needsList.some(n => /yard|fence/i.test(n))) s -= 8;
   }
-  if (p.home === "houseYard" && knownEnergy && d.energyLevel >= 3) s += 8;
+  if (p.home === "houseYard" && dogEnergy && d.energyLevel >= 3) s += 8;
 
-  if (p.experience === "first" && knownEnergy) { if (d.energyLevel <= 1) s += 10; if (d.energyLevel >= 4) s -= 12; }
-  if (p.experience === "experienced" && knownEnergy && d.energyLevel >= 3) s += 6;
+  if (p.experience === "first" && dogEnergy) { if (d.energyLevel <= 1) s += 10; if (d.energyLevel >= 4) s -= 12; }
+  if (p.experience === "experienced" && dogEnergy && d.energyLevel >= 3) s += 6;
 
   const t = p.tags;
   const isPuppy = d.age_years < 1;
@@ -81,8 +100,12 @@ export function scoreDog(d: RichDog, intake: FosterIntake | undefined): number {
 /** The same inputs as scoreDog, in plain language, for the "Why you match" section. */
 export function matchReasons(d: RichDog, intake: FosterIntake | undefined): string[] {
   const p = prefs(intake);
-  const knownSize = !d.derived.size;
-  const knownEnergy = !d.derived.energyLevel;
+  // Both halves again (PH-24): "right in your size range" is a claim about a range the foster
+  // picked, and an untouched slider never picked one.
+  const knownSize = !d.derived.size && p.sizeGiven;
+  const knownEnergy = !d.derived.energyLevel && p.energyGiven;
+  const dogSize = !d.derived.size;
+  const dogEnergy = !d.derived.energyLevel;
   const out: string[] = [];
   // Every line here is a sentence shown to the foster about this dog, so a derived input
   // produces no sentence at all -- "Zoomies energy, exactly the pace you picked" off a breed
@@ -92,9 +115,9 @@ export function matchReasons(d: RichDog, intake: FosterIntake | undefined): stri
   const de = Math.abs(p.energy - d.energyLevel);
   if (knownEnergy && de === 0) out.push(`${ENERGY_WORD[d.energyLevel]} energy, exactly the pace you picked`);
   else if (knownEnergy && de === 1) out.push(`${ENERGY_WORD[d.energyLevel]} energy, close to your pace`);
-  if (p.home === "apartment" && knownSize && knownEnergy && d.size !== "large" && d.energyLevel <= 2) out.push("Settles well in an apartment");
-  if (p.home === "houseYard" && knownEnergy && d.energyLevel >= 3) out.push("Would make full use of your yard");
-  if (p.experience === "first" && knownEnergy && d.energyLevel <= 2) out.push("An easy first foster");
+  if (p.home === "apartment" && dogSize && dogEnergy && d.size !== "large" && d.energyLevel <= 2) out.push("Settles well in an apartment");
+  if (p.home === "houseYard" && dogEnergy && d.energyLevel >= 3) out.push("Would make full use of your yard");
+  if (p.experience === "first" && dogEnergy && d.energyLevel <= 2) out.push("An easy first foster");
   const isPuppy = d.age_years < 1;
   if (p.tags.includes("puppy") && isPuppy) out.push("A puppy — matches what you asked for");
   if (p.tags.includes("adult") && !isPuppy) out.push("Grown adult — past the puppy chaos");

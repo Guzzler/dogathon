@@ -134,73 +134,29 @@ reuses against a different field.
 **The routing that put truthfulness items in the third-ranked doc still holds, and it is worth
 restating once rather than re-narrated each run.** The 2026-08-31 re-rank exists to stop this
 doc's small, tidy, headlessly-verifiable items consuming every execute run while the shelter
-surface waits — and it does not cover PH-17, PH-19, PH-20, PH-21, PH-22, PH-18 or PH-23. Those are not scaffolding;
+surface waits — and it does not cover PH-17 through PH-24. Those are not scaffolding;
 they are the product asserting things about a real animal that nobody observed, which is the
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
-- **PH-24 `[large]` — the questionnaire records two answers the foster may never have given, and
-  a third to a question it never asked.** Queued 2026-09-18. Measured this run by asking which of
-  the five phases had never been put through the tense test: Discovery (PH-22), Care Plan (PH-18,
-  PH-19), Post Foster (PH-20, PH-21) and Match (PH-23) all had. **Onboarding had not**, and it is
-  the one surface that *writes* rather than renders.
+- **PH-24 `[large]` — shipped 2026-09-18 (PR #__); the Ledger row is the full account.** The
+  queue spec and the design section that argued it are archived verbatim in
+  [`archive/production-hardening-ph24-2026-09-18.md`](archive/production-hardening-ph24-2026-09-18.md).
+  The spec's five-site census survived re-verification against `main` intact — the first run in
+  nine that re-verified and found nothing wrong, which is itself worth recording — and the one
+  judgment call it left to execute (the onboarding summary screen) is answered in the row.
 
-  **The root, and it is three lines.** `OnboardingView.tsx:45-46` opens the size slider at `50`
-  and the energy slider at `2`. `:53`'s `canNext = [!!experience, true, true, !!home, true, true]`
-  makes steps 1 and 2 — the two sliders — advanceable **without being touched**, while the two
-  pill questions (experience, home) are correctly required and the tag step is honestly optional
-  (`[]` really is "none selected"). `finish()` at `:73-74` then writes `pref_size: sizePref` and
-  `pref_energy: energyPref` **unconditionally**. A foster who tapped Continue twice has "Medium"
-  and "A daily walk, then settle" in Firestore as answers.
-
-  **And `:69` is worse, because the question does not exist.** `time_availability` is derived
-  from the energy slider — `energyPref >= 3 ? "A lot (home most of the day)" : "A little (WFH some
-  days)"`. Onboarding never asks about time. `get_foster()` (`foster.py:65-77`) returns the whole
-  document, so **the agent is told how much of the day a foster is home** on the strength of a
-  slider they may not have moved, answering a question nobody put to them. `size_preference` and
-  `energy_preference` at `:70-71` are the same defaults in a second shape.
-
-  **The five read sites, enumerated — this is the census, and per eight runs of precedent, verify
-  it against `main` before building:**
-  1. `HubView.tsx:137-138` — the "What you're looking for" card prints the size bucket and
-     `${ENERGY_WORD[p.energy]} energy` as chips under a heading that says these are the foster's
-     answers. A **labelled row**, so the 2026-09-14 rule applies at full strength.
-  2. `matching.ts:93` — `"exactly the pace you picked"`, and `:91` `"right in your size range"`.
-     PH-22 guarded both on `knownSize`/`knownEnergy`, which are properties of the **dog**; the
-     `p.size`/`p.energy` half was never guarded. This is the "second reader" rule from PH-20
-     arriving from the other side of the same comparison.
-  3. `matching.ts:39-40` — `scoreDog`'s two largest terms. Ranking, not an answer, so per the
-     2026-09-14 rule the number needs no absent state — but `UNKNOWN_SIZE`/`UNKNOWN_ENERGY`
-     (`:30-31`) exist for exactly this and currently only fire on the dog side.
-  4. `DiscoveryView.tsx:142-146` — the filter sheet's sliders, under the sentence **"Straight from
-     your questionnaire."** The sliders themselves are controls and stay where they are (geometry);
-     the sentence is the claim.
-  5. `OnboardingView.tsx:199-201` — the summary screen's own chips, which show "Medium" back to a
-     foster as something they said, one tap before it is written.
-
-  **What to build.** Track whether each slider was moved (two booleans in `OnboardingView`'s
-  existing `useState` block is enough — the sliders keep their resting positions and nothing about
-  how the step looks or feels changes), and **omit** `pref_size` / `pref_energy` / `size_preference`
-  / `energy_preference` from the written `intake` when they were not. **Omit `time_availability`
-  entirely, always** — it answers an unasked question and no amount of touch-tracking makes it
-  true; adding a sixth step to ask it is out of scope and its own item. Then branch the five sites
-  on the field's presence: `Unrecorded` for (1), the existing idiom and now four-for-four per
-  `design-consistency.md`; **silence** for (2), per `matchReasons()`' own comment that a sentence
-  never owed gets no `Unrecorded`; the existing `UNKNOWN_*` constants for (3); and for (4) a
-  sentence that does not claim the questionnaire supplied an untouched slider. (5) is a judgment
-  call for execute — showing the resting value back before writing it is arguably the moment it
-  stops being untouched, and either answer is defensible if the row is written down.
-
-  **Do not** make `FosterIntake`'s fields non-optional, do not add a `derived` bag (see the design
-  section above for why this case is the opposite of PH-22's), and do not touch `firestore.rules` —
-  nothing here changes who may write what.
-
-  **Verification.** `npm test` (149 today; `matching.test.ts` has 12 cases and is where the
-  `prefs()` half belongs), `npm run build`, `./node_modules/.bin/tsc --noEmit` — **not** `npx tsc`,
-  which resolves to an unrelated `tsc@2.0.4` — and `npm run lint` diffed against `main` for the
-  same 8 warnings. `uv run pytest` should be unchanged; if `foster.py` moves at all, say why. The
-  case that proves it: an intake written by tapping Continue through both sliders has neither
-  `pref_size` nor `time_availability` as keys, the Hub renders `Unrecorded` rather than "Medium",
+- **A note for `dogathon-plan`, found while building PH-24 and deliberately not fixed in it.**
+  The two write layers disagree about what omitting a key means. `patchFoster()` is
+  `setDoc(..., { merge: true })`, which merges *nested maps field by field*, so an `intake`
+  written without `pref_size` leaves an earlier `pref_size` in place; `writeLocalFoster()` is a
+  shallow spread, which replaces `intake` wholly. So a foster **retaking** the questionnaire and
+  this time not touching a slider keeps the stale value under Firestore and loses it under
+  LOCAL_MODE. The same merge semantics make `LookingForCard`'s "Change answers"
+  (`patchFoster({ intake: {} })`) a no-op against Firestore, and Discovery's "Retake the
+  questionnaire" never clears anything at all. This is **stale, not invented** — the foster did
+  once supply the value — so it is a different defect from PH-24 and stayed out of its PR per the
+  atomic-PR rule. It wants one item covering all three.
   and `matchReasons()` returns no size or pace sentence.
 
 - **PH-23 `[large]` — shipped 2026-09-17 (PR #89); the Ledger row is the full account**, including
@@ -245,44 +201,25 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
   rows do not carry: PH-15's live rules check is **PH-15b under "Needs a human"**, so don't read
   PH-15 as verified end to end.
 
-### The fifth face: what an input *control* may record (2026-09-18)
+### The fifth face: what an input *control* may record (2026-09-18, shipped the same run)
 
-The four faces above ask what a page may print, what a model may be told, what a model may
-assert, and who is shown the assertion. All four watch a value **leaving** the app. This one
-watches a value **arriving**, and it is the first that does not involve a dog at all — the
-claim is about the **foster**.
-
-> A control has to render somewhere. A slider has a thumb, a stepper has a number, a range
-> input at rest sits where its `useState` put it. That resting position is geometry, exactly as
-> `size: "medium"` is. **It becomes a claim at the moment it is written down** — because a
-> stored `pref_size: 50` is indistinguishable from a foster who dragged the slider to the
-> middle on purpose, and every reader downstream is entitled to read it as an answer.
-
-So the rule, stated to be reusable against the next form somebody builds:
+The four faces above each watch a value **leaving** the app. This one watches one **arriving**,
+and it is the first whose claim is about the **foster** rather than a dog. The rule, stated to be
+reusable against the next form somebody builds:
 
 > **A default a control renders is a fallback; the same default persisted is an answer.** A form
 > may only write a field the person actually supplied. Where it cannot tell, it must omit — not
 > annotate.
 
-**Why omit rather than annotate, when PH-22 annotated.** PH-22 could not omit: `RichDog.size`
-and `RichDog.energyLevel` are non-null because layout genuinely needs them, so the only place
-the provenance could live was a sibling `derived` set. `FosterIntake` has the opposite shape —
-`pref_size`, `pref_energy` and all four siblings are **already optional** (`types.ts:149-153`),
-`prefs()` **already** supplies `?? 50` / `?? 2` for ordering, and the agent's `save_intake`
-already defaults each of the six strings to `""`. Absence is representable at every layer;
-nothing is asking to be annotated. The generalisation worth keeping:
-
-> **Prefer absence to annotation wherever the schema can already carry absence.** A `derived`
-> bag is what you build when it cannot. Reaching for one first adds a parallel vocabulary to a
-> field that was nullable all along.
-
-**The consequence that makes this worth a run rather than a two-line patch.** `prefs()`'s
-`?? 50` / `?? 2` has a comment calling it an intake default "so a foster who skipped onboarding
-still gets sensible ordering" — and it can never fire for a foster who *finished* onboarding,
-because `finish()` writes both fields unconditionally. The fallback the codebase believes it
-has is dead code, and the defaults reach the render sites as recorded values instead. Fixing
-the write is what turns the existing fallback back on; the render sites are then branching on a
-field that is genuinely sometimes absent, for the first time.
+Two generalisations worth keeping out of the archive. **Prefer absence to annotation wherever the
+schema can already carry it** — PH-22 built a `derived` bag because `RichDog`'s fields are
+non-null and layout needs them; every `FosterIntake` field here was already optional, so reaching
+for a bag would have added a parallel vocabulary to a field that was nullable all along. And **a
+defensive default that cannot execute is evidence the value it defends against is being
+manufactured upstream**: `prefs()`'s `?? 50` / `?? 2` carried a comment about "a foster who
+skipped onboarding" and could never fire, because `finish()` wrote both fields unconditionally.
+The full section and PH-24's queue spec are verbatim in
+[`archive/production-hardening-ph24-2026-09-18.md`](archive/production-hardening-ph24-2026-09-18.md).
 
 ### Needs a human — PARKED, not pending; archived 2026-09-11
 
@@ -302,6 +239,42 @@ Per the README's "nobody uses this app yet", the length of that list is not debt
 them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
+
+- 2026-09-18 — PH-24 `[large]` — PR #__ — **onboarding stopped recording answers nobody gave.**
+  `OnboardingView` tracks whether each slider was moved and omits `pref_size`/`size_preference`
+  and `pref_energy`/`energy_preference` when it was not; `time_availability` is gone entirely,
+  because it was derived from the energy slider and the questionnaire has never asked how much
+  of the day anyone is home. A foster who taps Continue twice no longer has "Medium", "A daily
+  walk, then settle" and "A little (WFH some days)" in Firestore as things they said — and the
+  third of those was reaching the agent through `get_foster()`. Four things the build
+  established that the spec did not name:
+  - **The spec's five-site census was right, and that is the first time in nine runs of
+    re-verification that it was.** Eight consecutive runs had paid for the habit by finding a
+    census short. This one did not, which is the argument for keeping the habit rather than
+    against it: the cost of checking is one read per site.
+  - **The fix needed a *third* flag per field, not a second.** `scoreDog` and `matchReasons`
+    each had one `knownSize`/`knownEnergy` meaning "the dog's half was recorded" (PH-22), and
+    the obvious move — AND the foster's half into it — was wrong for six of the eleven rules
+    that read it. "Too big for an apartment" and "an easy first foster" compare the dog against
+    the **home** or the **experience level**; an untouched size slider says nothing about either,
+    and folding it in would have silenced sentences the foster had genuinely earned. So the two
+    comparison terms and the two size/pace sentences take both halves, and everything else keeps
+    `dogSize`/`dogEnergy`. **A guard added one layer up is not automatically the same guard.**
+  - **The summary screen's judgment call went to omission, not `Unrecorded`.** It is headed
+    "Based on your answers" and renders a chip *list*, not labelled rows — there is no slot to
+    leave empty, and showing "Medium" back one tap before writing it is precisely how a resting
+    position becomes a decision. `Unrecorded` is four-for-four elsewhere and is what the Hub's
+    labelled card uses, which is the distinction: **a list omits, a labelled row renders the
+    absence.**
+  - **Discovery's filter sheet needed new copy, not a deleted sentence.** "Straight from your
+    questionnaire" is false over an untouched slider, but the sliders there *write on change*, so
+    the honest alternative can say what the control does: "Anything you didn't answer starts in
+    the middle — moving it here records it."
+
+  Verified: 153 tests (149 + 4 new in `matching.test.ts`), `tsc --noEmit` clean, `npm run build`
+  green, `npm run lint` at the same 8 warnings as `main`. Backend untouched — `foster.py`'s
+  `save_intake` still defaults its six strings to `""`, which is a different shape of the same
+  question and is **not** fixed here. The retake path is the note left above for `dogathon-plan`.
 
 - 2026-09-15 — PH-18 `[large]` — PR #85 — **the emergency screen stopped telling a foster things
   nobody recorded.** Gone: a hand-drawn SVG map of Presidio Park with a "1.2 mi · 4 min" chip
