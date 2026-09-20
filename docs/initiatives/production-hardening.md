@@ -103,49 +103,12 @@ truthfulness, not because production-hardening has been re-ranked.
   nine that re-verified and found nothing wrong, which is itself worth recording — and the one
   judgment call it left to execute (the onboarding summary screen) is answered in the row.
 
-- **PH-25 `[large]` — the retake path keeps answers the foster took back (queued 2026-09-19).**
-  PH-24 made `finish()` omit a field nobody supplied. Verified this run against `main`: the
-  omission does nothing on a **retake**, because the two write layers disagree about what omitting
-  a key means, so PH-24's guarantee holds only for a foster's first pass.
-
-  **The three symptoms, each re-read this run rather than carried from the note that found them:**
-  1. `patchFoster()` (`web/src/hooks/useFoster.ts:50-54`) is `setDoc(..., { merge: true })`, which
-     merges **nested maps key by key**. `OnboardingView.finish()` (`OnboardingView.tsx:78-88`)
-     writes `patchFoster({ intake, phase: "discovery" })` with `pref_size`/`size_preference` and
-     `pref_energy`/`energy_preference` conditionally spread in. A foster who moved the size slider
-     on their first pass and left it alone on the retake keeps the **old** `pref_size` — the Hub's
-     "What you're looking for" card prints it as a current answer and `scoreDog()` ranks on it.
-     `writeLocalFoster()` (`lib/localMode.ts:44-48`) is `{ ...readLocalFoster(), ...patch }`, a
-     shallow spread that replaces `intake` wholly, so LOCAL_MODE gets this right and Firestore does
-     not. **The same behaviour under two backends is the acceptance bar.**
-  2. `LookingForCard.reset()` (`web/src/phases/hub/HubView.tsx:148-152`) is
-     `patchFoster({ intake: {}, ... })`. Under the same merge, an empty map merged into a populated
-     one is a **no-op**: "Change answers" clears the phase, the swipes and the match and leaves
-     every answer in place. Its own comment — *"Clearing intake sends them back through the front
-     door"* — is false against Firestore and true under LOCAL_MODE.
-  3. `DiscoveryView.tsx:170`'s **"Retake the questionnaire"** is a bare
-     `navigate("/onboarding")` and clears nothing at all. Fixing (1) makes this correct without
-     touching the line; **check that before changing it.**
-
-  **Scope, and the two things deliberately outside it.** `intake` is the only nested map written
-  partially — the census: `pickup` is written whole or `null`, `adoptionHighlights` writes all
-  three keys every time, and `journal`/`careSchedule`/both checklists are arrays, which Firestore
-  replaces wholly. `DiscoveryView.tsx:127`'s filter sheet already spreads
-  `{ ...foster?.intake, ...patch }`, so it is the one caller that is correct today and should stay
-  a full write. Out of scope: `foster.py`'s `save_intake`, which defaults its six strings to `""`
-  and is a different shape of the same question; and any backfill of documents already carrying a
-  pre-PH-24 `time_availability`, except insofar as a true replacement on the next retake removes it
-  for free — say in the row whether it does.
-
-  **Files**: `web/src/hooks/useFoster.ts`, `web/src/lib/localMode.ts`,
-  `web/src/phases/onboarding/OnboardingView.tsx`, `web/src/phases/hub/HubView.tsx`, and
-  `web/src/phases/discovery/DiscoveryView.tsx` only if (3) survives the fix to (1). The mechanism is
-  execute's call; the constraint is below under "What omitting a key means at the write layer".
-  **Verify**: new tests in `web/src/hooks/` or `web/src/lib/` covering *the same retake against both
-  layers* — a partial `intake` written over a populated one must leave no key the second pass did
-  not supply, under `patchFoster` and under `writeLocalFoster` alike — plus a case for
-  `reset()`'s empty map. Then `npm test`, `./node_modules/.bin/tsc --noEmit` (**not** `npx tsc`),
-  `npm run build`, `npm run lint` (expect the same 8 warnings as `main`; diff against a stash).
+- **PH-25 `[large]` — shipped 2026-09-19 (PR #__); the Ledger row is the full account.** The
+  queue spec (its three-symptom census and the `intake`-is-the-only-partial-map scope) and the
+  design section that argued it are archived verbatim in
+  [`archive/production-hardening-ph25-2026-09-19.md`](archive/production-hardening-ph25-2026-09-19.md).
+  All three symptoms were re-read against `main` before the fix and all three were as described;
+  two of them needed no code at all once the third was fixed, which the row explains.
 
 - **PH-23 `[large]` — shipped 2026-09-17 (PR #89); the Ledger row is the full account**, including
   both things the spec had not named. The request/confirm round trip is still unbuilt.
@@ -156,37 +119,22 @@ run-by-run narration is verbatim in
 [`archive/production-hardening-queuenarration-2026-09-17.md`](archive/production-hardening-queuenarration-2026-09-17.md);
 the README's fallback chain tells the same story once, which is why it is not told twice here.
 
-### What omitting a key means at the write layer (2026-09-19)
+### What omitting a key means at the write layer (2026-09-19, shipped the same day)
 
-PH-24 established that a form may only write a field the person actually supplied. It assumed, as
-every face of the tense test before it did, that **not writing a key is the same as the key not
-being there**. It is not, and that is a property of the storage layer rather than of the form:
-
-> `setDoc(..., { merge: true })` merges nested maps **key by key**, so an omitted key means *leave
-> whatever was there*. A shallow spread means *replace the map*. Pawthway has one of each, behind
-> one function, and no caller can tell which it got.
-
-So the rule the next write path needs, stated so it does not have to be re-derived:
+One rule, and it is the only part of PH-25's design section that is not now restated by the code
+it produced — the census, the three symptoms and the two-backend argument are in
+[`archive/production-hardening-ph25-2026-09-19.md`](archive/production-hardening-ph25-2026-09-19.md):
 
 > **Omission at the form is only honest if omission at the write layer deletes.** A form that
 > carefully declines to answer a question, over a backend that treats declining as "keep the old
 > answer", has recorded the old answer as a new one — which is exactly the claim PH-24 removed,
 > arriving one layer down and a day later.
 
-Three consequences that bound PH-25 rather than widening it:
-
-1. **A helper is cheaper than a convention.** Twenty-odd call sites use `patchFoster`, and all but
-   one write top-level scalars or arrays, where merge and replace agree. Teaching every caller the
-   difference is the wrong shape; naming the one key that must be replaced — at the helper, or with
-   an explicit full-key write from `finish()` — is the right one. Either satisfies the rule.
-2. **Both layers must answer the same way, and LOCAL_MODE is the one that is already right.** The
-   guest path is a supported path, not a fallback (`CLAUDE.md`, "Accounts"), so "correct under
-   Firestore" is half a fix. Whatever the mechanism, a `deleteField()` sentinel must not reach
-   `localStorage` as a literal.
-3. **This is a stale claim, not an invented one** — the foster did once supply the value — which is
-   why it is its own item and not a bug in PH-24. It also means there is no `Unrecorded` to render
-   and nothing new to design: the honest state already has a renderer, and it has simply never been
-   reachable on the retake path.
+`patchFoster()` now satisfies it for every key (`mergeFields`, not `{ merge: true }`), so a new
+write path gets this for free; what it does **not** cover is a write that goes around that helper.
+`auth.ts:73`'s guest→account copy is a whole-document `setDoc` and unaffected; the agent's
+`save_intake` is Python, still defaults its six strings to `""`, and is the same question in a
+different language.
 
 ### A default is honest when it is a fallback for the layout, and dishonest when it is an answer (2026-09-14)
 
@@ -221,11 +169,23 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
   rows do not carry: PH-15's live rules check is **PH-15b under "Needs a human"**, so don't read
   PH-15 as verified end to end.
 
+- **A lead this run found and declined to take, per the atomic-PR rule.**
+  `DiscoveryView`'s filter sheet writes `pref_size` alone (`DiscoveryView.tsx:127`), never the
+  `size_preference` *word* beside it, so moving the filter slider leaves the two halves of one
+  answer disagreeing — the Hub card prints "Large" from the questionnaire while `scoreDog()` ranks
+  on the 20 the sheet wrote. This predates PH-25 and is untouched by it (the sheet already spread
+  the whole map, so replace and merge agree there). It is a *pair of fields for one answer*, which
+  is a different defect from either PH-24 or PH-25, and the cheapest reading is that the word
+  should be derived at render rather than stored twice.
+
 ### Needs a human — PARKED, not pending; archived 2026-09-11
 
 Three items, all parked, none discharged, each wanting a signed-in human this loop cannot be:
-**PH-15b** (run PH-15's redaction write against the deployed project — four writes, one
-session), **PH-13** (lift `--max-instances` to 2 and confirm the two things only a person
+**PH-25b** (2026-09-19 — sign in on the deployed app, answer the questionnaire with both
+sliders moved, then "Change answers" and answer it with neither: expect **Unrecorded** chips for
+Size and Energy on the Hub card, not the first pass's words. Two minutes, and it is the only way to
+see the `mergeFields` branch against real Firestore), **PH-15b** (run PH-15's redaction write
+against the deployed project — four writes, one session), **PH-13** (lift `--max-instances` to 2 and confirm the two things only a person
 driving two browsers can see), **PH-7b** (one Cloud Logging alert policy over the agent's
 `severity>=ERROR` records; deliberately declined by an unattended run in PR #33, and
 re-queueing it would produce the same refusal). Each is stated in full — what to do, what to
@@ -239,6 +199,52 @@ Per the README's "nobody uses this app yet", the length of that list is not debt
 them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
+
+- 2026-09-19 — PH-25 `[large]` — PR #__ — **a retake of the questionnaire no longer keeps the
+  answers the foster took back.** `patchFoster()` writes
+  `setDoc(..., { mergeFields: keys.map(k => new FieldPath(k)) })` instead of `{ merge: true }`:
+  every key in the patch is now replaced whole, and keys the patch never mentions are untouched.
+  That is one line of behaviour and it fixes all three symptoms the spec listed, two of them
+  without being touched:
+  - **The fix is at the helper, and the two call sites are now correct as already written.**
+    `HubView.reset()`'s `patchFoster({ intake: {} })` was a **no-op** under nested merge — "Change
+    answers" cleared the phase, the swipes and the match and left every answer in place, with a
+    comment saying the opposite. It is now a real clear, so only the comment changed.
+    `DiscoveryView`'s "Retake the questionnaire" clears nothing and did not need to: `finish()`
+    writes a full `intake` over the old one. The spec said to check that before changing the line;
+    checked, and the line stands.
+  - **`mergeFields` over `updateDoc`, and a `FieldPath` per key.** `updateDoc` would also replace a
+    map, but it fails on a document that does not exist — and `fosters/{uid}` does not exist for a
+    foster whose first write is onboarding. `mergeFields` still creates it. The keys are wrapped in
+    `new FieldPath(k)` because `mergeFields` parses a bare string as a **dotted path**; the test's
+    fake throws on a string rather than accepting one, so that stays true.
+  - **Replacing every key, not just `intake`, and why that is not wider than the item.** The spec's
+    census held: `intake` is the only nested map written partially, `pickup` is written whole or
+    `null`, `adoptionHighlights` writes all three keys every time, everything else is a scalar or
+    an array, and arrays were already replaced. So "replace the listed keys" and "merge the listed
+    keys" differ on exactly one key today — and the uniform rule is the one that makes
+    `writeLocalFoster()`'s shallow spread and Firestore the *same function*, which is the
+    acceptance bar the design section set. A no-key patch now returns before either branch, so the
+    two layers agree on the empty patch too.
+  - **The tests are an outcome, not a call shape, and the guest half is real.** 13 new tests in
+    `web/src/hooks/useFoster.test.ts` drive **one fixture** — a first pass with both sliders moved,
+    then PH-24's retake with neither — through **both layers** and assert the stored `intake` equals
+    the second pass exactly. The Firestore half is a fake that models both `SetOptions` (deep merge
+    vs. replace-listed); the guest half is the real `localMode` code over a `localStorage` shim.
+    The first test asserts the **old** semantics directly, so the suite is known to be able to see
+    the defect — and it can: reverting the one line turns **5 of the 13 red and leaves 8 green**,
+    and the 8 are precisely the guest cases plus that model, which is the spec's claim that
+    LOCAL_MODE was already right, observed rather than reasoned about.
+  - **The `time_availability` backfill question, answered as the spec asked.** There is no
+    migration and none is needed: a true replacement takes a pre-PH-24 `time_availability` with it
+    on the foster's next retake, and a test asserts exactly that on both layers. A foster who never
+    retakes keeps it, and `get_foster()` will keep reading it — which is a **stale** claim rather
+    than an invented one, so it is left rather than rewritten.
+  - **What is *not* verified**: nothing was driven against real Firestore. The changed branch is the
+    signed-in one, so observing it needs a Google sign-in and two passes through onboarding on the
+    deployed app — parked under "Needs a human" as **PH-25b** rather than queued. The merge
+    semantics are modelled from Firestore's documented behaviour; per the README's rule, what this
+    was measured against is part of the claim.
 
 - 2026-09-18 — PH-24 `[large]` — PR #91 — **onboarding stopped recording answers nobody gave.**
   `OnboardingView` tracks whether each slider was moved and omits `pref_size`/`size_preference`

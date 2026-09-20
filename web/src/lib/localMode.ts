@@ -41,6 +41,13 @@ export function readLocalFoster(): Foster {
   return BLANK_FOSTER;
 }
 
+/**
+ * A shallow spread, which means **every key in `patch` replaces whatever was stored** — an
+ * `intake` that omits a key drops that key rather than keeping the old value. That is the same
+ * contract `patchFoster()` gives over Firestore (see its comment, and PH-25): it has to be,
+ * because guest is a supported path and not a fallback, so a retake must behave identically
+ * here and there. If you deepen this into a recursive merge, `patchFoster` has to move with it.
+ */
 export function writeLocalFoster(patch: Record<string, unknown>) {
   const next = { ...readLocalFoster(), ...patch } as Foster;
   localStorage.setItem(KEY, JSON.stringify(next));

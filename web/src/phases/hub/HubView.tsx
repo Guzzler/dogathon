@@ -146,7 +146,9 @@ function LookingForCard({ intake }: { intake: FosterIntake }) {
   ];
 
   async function reset() {
-    // Clearing intake sends them back through the front door.
+    // Clearing intake sends them back through the front door. The empty map is a real clear
+    // because `patchFoster` replaces a key rather than merging into it (PH-25) -- under the
+    // old `{ merge: true }` this line was a no-op and every answer survived "Change answers".
     await patchFoster({ intake: {}, phase: "onboarding", likedDogIds: [], passedDogIds: [], matchedDogId: null });
     navigate("/welcome");
   }

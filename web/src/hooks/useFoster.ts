@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { FieldPath, doc, onSnapshot, setDoc } from "firebase/firestore";
 import { firestore } from "../firebase";
 import type { Foster } from "../types";
 import { subscribeLocalFoster, writeLocalFoster } from "../lib/localMode";
@@ -47,8 +47,32 @@ export function useFoster() {
   return { foster: loading ? null : snapshot!.foster, loading };
 }
 
+/**
+ * Write these keys onto the foster document: **every key in `patch` is replaced whole**, and
+ * keys absent from `patch` are left alone.
+ *
+ * That is `mergeFields`, not `{ merge: true }`, and the difference is the whole point (PH-25).
+ * `{ merge: true }` merges a *nested map* key by key, so a `{ intake }` that deliberately
+ * leaves out `pref_size` keeps whichever `pref_size` was already stored. A questionnaire that
+ * carefully declines to record an answer nobody gave (PH-24), over a write layer that reads
+ * declining as "keep the old answer", has recorded the old answer as a new one — which is the
+ * claim PH-24 removed, arriving one layer down.
+ *
+ * `writeLocalFoster()` is a shallow spread and has always replaced the whole key, so the guest
+ * path was already right and only Firestore disagreed. Both layers now answer the same, which
+ * matters because guest is a supported path and not a fallback.
+ *
+ * A `FieldPath` per key rather than a bare string, because `mergeFields` parses a string as a
+ * dotted path — `new FieldPath(k)` is one segment whatever `k` contains.
+ */
 export async function patchFoster(patch: Record<string, unknown>): Promise<void> {
+  const keys = Object.keys(patch);
+  // Nothing to say. Checked before either branch so both layers agree on the empty patch too,
+  // and because `mergeFields: []` would be a round trip that touches nothing.
+  if (!keys.length) return;
   const id = fosterDocId();
   if (!id) { writeLocalFoster(patch); return; }
-  await setDoc(doc(firestore, "fosters", id), patch, { merge: true });
+  await setDoc(doc(firestore, "fosters", id), patch, {
+    mergeFields: keys.map((k) => new FieldPath(k)),
+  });
 }
