@@ -178,9 +178,12 @@ shelter, per the section below.
 - **This doc has held no `[large]` item since 2026-09-05, and that is still a finding rather than
   a gap — re-checked this run and unchanged.** M3 is finished; M5 is gated on demonstrated need,
   which needs a real shelter, which needs the conversation below. RS-13 shipped (PR #88) and did not change it: it was a workflow honesty fix, small by
-  construction. **Re-checked 2026-09-18 and unchanged for a tenth run** — the repo's `[large]`
-  slot is PH-24 in `production-hardening.md`, a ninth consecutive run in the third doc, which is
-  routing for one run and not a re-rank. The
+  construction. **Re-checked 2026-09-19 and unchanged for an eleventh run** — the repo's `[large]`
+  slot is PH-25 in `production-hardening.md`, a tenth consecutive run in the third doc, which is
+  routing for one run and not a re-rank. RS-13's half of that is re-grounded rather than carried:
+  `import_dogs.py:51` still defines `EXIT_UNREACHABLE = 75` and `:127-130` still exits it having
+  written nothing, so the honest-reporting half stands and **RS-13b is still the only thing that
+  closes M4**. The
   top doc has run out of *buildable* work, not out of work. Full narration of the nine runs that
   established this, and the two cautions it produced about a dated measurement being evidence whose
   *measured-against* is part of the claim, verbatim in
