@@ -191,18 +191,21 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
   "Changed token and color lines" block) and the `$tokens`-empty branch; nothing turns on them, and
   both are visible to anyone who opens the next palette PR's summary.
 
-- **2026-09-08 through 2026-09-18 — this queue has been empty of open items for twelve runs, and the
+- **2026-09-08 through 2026-09-19 — this queue has been empty of open items for thirteen runs, and the
   routing decision is unchanged and re-checked rather than carried over.** `production-hardening.md`
-  holds the repo's `[large]` slot (PH-17, PH-19, PH-20, PH-21, PH-22, PH-18, PH-23, and now PH-24) and
+  holds the repo's `[large]` slot (PH-17, PH-19, PH-20, PH-21, PH-22, PH-18, PH-23, PH-24, and now PH-25) and
   execute works the queues top-down, so anything added here would be picked ahead of it. The four
   bullets that narrated those runs are verbatim in
   [`archive/design-consistency-routing-2026-09-17.md`](archive/design-consistency-routing-2026-09-17.md).
   Three things from them survive because they are facts rather than narration:
   - **The `theme.css` dead-rule lead is four rules, not fifteen classes.** Re-measuring every
     `className` literal under `web/src` found eleven of the fifteen candidates live, including all
-    four `shelter__*`, all three `signin__*` and both `avatar*`. Only the four `ap-*` rules
-    (`theme.css:557-564`) are genuinely unreferenced — **a reason to leave it a lead rather than
-    promote it**, and the cheapest wrong measurement to find is the one the last run just wrote.
+    four `shelter__*`, all three `signin__*` and both `avatar*`. **Re-measured 2026-09-19 and the
+    lead survives, with its own count corrected**: the dead classes are `ap-row`, `ap-routine`,
+    `ap-when` and `ap-manner` — four classes but *six* selectors once both `[data-last="true"]`
+    variants are counted (`theme.css:557-564`) — while `ap-note-hint` (6 references) and `ap-tick`
+    (1) inside the same range are live. Still **a reason to leave it a lead rather than promote
+    it**, and the cheapest wrong measurement to find is still the one the last run just wrote.
   - **`carePlan.css` carries 62 color literals, not ~115** (24 hex, 38 `rgb(`/`rgba(`, against 133
     `var(--` uses, in 1136 lines across 129 class selectors — counted 2026-09-15). DC-8's re-homing
     and DC-10's deletion took the literals down with the rules they lived in. It **stays parked**:

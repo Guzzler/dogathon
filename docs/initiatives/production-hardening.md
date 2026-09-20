@@ -48,116 +48,104 @@ below is an index entry, not an account.
   `npx tsc` resolves to an unrelated `tsc@2.0.4` that prints a banner and exits 1 without
   compiling.
 
-## The tense test, and the four faces it has been asked in — consolidated 2026-09-13
+## The tense test, and the five faces it has been asked in — archived 2026-09-19
 
-*(A **fifth** — what an input *control* may record — was added 2026-09-18 and sits below the
-queue, because it is a design answer PH-24 still depends on. All four here watch a value leaving
-the app; it watches one arriving, and is the first about the **foster** rather than a dog.)*
+One rule, asked five times, all five shipped. What stood here was five statements wrapped in five
+preambles and five pointers into other archives — the README's "cut the layer that points at a
+layer" applied to a section rather than to the Ledger. The statements are kept verbatim below
+because PH-25 depends on the fifth and reuses the method behind the fourth; everything that
+surrounded them, including *"a retraction is a write"* and the fifth face's two generalisations, is in
+[`archive/production-hardening-tensetest-faces-2026-09-19.md`](archive/production-hardening-tensetest-faces-2026-09-19.md).
+Read that before reusing any of them.
 
-Four sections stood here, one per shipped item, each a rule plus a preamble plus a pointer to
-the archive holding its working. They are one rule asked four times, so they are one section.
-The statements below are verbatim; everything that surrounded them is in the archives named at
-the end, and **PH-18 and PH-21 both still depend on this**.
+1. **The test itself (PH-17, what a page may print).** *Could this value be wrong about a specific
+   animal? Then it is a record, and it may only come from the foster, the shelter's document, or
+   nothing at all.* Advice survives; a milestone, a weight, a tick, a photograph, `emergencyContacts`
+   do not.
+2. **Input (PH-19, what a model may be told).** *A page can render an absence; a prompt that
+   enumerates a field cannot stay silent about it.* **"No medical flags." is not the prompt
+   equivalent of "Not recorded."** — the equivalent is omitting the sentence, which is necessary and
+   not sufficient, because a closing instruction makes silence read as "nothing there".
+3. **Persistence (PH-20, what a model may assert).** This app keeps exactly one thing a model wrote,
+   and since RS-12 that write *is* the notification. With it the routing rule that found it: **when a
+   fix teaches one reader of a dataset to handle absence, check every other reader of the same
+   dataset before calling it shipped.**
+4. **Audience (PH-21, who is shown the assertion).** The assertion reached only the party who cannot
+   verify it, never the two who can. Method: **measure every reader and every writer of a field,
+   traced to the surface it renders on.**
+5. **Input controls (PH-24, what a form may record).** *A default a control renders is a fallback;
+   the same default persisted is an answer. A form may only write a field the person actually
+   supplied; where it cannot tell, it must omit — not annotate.* Two riders: **prefer absence to
+   annotation wherever the schema already carries it**, and **a defensive default that cannot
+   execute is evidence the value it defends against is being manufactured upstream**.
 
-**1 — the test itself (PH-17, what a page may print).**
-
-> Could this value be *wrong about a specific animal*? Then it is a record, and it may only
-> come from the foster, the shelter's document, or nothing at all.
-
-A tip, a week phase, a task template, an unticked schedule row: all survive — they are advice,
-false of no dog in particular. A milestone, a weight, a vaccination line, a journal entry, a
-tick, a photograph: all fail. **So does `emergencyContacts`**, which is why PH-18 is the same
-defect rather than a neighbour.
-
-**2 — input (PH-19, what a model may be told).**
-
-> A page can render an absence. A prompt, once it enumerates a field, cannot stay silent about
-> it — so **"No medical flags." is not the prompt equivalent of "Not recorded."** The prompt
-> equivalent is omitting the sentence. Generalised: **any template whose empty branch is prose
-> rather than nothing converts a missing record into an assertion.** Grep for the shape, not
-> the field.
-
-Shipping it added the half the rule had not anticipated, recorded in PH-19's ledger row:
-omitting the sentence is necessary and **not sufficient**, because the same closing instruction
-that makes a false claim authoritative makes silence read as "nothing there".
-
-**3 — persistence (PH-20, what a model may assert).**
-
-> This app keeps exactly one thing a model wrote. `send_adoption_profile_to_shelter` stores
-> `profile_text` on the dog's own document (`adoption.py:126`), and since RS-12 **that write is
-> the notification** — staff read the paragraph at `/shelter/dogs` and decide from it whether a
-> real animal gets listed. Every other model output in Pawthway is a chat turn that scrolls
-> away. A sentence in it can be wrong about a specific animal, so it is a record.
-
-And the routing rule that found it, which is the reusable half:
-
-> When a fix teaches one reader of a dataset to handle absence, check every other reader of that
-> same dataset before calling it shipped. The second reader is cheaper to fix than the first —
-> the design work is done — and it is the one nobody notices, because the first reader is the
-> one that was visibly broken.
-
-**4 — audience (PH-21, who is shown the assertion).** Shipped 2026-09-13; the measurement
-and the design answer are the section directly below, and what the build added to them is
-PH-21's ledger row. The answer the measurement gave: the assertion reached only the party
-who cannot verify it, never the two who can.
-
-*Archives, in order: [PH-17's finding and the original tense-test working](archive/production-hardening-ph17-2026-09-10.md)
-and [the 2026-09-10 section in full](archive/production-hardening-tensetest-2026-09-11.md);
-[PH-19's working](archive/production-hardening-absence-2026-09-11.md);
-[PH-20's design section and the queue narration that found it](archive/production-hardening-secondside-2026-09-13.md).*
-
-**One stale fact, still stale, recorded here because `CLAUDE.md` is not this loop's to edit.**
-`CLAUDE.md` says the cheap-model path is off — *"`web/src/api.ts` doesn't send it yet"*. It is
-on: `api.ts:98` takes `phase?: ChatSurface` and `:109` sends it, `AgentChatPanel`'s `phase` prop
-is required, all three mount points pass it, and `server.py:432` hands it to
-`model_for_surface`. Match pickup coordination is answered by Haiku today. A sentence to
-Sharang, not a doc edit. *(A second one joins it this run, from PH-21's measurement:
-`CLAUDE.md`'s "The adoption page" section says "Nothing on this page is invented", which is true
-of `buildAdoptionProfile` and silent about the agent-written paragraph. Correcting it is
-Sharang's, not this loop's.)*
-
-### A retraction is a write — archived 2026-09-14
-
-PH-21 shipped (PR #81) and its ledger row is the fuller telling, so the design section that
-produced it moved verbatim to
-[`archive/production-hardening-ph21design-2026-09-14.md`](archive/production-hardening-ph21design-2026-09-14.md).
-Three things from it are still load-bearing and are stated here rather than one hop away:
-**a retraction is a write, not an erasure** (since RS-12 the write *is* the notification, so a
-cleared field leaves a **Back from foster** card with nothing in it); **the write goes through
-the agent and `firestore.rules` does not move** (a foster cannot write `dogs`, and widening
-that would hand every foster their shelter's roster); and the method — *measure every reader
-and every writer of a field, traced to the surface it renders on* — which is what PH-22 below
-reuses against a different field.
+**One stale fact in `CLAUDE.md`, still stale, recorded here because that file is not this loop's to
+edit.** It says the cheap-model path is off — *"`web/src/api.ts` doesn't send it yet"*. It is on
+(`api.ts:98`/`:109`, `server.py:432`), and Match pickup coordination is answered by Haiku today. A
+second joins it: "The adoption page" says *"Nothing on this page is invented"*, which is true of
+`buildAdoptionProfile` and silent about the agent-written paragraph. Both are a sentence to Sharang,
+not a doc edit.
 
 ## Task queue
 
 **The routing that put truthfulness items in the third-ranked doc still holds, and it is worth
 restating once rather than re-narrated each run.** The 2026-08-31 re-rank exists to stop this
 doc's small, tidy, headlessly-verifiable items consuming every execute run while the shelter
-surface waits — and it does not cover PH-17 through PH-24. Those are not scaffolding;
+surface waits — and it does not cover PH-17 through PH-25. Those are not scaffolding;
 they are the product asserting things about a real animal that nobody observed, which is the
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
-- **PH-24 `[large]` — shipped 2026-09-18 (PR #__); the Ledger row is the full account.** The
+- **PH-24 `[large]` — shipped 2026-09-18 (PR #91); the Ledger row is the full account.** The
   queue spec and the design section that argued it are archived verbatim in
   [`archive/production-hardening-ph24-2026-09-18.md`](archive/production-hardening-ph24-2026-09-18.md).
   The spec's five-site census survived re-verification against `main` intact — the first run in
   nine that re-verified and found nothing wrong, which is itself worth recording — and the one
   judgment call it left to execute (the onboarding summary screen) is answered in the row.
 
-- **A note for `dogathon-plan`, found while building PH-24 and deliberately not fixed in it.**
-  The two write layers disagree about what omitting a key means. `patchFoster()` is
-  `setDoc(..., { merge: true })`, which merges *nested maps field by field*, so an `intake`
-  written without `pref_size` leaves an earlier `pref_size` in place; `writeLocalFoster()` is a
-  shallow spread, which replaces `intake` wholly. So a foster **retaking** the questionnaire and
-  this time not touching a slider keeps the stale value under Firestore and loses it under
-  LOCAL_MODE. The same merge semantics make `LookingForCard`'s "Change answers"
-  (`patchFoster({ intake: {} })`) a no-op against Firestore, and Discovery's "Retake the
-  questionnaire" never clears anything at all. This is **stale, not invented** — the foster did
-  once supply the value — so it is a different defect from PH-24 and stayed out of its PR per the
-  atomic-PR rule. It wants one item covering all three.
-  and `matchReasons()` returns no size or pace sentence.
+- **PH-25 `[large]` — the retake path keeps answers the foster took back (queued 2026-09-19).**
+  PH-24 made `finish()` omit a field nobody supplied. Verified this run against `main`: the
+  omission does nothing on a **retake**, because the two write layers disagree about what omitting
+  a key means, so PH-24's guarantee holds only for a foster's first pass.
+
+  **The three symptoms, each re-read this run rather than carried from the note that found them:**
+  1. `patchFoster()` (`web/src/hooks/useFoster.ts:50-54`) is `setDoc(..., { merge: true })`, which
+     merges **nested maps key by key**. `OnboardingView.finish()` (`OnboardingView.tsx:78-88`)
+     writes `patchFoster({ intake, phase: "discovery" })` with `pref_size`/`size_preference` and
+     `pref_energy`/`energy_preference` conditionally spread in. A foster who moved the size slider
+     on their first pass and left it alone on the retake keeps the **old** `pref_size` — the Hub's
+     "What you're looking for" card prints it as a current answer and `scoreDog()` ranks on it.
+     `writeLocalFoster()` (`lib/localMode.ts:44-48`) is `{ ...readLocalFoster(), ...patch }`, a
+     shallow spread that replaces `intake` wholly, so LOCAL_MODE gets this right and Firestore does
+     not. **The same behaviour under two backends is the acceptance bar.**
+  2. `LookingForCard.reset()` (`web/src/phases/hub/HubView.tsx:148-152`) is
+     `patchFoster({ intake: {}, ... })`. Under the same merge, an empty map merged into a populated
+     one is a **no-op**: "Change answers" clears the phase, the swipes and the match and leaves
+     every answer in place. Its own comment — *"Clearing intake sends them back through the front
+     door"* — is false against Firestore and true under LOCAL_MODE.
+  3. `DiscoveryView.tsx:170`'s **"Retake the questionnaire"** is a bare
+     `navigate("/onboarding")` and clears nothing at all. Fixing (1) makes this correct without
+     touching the line; **check that before changing it.**
+
+  **Scope, and the two things deliberately outside it.** `intake` is the only nested map written
+  partially — the census: `pickup` is written whole or `null`, `adoptionHighlights` writes all
+  three keys every time, and `journal`/`careSchedule`/both checklists are arrays, which Firestore
+  replaces wholly. `DiscoveryView.tsx:127`'s filter sheet already spreads
+  `{ ...foster?.intake, ...patch }`, so it is the one caller that is correct today and should stay
+  a full write. Out of scope: `foster.py`'s `save_intake`, which defaults its six strings to `""`
+  and is a different shape of the same question; and any backfill of documents already carrying a
+  pre-PH-24 `time_availability`, except insofar as a true replacement on the next retake removes it
+  for free — say in the row whether it does.
+
+  **Files**: `web/src/hooks/useFoster.ts`, `web/src/lib/localMode.ts`,
+  `web/src/phases/onboarding/OnboardingView.tsx`, `web/src/phases/hub/HubView.tsx`, and
+  `web/src/phases/discovery/DiscoveryView.tsx` only if (3) survives the fix to (1). The mechanism is
+  execute's call; the constraint is below under "What omitting a key means at the write layer".
+  **Verify**: new tests in `web/src/hooks/` or `web/src/lib/` covering *the same retake against both
+  layers* — a partial `intake` written over a populated one must leave no key the second pass did
+  not supply, under `patchFoster` and under `writeLocalFoster` alike — plus a case for
+  `reset()`'s empty map. Then `npm test`, `./node_modules/.bin/tsc --noEmit` (**not** `npx tsc`),
+  `npm run build`, `npm run lint` (expect the same 8 warnings as `main`; diff against a stash).
 
 - **PH-23 `[large]` — shipped 2026-09-17 (PR #89); the Ledger row is the full account**, including
   both things the spec had not named. The request/confirm round trip is still unbuilt.
@@ -167,6 +155,38 @@ entirely, and PH-18's two parting leads are both closed** (PR #85's own diff, an
 run-by-run narration is verbatim in
 [`archive/production-hardening-queuenarration-2026-09-17.md`](archive/production-hardening-queuenarration-2026-09-17.md);
 the README's fallback chain tells the same story once, which is why it is not told twice here.
+
+### What omitting a key means at the write layer (2026-09-19)
+
+PH-24 established that a form may only write a field the person actually supplied. It assumed, as
+every face of the tense test before it did, that **not writing a key is the same as the key not
+being there**. It is not, and that is a property of the storage layer rather than of the form:
+
+> `setDoc(..., { merge: true })` merges nested maps **key by key**, so an omitted key means *leave
+> whatever was there*. A shallow spread means *replace the map*. Pawthway has one of each, behind
+> one function, and no caller can tell which it got.
+
+So the rule the next write path needs, stated so it does not have to be re-derived:
+
+> **Omission at the form is only honest if omission at the write layer deletes.** A form that
+> carefully declines to answer a question, over a backend that treats declining as "keep the old
+> answer", has recorded the old answer as a new one — which is exactly the claim PH-24 removed,
+> arriving one layer down and a day later.
+
+Three consequences that bound PH-25 rather than widening it:
+
+1. **A helper is cheaper than a convention.** Twenty-odd call sites use `patchFoster`, and all but
+   one write top-level scalars or arrays, where merge and replace agree. Teaching every caller the
+   difference is the wrong shape; naming the one key that must be replaced — at the helper, or with
+   an explicit full-key write from `finish()` — is the right one. Either satisfies the rule.
+2. **Both layers must answer the same way, and LOCAL_MODE is the one that is already right.** The
+   guest path is a supported path, not a fallback (`CLAUDE.md`, "Accounts"), so "correct under
+   Firestore" is half a fix. Whatever the mechanism, a `deleteField()` sentinel must not reach
+   `localStorage` as a literal.
+3. **This is a stale claim, not an invented one** — the foster did once supply the value — which is
+   why it is its own item and not a bug in PH-24. It also means there is no `Unrecorded` to render
+   and nothing new to design: the honest state already has a renderer, and it has simply never been
+   reachable on the retake path.
 
 ### A default is honest when it is a fallback for the layout, and dishonest when it is an answer (2026-09-14)
 
@@ -201,26 +221,6 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
   rows do not carry: PH-15's live rules check is **PH-15b under "Needs a human"**, so don't read
   PH-15 as verified end to end.
 
-### The fifth face: what an input *control* may record (2026-09-18, shipped the same run)
-
-The four faces above each watch a value **leaving** the app. This one watches one **arriving**,
-and it is the first whose claim is about the **foster** rather than a dog. The rule, stated to be
-reusable against the next form somebody builds:
-
-> **A default a control renders is a fallback; the same default persisted is an answer.** A form
-> may only write a field the person actually supplied. Where it cannot tell, it must omit — not
-> annotate.
-
-Two generalisations worth keeping out of the archive. **Prefer absence to annotation wherever the
-schema can already carry it** — PH-22 built a `derived` bag because `RichDog`'s fields are
-non-null and layout needs them; every `FosterIntake` field here was already optional, so reaching
-for a bag would have added a parallel vocabulary to a field that was nullable all along. And **a
-defensive default that cannot execute is evidence the value it defends against is being
-manufactured upstream**: `prefs()`'s `?? 50` / `?? 2` carried a comment about "a foster who
-skipped onboarding" and could never fire, because `finish()` wrote both fields unconditionally.
-The full section and PH-24's queue spec are verbatim in
-[`archive/production-hardening-ph24-2026-09-18.md`](archive/production-hardening-ph24-2026-09-18.md).
-
 ### Needs a human — PARKED, not pending; archived 2026-09-11
 
 Three items, all parked, none discharged, each wanting a signed-in human this loop cannot be:
@@ -240,7 +240,7 @@ them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
 
-- 2026-09-18 — PH-24 `[large]` — PR #__ — **onboarding stopped recording answers nobody gave.**
+- 2026-09-18 — PH-24 `[large]` — PR #91 — **onboarding stopped recording answers nobody gave.**
   `OnboardingView` tracks whether each slider was moved and omits `pref_size`/`size_preference`
   and `pref_energy`/`energy_preference` when it was not; `time_availability` is gone entirely,
   because it was derived from the energy slider and the questionnaire has never asked how much
