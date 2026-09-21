@@ -96,57 +96,10 @@ they are the product asserting things about a real animal that nobody observed, 
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
-- [ ] **PH-26 `[large]` — the agent's two foster-writing tools stop routing around the app's own
-  rules** (queued 2026-09-20; design answer directly below). Both live in
-  `src/agent/builtin/foster.py` and both are reachable today by any signed-in foster in Match,
-  Care Plan or Post Foster, behind nothing but the approval modal — whose copy for each
-  (`toolLabels.ts:57-62`) describes a far smaller write than the one that happens.
-  1. **`record_swipe(liked=True)` is an application the shelter never receives.** It writes
-     `matchedDogId` and `phase: "match"` (`foster.py:132-135`) and nothing else. Both UI apply paths
-     (`SavedView.tsx:113-125`, `DogDetailView.tsx:50-63`) do that *and* `createApplication()` —
-     the document RS-5's inbox and RS-10/11's checklist join read. So an agent "like" puts a foster
-     on the Match screen for a dog **no shelter account can see they applied for**; it skips
-     `needsAccountToApply()` and `activeApplication()`'s one-foster block; and in Care Plan it
-     swaps `matchedDogId` out from under the dog currently living in the foster's home. **Fix:** a
-     like writes `likedDogIds` only — exactly what Discovery's swipe writes (CLAUDE.md, "Where
-     liking becomes matching") — and the docstring stops saying a like "moves the foster into the
-     Match phase". Committing to a dog stays a UI act with a confirm sheet. Do **not** teach the
-     tool to create an application: a second write path for one record is where PH-17 found four.
-  2. **`save_intake` answers six questions whether or not it was asked any of them, and sends the
-     journey back to Discovery.** Every omitted argument defaults to `""` and is written
-     (`foster.py:103-110`) — including `time_availability`, which PH-24 removed because nothing asks
-     it — so "I'd prefer a smaller dog" blanks the foster's home, experience and restrictions. It
-     writes the size **word** without `pref_size`, so the Hub, Discovery and `scoreDog` keep showing
-     the old answer while `get_foster()` returns the new one. And `"phase": "discovery"`
-     (`foster.py:111`) takes a foster in Match or Care Plan out of the phase their matched dog
-     depends on — `activeApplication()` returns null, so the one-foster block lifts. **Fix: remove
-     the tool.** Registration is by decorator; also drop it from `DEFAULT_DANGEROUS`
-     (`AgentChatPanel.tsx:15`) and both `toolLabels.ts` entries (`:17`, `:59`) in the same PR, or
-     the UI keeps a label for a tool the server no longer has.
-  3. **Rider — the filter sheet writes half an answer.** `FilterSheet.save`
-     (`DiscoveryView.tsx:125-127`, called at `:160`/`:167`) writes `pref_size`/`pref_energy` and
-     never the word beside it. **Correction to the lead this doc carried on 2026-09-19**: the Hub
-     card does *not* print from the word — it reads `prefs()` like everything else, so every screen
-     agrees. The one reader of the word is **the agent**, through `get_foster()`, so moving the
-     slider leaves the model answering "you wanted a large dog" to a foster every screen calls
-     Small. Fix: one helper in `web/src/lib/matching.ts` (beside `prefs()`) that returns both halves
-     of a size or energy answer, used by `OnboardingView.tsx:81-82` and `FilterSheet`; delete both
-     copies of `sizeWord` (`OnboardingView.tsx:12`, `DiscoveryView.tsx:13`). CLAUDE.md's "keep
-     writing both" rule stands — this makes it one write instead of a rule to remember.
-
-  **Done means:** `uv run pytest` green with new cases in `tests/` (the `fake_db` fixture in
-  `conftest.py`): a liked `record_swipe` on a foster with `matchedDogId: "d-1", phase:
-  "care_plan"` leaves both untouched and adds to `likedDogIds`; `save_intake` is absent from the
-  registry that `builtin/__init__.py` builds (assert on its tool names). `npm test` green with a
-  case that a filter-sheet size change writes `pref_size` **and** `size_preference` and the two
-  agree; `./node_modules/.bin/tsc --noEmit`, `npm run build`, `npm run lint` (same 8 warnings as
-  `main`). `grep -rn save_intake src web/src` returns nothing. CLAUDE.md names `save_intake` in
-  "New agent tool modules" — that line is not this loop's to edit; say so in the PR body so
-  Sharang can. Not verifiable live unattended: the agent needs a signed-in token.
-
-- **Every PH item through PH-25 is shipped** (PRs #47, #48, #49, #75, #77, #79, #81, #83, #85,
-  #86, #89, #91, #93), each with a Ledger row that is the full account and a spec archived
-  verbatim — [PH-25's](archive/production-hardening-ph25-2026-09-19.md),
+- **Every PH item through PH-26 is shipped** (PRs #47, #48, #49, #75, #77, #79, #81, #83, #85,
+  #86, #89, #91, #93, #__), each with a Ledger row that is the full account and a spec archived
+  verbatim — [PH-26's](archive/production-hardening-ph26-2026-09-20.md),
+  [PH-25's](archive/production-hardening-ph25-2026-09-19.md),
   [PH-24's](archive/production-hardening-ph24-2026-09-18.md),
   [PH-22's](archive/production-hardening-ph22-2026-09-14.md),
   [PH-18's](archive/production-hardening-ph18-2026-09-15.md) (read it before adding any local row
@@ -241,6 +194,23 @@ Per the README's "nobody uses this app yet", the length of that list is not debt
 them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
+
+- 2026-09-20 — PH-26 `[large]` — PR #__ — **the agent's two foster-writing tools now write only
+  what a screen writes.** `record_swipe` is Discovery's swipe and nothing more: the dog joins
+  `likedDogIds` or `passedDogIds` and leaves the other (read-modify-write, as the UI does, rather
+  than `ArrayUnion`), and a like no longer sets `matchedDogId`/`phase` — so there is no longer an
+  application the shelter's inbox can't see. Docstring and approval copy (`toolLabels.ts`) say a
+  like saves the dog and does not apply. `save_intake` is **removed**, with its
+  `DEFAULT_DANGEROUS` entry and both label entries; `grep -rn save_intake src web/src` is empty.
+  Rider shipped as specified: `sizeWord`/`sizeAnswer`/`energyAnswer` in `lib/matching.ts`, used by
+  onboarding and the filter sheet, both local `sizeWord` copies deleted. **One addition beyond the
+  spec:** `tests/test_foster_tools.py` also asserts `DEFAULT_DANGEROUS` equals the server's
+  `dangerous=True` set (parsed from `AgentChatPanel.tsx`), since that list's own comment says
+  "keep the two in sync" and nothing enforced it. **One deviation:** the filter-sheet test is on
+  the helpers it calls, not the sheet — `web/` has no DOM testing library to drive a slider, and
+  adding one for one case wasn't worth it. pytest 61, vitest 168, `tsc -b`, build, lint (8
+  warnings = `main`). Not verified live: the agent needs a signed-in token. CLAUDE.md's "New agent
+  tool modules" still lists `save_intake()` — not this loop's file; flagged in the PR body.
 
 - 2026-09-19 — PH-25 `[large]` — PR #93 — **a retake of the questionnaire no longer keeps the
   answers the foster took back.** `patchFoster()` writes

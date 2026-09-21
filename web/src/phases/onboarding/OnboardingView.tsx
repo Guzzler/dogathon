@@ -4,12 +4,12 @@ import { motion } from "motion/react";
 import DogGrow from "../../components/DogGrow";
 import { patchFoster } from "../../hooks/useFoster";
 import { ENERGY_WORD } from "../../lib/dog";
+import { energyAnswer, sizeAnswer, sizeWord } from "../../lib/matching";
 import type { FosterIntake } from "../../types";
 
 const STEPS = 5;
 const ENERGY_FACE = ["😴", "🙂", "🐕", "⚡", "🌪️"];
 const SIZE_HINT = ["Under 25 lb", "25–45 lb", "45 lb and up"];
-const sizeWord = (v: number) => (v < 33 ? "Small" : v < 67 ? "Medium" : "Large");
 
 type Tag = "groomLow" | "groomHigh" | "kidsGood" | "adultsOnly" | "coatShort" | "coatLong" | "withDogs" | "withCats" | "puppy" | "adult";
 type Home = "apartment" | "townhouse" | "houseYard";
@@ -78,8 +78,8 @@ export function OnboardingView() {
       const intake: FosterIntake = {
         living_arrangement: home === "apartment" ? "Apartment" : home === "townhouse" ? "Townhouse" : "House with yard",
         experience_level: experience === "first" ? "First-time foster" : "Experienced foster",
-        ...(sizeTouched ? { size_preference: sizeWord(sizePref), pref_size: sizePref } : {}),
-        ...(energyTouched ? { energy_preference: ENERGY_WORD[energyPref], pref_energy: energyPref } : {}),
+        ...(sizeTouched ? sizeAnswer(sizePref) : {}),
+        ...(energyTouched ? energyAnswer(energyPref) : {}),
         restrictions,
         pref_home: home ?? undefined,
         pref_experience: experience ?? undefined,

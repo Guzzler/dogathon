@@ -24,6 +24,18 @@ export const prefs = (i: FosterIntake | undefined) => ({
   tags: i?.pref_tags ?? [],
 });
 
+/** The word a 0–100 size slider position reads as. */
+export const sizeWord = (v: number) => (v < 33 ? "Small" : v < 67 ? "Medium" : "Large");
+
+/**
+ * PH-26: a size or energy answer is stored twice -- the number every screen reads through
+ * `prefs()`, and the word the agent reads through `get_foster()` -- so writing one half is
+ * how the agent ended up telling a foster they wanted a large dog while every screen said
+ * Small. Every write of either answer goes through one of these, so the halves can't part.
+ */
+export const sizeAnswer = (v: number) => ({ pref_size: v, size_preference: sizeWord(v) });
+export const energyAnswer = (v: number) => ({ pref_energy: v, energy_preference: ENERGY_WORD[v] });
+
 const compat = (ok: boolean | null | undefined) => (ok == null ? -4 : ok ? 6 : -26);
 
 /**

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Dog, FosterIntake } from "../types";
 import { normalizeDog } from "./dog";
-import { matchReasons, scoreDog } from "./matching";
+import { energyAnswer, matchReasons, prefs, scoreDog, sizeAnswer } from "./matching";
 
 /**
  * The score is a pile of hand-tuned constants, so testing exact numbers would just restate
@@ -200,5 +200,29 @@ describe("an unanswered size or energy question", () => {
     const lines = matchReasons(dog({ energy_level: 1 }), { pref_home: "apartment", pref_experience: "first" });
     expect(lines.join(" | ")).toMatch(/apartment/i);
     expect(lines.join(" | ")).toMatch(/easy first foster/i);
+  });
+});
+
+/**
+ * PH-26: the filter sheet used to write `pref_size` alone, so every screen (which reads the
+ * number through `prefs()`) said Small while the agent (which reads the word) said Large.
+ * Both the sheet and onboarding now write through these helpers.
+ */
+describe("a size or energy answer is written whole", () => {
+  it("writes the number and the word, and they agree", () => {
+    for (const [v, word] of [[0, "Small"], [32, "Small"], [33, "Medium"], [66, "Medium"], [67, "Large"], [100, "Large"]] as const) {
+      expect(sizeAnswer(v)).toEqual({ pref_size: v, size_preference: word });
+    }
+    expect(energyAnswer(0)).toEqual({ pref_energy: 0, energy_preference: "Couch potato" });
+    expect(energyAnswer(4)).toEqual({ pref_energy: 4, energy_preference: "Zoomies" });
+  });
+
+  it("replaces a stale word when a filter change is merged over an old answer", () => {
+    // What the filter sheet's save does: spread the change over the stored intake.
+    const stored: FosterIntake = { ...sizeAnswer(90), ...energyAnswer(3) };
+    const next: FosterIntake = { ...stored, ...sizeAnswer(10) };
+    expect(next.size_preference).toBe("Small");
+    expect(prefs(next).size).toBe(10);
+    expect(next.energy_preference).toBe("High");
   });
 });
