@@ -8,8 +8,6 @@ asked to during a chat (e.g. "mark the vet visit done").
 
 from __future__ import annotations
 
-from typing import Any
-
 from ..current_foster import resolve
 from ..firestore_client import db
 from ..tools import tool
@@ -77,62 +75,38 @@ def get_foster(foster_id: str = "") -> dict:
     return {"id": foster_id, **snap.to_dict()}
 
 
-@tool(dangerous=True)
-def save_intake(
-    foster_id: str = "",
-    living_arrangement: str = "",
-    experience_level: str = "",
-    time_availability: str = "",
-    size_preference: str = "",
-    energy_preference: str = "",
-    restrictions: str = "",
-) -> dict:
-    """Save a foster's onboarding intake answers.
-
-    Args:
-        foster_id: The foster's id. Leave this out -- it defaults to the
-            signed-in foster the app is showing.
-        living_arrangement: e.g. "apartment" or "house with yard".
-        experience_level: e.g. "first-time" or "experienced".
-        time_availability: How much daily time the foster has for a dog.
-        size_preference: Preferred dog size, e.g. "small", "medium", "large".
-        energy_preference: Preferred energy level, e.g. "low", "medium", "high".
-        restrictions: Any hard restrictions, e.g. "no cats in the home".
-    """
-    foster_id = resolve(foster_id)
-    intake = {
-        "living_arrangement": living_arrangement,
-        "experience_level": experience_level,
-        "time_availability": time_availability,
-        "size_preference": size_preference,
-        "energy_preference": energy_preference,
-        "restrictions": restrictions,
-    }
-    _ref(foster_id).set({"intake": intake, "phase": "discovery"}, merge=True)
-    return get_foster(foster_id=foster_id)
+# There is deliberately no intake-writing tool (PH-26). The questionnaire is the only thing
+# that writes `intake`, with its own guards -- it omits a slider nobody moved and writes both
+# halves of a size/energy answer -- and the agent is only mounted in phases past it. A tool
+# here would be a second questionnaire with none of those rules, and it used to be one: it
+# blanked every answer it wasn't given and sent a matched foster back to Discovery.
 
 
 @tool(dangerous=True)
 def record_swipe(foster_id: str = "", dog_id: str = "", liked: bool = False) -> dict:
-    """Record a like/pass on a dog during discovery. A like moves the foster
-    into the Match phase with that dog.
+    """Save or pass on a dog -- the same thing a swipe in Discovery does. A like
+    only adds the dog to the foster's saved list; it does not apply to foster
+    it. Applying is done by the foster in the app (Saved -> Apply to foster),
+    which is what tells the shelter.
 
     Args:
         foster_id: The foster's id. Leave this out -- it defaults to the
             signed-in foster the app is showing.
         dog_id: The dog's id, for example d-001.
-        liked: True for a like (swipe right), False for a pass (swipe left).
+        liked: True to save the dog (swipe right), False to pass (swipe left).
     """
+    # Exactly the write Discovery's swipe makes (`DiscoveryView.tsx`, like/pass): the dog
+    # joins one list and leaves the other. It used to also set `matchedDogId` and
+    # `phase: "match"` -- an application with no `applications` document, so no shelter
+    # ever saw it, and in Care Plan it swapped out the dog living in the foster's home.
     foster_id = resolve(foster_id)
-    from firebase_admin import firestore as fa_firestore
-
     ref = _ref(foster_id)
-    field = "likedDogIds" if liked else "passedDogIds"
-    updates: dict[str, Any] = {field: fa_firestore.ArrayUnion([dog_id])}
-    if liked:
-        updates["matchedDogId"] = dog_id
-        updates["phase"] = "match"
-    ref.set(updates, merge=True)
+    data = ref.get().to_dict() or {}
+    add, drop = ("likedDogIds", "passedDogIds") if liked else ("passedDogIds", "likedDogIds")
+    kept = list(data.get(add) or [])
+    if dog_id not in kept:
+        kept.append(dog_id)
+    ref.set({add: kept, drop: [d for d in data.get(drop) or [] if d != dog_id]}, merge=True)
     return get_foster(foster_id=foster_id)
 
 

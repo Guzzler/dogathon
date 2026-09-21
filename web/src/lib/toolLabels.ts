@@ -14,7 +14,6 @@ interface Label {
 
 const LABELS: Record<string, Label> = {
   get_foster: { running: "Looking up your details", done: "Read your details", icon: "👤" },
-  save_intake: { running: "Saving your preferences", done: "Saved your preferences", icon: "📝" },
   record_swipe: { running: "Saving your choice", done: "Saved your choice", icon: "❤️" },
   update_checklist: { running: "Updating your checklist", done: "Updated your checklist", icon: "✅" },
 
@@ -56,10 +55,8 @@ export function toolConsequence(name: string): string {
   switch (name) {
     case "update_dog":
       return "This updates the dog's record at the shelter.";
-    case "save_intake":
-      return "This saves your foster preferences to your profile.";
     case "record_swipe":
-      return "This records your decision on this dog.";
+      return "This saves or passes on the dog, the same as a swipe. It doesn't apply to foster it.";
     case "send_adoption_profile_to_shelter":
       return "This sends the adoption profile to the shelter. They'll see it right away.";
     case "withdraw_adoption_profile":

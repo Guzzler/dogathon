@@ -7,10 +7,9 @@ import DogGrow from "../../components/DogGrow";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
 import { ENERGY_WORD, normalizeDog, type RichDog } from "../../lib/dog";
-import { prefs, scoreDog, useMyLocation } from "../../lib/matching";
+import { energyAnswer, prefs, scoreDog, sizeAnswer, sizeWord, useMyLocation } from "../../lib/matching";
 import { PawMark, Wordmark } from "../../components/Logo";
-
-const sizeWord = (v: number) => (v < 33 ? "Small" : v < 67 ? "Medium" : "Large");
+import type { FosterIntake } from "../../types";
 
 export function DiscoveryView() {
   const navigate = useNavigate();
@@ -123,7 +122,8 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
   const { foster } = useFoster();
   const p = prefs(foster?.intake);
 
-  const save = (patch: Record<string, number>) =>
+  // Both halves of the answer, never just the number -- see `sizeAnswer()`.
+  const save = (patch: Partial<FosterIntake>) =>
     patchFoster({ intake: { ...foster?.intake, ...patch } });
 
   return (
@@ -157,14 +157,14 @@ function FilterSheet({ onClose }: { onClose: () => void }) {
           <span style={{ fontWeight: 800, fontSize: 13.5, color: "var(--coral)" }}>{sizeWord(p.size)}</span>
         </div>
         <input className="slider" type="range" min={0} max={100} value={p.size} aria-label="Size preference"
-          onChange={e => save({ pref_size: +e.target.value })} />
+          onChange={e => save(sizeAnswer(+e.target.value))} />
 
         <div className="row" style={{ justifyContent: "space-between", marginTop: 14, marginBottom: 2 }}>
           <span className="cglabel" style={{ margin: 0 }}>Energy</span>
           <span style={{ fontWeight: 800, fontSize: 13.5, color: "var(--coral)" }}>{ENERGY_WORD[p.energy]}</span>
         </div>
         <input className="slider" type="range" min={0} max={4} value={p.energy} aria-label="Energy preference"
-          onChange={e => save({ pref_energy: +e.target.value })} />
+          onChange={e => save(energyAnswer(+e.target.value))} />
 
         <div className="divider" style={{ margin: "16px 0" }} />
         <button className="btn outline" onClick={() => navigate("/onboarding")}>Retake the questionnaire</button>

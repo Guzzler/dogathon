@@ -12,7 +12,6 @@ let nextCallId = 0;
 // to the foster's own log or checklist is bookkeeping and shouldn't interrupt them.
 const DEFAULT_DANGEROUS = [
   "update_dog",
-  "save_intake",
   "record_swipe",
   "send_adoption_profile_to_shelter",
   "withdraw_adoption_profile",
