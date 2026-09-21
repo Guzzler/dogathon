@@ -206,41 +206,37 @@ Compressed:
   numbers, and the ninth re-read the screen and found the Poison Control quick-action had never once
   rendered.
 
-- **2026-09-17 / 09-18 — the tenth and eleventh links, verbatim in
-  [`archive/readme-large-slot-2026-09-19.md`](archive/readme-large-slot-2026-09-19.md).** Tenth:
-  **enumerate the *surfaces*, not the datasets** — five runs had each pointed the tense test at
-  another consumer of one dataset, and asking which of the **five phases** had never been measured
-  named Match immediately (PH-23). With it, **look for the exemption next to the rule**, and the
-  note that "verified locally, not in the environment it runs in" came due twice on one run and
-  resolved in opposite directions (DC-4 works on a real Actions run; RS-4's weekly check has never
-  once completed, 403 from the runner's IP — RS-13, M4 reopened). Eleventh: **the surface that
-  *writes*** — the same census named **Onboarding**, unmeasured for ten runs because every previous
-  face of the tense test watched a value *leaving* the app and Onboarding's job is to take one
-  **in**. **A census of render sites cannot find a defect in a write site.** Two riders: **a
-  defensive default that cannot execute is evidence the value it defends against is being
-  manufactured upstream** (`prefs()`'s `?? 50`), and **enumerating the questions *asked* against the
-  fields *written*** is what found `time_availability`, a claim answering a question nobody asks.
+- **2026-09-17 / 09-18 / 09-19 — the tenth, eleventh and twelfth links, verbatim in
+  [`archive/readme-large-slot-2026-09-19.md`](archive/readme-large-slot-2026-09-19.md) and
+  [`archive/readme-large-slot-2026-09-20.md`](archive/readme-large-slot-2026-09-20.md).** Tenth:
+  **enumerate the *surfaces*, not the datasets** — asking which of the five phases had never been
+  measured named Match (PH-23). Eleventh: **the surface that *writes*** — Onboarding, invisible to
+  every census that watched a value leave the app (PH-24); **a census of render sites cannot find a
+  defect in a write site**, and **a defensive default that cannot execute is evidence the value is
+  being manufactured upstream**. Twelfth: **the layer *below* the one you just fixed** — PH-24's
+  omission was undone by `{ merge: true }` (PH-25); **a fix stated as "stop writing X" has a
+  storage-layer half**, **when one code path has two implementations, "verified" names which one**,
+  and **read the last run's exclusions before going looking.**
 
-- **2026-09-19 — the twelfth link: the layer *below* the one you just fixed.** No census this run.
-  PH-24's own parting note said the write layers disagree about what omitting a key means, and
-  checking it found that **PH-24's guarantee holds only for a foster's first pass**: `patchFoster`
-  is `setDoc(..., { merge: true })`, which merges nested maps key by key, so `finish()` carefully
-  declining to write `pref_size` leaves the previous `pref_size` exactly where it was. That is
-  PH-25, and the generalisation is the one worth carrying:
-  - **A fix stated as "stop writing X" has a storage-layer half, and it is a different layer than
-    the one the fix was reviewed in.** Omission at the form is only honest if omission at the write
-    layer deletes. The eleventh link taught that a render census misses write sites; this one adds
-    that a *write* census misses the **persistence semantics** underneath them — three layers, and
-    each was invisible from the one above.
-  - **Two backends behind one function is where the disagreement hides.** `writeLocalFoster()` has
-    been correct all along and Firestore has not, so every test and every LOCAL_MODE demo of the
-    retake path showed the right behaviour. **When one code path has two implementations, "verified"
-    names which one.** That is the 2026-09-07 rule — what you measured against is part of the claim
-    — arriving through a backend rather than through a harness.
-  - **The cheapest lead is the one the last run wrote down and declined to take.** PH-24 left this
-    note deliberately, under the atomic-PR rule, and it cost one run to verify and nothing to find.
-    A parting note is a queued item that has not been written down yet; **read the last run's
-    exclusions before going looking.**
+- **2026-09-20 — the thirteenth link: the *other language's* write sites.** Taking PH-25's parting
+  note (`save_intake` still defaults to `""`) found that three consecutive censuses had enumerated
+  only **the UI's** writes. The agent's `@tool(dangerous=True)` functions write the same documents
+  through the Admin SDK, around `firestore.rules` and around every helper the screens use — and
+  `record_swipe(liked=True)` turned out to be an **application no shelter can see**: it sets
+  `matchedDogId` and `phase` without `createApplication()`, so RS-5's inbox never hears of it. That
+  is PH-26. Two things generalise:
+  - **A census is bounded by the language it was run in.** Every grep behind PH-23/24/25 was over
+    `web/src`. The backend is the same app writing the same document, and nothing in the method
+    would ever have reached it. **When a write-site census comes back clean, re-run it over
+    `src/agent` before believing it.**
+  - **The right answer to "should the second implementation learn the rule?" is often "should it
+    exist?"** The lead asked whether `save_intake` should get PH-24's omission rule; the design
+    answer removes it, because it has no screen twin. A rule for when a tool may write is in
+    `production-hardening.md`: **every write an agent tool makes must already be a write some
+    screen makes** — same fields, guards and side effects.
+  - With it, **the lead was half wrong again.** It said the Hub printed the stale size word; the Hub
+    reads the number, and the only reader of the word is the agent. The defect was real and its
+    victim was misnamed — which is the 2026-09-12 rule, "a lead is a measurement too".
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -299,10 +295,10 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 65 files as of 2026-09-19** — counted with `ls`, because the running tally this
+**`archive/` holds 68 files as of 2026-09-20** — counted with `ls`, because the running tally this
 sentence used to carry had drifted from the directory (it read "twenty-eight" on 2026-09-10, when a
 count would have said thirty-five). **Count it, don't increment it.** The 2026-09-17 run added eight,
-by far the most of any run; **this run added two** and all four docs landed under: README 398, DC
+by far the most of any run; 2026-09-19 added two and **2026-09-20 two more** (execute added a third between). On 09-19 all four docs landed under: README 398, DC
 391, RS 384, PH 372. One thing this run's arithmetic adds to the rules below: **a section of five
 shipped rules is a cheaper cut than five separate sections of one**, because the pointers and
 preambles are four-fifths of it. The tense test's five faces went out as one file and took 81 lines
@@ -375,7 +371,7 @@ fact.
 before the PR exists, so it cannot know its own number. That is a real ordering constraint, not
 sloppiness, so the convention is: **execute leaves `PR #__` and plan backfills it on the next
 run** from `gh pr list --state merged`. It has held without exception since 2026-08-26 and every
-backfill has cost exactly one `gh pr list` — one more resolved on 2026-09-19 (PH-24 → #91),
+backfill has cost exactly one `gh pr list` — one more on 2026-09-20 (PH-25 → #93) and one on 2026-09-19 (PH-24 → #91),
 after two on 2026-09-18 (RS-13 → #88, PH-23 → #89) and a run that resolved four at once — so if
 it ever stops being cheap, the fix is execute amending its own row after opening the PR, not plan
 guessing. Two things the log established and worth keeping: **one PR number can fill two or three
