@@ -96,28 +96,64 @@ they are the product asserting things about a real animal that nobody observed, 
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
-- **PH-24 `[large]` — shipped 2026-09-18 (PR #91); the Ledger row is the full account.** The
-  queue spec and the design section that argued it are archived verbatim in
-  [`archive/production-hardening-ph24-2026-09-18.md`](archive/production-hardening-ph24-2026-09-18.md).
-  The spec's five-site census survived re-verification against `main` intact — the first run in
-  nine that re-verified and found nothing wrong, which is itself worth recording — and the one
-  judgment call it left to execute (the onboarding summary screen) is answered in the row.
+- [ ] **PH-26 `[large]` — the agent's two foster-writing tools stop routing around the app's own
+  rules** (queued 2026-09-20; design answer directly below). Both live in
+  `src/agent/builtin/foster.py` and both are reachable today by any signed-in foster in Match,
+  Care Plan or Post Foster, behind nothing but the approval modal — whose copy for each
+  (`toolLabels.ts:57-62`) describes a far smaller write than the one that happens.
+  1. **`record_swipe(liked=True)` is an application the shelter never receives.** It writes
+     `matchedDogId` and `phase: "match"` (`foster.py:132-135`) and nothing else. Both UI apply paths
+     (`SavedView.tsx:113-125`, `DogDetailView.tsx:50-63`) do that *and* `createApplication()` —
+     the document RS-5's inbox and RS-10/11's checklist join read. So an agent "like" puts a foster
+     on the Match screen for a dog **no shelter account can see they applied for**; it skips
+     `needsAccountToApply()` and `activeApplication()`'s one-foster block; and in Care Plan it
+     swaps `matchedDogId` out from under the dog currently living in the foster's home. **Fix:** a
+     like writes `likedDogIds` only — exactly what Discovery's swipe writes (CLAUDE.md, "Where
+     liking becomes matching") — and the docstring stops saying a like "moves the foster into the
+     Match phase". Committing to a dog stays a UI act with a confirm sheet. Do **not** teach the
+     tool to create an application: a second write path for one record is where PH-17 found four.
+  2. **`save_intake` answers six questions whether or not it was asked any of them, and sends the
+     journey back to Discovery.** Every omitted argument defaults to `""` and is written
+     (`foster.py:103-110`) — including `time_availability`, which PH-24 removed because nothing asks
+     it — so "I'd prefer a smaller dog" blanks the foster's home, experience and restrictions. It
+     writes the size **word** without `pref_size`, so the Hub, Discovery and `scoreDog` keep showing
+     the old answer while `get_foster()` returns the new one. And `"phase": "discovery"`
+     (`foster.py:111`) takes a foster in Match or Care Plan out of the phase their matched dog
+     depends on — `activeApplication()` returns null, so the one-foster block lifts. **Fix: remove
+     the tool.** Registration is by decorator; also drop it from `DEFAULT_DANGEROUS`
+     (`AgentChatPanel.tsx:15`) and both `toolLabels.ts` entries (`:17`, `:59`) in the same PR, or
+     the UI keeps a label for a tool the server no longer has.
+  3. **Rider — the filter sheet writes half an answer.** `FilterSheet.save`
+     (`DiscoveryView.tsx:125-127`, called at `:160`/`:167`) writes `pref_size`/`pref_energy` and
+     never the word beside it. **Correction to the lead this doc carried on 2026-09-19**: the Hub
+     card does *not* print from the word — it reads `prefs()` like everything else, so every screen
+     agrees. The one reader of the word is **the agent**, through `get_foster()`, so moving the
+     slider leaves the model answering "you wanted a large dog" to a foster every screen calls
+     Small. Fix: one helper in `web/src/lib/matching.ts` (beside `prefs()`) that returns both halves
+     of a size or energy answer, used by `OnboardingView.tsx:81-82` and `FilterSheet`; delete both
+     copies of `sizeWord` (`OnboardingView.tsx:12`, `DiscoveryView.tsx:13`). CLAUDE.md's "keep
+     writing both" rule stands — this makes it one write instead of a rule to remember.
 
-- **PH-25 `[large]` — shipped 2026-09-19 (PR #__); the Ledger row is the full account.** The
-  queue spec (its three-symptom census and the `intake`-is-the-only-partial-map scope) and the
-  design section that argued it are archived verbatim in
-  [`archive/production-hardening-ph25-2026-09-19.md`](archive/production-hardening-ph25-2026-09-19.md).
-  All three symptoms were re-read against `main` before the fix and all three were as described;
-  two of them needed no code at all once the third was fixed, which the row explains.
+  **Done means:** `uv run pytest` green with new cases in `tests/` (the `fake_db` fixture in
+  `conftest.py`): a liked `record_swipe` on a foster with `matchedDogId: "d-1", phase:
+  "care_plan"` leaves both untouched and adds to `likedDogIds`; `save_intake` is absent from the
+  registry that `builtin/__init__.py` builds (assert on its tool names). `npm test` green with a
+  case that a filter-sheet size change writes `pref_size` **and** `size_preference` and the two
+  agree; `./node_modules/.bin/tsc --noEmit`, `npm run build`, `npm run lint` (same 8 warnings as
+  `main`). `grep -rn save_intake src web/src` returns nothing. CLAUDE.md names `save_intake` in
+  "New agent tool modules" — that line is not this loop's to edit; say so in the PR body so
+  Sharang can. Not verifiable live unattended: the agent needs a signed-in token.
 
-- **PH-23 `[large]` — shipped 2026-09-17 (PR #89); the Ledger row is the full account**, including
-  both things the spec had not named. The request/confirm round trip is still unbuilt.
-
-**2026-09-15 / 09-16 — PH-22 then PH-18 shipped the day each was queued, emptying this queue
-entirely, and PH-18's two parting leads are both closed** (PR #85's own diff, and PR #86). The
-run-by-run narration is verbatim in
-[`archive/production-hardening-queuenarration-2026-09-17.md`](archive/production-hardening-queuenarration-2026-09-17.md);
-the README's fallback chain tells the same story once, which is why it is not told twice here.
+- **Every PH item through PH-25 is shipped** (PRs #47, #48, #49, #75, #77, #79, #81, #83, #85,
+  #86, #89, #91, #93), each with a Ledger row that is the full account and a spec archived
+  verbatim — [PH-25's](archive/production-hardening-ph25-2026-09-19.md),
+  [PH-24's](archive/production-hardening-ph24-2026-09-18.md),
+  [PH-22's](archive/production-hardening-ph22-2026-09-14.md),
+  [PH-18's](archive/production-hardening-ph18-2026-09-15.md) (read it before adding any local row
+  back to `emergencyContacts`), and the rest named in the
+  [2026-09-12 ledger archive](archive/production-hardening-ledger-2026-09-12.md). PH-23's
+  request/confirm round trip is still unbuilt. PH-15's live rules check is **PH-15b under "Needs a
+  human"**, so don't read PH-15 as verified end to end.
 
 ### What omitting a key means at the write layer (2026-09-19, shipped the same day)
 
@@ -133,8 +169,32 @@ it produced — the census, the three symptoms and the two-backend argument are 
 `patchFoster()` now satisfies it for every key (`mergeFields`, not `{ merge: true }`), so a new
 write path gets this for free; what it does **not** cover is a write that goes around that helper.
 `auth.ts:73`'s guest→account copy is a whole-document `setDoc` and unaffected; the agent's
-`save_intake` is Python, still defaults its six strings to `""`, and is the same question in a
-different language.
+`save_intake` goes around it in another language, and is PH-26.
+
+### An agent tool is a write path, and it answers to the screen that owns the write (2026-09-20)
+
+The question PH-25's parting note left: should `save_intake` be taught the same omission rule, in
+Python? Answering it found the wrong question. Three censuses in three runs (PH-23's surfaces,
+PH-24's inputs, PH-25's storage) enumerated **the UI's** write sites, and the agent's
+`@tool(dangerous=True)` functions are write sites none of them could see — they write the same
+document through the Admin SDK, bypassing `firestore.rules` *and* every helper the UI routes
+through. So:
+
+> **Every write an agent tool makes must already be a write some screen makes, with the same
+> fields, the same guards and the same side effects — or the tool should not exist.** A tool is a
+> shortcut to a screen, not a second implementation of one. Where the screen does more than the
+> tool (creates an application, checks the one-foster block, writes both halves of an answer),
+> the tool is not a shortcut, it is a way around.
+
+That answers each tool without a new rule per tool. `record_swipe`'s like has a screen twin
+(Discovery's swipe) and is narrowed to it; its match-and-phase half has no twin that skips
+`createApplication()`, so it goes. `save_intake` has no twin at all — no screen writes intake
+without the questionnaire's guards, and the agent is mounted only in phases *past* the
+questionnaire — so it is removed rather than repaired; teaching it PH-24's omission rule would have
+built a correct second questionnaire nobody asked for. The other dangerous tools (`update_dog`,
+`log_care_entry`, `send_`/`withdraw_adoption_profile`) are **not** re-audited here. Checking each
+against its screen twin is the next run's cheapest lead, and `update_dog` — a foster's agent
+writing the shelter's own dog document — is the one to read first.
 
 ### A default is honest when it is a fallback for the layout, and dishonest when it is an answer (2026-09-14)
 
@@ -160,24 +220,6 @@ Two consequences, both of which keep this from becoming a thirty-site refactor:
    −4 already does for the four fields the normaliser passes through. Extending that to size and
    energy is the same decision applied one layer earlier, not a new one.
 
-- **Every PH item through PH-23 is shipped** (PRs #47, #48, #49, #75, #77, #79, #81, #83, #85,
-  #86, #89), each with a Ledger row that is the full account and a spec archived verbatim —
-  [PH-22's](archive/production-hardening-ph22-2026-09-14.md),
-  [PH-18's](archive/production-hardening-ph18-2026-09-15.md) (nine runs of re-verification; read
-  it before adding any local row back to `emergencyContacts`), and the rest named in the
-  [2026-09-12 ledger archive](archive/production-hardening-ledger-2026-09-12.md). One thing the
-  rows do not carry: PH-15's live rules check is **PH-15b under "Needs a human"**, so don't read
-  PH-15 as verified end to end.
-
-- **A lead this run found and declined to take, per the atomic-PR rule.**
-  `DiscoveryView`'s filter sheet writes `pref_size` alone (`DiscoveryView.tsx:127`), never the
-  `size_preference` *word* beside it, so moving the filter slider leaves the two halves of one
-  answer disagreeing — the Hub card prints "Large" from the questionnaire while `scoreDog()` ranks
-  on the 20 the sheet wrote. This predates PH-25 and is untouched by it (the sheet already spread
-  the whole map, so replace and merge agree there). It is a *pair of fields for one answer*, which
-  is a different defect from either PH-24 or PH-25, and the cheapest reading is that the word
-  should be derived at render rather than stored twice.
-
 ### Needs a human — PARKED, not pending; archived 2026-09-11
 
 Three items, all parked, none discharged, each wanting a signed-in human this loop cannot be:
@@ -200,7 +242,7 @@ them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
 
-- 2026-09-19 — PH-25 `[large]` — PR #__ — **a retake of the questionnaire no longer keeps the
+- 2026-09-19 — PH-25 `[large]` — PR #93 — **a retake of the questionnaire no longer keeps the
   answers the foster took back.** `patchFoster()` writes
   `setDoc(..., { mergeFields: keys.map(k => new FieldPath(k)) })` instead of `{ merge: true }`:
   every key in the patch is now replaced whole, and keys the patch never mentions are untouched.
@@ -247,40 +289,13 @@ them, and do not add to it without reading the archived preamble first.
     was measured against is part of the claim.
 
 - 2026-09-18 — PH-24 `[large]` — PR #91 — **onboarding stopped recording answers nobody gave.**
-  `OnboardingView` tracks whether each slider was moved and omits `pref_size`/`size_preference`
-  and `pref_energy`/`energy_preference` when it was not; `time_availability` is gone entirely,
-  because it was derived from the energy slider and the questionnaire has never asked how much
-  of the day anyone is home. A foster who taps Continue twice no longer has "Medium", "A daily
-  walk, then settle" and "A little (WFH some days)" in Firestore as things they said — and the
-  third of those was reaching the agent through `get_foster()`. Four things the build
-  established that the spec did not name:
-  - **The spec's five-site census was right, and that is the first time in nine runs of
-    re-verification that it was.** Eight consecutive runs had paid for the habit by finding a
-    census short. This one did not, which is the argument for keeping the habit rather than
-    against it: the cost of checking is one read per site.
-  - **The fix needed a *third* flag per field, not a second.** `scoreDog` and `matchReasons`
-    each had one `knownSize`/`knownEnergy` meaning "the dog's half was recorded" (PH-22), and
-    the obvious move — AND the foster's half into it — was wrong for six of the eleven rules
-    that read it. "Too big for an apartment" and "an easy first foster" compare the dog against
-    the **home** or the **experience level**; an untouched size slider says nothing about either,
-    and folding it in would have silenced sentences the foster had genuinely earned. So the two
-    comparison terms and the two size/pace sentences take both halves, and everything else keeps
-    `dogSize`/`dogEnergy`. **A guard added one layer up is not automatically the same guard.**
-  - **The summary screen's judgment call went to omission, not `Unrecorded`.** It is headed
-    "Based on your answers" and renders a chip *list*, not labelled rows — there is no slot to
-    leave empty, and showing "Medium" back one tap before writing it is precisely how a resting
-    position becomes a decision. `Unrecorded` is four-for-four elsewhere and is what the Hub's
-    labelled card uses, which is the distinction: **a list omits, a labelled row renders the
-    absence.**
-  - **Discovery's filter sheet needed new copy, not a deleted sentence.** "Straight from your
-    questionnaire" is false over an untouched slider, but the sliders there *write on change*, so
-    the honest alternative can say what the control does: "Anything you didn't answer starts in
-    the middle — moving it here records it."
-
-  Verified: 153 tests (149 + 4 new in `matching.test.ts`), `tsc --noEmit` clean, `npm run build`
-  green, `npm run lint` at the same 8 warnings as `main`. Backend untouched — `foster.py`'s
-  `save_intake` still defaults its six strings to `""`, which is a different shape of the same
-  question and is **not** fixed here. The retake path is the note left above for `dogathon-plan`.
+  An untouched slider omits `pref_size`/`size_preference` (and the energy pair), and
+  `time_availability` is gone because nothing ever asked it. What outlives the row: the five-site
+  census was **right**, the first time in nine runs; the fix needed a *third* flag per field,
+  because six of `scoreDog`'s eleven rules compare the dog against the home or experience, not the
+  slider (**a guard added one layer up is not automatically the same guard**); and **a list omits,
+  a labelled row renders the absence**. Backend untouched — which is where PH-26 starts. Full row
+  verbatim in [`archive/production-hardening-ledger-2026-09-20.md`](archive/production-hardening-ledger-2026-09-20.md).
 
 - 2026-09-15 — PH-18 `[large]` — PR #85 — **the emergency screen stopped telling a foster things
   nobody recorded.** Gone: a hand-drawn SVG map of Presidio Park with a "1.2 mi · 4 min" chip
@@ -350,29 +365,10 @@ is the cheapest thing in a doc at its ceiling to cut, because nothing is lost th
 already two hops away — this is the README's "the Ledger is the first place to look" rule
 reaching the end of what it can give on this doc.)*
 - 2026-09-17 — PH-23 `[large]` — PR #89 — **the pickup handoff stops speaking for the shelter.**
-  All six claims in the census went, each with a replacement rather than a deletion (PH-18's rule):
-  `CLOSED_DAYS` and "Closed Sundays & Mondays" are gone and the footnote says
-  `Unrecorded`'s one phrasing — *"SF SPCA's opening days and times not recorded"* — followed by the
-  booking window **in Pawthway's own voice** ("Pawthway takes requests from 2 days out to 28 days
-  ahead"), never "shelters need"; `TIME_SLOTS` stays a chooser and the confirm verb is **Request**;
-  `MatchView`'s card says *"You asked for this time. SF SPCA hasn't confirmed it"* with **Change
-  request** replacing **Reschedule**; `calendar.ts`'s DESCRIPTION drops the bring-list and the
-  "about 30 minutes" and says the slot is still a request, while `durationMinutes ?? 45` **stays**
-  because a `DTEND` is geometry; `server.py` loses the two enumerations, keeps "speak generally",
-  and gains an instruction never to confirm the slot on the shelter's behalf — the model was being
-  told to answer in the shelter's first-person plural about a time no shelter had seen.
-  **Two things the spec had not named.** The census was one short: the same sentence in `server.py`
-  carried a *third* parenthetical, and leaving it while cutting its two neighbours would have
-  reproduced the exact failure the item diagnosed. And `SavedView` drew the same timeline from a
-  byte-identical duplicate of `STAGES`/`activeIdx`, so relabelling one screen would have made the
-  two disagree — both now read `APPLICATION_STAGES` and `activeStage()` from `applicationView.ts`,
-  which is the DC note about one class for one claim applied to a literal. Saved's badge and
-  copy ("Approved — request a pickup", "ask them for a pickup time") and the Hub and Care Plan
-  pointers into Match moved with it, because a screen that says "schedule pickup" and a screen that
-  says "request" are the same disagreement one level out.
-  **Verified**: `npm run build`, `npm test` (**149 passed**, 7 new — 4 rendered `MatchView` cases
-  in the existing `renderToStaticMarkup` style, 3 `pickupIcs` cases), `./node_modules/.bin/tsc
-  --noEmit`, `npm run lint` (8 warnings, the same 8 as `main` — diffed against a stash), and
-  `uv run pytest` 55 passed. A dev server cannot be started from an unattended run: what is proven
-  is the **markup and the strings**, not how the calendar feels to tap. **No rule was widened**, and
-  the request/confirm round trip is still unbuilt and still its own item.
+  All six claims in the census went, each with a replacement rather than a deletion: the footnote
+  renders `Unrecorded` for the shelter's hours and states the booking window in Pawthway's own
+  voice, the confirm verb is **Request**, and `server.py` stops enumerating the shelter's procedure
+  and is told never to confirm a slot on its behalf. The census was one short (a third
+  parenthetical in the same `server.py` sentence), and `SavedView`'s byte-identical `STAGES` copy
+  became `APPLICATION_STAGES` + `activeStage()`. 149 tests. Full row verbatim in
+  [`archive/production-hardening-ledger-2026-09-20.md`](archive/production-hardening-ledger-2026-09-20.md).
