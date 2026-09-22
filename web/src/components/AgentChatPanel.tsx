@@ -11,7 +11,6 @@ let nextCallId = 0;
 // Only things the shelter or the outside world sees belong here; the agent writing
 // to the foster's own log or checklist is bookkeeping and shouldn't interrupt them.
 const DEFAULT_DANGEROUS = [
-  "update_dog",
   "record_swipe",
   "send_adoption_profile_to_shelter",
   "withdraw_adoption_profile",
