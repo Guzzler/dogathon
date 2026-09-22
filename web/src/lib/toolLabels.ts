@@ -19,7 +19,6 @@ const LABELS: Record<string, Label> = {
 
   list_dogs: { running: "Searching available dogs", done: "Searched available dogs", icon: "🔎" },
   get_dog: { running: "Looking up the dog's record", done: "Read the dog's record", icon: "🐕" },
-  update_dog: { running: "Updating the dog's record", done: "Updated the dog's record", icon: "🐕" },
 
   get_care_log: { running: "Reading your care log", done: "Read your care log", icon: "📔" },
   log_care_entry: { running: "Adding to your care log", done: "Added to your care log", icon: "📔" },
@@ -53,8 +52,6 @@ export function toolLabel(name: string, status: "running" | "done" | "error" | "
 /** Short human sentence for the approval modal — what this action will actually do. */
 export function toolConsequence(name: string): string {
   switch (name) {
-    case "update_dog":
-      return "This updates the dog's record at the shelter.";
     case "record_swipe":
       return "This saves or passes on the dog, the same as a swipe. It doesn't apply to foster it.";
     case "send_adoption_profile_to_shelter":

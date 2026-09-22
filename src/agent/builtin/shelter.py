@@ -1,4 +1,10 @@
-"""Tools over the shelter's dog roster, backed by Firestore."""
+"""Tools over the shelter's dog roster, backed by Firestore.
+
+Read-only, on purpose. There used to be a tool here that set any dog's status or notes; its only screen twin is the staff roster (RS-6), and the agent acts for one foster,
+never for staff -- so it was a way around `firestore.rules`, not a shortcut (PH-27). The one
+dog write a foster's agent may make is Post Foster's, on their own matched dog, in
+`adoption.py`.
+"""
 
 from __future__ import annotations
 
@@ -25,16 +31,19 @@ def list_dogs(status: str = "", max_weight_lbs: int = 0, good_with_kids: bool = 
 
     Args:
         status: Keep only this status: available, foster, medical_hold, adopted, ready_for_adoption, or retired.
-        max_weight_lbs: Keep only dogs at or under this weight. 0 means no limit.
+        max_weight_lbs: Keep only dogs recorded at or under this weight. 0 means no limit.
+            Dogs with no recorded weight are left out when a limit is set.
         good_with_kids: If true, keep only dogs cleared to live with children.
     """
     dogs = _load()
     if status:
-        dogs = [d for d in dogs if d["status"] == status]
+        dogs = [d for d in dogs if d.get("status") == status]
     if max_weight_lbs:
-        dogs = [d for d in dogs if d["weight_lbs"] <= max_weight_lbs]
+        # A dog the shelter entered without a weight (RS-6's form omits the key) is not a
+        # dog known to be light enough: under a weight limit, unknown is excluded.
+        dogs = [d for d in dogs if d.get("weight_lbs") is not None and d["weight_lbs"] <= max_weight_lbs]
     if good_with_kids:
-        dogs = [d for d in dogs if d["good_with_kids"]]
+        dogs = [d for d in dogs if d.get("good_with_kids") is True]
     return dogs
 
 
@@ -49,30 +58,3 @@ def get_dog(dog_id: str) -> dict:
     if not snap.exists:
         raise KeyError(f"No dog with id {dog_id}")
     return snap.to_dict()
-
-
-@tool(dangerous=True)
-def update_dog(dog_id: str, status: str = "", notes: str = "") -> dict:
-    """Change a dog's status or notes. Writes to the roster.
-
-    Args:
-        dog_id: The dog's id, for example d-001.
-        status: New status: available, foster, medical_hold, adopted, ready_for_adoption, or retired.
-        notes: Replacement notes text. Omit to leave the existing notes alone.
-    """
-    if status and status not in STATUSES:
-        raise ValueError(f"status must be one of {', '.join(STATUSES)}")
-
-    ref = db().collection(COLLECTION).document(dog_id)
-    snap = ref.get()
-    if not snap.exists:
-        raise KeyError(f"No dog with id {dog_id}")
-
-    updates: dict[str, Any] = {}
-    if status:
-        updates["status"] = status
-    if notes:
-        updates["notes"] = notes
-    if updates:
-        ref.update(updates)
-    return ref.get().to_dict()

@@ -96,8 +96,8 @@ they are the product asserting things about a real animal that nobody observed, 
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
-- **Every PH item through PH-26 is shipped** (PRs #47, #48, #49, #75, #77, #79, #81, #83, #85,
-  #86, #89, #91, #93, #95), each with a Ledger row that is the full account and a spec archived
+- **Every PH item through PH-27 is shipped** (PRs #47, #48, #49, #75, #77, #79, #81, #83, #85,
+  #86, #89, #91, #93, #95, and PH-27's below), each with a Ledger row that is the full account and a spec archived
   verbatim — [PH-26's](archive/production-hardening-ph26-2026-09-20.md),
   [PH-25's](archive/production-hardening-ph25-2026-09-19.md),
   [PH-24's](archive/production-hardening-ph24-2026-09-18.md),
@@ -108,37 +108,9 @@ truthfulness, not because production-hardening has been re-ranked.
   request/confirm round trip is still unbuilt. PH-15's live rules check is **PH-15b under "Needs a
   human"**, so don't read PH-15 as verified end to end.
 
-- **PH-27 `[large]` — queued 2026-09-21. The agent writes only the dog its foster has.** Finishes
-  the audit PH-26 started; the design answer is the section "The agent acts for one foster" below —
-  read it first. One PR, both languages:
-  1. **Remove `update_dog`** from `src/agent/builtin/shelter.py` (keep `STATUSES`, `list_dogs`,
-     `get_dog`), from `DEFAULT_DANGEROUS` in `web/src/components/AgentChatPanel.tsx`, and from both
-     entries in `web/src/lib/toolLabels.ts` (the map at `:22` and the `case` at `:56`).
-     `tests/test_approval_store.py` uses `"update_dog"` only as an opaque name string — rename it to
-     a tool that exists, or leave it and say so in the row.
-  2. **Bind both adoption tools to the matched dog.** In `adoption.py`, read the resolved foster
-     (`get_foster`) and raise if `matchedDogId` is unset or `dog_id` differs from it — **before** any
-     write. Let an omitted `dog_id` default to `matchedDogId`, and update both docstrings to say the
-     dog is the foster's own. Before choosing whether to also gate on `phase`, check whether the
-     `/post-foster` route gates on it; if it doesn't, the `matchedDogId` check alone *is* the twin
-     and adding a phase rule would be a guard no screen has.
-  3. **`withdraw_adoption_profile` refuses** unless the dog's `adoption_profile_source` is `agent`
-     or `foster_withdrawn` — nothing to withdraw is an error, not a note.
-  4. **Riders:** `log_care_entry` raises on an `entry_type` outside `weigh_in`/`vet_visit`/`note`/
-     `photo` (the `CareLogEntry["type"]` union in `web/src/types.ts:216`); `list_dogs` stops raising
-     `KeyError` on a dog with no `weight_lbs` — RS-6's `dogFromForm()` (`shelterDog.ts:145`) omits it
-     when the staff member leaves weight blank. Under a `max_weight_lbs` filter an unknown weight is
-     **excluded**, not treated as zero.
-
-  **Done means:** new pytest cases (in `tests/test_adoption.py` / `test_foster_tools.py`, using the
-  existing `fake_db`) show send and withdraw each raising on a dog that is not the foster's
-  `matchedDogId` and on a foster with none, **with the other dog's document unchanged**; withdraw
-  raising on a dog with no agent profile; a bad `entry_type` raising; `list_dogs(max_weight_lbs=50)`
-  returning over a seeded weightless dog without it. `test_the_ui_prompts_for_exactly_the_dangerous_tools`
-  must still pass (it is what catches a half-removed tool). `grep -rn update_dog src web/src` empty;
-  `uv run pytest`, and in `web/`: `npm test`, `./node_modules/.bin/tsc -b`, `npm run build`,
-  `npm run lint` (warnings no worse than `main`). Not verifiable live unattended — the agent needs a
-  signed-in token; say so in the row rather than parking a new "Needs a human" item for it.
+- **PH-27 `[large]` — shipped 2026-09-21; the Ledger row is the full account.** Spec verbatim in
+  [`archive/production-hardening-ph27-2026-09-21.md`](archive/production-hardening-ph27-2026-09-21.md).
+  The census of dangerous tools is complete; this queue holds no open item.
 
 ### What omitting a key means at the write layer (2026-09-19, shipped the same day)
 
@@ -371,3 +343,17 @@ reaching the end of what it can give on this doc.)*
   parenthetical in the same `server.py` sentence), and `SavedView`'s byte-identical `STAGES` copy
   became `APPLICATION_STAGES` + `activeStage()`. 149 tests. Full row verbatim in
   [`archive/production-hardening-ledger-2026-09-20.md`](archive/production-hardening-ledger-2026-09-20.md).
+- 2026-09-21 — PH-27 `[large]` — PR #__ — The agent writes only the dog its foster has.
+  `update_dog` is gone from `shelter.py`, `DEFAULT_DANGEROUS` and both `toolLabels.ts` entries;
+  `adoption.py`'s new `_own_dog()` reads the resolved foster and raises before any write —
+  `ValueError` with no `matchedDogId`, `PermissionError` for any other id — and an omitted `dog_id`
+  now means the matched dog. **No phase gate**: `/post-foster` (`App.tsx:100`) and `PostFosterView`
+  gate on `matchedDogId` alone, so a phase rule would have been a guard no screen has. Withdraw
+  refuses unless `adoption_profile_source` is `agent`/`foster_withdrawn`. Riders: `log_care_entry`
+  checks `ENTRY_TYPES`; `list_dogs` excludes an unknown weight under a limit and reads `status` and
+  `good_with_kids` with `.get()` too (same `KeyError`, same RS-6 form — slightly past the spec).
+  Two existing tests changed meaning rather than broke: "refuses an unknown dog" now expects
+  `PermissionError` (the ownership check fires before the existence check), and
+  `test_approval_store.py`'s opaque name is now `record_swipe`. 71 pytest (10 new cases), 168
+  vitest, build green, lint 8 warnings as on `main`. **Not verified live** — the agent needs a
+  signed-in token; reasoned from the tests and the route, not observed.

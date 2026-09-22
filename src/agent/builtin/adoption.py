@@ -62,6 +62,27 @@ def _missing_records(dog: dict, foster: dict, care_log: list[dict]) -> list[str]
     return missing
 
 
+def _own_dog(foster_id: str, dog_id: str) -> str:
+    """The dog this foster's agent may write: their `matchedDogId`, and no other (PH-27).
+
+    `dogs/{id}` is shared by every foster and owned by a shelter, and these tools write it
+    through the Admin SDK, around `firestore.rules`. Their screen twin, `PostFosterView`,
+    renders only for `foster.matchedDogId` and gates on nothing else -- no phase check -- so
+    that is the whole rule here too. The approval modal is not this guard: it is clicked by
+    the foster the agent acts for, which makes it consent, not authorization.
+
+    An omitted `dog_id` means the matched dog. Raises before anything is written.
+    """
+    matched = get_foster(foster_id=foster_id).get("matchedDogId")
+    if not matched:
+        raise ValueError(f"Foster {foster_id} has no matched dog, so there is no adoption profile to write.")
+    if dog_id and dog_id != matched:
+        raise PermissionError(
+            f"Dog {dog_id} is not this foster's dog -- only their matched dog ({matched}) can be written."
+        )
+    return matched
+
+
 @tool
 def generate_adoption_profile(foster_id: str = "") -> dict:
     """Gather everything needed to write a dog's adoption profile: the
@@ -103,15 +124,19 @@ def send_adoption_profile_to_shelter(foster_id: str = "", dog_id: str = "", prof
     tool is available, also use it to reach their contact with the profile
     text -- that is an extra channel, not the notification.
 
+    Only ever the foster's own matched dog: any other id is refused.
+
     Args:
         foster_id: The foster's id. Leave this out -- it defaults to the
             signed-in foster the app is showing.
-        dog_id: The matched dog's id, for example d-001.
+        dog_id: The foster's matched dog. Leave this out -- it defaults to
+            that dog, and no other dog can be sent.
         profile_text: The adoption profile narrative to send.
     """
     foster_id = resolve(foster_id)
-    if not dog_id or not profile_text:
-        raise ValueError("dog_id and profile_text are both required.")
+    if not profile_text.strip():
+        raise ValueError("profile_text is required.")
+    dog_id = _own_dog(foster_id, dog_id)
 
     dog_ref = db().collection("dogs").document(dog_id)
     if not dog_ref.get().exists:
@@ -158,19 +183,30 @@ def withdraw_adoption_profile(foster_id: str = "", dog_id: str = "", reason: str
     blank. To replace the profile with a corrected one instead, call
     send_adoption_profile_to_shelter again with the new text.
 
+    Only ever the foster's own matched dog, and only a profile the assistant
+    wrote: a dog with no assistant-written profile has nothing to withdraw.
+
     Args:
         foster_id: The foster's id. Leave this out -- it defaults to the
             signed-in foster the app is showing.
-        dog_id: The matched dog's id, for example d-001.
+        dog_id: The foster's matched dog. Leave this out -- it defaults to
+            that dog, and no other dog's profile can be withdrawn.
         reason: The foster's own words for what was wrong with it.
     """
     foster_id = resolve(foster_id)
-    if not dog_id or not reason.strip():
-        raise ValueError("dog_id and reason are both required.")
+    if not reason.strip():
+        raise ValueError("reason is required.")
+    dog_id = _own_dog(foster_id, dog_id)
 
     dog_ref = db().collection("dogs").document(dog_id)
-    if not dog_ref.get().exists:
+    snap = dog_ref.get()
+    if not snap.exists:
         raise KeyError(f"No dog with id {dog_id}")
+    # "The foster withdrew this write-up" is only true over a write-up the assistant made. Over
+    # no profile it invents a retraction; over one a human wrote it un-says someone else's words.
+    source = (snap.to_dict() or {}).get("adoption_profile_source")
+    if source not in ("agent", "foster_withdrawn"):
+        raise ValueError(f"Dog {dog_id} has no assistant-written adoption profile to withdraw.")
 
     # A retraction is a write, not an erasure (PH-21). Since RS-12 the paragraph *is* the
     # notification -- clearing the field would leave the dog in `ready_for_adoption` with a

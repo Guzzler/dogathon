@@ -35,7 +35,7 @@ class FakeClock:
 
 
 def test_two_approvals_in_one_session_both_resolve(fake_db) -> None:
-    first = approval_store.request("annie", "update_dog")
+    first = approval_store.request("annie", "record_swipe")
     assert approval_store.resolve("annie", True) is True
     assert approval_store.wait("annie", first) is True
 
@@ -49,7 +49,7 @@ def test_two_approvals_in_one_session_both_resolve(fake_db) -> None:
 
 def test_an_unanswered_approval_times_out_and_declines(fake_db) -> None:
     clock = FakeClock()
-    request_id = approval_store.request("annie", "update_dog")
+    request_id = approval_store.request("annie", "record_swipe")
 
     assert (
         approval_store.wait(
@@ -67,7 +67,7 @@ def test_a_vanished_request_declines_immediately(fake_db) -> None:
     # What a `/reset` (or a foster whose session was rebuilt) looks like from
     # inside a parked thread: the document it was waiting on is gone.
     clock = FakeClock()
-    request_id = approval_store.request("annie", "update_dog")
+    request_id = approval_store.request("annie", "record_swipe")
     session_store.clear("annie")
 
     assert (
@@ -78,7 +78,7 @@ def test_a_vanished_request_declines_immediately(fake_db) -> None:
 
 def test_a_superseded_request_does_not_steal_the_new_answer(fake_db) -> None:
     clock = FakeClock()
-    stale = approval_store.request("annie", "update_dog")
+    stale = approval_store.request("annie", "record_swipe")
     approval_store.request("annie", "log_care_entry")  # a newer turn took over
     approval_store.resolve("annie", True)
 
@@ -90,14 +90,14 @@ def test_a_superseded_request_does_not_steal_the_new_answer(fake_db) -> None:
 def test_resolve_reports_when_nothing_is_pending(fake_db) -> None:
     assert approval_store.resolve("annie", True) is False  # no request at all
 
-    approval_store.request("annie", "update_dog")
+    approval_store.request("annie", "record_swipe")
     assert approval_store.resolve("annie", True) is True
     assert approval_store.resolve("annie", True) is False  # a double-tapped button
 
 
 def test_a_decision_arriving_mid_poll_is_picked_up(fake_db) -> None:
     clock = FakeClock()
-    request_id = approval_store.request("annie", "update_dog")
+    request_id = approval_store.request("annie", "record_swipe")
 
     answered_at = {}
 
@@ -116,7 +116,7 @@ def test_a_decision_arriving_mid_poll_is_picked_up(fake_db) -> None:
 
 def test_a_transient_firestore_failure_keeps_polling(fake_db, monkeypatch) -> None:
     clock = FakeClock()
-    request_id = approval_store.request("annie", "update_dog")
+    request_id = approval_store.request("annie", "record_swipe")
     approval_store.resolve("annie", True)
 
     real = approval_store._pending
@@ -138,7 +138,7 @@ def test_a_transient_firestore_failure_keeps_polling(fake_db, monkeypatch) -> No
 def test_the_transcript_and_the_approval_share_a_document_without_clobbering(fake_db) -> None:
     # The regression this guards: `session_store.save()` used a plain set(),
     # which would delete a pendingApproval a turn elsewhere is parked on.
-    request_id = approval_store.request("annie", "update_dog")
+    request_id = approval_store.request("annie", "record_swipe")
     session_store.save("annie", [{"role": "user", "content": "hi"}])
 
     assert fake_db.docs[DOC]["pendingApproval"]["requestId"] == request_id

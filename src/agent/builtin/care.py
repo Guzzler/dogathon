@@ -10,6 +10,10 @@ from ..tools import tool
 FOSTERS = "fosters"
 CARE_LOG = "careLog"
 
+# The `CareLogEntry["type"]` union in web/src/types.ts. The UI gets this check from
+# TypeScript; the model's argument is a free string, so the tool has to make it itself.
+ENTRY_TYPES = ("weigh_in", "vet_visit", "note", "photo")
+
 
 @tool
 def get_care_log(foster_id: str = "") -> list[dict]:
@@ -49,6 +53,8 @@ def log_care_entry(
         value: A measurement tied to the entry, e.g. a weight like "24 lbs".
         photo_url: A photo URL, if entry_type is "photo".
     """
+    if entry_type not in ENTRY_TYPES:
+        raise ValueError(f"entry_type must be one of {', '.join(ENTRY_TYPES)}")
     foster_id = resolve(foster_id)
     from firebase_admin import firestore as fa_firestore
 

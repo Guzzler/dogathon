@@ -13,6 +13,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 from agent.builtin import adoption, care, foster, shelter
 from agent.tools import Registry
 
@@ -91,3 +93,28 @@ def test_the_ui_prompts_for_exactly_the_dangerous_tools():
     ui = set(re.findall(r'"(\w+)"', block.group(1)))
     server = {t.name for t in _builtin() if t.dangerous}
     assert ui == server
+
+
+def test_there_is_no_dog_writing_tool_outside_post_foster():
+    """PH-27: the roster tool set any dog's status or notes, around RS-6's staff-only rule."""
+    names = {t.name for t in _builtin()}
+    assert "update_dog" not in names
+    assert not hasattr(shelter, "update_dog")
+    assert {"list_dogs", "get_dog"} <= names
+
+
+def test_a_care_entry_type_outside_the_union_is_refused(fake_db):
+    _seed(fake_db)
+    with pytest.raises(ValueError):
+        care.log_care_entry(foster_id=FOSTER_ID, entry_type="medication", note="Gave a pill.")
+    assert not any(k.startswith(f"{PATH}/careLog/") for k in fake_db.docs)
+
+
+def test_list_dogs_leaves_out_an_unknown_weight_under_a_limit(fake_db):
+    fake_db.docs["dogs/d-light"] = {"id": "d-light", "status": "available", "weight_lbs": 30}
+    fake_db.docs["dogs/d-heavy"] = {"id": "d-heavy", "status": "available", "weight_lbs": 70}
+    # RS-6's form omits `weight_lbs` when staff leave it blank.
+    fake_db.docs["dogs/d-unweighed"] = {"id": "d-unweighed", "status": "available"}
+
+    assert [d["id"] for d in shelter.list_dogs(max_weight_lbs=50)] == ["d-light"]
+    assert len(shelter.list_dogs()) == 3

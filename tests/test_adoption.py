@@ -171,16 +171,25 @@ def test_send_reports_the_write_and_the_capability_separately(fake_db, monkeypat
 
 def test_send_refuses_an_unknown_dog(fake_db):
     seed(fake_db)
-    with pytest.raises(KeyError):
+    with pytest.raises(PermissionError):
         adoption.send_adoption_profile_to_shelter(
             foster_id=FOSTER_ID, dog_id="d-nope", profile_text="..."
         )
 
 
-def test_send_requires_both_arguments(fake_db):
+def test_send_requires_the_profile_text(fake_db):
     seed(fake_db)
     with pytest.raises(ValueError):
         adoption.send_adoption_profile_to_shelter(foster_id=FOSTER_ID, dog_id=DOG_ID)
+
+
+def test_send_defaults_to_the_matched_dog(fake_db):
+    seed(fake_db)
+    result = adoption.send_adoption_profile_to_shelter(
+        foster_id=FOSTER_ID, profile_text="Juno is a calm terrier mix."
+    )
+    assert result["dog_id"] == DOG_ID
+    assert fake_db.docs[f"dogs/{DOG_ID}"]["adoption_profile_source"] == "agent"
 
 
 # --- withdrawing it again (PH-21) -------------------------------------------------
@@ -223,7 +232,7 @@ def test_withdrawing_leaves_the_dog_back_from_foster(fake_db):
 
 def test_withdrawing_refuses_an_unknown_dog(fake_db):
     seed(fake_db)
-    with pytest.raises(KeyError):
+    with pytest.raises(PermissionError):
         adoption.withdraw_adoption_profile(foster_id=FOSTER_ID, dog_id="d-nope", reason="wrong dog")
 
 
@@ -232,3 +241,83 @@ def test_withdrawing_requires_a_reason(fake_db):
     seed(fake_db)
     with pytest.raises(ValueError):
         adoption.withdraw_adoption_profile(foster_id=FOSTER_ID, dog_id=DOG_ID, reason="   ")
+
+
+# --- only the foster's own dog (PH-27) --------------------------------------------
+#
+# `dogs/{id}` is shared by every foster and owned by a shelter, and these tools write it
+# through the Admin SDK, around `firestore.rules`. Their screen twin renders only for the
+# foster's `matchedDogId`, so any other dog is a write no screen this foster can reach makes.
+# The approval modal does not cover it: the person approving is the one the agent acts for.
+
+OTHER_ID = "d-200"
+OTHER_DOG = {
+    "id": OTHER_ID,
+    "name": "Pepper",
+    "status": "foster",
+    "adoption_profile": "A paragraph another foster's agent wrote.",
+    "adoption_profile_source": "agent",
+}
+
+
+def seed_other(fake_db) -> dict:
+    fake_db.collection("dogs").document(OTHER_ID).set(dict(OTHER_DOG))
+    return dict(OTHER_DOG)
+
+
+def test_send_refuses_another_fosters_dog_and_writes_nothing(fake_db):
+    seed(fake_db)
+    before = seed_other(fake_db)
+    with pytest.raises(PermissionError):
+        adoption.send_adoption_profile_to_shelter(
+            foster_id=FOSTER_ID, dog_id=OTHER_ID, profile_text="Pepper is ready."
+        )
+    assert fake_db.docs[f"dogs/{OTHER_ID}"] == before
+    assert fake_db.docs[f"fosters/{FOSTER_ID}"].get("phase") != "complete"
+
+
+def test_withdraw_refuses_another_fosters_dog_and_writes_nothing(fake_db):
+    seed(fake_db)
+    before = seed_other(fake_db)
+    with pytest.raises(PermissionError):
+        adoption.withdraw_adoption_profile(foster_id=FOSTER_ID, dog_id=OTHER_ID, reason="not true")
+    assert fake_db.docs[f"dogs/{OTHER_ID}"] == before
+
+
+def test_a_foster_with_no_matched_dog_can_send_or_withdraw_nothing(fake_db):
+    fake_db.collection("fosters").document(FOSTER_ID).set({"id": FOSTER_ID, "intake": {}})
+    before = seed_other(fake_db)
+    with pytest.raises(ValueError):
+        adoption.send_adoption_profile_to_shelter(
+            foster_id=FOSTER_ID, dog_id=OTHER_ID, profile_text="Pepper is ready."
+        )
+    with pytest.raises(ValueError):
+        adoption.withdraw_adoption_profile(foster_id=FOSTER_ID, dog_id=OTHER_ID, reason="not true")
+    assert fake_db.docs[f"dogs/{OTHER_ID}"] == before
+    assert "phase" not in fake_db.docs[f"fosters/{FOSTER_ID}"]
+
+
+def test_withdraw_refuses_when_there_is_no_assistant_profile(fake_db):
+    """Nothing to withdraw is an error, not a note saying the foster withdrew it."""
+    seed(fake_db)
+    with pytest.raises(ValueError):
+        adoption.withdraw_adoption_profile(foster_id=FOSTER_ID, dog_id=DOG_ID, reason="wrong")
+    assert "adoption_profile" not in fake_db.docs[f"dogs/{DOG_ID}"]
+
+
+def test_withdraw_refuses_over_a_profile_a_human_wrote(fake_db):
+    seed(
+        fake_db,
+        dog={**BARE_DOG, "adoption_profile": "Written by shelter staff.", "adoption_profile_source": "shelter"},
+    )
+    with pytest.raises(ValueError):
+        adoption.withdraw_adoption_profile(foster_id=FOSTER_ID, dog_id=DOG_ID, reason="wrong")
+    assert fake_db.docs[f"dogs/{DOG_ID}"]["adoption_profile"] == "Written by shelter staff."
+
+
+def test_withdraw_defaults_to_the_matched_dog(fake_db):
+    seed(fake_db)
+    adoption.send_adoption_profile_to_shelter(foster_id=FOSTER_ID, profile_text="Juno is calm.")
+    result = adoption.withdraw_adoption_profile(foster_id=FOSTER_ID, reason="she is not calm")
+    assert result["dog_id"] == DOG_ID
+    assert fake_db.docs[f"dogs/{DOG_ID}"]["adoption_profile_source"] == "foster_withdrawn"
