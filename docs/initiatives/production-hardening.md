@@ -91,13 +91,13 @@ not a doc edit.
 **The routing that put truthfulness items in the third-ranked doc still holds, and it is worth
 restating once rather than re-narrated each run.** The 2026-08-31 re-rank exists to stop this
 doc's small, tidy, headlessly-verifiable items consuming every execute run while the shelter
-surface waits — and it does not cover PH-17 through PH-25. Those are not scaffolding;
+surface waits — and it does not cover PH-17 through PH-27. Those are not scaffolding;
 they are the product asserting things about a real animal that nobody observed, which is the
 class of defect this doc was founded on (PH-1). They sit here because this doc owns
 truthfulness, not because production-hardening has been re-ranked.
 
 - **Every PH item through PH-26 is shipped** (PRs #47, #48, #49, #75, #77, #79, #81, #83, #85,
-  #86, #89, #91, #93, #__), each with a Ledger row that is the full account and a spec archived
+  #86, #89, #91, #93, #95), each with a Ledger row that is the full account and a spec archived
   verbatim — [PH-26's](archive/production-hardening-ph26-2026-09-20.md),
   [PH-25's](archive/production-hardening-ph25-2026-09-19.md),
   [PH-24's](archive/production-hardening-ph24-2026-09-18.md),
@@ -107,6 +107,38 @@ truthfulness, not because production-hardening has been re-ranked.
   [2026-09-12 ledger archive](archive/production-hardening-ledger-2026-09-12.md). PH-23's
   request/confirm round trip is still unbuilt. PH-15's live rules check is **PH-15b under "Needs a
   human"**, so don't read PH-15 as verified end to end.
+
+- **PH-27 `[large]` — queued 2026-09-21. The agent writes only the dog its foster has.** Finishes
+  the audit PH-26 started; the design answer is the section "The agent acts for one foster" below —
+  read it first. One PR, both languages:
+  1. **Remove `update_dog`** from `src/agent/builtin/shelter.py` (keep `STATUSES`, `list_dogs`,
+     `get_dog`), from `DEFAULT_DANGEROUS` in `web/src/components/AgentChatPanel.tsx`, and from both
+     entries in `web/src/lib/toolLabels.ts` (the map at `:22` and the `case` at `:56`).
+     `tests/test_approval_store.py` uses `"update_dog"` only as an opaque name string — rename it to
+     a tool that exists, or leave it and say so in the row.
+  2. **Bind both adoption tools to the matched dog.** In `adoption.py`, read the resolved foster
+     (`get_foster`) and raise if `matchedDogId` is unset or `dog_id` differs from it — **before** any
+     write. Let an omitted `dog_id` default to `matchedDogId`, and update both docstrings to say the
+     dog is the foster's own. Before choosing whether to also gate on `phase`, check whether the
+     `/post-foster` route gates on it; if it doesn't, the `matchedDogId` check alone *is* the twin
+     and adding a phase rule would be a guard no screen has.
+  3. **`withdraw_adoption_profile` refuses** unless the dog's `adoption_profile_source` is `agent`
+     or `foster_withdrawn` — nothing to withdraw is an error, not a note.
+  4. **Riders:** `log_care_entry` raises on an `entry_type` outside `weigh_in`/`vet_visit`/`note`/
+     `photo` (the `CareLogEntry["type"]` union in `web/src/types.ts:216`); `list_dogs` stops raising
+     `KeyError` on a dog with no `weight_lbs` — RS-6's `dogFromForm()` (`shelterDog.ts:145`) omits it
+     when the staff member leaves weight blank. Under a `max_weight_lbs` filter an unknown weight is
+     **excluded**, not treated as zero.
+
+  **Done means:** new pytest cases (in `tests/test_adoption.py` / `test_foster_tools.py`, using the
+  existing `fake_db`) show send and withdraw each raising on a dog that is not the foster's
+  `matchedDogId` and on a foster with none, **with the other dog's document unchanged**; withdraw
+  raising on a dog with no agent profile; a bad `entry_type` raising; `list_dogs(max_weight_lbs=50)`
+  returning over a seeded weightless dog without it. `test_the_ui_prompts_for_exactly_the_dangerous_tools`
+  must still pass (it is what catches a half-removed tool). `grep -rn update_dog src web/src` empty;
+  `uv run pytest`, and in `web/`: `npm test`, `./node_modules/.bin/tsc -b`, `npm run build`,
+  `npm run lint` (warnings no worse than `main`). Not verifiable live unattended — the agent needs a
+  signed-in token; say so in the row rather than parking a new "Needs a human" item for it.
 
 ### What omitting a key means at the write layer (2026-09-19, shipped the same day)
 
@@ -144,10 +176,43 @@ That answers each tool without a new rule per tool. `record_swipe`'s like has a 
 `createApplication()`, so it goes. `save_intake` has no twin at all — no screen writes intake
 without the questionnaire's guards, and the agent is mounted only in phases *past* the
 questionnaire — so it is removed rather than repaired; teaching it PH-24's omission rule would have
-built a correct second questionnaire nobody asked for. The other dangerous tools (`update_dog`,
-`log_care_entry`, `send_`/`withdraw_adoption_profile`) are **not** re-audited here. Checking each
-against its screen twin is the next run's cheapest lead, and `update_dog` — a foster's agent
-writing the shelter's own dog document — is the one to read first.
+built a correct second questionnaire nobody asked for. The other dangerous tools were audited the
+next run — below.
+
+### The agent acts for one foster, so its dog writes are bounded by that foster's dog (2026-09-21)
+
+PH-26's rule asks *which screen owns this write*. For the four remaining dangerous tools it needs
+one more clause, because three of them write **`dogs/{id}`** — a document shared by every foster and
+owned by a shelter — and "some screen makes this write" is true of a write *someone else's* screen
+makes:
+
+> **A screen twin counts only if it is a screen the person the agent acts for can reach.** The agent
+> acts for one signed-in foster; it is never staff. So a dog write is legitimate only where that
+> foster's own screen makes it, which in this app means **only their `matchedDogId`**, and only the
+> fields Post Foster owns. The approval modal is not the guard: it is approved by the same foster
+> the agent acts for, so it is consent, not authorization.
+
+Read against `main` on 2026-09-21, that answers each tool:
+
+- **`update_dog` (`shelter.py:55`) — remove.** It sets any of six statuses and replaces `notes` on
+  **any** dog id, checking only that the id exists. Its only twin is `ShelterRosterView`, which is
+  staff-only, and `firestore.rules`' dogs `update` branch requires `isStaff(resource.data.shelter_id)`
+  — the Admin SDK walks straight around that. One approval click from any foster could mark another
+  foster's dog `adopted` or `retired` (it leaves Discovery for everyone) or overwrite the shelter's
+  `notes`, which feed the card, matching and the adoption page's "Shelter's record".
+- **`send_adoption_profile_to_shelter` (`adoption.py:97`) — bind it to the matched dog.** It takes
+  `dog_id` from the model and checks existence only. Its twin, `PostFosterView`, renders only for
+  `foster.matchedDogId` (`PostFosterView.tsx:25`, `:37`), so any other dog id is a write no screen
+  makes: a status flip to `ready_for_adoption` plus a paragraph on a dog this foster never had.
+- **`withdraw_adoption_profile` (`adoption.py:151`) — the same binding, and one more guard.** A
+  withdrawal on a dog whose `adoption_profile_source` is not `agent`/`foster_withdrawn` writes "The
+  foster withdrew this write-up" over a profile nobody wrote, or over one a human did.
+- **`log_care_entry` (`care.py:35`) — has a twin and matches it**, field for field with
+  `addCareLogEntry()`, writing only to the resolved foster's own subcollection. The one guard it
+  lacks is the type union the UI gets from TypeScript: `entry_type` is unvalidated. A rider.
+
+With this, every dangerous tool in the registry has been checked against a screen its user can
+reach, and the audit PH-26 began is complete — PH-27 is its last item, not the first of a series.
 
 ### A default is honest when it is a fallback for the layout, and dishonest when it is an answer (2026-09-14)
 
@@ -195,7 +260,7 @@ them, and do not add to it without reading the archived preamble first.
 
 ## Ledger
 
-- 2026-09-20 — PH-26 `[large]` — PR #__ — **the agent's two foster-writing tools now write only
+- 2026-09-20 — PH-26 `[large]` — PR #95 — **the agent's two foster-writing tools now write only
   what a screen writes.** `record_swipe` is Discovery's swipe and nothing more: the dog joins
   `likedDogIds` or `passedDogIds` and leaves the other (read-modify-write, as the UI does, rather
   than `ArrayUnion`), and a like no longer sets `matchedDogId`/`phase` — so there is no longer an
@@ -213,50 +278,14 @@ them, and do not add to it without reading the archived preamble first.
   tool modules" still lists `save_intake()` — not this loop's file; flagged in the PR body.
 
 - 2026-09-19 — PH-25 `[large]` — PR #93 — **a retake of the questionnaire no longer keeps the
-  answers the foster took back.** `patchFoster()` writes
-  `setDoc(..., { mergeFields: keys.map(k => new FieldPath(k)) })` instead of `{ merge: true }`:
-  every key in the patch is now replaced whole, and keys the patch never mentions are untouched.
-  That is one line of behaviour and it fixes all three symptoms the spec listed, two of them
-  without being touched:
-  - **The fix is at the helper, and the two call sites are now correct as already written.**
-    `HubView.reset()`'s `patchFoster({ intake: {} })` was a **no-op** under nested merge — "Change
-    answers" cleared the phase, the swipes and the match and left every answer in place, with a
-    comment saying the opposite. It is now a real clear, so only the comment changed.
-    `DiscoveryView`'s "Retake the questionnaire" clears nothing and did not need to: `finish()`
-    writes a full `intake` over the old one. The spec said to check that before changing the line;
-    checked, and the line stands.
-  - **`mergeFields` over `updateDoc`, and a `FieldPath` per key.** `updateDoc` would also replace a
-    map, but it fails on a document that does not exist — and `fosters/{uid}` does not exist for a
-    foster whose first write is onboarding. `mergeFields` still creates it. The keys are wrapped in
-    `new FieldPath(k)` because `mergeFields` parses a bare string as a **dotted path**; the test's
-    fake throws on a string rather than accepting one, so that stays true.
-  - **Replacing every key, not just `intake`, and why that is not wider than the item.** The spec's
-    census held: `intake` is the only nested map written partially, `pickup` is written whole or
-    `null`, `adoptionHighlights` writes all three keys every time, everything else is a scalar or
-    an array, and arrays were already replaced. So "replace the listed keys" and "merge the listed
-    keys" differ on exactly one key today — and the uniform rule is the one that makes
-    `writeLocalFoster()`'s shallow spread and Firestore the *same function*, which is the
-    acceptance bar the design section set. A no-key patch now returns before either branch, so the
-    two layers agree on the empty patch too.
-  - **The tests are an outcome, not a call shape, and the guest half is real.** 13 new tests in
-    `web/src/hooks/useFoster.test.ts` drive **one fixture** — a first pass with both sliders moved,
-    then PH-24's retake with neither — through **both layers** and assert the stored `intake` equals
-    the second pass exactly. The Firestore half is a fake that models both `SetOptions` (deep merge
-    vs. replace-listed); the guest half is the real `localMode` code over a `localStorage` shim.
-    The first test asserts the **old** semantics directly, so the suite is known to be able to see
-    the defect — and it can: reverting the one line turns **5 of the 13 red and leaves 8 green**,
-    and the 8 are precisely the guest cases plus that model, which is the spec's claim that
-    LOCAL_MODE was already right, observed rather than reasoned about.
-  - **The `time_availability` backfill question, answered as the spec asked.** There is no
-    migration and none is needed: a true replacement takes a pre-PH-24 `time_availability` with it
-    on the foster's next retake, and a test asserts exactly that on both layers. A foster who never
-    retakes keeps it, and `get_foster()` will keep reading it — which is a **stale** claim rather
-    than an invented one, so it is left rather than rewritten.
-  - **What is *not* verified**: nothing was driven against real Firestore. The changed branch is the
-    signed-in one, so observing it needs a Google sign-in and two passes through onboarding on the
-    deployed app — parked under "Needs a human" as **PH-25b** rather than queued. The merge
-    semantics are modelled from Firestore's documented behaviour; per the README's rule, what this
-    was measured against is part of the claim.
+  answers the foster took back.** `patchFoster()` writes `{ mergeFields: keys.map(k => new
+  FieldPath(k)) }` instead of `{ merge: true }`, so every key in a patch is replaced whole — which
+  made `HubView.reset()`'s `patchFoster({ intake: {} })` a real clear rather than the no-op it had
+  been. `mergeFields` over `updateDoc` because the foster document may not exist yet; a `FieldPath`
+  per key because a bare string is parsed as a dotted path. 13 tests drive one fixture through both
+  layers; reverting the line turns 5 red and leaves the 8 guest-side cases green. Not driven against
+  real Firestore — that is **PH-25b**. Full row verbatim in
+  [`archive/production-hardening-ph25row-2026-09-21.md`](archive/production-hardening-ph25row-2026-09-21.md).
 
 - 2026-09-18 — PH-24 `[large]` — PR #91 — **onboarding stopped recording answers nobody gave.**
   An untouched slider omits `pref_size`/`size_preference` (and the energy pair), and

@@ -73,6 +73,11 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   IP with no `User-Agent`. RS-13 (shipped the same day) makes that outcome reportable rather than a
   skipped step — *drifted, clean, or could not look*. **M4 stays reopened**: the check is honest,
   and it still cannot look. RS-13b under "Needs a human" is the only thing that changes that.
+  **2026-09-21 — RS-13's scheduled branch observed on a real run, and it did what it says.** Run
+  `35582812290` went green, caught the 403, and opened issue **#96** ("Weekly roster check could not
+  reach sfspca.org", label `roster-drift`) whose body says the freshness is *unknown*, that nothing
+  was written, and quotes the import's own 403 line. That discharges the RS-13 row's "check the
+  2026-09-21 run". Next Monday should *comment* on #96, not open a second issue — worth one look.
 
 ## Milestones (compressed; full narrative in the archive)
 
@@ -178,11 +183,11 @@ shelter, per the section below.
 - **This doc has held no `[large]` item since 2026-09-05, and that is still a finding rather than
   a gap — re-checked this run and unchanged.** M3 is finished; M5 is gated on demonstrated need,
   which needs a real shelter, which needs the conversation below. RS-13 shipped (PR #88) and did not change it: it was a workflow honesty fix, small by
-  construction. **Re-checked 2026-09-20 and unchanged for a twelfth run** — the repo's `[large]`
-  slot is PH-26 in `production-hardening.md`, an eleventh consecutive run in the third doc, which is
-  routing for one run and not a re-rank — though PH-26 is the first of them that is an M3 defect: the
-  agent's `record_swipe` sets `matchedDogId` without `createApplication()`, so **RS-5's inbox never
-  sees an application the agent makes**. It stays in PH because the fix is in the agent's tools. RS-13's half of that is re-grounded rather than carried:
+  construction. **Re-checked 2026-09-21 and unchanged for a thirteenth run** — the repo's `[large]`
+  slot is PH-27 in `production-hardening.md`, the twelfth consecutive run in the third doc. Like
+  PH-26 (PR #95, which closed the agent's way around RS-5's inbox) it touches this doc's surface:
+  the agent's `update_dog` can flip any shelter's dog to `adopted` or `retired` around RS-6's
+  staff-only rule. It stays in PH because the fix is in the agent's tools. RS-13's half of that is re-grounded rather than carried:
   `import_dogs.py:51` still defines `EXIT_UNREACHABLE = 75` and `:127-130` still exits it having
   written nothing, so the honest-reporting half stands and **RS-13b is still the only thing that
   closes M4**. The
@@ -282,7 +287,7 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status re-checked **2026-09-18**, not carried over: `git log --all --since=2026-09-15` is this
+*(Status re-checked **2026-09-21**, not carried over: `git log --all --since=2026-09-18` is this
 loop's own PRs and nothing else, and a grep across `docs/` turns up no commit, no doc edit from
 Sharang and no note anywhere saying this has happened. Recorded so a future run doesn't mistake
 the passage of time for progress. Now that M3 is finished this is the only thing standing between
