@@ -84,7 +84,8 @@ edit.** It says the cheap-model path is off — *"`web/src/api.ts` doesn't send 
 (`api.ts:98`/`:109`, `server.py:432`), and Match pickup coordination is answered by Haiku today. A
 second joins it: "The adoption page" says *"Nothing on this page is invented"*, which is true of
 `buildAdoptionProfile` and silent about the agent-written paragraph. Both are a sentence to Sharang,
-not a doc edit.
+not a doc edit. **Two more, 2026-09-22:** "New agent tool modules" still lists `save_intake()`
+(removed by PH-26) and `update_dog()` (removed by PH-27).
 
 ## Task queue
 
@@ -97,7 +98,7 @@ class of defect this doc was founded on (PH-1). They sit here because this doc o
 truthfulness, not because production-hardening has been re-ranked.
 
 - **Every PH item through PH-27 is shipped** (PRs #47, #48, #49, #75, #77, #79, #81, #83, #85,
-  #86, #89, #91, #93, #95, and PH-27's below), each with a Ledger row that is the full account and a spec archived
+  #86, #89, #91, #93, #95, #98), each with a Ledger row that is the full account and a spec archived
   verbatim — [PH-26's](archive/production-hardening-ph26-2026-09-20.md),
   [PH-25's](archive/production-hardening-ph25-2026-09-19.md),
   [PH-24's](archive/production-hardening-ph24-2026-09-18.md),
@@ -105,7 +106,9 @@ truthfulness, not because production-hardening has been re-ranked.
   [PH-18's](archive/production-hardening-ph18-2026-09-15.md) (read it before adding any local row
   back to `emergencyContacts`), and the rest named in the
   [2026-09-12 ledger archive](archive/production-hardening-ledger-2026-09-12.md). PH-23's
-  request/confirm round trip is still unbuilt. PH-15's live rules check is **PH-15b under "Needs a
+  request/confirm round trip was unbuilt, and is now **RS-14 `[large]`** in `real-data-and-shelters.md`
+  (2026-09-22) — with the half PH-23's census missed: the pickup chat speaks *as* the shelter, and
+  `MatchChatView.tsx:74` still says "You're confirmed for …". PH-15's live rules check is **PH-15b under "Needs a
   human"**, so don't read PH-15 as verified end to end.
 
 - **PH-27 `[large]` — shipped 2026-09-21; the Ledger row is the full account.** Spec verbatim in
@@ -343,7 +346,7 @@ reaching the end of what it can give on this doc.)*
   parenthetical in the same `server.py` sentence), and `SavedView`'s byte-identical `STAGES` copy
   became `APPLICATION_STAGES` + `activeStage()`. 149 tests. Full row verbatim in
   [`archive/production-hardening-ledger-2026-09-20.md`](archive/production-hardening-ledger-2026-09-20.md).
-- 2026-09-21 — PH-27 `[large]` — PR #__ — The agent writes only the dog its foster has.
+- 2026-09-21 — PH-27 `[large]` — PR #98 — The agent writes only the dog its foster has.
   `update_dog` is gone from `shelter.py`, `DEFAULT_DANGEROUS` and both `toolLabels.ts` entries;
   `adoption.py`'s new `_own_dog()` reads the resolved foster and raises before any write —
   `ValueError` with no `matchedDogId`, `PermissionError` for any other id — and an omitted `dog_id`

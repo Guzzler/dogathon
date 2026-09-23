@@ -191,10 +191,11 @@ which also holds DC-10's original spec. DC-10's Ledger row is the account of wha
   "Changed token and color lines" block) and the `$tokens`-empty branch; nothing turns on them, and
   both are visible to anyone who opens the next palette PR's summary.
 
-- **2026-09-08 through 2026-09-21 — this queue has been empty of open items for fifteen runs, and the
-  routing decision is unchanged and re-checked rather than carried over.** `production-hardening.md`
-  holds the repo's `[large]` slot (PH-17 through PH-26, and now PH-27, the agent's tools) and
-  execute works the queues top-down, so anything added here would be picked ahead of it. The four
+- **2026-09-08 through 2026-09-22 — this queue has been empty of open items for sixteen runs, and the
+  routing decision is unchanged and re-checked rather than carried over.** The repo's `[large]` slot
+  moved on 2026-09-22 from `production-hardening.md` (PH-17 → PH-27) back to the top doc, as
+  **RS-14** — which carries this doc's own note forward a fifth time: its confirmed/requested states
+  should reuse one class across Match, Saved and the inbox, not invent a phrasing per screen. The four
   bullets that narrated those runs are verbatim in
   [`archive/design-consistency-routing-2026-09-17.md`](archive/design-consistency-routing-2026-09-17.md).
   Three things from them survive because they are facts rather than narration:
