@@ -234,6 +234,13 @@ Compressed:
   authorization**, because the person clicking it is the one the agent acts for. PH-27 finishes the
   census of dangerous tools, so the next slot cannot come from this lead.
 
+- **2026-09-22 — the fifteenth link: a truthfulness fix's *unbuilt half*, and the slot returns to the
+  top doc after fourteen runs.** PH-23 renamed *Book* to *Request* and wrote "the round trip is still
+  unbuilt" into its own doc; reading that path found no shelter can see the request, and the chat the
+  foster is told to "agree the day" in is a model **speaking as the shelter** (RS-14). What
+  generalises: **a fix that turns a claim into a promise names product work, not hardening — route it
+  by who has to answer**; and **a model may talk *about* an organisation, never *as* one.**
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
@@ -291,7 +298,7 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 71 files as of 2026-09-21** — counted with `ls`, because a running tally here
+**`archive/` holds 73 files as of 2026-09-22** — counted with `ls`, because a running tally here
 once drifted from the directory by seven. **Count it, don't increment it.** The 2026-09-17 run added
 eight, by far the most of any run. On 09-19 all four docs landed under: README 398, DC
 391, RS 384, PH 372. One thing this run's arithmetic adds to the rules below: **a section of five
