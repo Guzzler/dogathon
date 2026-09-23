@@ -112,6 +112,47 @@ truthfulness, not because production-hardening has been re-ranked.
   [`archive/production-hardening-ph27-2026-09-21.md`](archive/production-hardening-ph27-2026-09-21.md).
   The census of dangerous tools is complete; this queue holds no open item.
 
+### Proposed by execute's audit pass, 2026-09-22 — for plan to spec, not yet queued
+
+All three queues were empty on `main`, so execute walked the **deployed** app as a stranger (guest,
+375px, demo mode) instead of inventing work. Match, Care Plan and Post Foster sit behind a Google
+sign-in no unattended run can drive, so this covers the front door, Discovery, a dog's profile,
+the apply sheet, the Hub and the public `/adoption/:dogId` link. Three findings, all this doc's
+class (the product asserting something nobody recorded), in the order they matter:
+
+- **PH-28 (proposed, `[large]` candidate) — an invented dog is live, ranked first, and credited to a
+  real rescue that has never heard of it.** `dogs/d-026` "Pickle" (created 2026-08-22, the
+  pre-scrape seed — not in `data/dogs.json`) is `status: "available"` in production, so every
+  visitor's Discovery lists it, and with apartment/first-timer answers it is the **64% top match**
+  with "Good with cats: Yes". Its `shelter_id` is `petsun`, which `shelters.ts` deliberately
+  removed, so `shelterFor()` (`shelters.ts:24`) **hashes the dog id onto a real org**: the profile
+  says *Find at Copper's Dream Rescue, 3145 24th St*, and the public adoption page heads the invented
+  facts **"Copper's Dream's record — recorded by the shelter"** and sends enquiries there. Two causes,
+  both code: (1) `_push_to_firestore()` (`import_dogs.py:162-172`) keeps a stale dog matched to some
+  foster — correct — but at whatever status it had, so "kept for one foster" means "listed for
+  everyone"; (2) `shelterFor()`'s hash fallback turns *unknown shelter* into a named one, and
+  `dogFromForm()` (`shelterDog.ts:157-160`) opts into it by comment for any staff shelter not in
+  `SHELTERS` — so **the second real shelter's hand-entered dogs would be listed under a different
+  real org's name and address**. The fix is the tense test's: an unknown shelter renders as absent
+  (no pin, no "Find at", no "{shelter}'s record" heading); a kept-for-a-foster dog stops being
+  listed. The live `d-026` itself needs one real import run or a console write by a human — not
+  something execute may do (hard rule), so that half goes under "Needs a human" when specced.
+- **PH-29 (proposed, small) — the demo intro dates the roster a year early and overclaims it.**
+  `DemoIntroView.tsx:25-26` says every listed dog is a real SF SPCA dog "as of August 23rd,
+  **2025**"; `data/dogs.json` was committed 2026-08-23, and PH-28's dog makes "all" false. A
+  hardcoded date will also go stale by itself — and RS-13 says nothing can re-check the roster on a
+  cadence yet. Rider: "shelters near you" (`WelcomeView.tsx:32`, `HubView.tsx:21`,
+  `DiscoveryView.tsx:94/189/205`) is said to someone who was never asked where they are.
+- **PH-30 (proposed, small) — the apply sheet promises a chore PH-5 removed.**
+  `SignInToApply.tsx:62-63` (2026-08-23) tells a guest *"You'll answer the questionnaire once more
+  on your new account"*; since PH-5 (PR #29, 2026-08-26) `migrateGuestData()` (`auth.ts:65`) copies
+  the guest's intake into a new account, and an existing account keeps its own. The sentence
+  predates the fix it now contradicts.
+
+Checked and fine: no console errors; an untouched size/energy slider is not recorded as an answer
+(PH-24 holds live — the Hub says "Size not recorded"); the guest apply path opens the sign-in sheet
+rather than committing. **Not reached:** anything past applying, and the desktop layout.
+
 ### What omitting a key means at the write layer (2026-09-19, shipped the same day)
 
 One rule, and it is the only part of PH-25's design section that is not now restated by the code
