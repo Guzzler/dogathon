@@ -218,21 +218,12 @@ Compressed:
   storage-layer half**, **when one code path has two implementations, "verified" names which one**,
   and **read the last run's exclusions before going looking.**
 
-- **2026-09-20 — the thirteenth link: the *other language's* write sites**, verbatim in
-  [`archive/readme-large-slot-2026-09-21.md`](archive/readme-large-slot-2026-09-21.md). Three
-  censuses had enumerated only `web/src`; the agent's dangerous tools write the same documents
-  around `firestore.rules`, and `record_swipe` made applications no shelter could see (PH-26).
-  **A census is bounded by the language it was run in** — re-run a clean one over `src/agent`
-  before believing it — and **"should the second implementation learn the rule?" is often "should
-  it exist?"**: every write an agent tool makes must already be a write some screen makes.
-
-- **2026-09-21 — the fourteenth link: the lead the last design answer named, taken whole.** PH-26's
-  section ended by naming `update_dog` as the next cheapest lead; reading it found a foster's agent
-  able to flip **any** shelter's dog to `adopted`, around RS-6's staff-only rule (PH-27). What
-  generalises: **"some screen makes this write" must mean a screen the agent's user can reach** — a
-  staff screen is no twin for a foster's agent — and **an approval modal is consent, not
-  authorization**, because the person clicking it is the one the agent acts for. PH-27 finishes the
-  census of dangerous tools, so the next slot cannot come from this lead.
+- **2026-09-20 / 09-21 — the thirteenth and fourteenth links: the *other language's* write sites**
+  (PH-26, verbatim in [`archive/readme-large-slot-2026-09-21.md`](archive/readme-large-slot-2026-09-21.md))
+  **and the lead that design answer named** (PH-27). **A census is bounded by the language it was run
+  in**; **"should the second implementation learn the rule?" is often "should it exist?"**; **"some
+  screen makes this write" must mean a screen the agent's user can reach**; and **an approval modal
+  is consent, not authorization**. PH-27 finished the census of dangerous tools.
 
 - **2026-09-22 — the fifteenth link: a truthfulness fix's *unbuilt half*, and the slot returns to the
   top doc after fourteen runs.** PH-23 renamed *Book* to *Request* and wrote "the round trip is still
@@ -240,6 +231,15 @@ Compressed:
   foster is told to "agree the day" in is a model **speaking as the shelter** (RS-14). What
   generalises: **a fix that turns a claim into a promise names product work, not hardening — route it
   by who has to answer**; and **a model may talk *about* an organisation, never *as* one.**
+
+- **2026-09-23 — the sixteenth link: an audit finding, specced, and the slot doubles.** execute's
+  empty-queue audit of the deployed app filed PH-28 (an invented dog, hashed onto a real rescue); plan
+  re-read it and found a **third symptom a guest session could not reach** — applying writes to a
+  `shelterId` nobody staffs. It becomes a second `[large]` item *under* RS-14, not a replacement.
+  What generalises: **an audit filed as a guest is bounded by what a guest can do — trace each
+  finding one step past the audit's reach before speccing it**; and **"a fallback may choose a
+  pixel, never a name."** Also found: **execute was mid-build in the same checkout** as this run
+  (see "Doc size" below), which is why plan's doc work now happens in its own worktree.
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -298,8 +298,11 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 73 files as of 2026-09-22** — counted with `ls`, because a running tally here
-once drifted from the directory by seven. **Count it, don't increment it.** The 2026-09-17 run added
+**`archive/` holds 74 files as of 2026-09-23** — counted with `ls`, because a running tally here
+once drifted from the directory by seven. **Count it, don't increment it.** *(2026-09-23: plan and
+execute ran concurrently in one checkout — plan's `git checkout -b` moved HEAD off execute's
+uncommitted RS-14 branch, caught by `git status` showing code plan never touched, and put back
+unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* The 2026-09-17 run added
 eight, by far the most of any run. On 09-19 all four docs landed under: README 398, DC
 391, RS 384, PH 372. One thing this run's arithmetic adds to the rules below: **a section of five
 shipped rules is a cheaper cut than five separate sections of one**, because the pointers and
