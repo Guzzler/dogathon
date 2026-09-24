@@ -727,6 +727,10 @@ input,textarea,select{font-family:inherit}
 .shelter__pill--in_review{background:var(--butter-soft);color:var(--ink-2)}
 .shelter__pill--approved{background:var(--sage-soft);color:var(--sage)}
 .shelter__pill--declined,.shelter__pill--withdrawn{background:var(--cream-2);color:var(--ink-3)}
+/* RS-14: a requested, unconfirmed pickup -- action needed, so it wears "New"'s colours. */
+.shelter__pill--pickup{background:var(--coral-soft);color:var(--coral-dk)}
+.shelter__pickup{display:flex;flex-direction:column;gap:6px}
+.shelter__pickup p{margin:0}
 
 .shelter__detail{
   background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);

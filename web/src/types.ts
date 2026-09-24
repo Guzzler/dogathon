@@ -177,7 +177,14 @@ export interface Application {
   shelterId: string;
   status: ApplicationStatus;
   checklist: ChecklistItem[];
+  /** The foster's requested slot (RS-14). Written by the foster; a request, never a booking. */
   pickup: Pickup | null;
+  /**
+   * Set only by shelter staff, when they agree to `pickup` (RS-14). `firestore.rules` lets the
+   * foster clear it -- changing the slot un-confirms it -- and never set it. Optional because
+   * every application written before RS-14 lacks the field entirely; absent reads as unconfirmed.
+   */
+  pickupConfirmedAt?: { toMillis(): number } | null;
   /**
    * Written with `serverTimestamp()`, so it reads back as a Firestore `Timestamp` -- narrowed
    * here to the one method the UI calls rather than importing the SDK's type into a file the

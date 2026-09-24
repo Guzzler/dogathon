@@ -5,9 +5,10 @@ import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useApplication } from "../../hooks/useApplication";
 import { useDogs } from "../../hooks/useDogs";
 import { PickupScheduler } from "../../components/PickupScheduler";
+import { requestPickup } from "../../lib/applications";
 import { DemoShelterPanel } from "../../components/DemoShelterPanel";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_PREP_CHECKLIST, checklistOwner } from "../../checklists";
-import { APPLICATION_STAGES, activeStage, approvalBadge, approvalDecision, composeApprovalChecklist } from "../../lib/applicationView";
+import { APPLICATION_STAGES, activeStage, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState } from "../../lib/applicationView";
 import { normalizeDog, thumbBackground } from "../../lib/dog";
 import { downloadIcs } from "../../lib/calendar";
 import { DEMO_MODE } from "../../lib/demoMode";
@@ -20,6 +21,7 @@ export function MatchView() {
   const { dogs } = useDogs();
   // The shelter's own ticks live on the application, not here -- see composeApprovalChecklist.
   const { application } = useApplication(foster?.matchedDogId);
+  const [pickupFailed, setPickupFailed] = useState(false);
 
   const raw = dogs.find((d) => d.id === foster?.matchedDogId);
   const dog = raw ? normalizeDog(raw) : null;
@@ -61,7 +63,9 @@ export function MatchView() {
   // The badge tracks only the shelter's own review; scheduling needs both sides finished.
   const shelterApproved = shelterSteps.length > 0 && shelterSteps.every((i) => i.done);
   const approved = approval.length > 0 && approval.every((i) => i.done);
-  const activeIdx = activeStage(approved, Boolean(foster.pickup));
+  // RS-14: "confirmed" only on the shelter's own write, and only for the slot the foster holds.
+  const pickup = pickupState(foster.pickup, application);
+  const activeIdx = activeStage(approved, pickup);
   // The shelter's verdict, which is a different question from "is the paperwork finished".
   // It replaces the badge, and `declined` replaces the whole screen below it -- but it never
   // unlocks the scheduler and never ticks anybody's boxes. See approvalDecision().
@@ -83,8 +87,24 @@ export function MatchView() {
     const items = prep.map((i) => (i.id === id ? { ...i, done } : i));
     patchFoster({ prepChecklist: items });
   }
-  async function confirmPickup(pickup: Pickup) {
-    await patchFoster({ pickup });
+  /**
+   * RS-14: the request goes to the application first -- the copy the shelter reads -- and only
+   * then to the foster's own record. If the shelter's copy can't be written, the foster's isn't
+   * either: a request shown on this screen that the shelter can't see is the exact bug this
+   * fixes. No application (LOCAL_MODE, guests, older records) writes the foster record alone,
+   * as before; `fosters/{uid}.pickup` stays because five other screens read it.
+   */
+  async function writePickup(next: Pickup | null) {
+    setPickupFailed(false);
+    if (application) {
+      try {
+        await requestPickup(application.id, next);
+      } catch {
+        setPickupFailed(true);
+        return;
+      }
+    }
+    await patchFoster({ pickup: next });
   }
   async function goToCarePlan() {
     await patchFoster({ phase: "care_plan" });
@@ -133,7 +153,9 @@ export function MatchView() {
 
         {/* Pickup */}
         <div>
-          <div className="eyebrow" style={{ marginBottom: 9 }}>{foster.pickup ? "Pickup requested" : "Request a pickup"}</div>
+          <div className="eyebrow" style={{ marginBottom: 9 }}>
+            {pickup === "confirmed" ? "Pickup confirmed" : pickup === "requested" ? "Pickup requested" : "Request a pickup"}
+          </div>
           {!approved ? (
             <>
               <button className="btn" disabled>🔒 Request a pickup</button>
@@ -152,12 +174,18 @@ export function MatchView() {
                   <div className="muted" style={{ marginTop: 2 }}>{foster.pickup.time} · {foster.pickup.location}</div>
                 </div>
               </div>
-              {/* PH-23: this card used to read as a booking. Nothing has answered it -- the
-                  request is only on the foster's own record, and no shelter can see it yet. */}
-              <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>
-                You asked for this time. {dog.shelter.short} hasn't confirmed it — message them
-                below to agree the day.
-              </p>
+              {/* PH-23 made this a request; RS-14 gave it an addressee. Only staff confirming it
+                  on the application turns it green -- this screen never says so on its own. */}
+              {pickup === "confirmed" ? (
+                <p style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "var(--sage)" }}>
+                  ✓ {dog.shelter.short} confirmed this time.
+                </p>
+              ) : (
+                <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>
+                  You asked for this time. {dog.shelter.short} hasn't confirmed it yet
+                  {application ? " — it shows here as soon as they do." : "."}
+                </p>
+              )}
               <div className="row" style={{ gap: 8, marginTop: 13 }}>
                 <button
                   type="button"
@@ -177,25 +205,31 @@ export function MatchView() {
                   type="button"
                   className="btn outline sm"
                   style={{ flex: 1, margin: 0 }}
-                  onClick={() => patchFoster({ pickup: null })}
+                  onClick={() => writePickup(null)}
                 >
                   Change request
                 </button>
               </div>
             </motion.div>
           ) : (
-            <PickupScheduler shelter={dog.shelter} onConfirm={confirmPickup} />
+            <PickupScheduler shelter={dog.shelter} onConfirm={writePickup} />
+          )}
+          {pickupFailed && (
+            <p role="alert" style={{ marginTop: 8, fontSize: 12, color: "var(--coral-dk)", fontWeight: 700, textAlign: "center" }}>
+              That didn't reach {dog.shelter.short}, so nothing changed. Check your connection and try again.
+            </p>
           )}
         </div>
 
-        {/* Chat once pickup is locked in. It gets its own screen — embedded, it was
-            a scroller inside a scroller and long answers ran under the tab bar. */}
+        {/* Chat once a pickup is requested. It gets its own screen — embedded, it was
+            a scroller inside a scroller and long answers ran under the tab bar. It is
+            Pawthway's assistant, not the shelter (RS-14): nothing typed there reaches them. */}
         {foster.pickup && (
           <button type="button" className="card chat-entry" onClick={() => navigate("/match/chat")}>
             <div className="chat-entry__icon" aria-hidden="true">💬</div>
             <div className="chat-entry__body">
-              <div className="chat-entry__title">Message {dog.shelter.short}</div>
-              <div className="chat-entry__sub">Confirm the day · parking, what to bring, how long it takes</div>
+              <div className="chat-entry__title">Ask Pawthway about pickup</div>
+              <div className="chat-entry__sub">What to bring, how long it takes, what goes home with {dog.name}</div>
             </div>
             <span className="chat-entry__chevron" aria-hidden="true">›</span>
           </button>

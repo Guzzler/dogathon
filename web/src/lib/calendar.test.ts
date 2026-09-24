@@ -80,7 +80,10 @@ describe("pickupIcs, on what it is allowed to assert", () => {
   it("says the slot is still only a request", () => {
     const description = /^DESCRIPTION:(.*)$/m.exec(build())?.[1] ?? "";
     expect(description).toMatch(/requested/i);
-    expect(description).toMatch(/still has to confirm/i);
+    // RS-14: not "still has to confirm" -- the file can be saved after the shelter has -- and
+    // never an invitation to "message them in the app", since that chat is not the shelter.
+    expect(description).toMatch(/whether .* has confirmed/i);
+    expect(description).not.toMatch(/message them|agree the day/i);
   });
 
   it("still blocks out 45 minutes, because a DTEND is geometry and not a claim", () => {
