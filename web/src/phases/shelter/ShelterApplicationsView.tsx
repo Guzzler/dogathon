@@ -2,13 +2,15 @@ import { useMemo, useState } from "react";
 import { useMyShelters } from "../../hooks/useStaffShelters";
 import { useShelterApplications } from "../../hooks/useShelterApplications";
 import { useDogs } from "../../hooks/useDogs";
-import { setApplicationChecklist, setApplicationStatus } from "../../lib/applications";
+import { setApplicationChecklist, setApplicationStatus, setPickupConfirmed } from "../../lib/applications";
 import {
   STATUS_LABELS,
   applicationAge,
+  canConfirmPickup,
   createdAtMillis,
   inboxError,
   isActionable,
+  pickupAwaitingShelter,
   splitByOwner,
   staffTransitions,
 } from "../../lib/applicationView";
@@ -163,6 +165,10 @@ function ApplicationList({
             </span>
             <span className="shelter__row-meta">
               <StatusPill status={app.status} />
+              {/* RS-14: the one pickup state that is waiting on the shelter. */}
+              {pickupAwaitingShelter(app) && (
+                <span className="shelter__pill shelter__pill--pickup">Pickup requested</span>
+              )}
               <span className="muted">{applicationAge(createdAtMillis(app), now)}</span>
             </span>
           </button>
@@ -248,6 +254,9 @@ function ApplicationDetail({ application }: { application: Application }) {
         ))}
       </ul>
 
+      <h3>Pickup</h3>
+      <PickupSection application={application} busy={busy} run={run} />
+
       <h3>Status</h3>
       {actionable ? (
         <div className="shelter__actions">
@@ -276,5 +285,67 @@ function ApplicationDetail({ application }: { application: Application }) {
         <p className="shelter__failed">That didn&rsquo;t save. Check your connection and try again.</p>
       )}
     </section>
+  );
+}
+
+/**
+ * RS-14. The foster's requested slot, and the only place it can be answered. Before this the
+ * request was written only to the foster's own document, which no shelter can read, so every
+ * "pickup requested" was a promise with no addressee.
+ *
+ * Confirming stamps `pickupConfirmedAt`; the foster's Match screen reads it back and says
+ * "confirmed" only while the slot it holds still matches this one. If the foster changes the
+ * request, their write clears the stamp and the row asks again -- nobody here has to notice.
+ */
+function PickupSection({ application, busy, run }: {
+  application: Application;
+  busy: boolean;
+  run: (work: () => Promise<void>) => Promise<void>;
+}) {
+  const pickup = application.pickup;
+  if (!pickup) return <p className="muted">No pickup requested yet.</p>;
+
+  const date = new Date(pickup.date + "T00:00:00").toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  const confirmed = Boolean(application.pickupConfirmedAt);
+
+  return (
+    <div className="shelter__pickup">
+      <p>
+        <strong>{date}</strong> · {pickup.time}
+        <span className="muted"> · {pickup.location}</span>
+      </p>
+      <p className="muted">
+        {confirmed
+          ? "You confirmed this time. The foster sees it as confirmed."
+          : "The foster asked for this time. Nothing is booked until you confirm it."}
+      </p>
+      {canConfirmPickup(application) && (
+        <div className="shelter__actions">
+          {confirmed ? (
+            <button
+              type="button"
+              className="btn outline"
+              disabled={busy}
+              onClick={() => run(() => setPickupConfirmed(application.id, false))}
+            >
+              Undo confirmation
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => run(() => setPickupConfirmed(application.id, true))}
+            >
+              Confirm pickup
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

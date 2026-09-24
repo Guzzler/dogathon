@@ -66,6 +66,9 @@ function screen(opts: {
   status?: ApplicationStatus;
   checklistDone?: boolean;
   pickup?: Pickup | null;
+  /** The application's own copy of the request, and the shelter's answer to it (RS-14). */
+  appPickup?: Pickup | null;
+  confirmed?: boolean;
 }): string {
   const list = CHECKLIST(opts.checklistDone ?? false);
   foster.current = {
@@ -84,7 +87,8 @@ function screen(opts: {
   } as Foster;
   application.current = opts.status
     ? ({ id: "a1", fosterId: "f1", fosterName: "Demo", dogId: "dog-1", shelterId: "sfspca-mission",
-         status: opts.status, checklist: list, pickup: null } as Application)
+         status: opts.status, checklist: list, pickup: opts.appPickup ?? null,
+         pickupConfirmedAt: opts.confirmed ? { toMillis: () => 1 } : null } as Application)
     : null;
   return renderToStaticMarkup(
     <MemoryRouter>
@@ -185,6 +189,9 @@ describe("MatchView, on what it knows about the shelter's availability", () => {
     });
     expect(html).toContain("Pickup requested");
     expect(html).toContain("hasn&#x27;t confirmed it");
+    // RS-14: the card no longer sends the foster to a chat to "agree the day" with the shelter.
+    expect(html).not.toContain("agree the day");
+    expect(html).not.toContain("Message SF SPCA");
     expect(html).toContain("Change request");
     // The last stage is *reached* and never ticked: activeStage() returns 3, so exactly the
     // three before it carry data-done. A fourth would be the screen answering for the shelter.
@@ -195,5 +202,45 @@ describe("MatchView, on what it knows about the shelter's availability", () => {
   it("still keeps the scheduler locked until both sides have finished", () => {
     const html = screen({ checklistDone: false });
     expect(html).toContain("🔒 Request a pickup");
+  });
+});
+
+/**
+ * RS-14. The request now reaches the shelter, and only the shelter's write says "confirmed".
+ */
+describe("MatchView, on whether the shelter has answered the request", () => {
+  const SLOT: Pickup = { date: "2099-06-12", time: "1:30 PM", location: "201 Alabama St" };
+
+  it("reads requested while the application holds the slot unconfirmed", () => {
+    const html = screen({ status: "approved", checklistDone: true, pickup: SLOT, appPickup: SLOT });
+    expect(html).toContain("Pickup requested");
+    expect(html).toContain("hasn&#x27;t confirmed it yet");
+    expect(html).not.toContain("confirmed this time");
+    expect(html.match(/data-done="true"/g)?.length).toBe(3);
+  });
+
+  it("reads confirmed once staff stamped the same slot, and ticks every stage", () => {
+    const html = screen({ status: "approved", checklistDone: true, pickup: SLOT, appPickup: SLOT, confirmed: true });
+    expect(html).toContain("Pickup confirmed");
+    expect(html).toContain("SF SPCA confirmed this time");
+    expect(html).not.toContain("hasn&#x27;t confirmed it");
+    expect(html.match(/data-done="true"/g)?.length).toBe(5);
+    expect(html).not.toContain('data-now="true"');
+  });
+
+  it("stays requested when the stamp is on a different slot than the foster holds", () => {
+    const html = screen({
+      status: "approved", checklistDone: true, pickup: SLOT,
+      appPickup: { ...SLOT, time: "3:00 PM" }, confirmed: true,
+    });
+    expect(html).toContain("hasn&#x27;t confirmed it yet");
+    expect(html).not.toContain("confirmed this time");
+  });
+
+  it("titles the chat as Pawthway's, never as the shelter", () => {
+    const html = screen({ status: "approved", checklistDone: true, pickup: SLOT, appPickup: SLOT });
+    expect(html).toContain("Ask Pawthway about pickup");
+    expect(html).not.toContain("Message SF SPCA");
+    expect(html).not.toContain("Confirm the day");
   });
 });

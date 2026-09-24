@@ -1,7 +1,7 @@
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { DEFAULT_APPROVAL_CHECKLIST } from "../checklists";
-import type { ApplicationStatus, ChecklistItem } from "../types";
+import type { ApplicationStatus, ChecklistItem, Pickup } from "../types";
 
 /**
  * Opens an `applications/{id}` doc for a foster applying to a dog -- the queryable-by-both-
@@ -28,15 +28,44 @@ export async function createApplication(opts: {
     status: "submitted",
     checklist: DEFAULT_APPROVAL_CHECKLIST,
     pickup: null,
+    pickupConfirmedAt: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 }
 
 /**
- * Moves an application forward. Only staff reach this -- `firestore.rules`' update rule has
- * exactly two branches, and the foster's is narrowed to setting `withdrawn` and nothing else,
- * so a foster calling this would simply be refused by the database.
+ * The foster's pickup request, written where the shelter reads it (RS-14). Before this the slot
+ * lived only on `fosters/{uid}.pickup`, which no shelter can read, so a "request" had no
+ * addressee.
+ *
+ * Always clears `pickupConfirmedAt`: a new slot -- or withdrawing the request with `null` -- is
+ * not the slot the shelter agreed to. That is also the only value `firestore.rules`' foster
+ * pickup branch lets a foster write there; confirming is staff-only (`confirmPickup`).
+ */
+export async function requestPickup(applicationId: string, pickup: Pickup | null): Promise<void> {
+  await updateDoc(doc(firestore, "applications", applicationId), {
+    pickup,
+    pickupConfirmedAt: null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Staff agreeing to (or, with `confirmed: false`, taking back) the foster's requested slot.
+ * The staff branch of the update rule already allows it; a foster calling this is refused.
+ */
+export async function setPickupConfirmed(applicationId: string, confirmed: boolean): Promise<void> {
+  await updateDoc(doc(firestore, "applications", applicationId), {
+    pickupConfirmedAt: confirmed ? serverTimestamp() : null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Moves an application forward. Only staff reach this -- the foster's branches of
+ * `firestore.rules`' update rule are narrowed to setting `withdrawn` and to the pickup request,
+ * so a foster calling this with anything but `withdrawn` would be refused by the database.
  */
 export async function setApplicationStatus(id: string, status: ApplicationStatus): Promise<void> {
   await updateDoc(doc(firestore, "applications", id), { status, updatedAt: serverTimestamp() });

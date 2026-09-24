@@ -78,7 +78,22 @@ service cloud.firestore {
                         && request.resource.data.shelterId == resource.data.shelterId
                         && request.resource.data.dogId == resource.data.dogId
                         && request.resource.data.createdAt == resource.data.createdAt
-                        && request.resource.data.checklist == resource.data.checklist);
+                        && request.resource.data.checklist == resource.data.checklist)
+                    // RS-14: the foster's pickup request, written where the shelter can read it.
+                    // Only `pickup`, `pickupConfirmedAt` and `updatedAt` may change, so status,
+                    // checklist, fosterName and the ids are all pinned by the one `hasOnly`, on
+                    // an application that is still live (never on a declined or withdrawn one).
+                    // `pickupConfirmedAt` is the shelter's answer: a foster may clear it -- which
+                    // every new slot does -- but may only leave it set if the slot is untouched.
+                    // A foster can un-confirm by changing the request and can never confirm.
+                    // `.get(..., null)` because applications written before RS-14 lack the field.
+                    || (resource.data.fosterId == request.auth.uid
+                        && resource.data.status in ["submitted", "in_review", "approved"]
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(["pickup", "pickupConfirmedAt", "updatedAt"])
+                        && (request.resource.data.get("pickupConfirmedAt", null) == null
+                            || !request.resource.data.diff(resource.data).affectedKeys()
+                                  .hasAny(["pickup", "pickupConfirmedAt"])));
     }
 
     // staffUids is what lets the rules above express "is this person staff here" without a

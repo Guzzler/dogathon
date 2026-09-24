@@ -8,7 +8,7 @@ import { normalizeDog, recordedStay, thumbBackground, type RichDog } from "../..
 import { scoreDog } from "../../lib/matching";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
-import { APPLICATION_STAGES, activeStage, approvalBadge, approvalDecision, composeApprovalChecklist } from "../../lib/applicationView";
+import { APPLICATION_STAGES, activeStage, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState } from "../../lib/applicationView";
 import { createApplication, setApplicationStatus } from "../../lib/applications";
 import { fosterDocId } from "../../lib/session";
 import { Unrecorded } from "../../components/Unrecorded";
@@ -168,7 +168,8 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
   const win = fosterWindow(...recordedStay(d), foster?.pickup?.date);
   const approval = composeApprovalChecklist(foster?.approvalChecklist ?? [], application?.checklist ?? null);
   const approved = approval.length > 0 && approval.every(c => c.done);
-  const activeIdx = activeStage(approved, Boolean(foster?.pickup));
+  const pickup = pickupState(foster?.pickup, application);
+  const activeIdx = activeStage(approved, pickup);
   const decision = approvalDecision(application?.status);
   const declined = decision === "declined";
   const badge = approvalBadge(decision, d.shelter.short, {
@@ -233,8 +234,12 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
           </div>
 
           <p className="muted" style={{ marginTop: 14, lineHeight: 1.5 }}>
-            {approved
-              ? `${d.shelter.short} approved you. Finish home prep and ask them for a pickup time.`
+            {pickup === "confirmed"
+              ? `${d.shelter.short} confirmed your pickup time.`
+              : pickup === "requested"
+              ? `You've asked ${d.shelter.short} for a pickup time. They haven't confirmed it yet.`
+              : approved
+              ? `${d.shelter.short} approved you. Finish home prep and request a pickup time.`
               : `${d.shelter.short} works through the approval checklist with you — open Match to see what's outstanding.`}
           </p>
 

@@ -66,7 +66,7 @@ export function pickupIcs(ev: PickupEvent): string | null {
     `SUMMARY:${escape(`Pick up ${ev.dogName}`)}`,
     `LOCATION:${escape(ev.location)}`,
     `DESCRIPTION:${escape(
-      `Foster pickup for ${ev.dogName} at ${ev.shelterName}. This is the time you requested in Pawthway -- ${ev.shelterName} still has to confirm it. Message them in the app to agree the day and what to bring.`,
+      `Foster pickup for ${ev.dogName} at ${ev.shelterName}. This is the time you requested in Pawthway. The Match screen shows whether ${ev.shelterName} has confirmed it.`,
     )}`,
     "END:VEVENT",
     "END:VCALENDAR",

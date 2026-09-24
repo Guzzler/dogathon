@@ -1,4 +1,4 @@
-import type { Application, ApplicationStatus, ChecklistItem } from "../types";
+import type { Application, ApplicationStatus, ChecklistItem, Pickup } from "../types";
 import { checklistOwner } from "../checklists";
 
 /**
@@ -242,15 +242,67 @@ export function approvalBadge(
  *
  * The fourth stage says **requested**, which is PH-23: it advances on the foster's own tap, so
  * labelling it "Pickup" made the timeline present the foster's intent as the shelter's answer.
- * No shelter has ever had a way to answer — see `PickupScheduler` — so the honest end of this
- * timeline is a request sitting with somebody, not a booking.
+ * The fifth is the answer itself (RS-14), and only the shelter's write reaches it — see
+ * `pickupState`.
  */
-export const APPLICATION_STAGES = ["Applied", "Under review", "Approved", "Pickup requested"];
+export const APPLICATION_STAGES = ["Applied", "Under review", "Approved", "Pickup requested", "Pickup confirmed"];
+
+export type PickupState = "none" | "requested" | "confirmed";
+
+const sameSlot = (a: Pickup, b: Pickup) =>
+  a.date === b.date && a.time === b.time && a.location === b.location;
 
 /**
- * Which stage is current. `hasPickup` is the foster's own request, which is why it can only
- * reach the last stage and never mark it done — `data-done` is `n < activeStage(...)`.
+ * Where the foster's pickup stands, composed from the two copies of the request (RS-14).
+ *
+ * The foster writes the slot twice -- `fosters/{uid}.pickup` for their own screens (and for
+ * `LOCAL_MODE`, which has no application), `applications/{id}.pickup` for the shelter -- and
+ * only staff write `pickupConfirmedAt`. One writer, so the hazard is drift rather than a race,
+ * and this fails safe: **`confirmed` needs the shelter's stamp *and* both copies to agree** on
+ * date, time and location. A mismatch reads as `requested` -- the foster asks again, which is
+ * the right way to be wrong; showing up on a day nobody agreed to is not.
+ *
+ * No application (guest, `LOCAL_MODE`, a record from before the collection) can be at most
+ * `requested`: there is nobody on the other end to confirm anything.
  */
-export function activeStage(approved: boolean, hasPickup: boolean): number {
-  return hasPickup ? 3 : approved ? 2 : 1;
+export function pickupState(
+  fosterPickup: Pickup | null | undefined,
+  application: Pick<Application, "pickup" | "pickupConfirmedAt"> | null | undefined,
+): PickupState {
+  if (!fosterPickup) return "none";
+  if (application?.pickupConfirmedAt && application.pickup && sameSlot(application.pickup, fosterPickup)) {
+    return "confirmed";
+  }
+  return "requested";
+}
+
+/**
+ * Which stage is current. A request can only *reach* "Pickup requested" and never mark it done
+ * — `data-done` is `n < activeStage(...)` — because it advances on the foster's own tap. A
+ * confirmation is the shelter's answer, so it returns past the last index: every stage done.
+ */
+export function activeStage(approved: boolean, pickup: PickupState): number {
+  if (pickup === "confirmed") return APPLICATION_STAGES.length;
+  return pickup === "requested" ? 3 : approved ? 2 : 1;
+}
+
+/* ---------- the shelter's side of the pickup (RS-14) ---------- */
+
+/** The statuses the foster may still request a pickup on -- mirrors the rules' pickup branch. */
+const LIVE: ApplicationStatus[] = ["submitted", "in_review", "approved"];
+
+/**
+ * The one pickup state staff must act on: a slot requested on a live application that nobody
+ * at the shelter has confirmed yet. Drives the inbox row's "Pickup requested" pill.
+ */
+export function pickupAwaitingShelter(app: Pick<Application, "status" | "pickup" | "pickupConfirmedAt">): boolean {
+  return LIVE.includes(app.status) && Boolean(app.pickup) && !app.pickupConfirmedAt;
+}
+
+/**
+ * Whether the detail pane offers **Confirm pickup** (or **Undo**). Hidden on a withdrawn or
+ * declined application -- there is no foster coming -- and when nothing has been requested.
+ */
+export function canConfirmPickup(app: Pick<Application, "status" | "pickup">): boolean {
+  return LIVE.includes(app.status) && Boolean(app.pickup);
 }

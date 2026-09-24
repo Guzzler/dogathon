@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  APPLICATION_STAGES,
+  activeStage,
   applicationAge,
+  canConfirmPickup,
+  pickupAwaitingShelter,
+  pickupState,
   approvalBadge,
   approvalDecision,
   releasesFoster,
@@ -11,7 +16,7 @@ import {
   splitByOwner,
   staffTransitions,
 } from "./applicationView";
-import type { Application, ChecklistItem } from "../types";
+import type { Application, ApplicationStatus, ChecklistItem, Pickup } from "../types";
 
 const at = (ms: number | null) =>
   ({ id: String(ms), createdAt: ms === null ? null : { toMillis: () => ms } }) as Application;
@@ -228,5 +233,83 @@ describe("approvalBadge", () => {
 
   it("says who withdrew, since the foster did it themselves", () => {
     expect(approvalBadge("withdrawn", "SF SPCA", waiting).label).toBe("You withdrew this application");
+  });
+});
+
+/* ---------- RS-14: the pickup request and the shelter's answer ---------- */
+
+const SLOT: Pickup = { date: "2099-06-12", time: "1:30 PM", location: "201 Alabama St" };
+const STAMP = { toMillis: () => 1 };
+
+describe("pickupState", () => {
+  it("is none without a request, whatever the application says", () => {
+    expect(pickupState(null, { pickup: SLOT, pickupConfirmedAt: STAMP })).toBe("none");
+    expect(pickupState(undefined, null)).toBe("none");
+  });
+
+  it("is requested until the shelter stamps it", () => {
+    expect(pickupState(SLOT, { pickup: SLOT, pickupConfirmedAt: null })).toBe("requested");
+    // Applications written before RS-14 have no field at all.
+    expect(pickupState(SLOT, { pickup: SLOT })).toBe("requested");
+  });
+
+  it("is confirmed only when the shelter stamped the slot the foster holds", () => {
+    expect(pickupState(SLOT, { pickup: { ...SLOT }, pickupConfirmedAt: STAMP })).toBe("confirmed");
+  });
+
+  it("fails safe to requested when the two copies disagree", () => {
+    // Drift between the foster's copy and the shelter's: asking again beats showing up
+    // on a day nobody agreed to.
+    for (const other of [
+      { ...SLOT, date: "2099-06-13" },
+      { ...SLOT, time: "2:00 PM" },
+      { ...SLOT, location: "elsewhere" },
+    ]) {
+      expect(pickupState(SLOT, { pickup: other, pickupConfirmedAt: STAMP })).toBe("requested");
+    }
+    expect(pickupState(SLOT, { pickup: null, pickupConfirmedAt: STAMP })).toBe("requested");
+  });
+
+  it("can never be confirmed without an application -- there is nobody to confirm", () => {
+    expect(pickupState(SLOT, null)).toBe("requested");
+    expect(pickupState(SLOT, undefined)).toBe("requested");
+  });
+});
+
+describe("activeStage", () => {
+  it("reaches Pickup requested without ticking it, and ticks every stage once confirmed", () => {
+    expect(activeStage(false, "none")).toBe(1);
+    expect(activeStage(true, "none")).toBe(2);
+    expect(APPLICATION_STAGES[activeStage(true, "requested")]).toBe("Pickup requested");
+    expect(activeStage(true, "confirmed")).toBe(APPLICATION_STAGES.length);
+    expect(APPLICATION_STAGES.at(-1)).toBe("Pickup confirmed");
+  });
+});
+
+describe("the shelter's side of a pickup", () => {
+  const app = (status: ApplicationStatus, pickup: Pickup | null, confirmed = false) =>
+    ({ status, pickup, pickupConfirmedAt: confirmed ? STAMP : null }) as Application;
+
+  it("flags a requested, unconfirmed slot on a live application", () => {
+    for (const status of ["submitted", "in_review", "approved"] as ApplicationStatus[]) {
+      expect(pickupAwaitingShelter(app(status, SLOT))).toBe(true);
+    }
+  });
+
+  it("stops flagging once confirmed, or when there is nothing requested", () => {
+    expect(pickupAwaitingShelter(app("approved", SLOT, true))).toBe(false);
+    expect(pickupAwaitingShelter(app("approved", null))).toBe(false);
+  });
+
+  it("never asks staff to act on a pickup for a declined or withdrawn application", () => {
+    for (const status of ["declined", "withdrawn"] as ApplicationStatus[]) {
+      expect(pickupAwaitingShelter(app(status, SLOT))).toBe(false);
+      expect(canConfirmPickup(app(status, SLOT))).toBe(false);
+    }
+  });
+
+  it("offers confirm only when there is a slot to confirm", () => {
+    expect(canConfirmPickup(app("approved", SLOT))).toBe(true);
+    expect(canConfirmPickup(app("approved", null))).toBe(false);
   });
 });
