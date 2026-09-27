@@ -11,6 +11,7 @@ import { SignInToApply, needsAccountToApply } from "../../components/SignInToApp
 import { createApplication } from "../../lib/applications";
 import { fosterDocId } from "../../lib/session";
 import { Unrecorded } from "../../components/Unrecorded";
+import { shelterName } from "../../lib/shelters";
 
 export function DogDetailView() {
   const { id = "" } = useParams();
@@ -29,7 +30,7 @@ export function DogDetailView() {
   if (!raw) return <div className="screen pad" style={{ paddingTop: 40 }}><h2>Dog not found</h2></div>;
 
   const dog = normalizeDog(raw);
-  const miles = distanceMi(pos, dog.shelter);
+  const miles = dog.shelter ? distanceMi(pos, dog.shelter) : null;
   const score = scoreDog(dog, foster?.intake);
   const reasons = matchReasons(dog, foster?.intake);
   const saved = (foster?.likedDogIds ?? []).includes(dog.id);
@@ -48,8 +49,12 @@ export function DogDetailView() {
   // over the account prompt — being told to sign in first would only bury it.
   const startApply = () =>
     blocked || !needsAccountToApply() ? setContact(true) : setNeedsAccount(true);
+  // PH-28: with no org we can name, an application would be addressed to a shelter id nobody
+  // staffs. Discovery doesn't list such a dog; this covers a saved one or a deep link.
+  const canApply = dog.shelter != null;
 
   const apply = async () => {
+    if (!canApply) return;
     await patchFoster({
       likedDogIds: [...new Set([...(foster?.likedDogIds ?? []), dog.id])],
       matchedDogId: dog.id,
@@ -166,17 +171,20 @@ export function DogDetailView() {
               </div>
             </Section>
 
-            <Section title="Find at">
-              <div className="card" style={{ padding: 17, display: "flex", alignItems: "center", gap: 13 }}>
-                <div style={{ width: 46, height: 46, borderRadius: 15, background: "var(--coral-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                  <Paw />
+            {/* No org, no card: an address we'd have to make up is worse than none (PH-28). */}
+            {dog.shelter && miles != null && (
+              <Section title="Find at">
+                <div className="card" style={{ padding: 17, display: "flex", alignItems: "center", gap: 13 }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 15, background: "var(--coral-soft)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                    <Paw />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: 14.5 }}>{dog.shelter.name}</div>
+                    <div className="muted" style={{ marginTop: 2 }}>{miles.toFixed(1)} mi · {dog.shelter.address}</div>
+                  </div>
                 </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 800, fontSize: 14.5 }}>{dog.shelter.name}</div>
-                  <div className="muted" style={{ marginTop: 2 }}>{miles.toFixed(1)} mi · {dog.shelter.address}</div>
-                </div>
-              </div>
-            </Section>
+              </Section>
+            )}
           </motion.div>
         </div>
       </div>
@@ -189,7 +197,9 @@ export function DogDetailView() {
               {applicationStage(active).cta}
             </button>
           ) : (
-            <button className="btn" style={{ flex: 1.3 }} onClick={startApply}>Apply to foster</button>
+            <button className="btn" style={{ flex: 1.3 }} onClick={startApply} disabled={!canApply}>
+              {canApply ? "Apply to foster" : "Not taking applications"}
+            </button>
           )}
         </div>
       </div>
@@ -232,7 +242,7 @@ export function DogDetailView() {
                 <>
                   <h3 style={{ marginTop: 12 }}>Apply to foster {dog.name}?</h3>
                   <p className="sub" style={{ marginTop: 8, fontSize: 14 }}>
-                    This starts your approval checklist with {dog.shelter.short}. You can only
+                    This starts your approval checklist with {shelterName(dog)}. You can only
                     have one application open at a time.
                   </p>
                   <button className="btn" style={{ marginTop: 20 }} onClick={apply}>Yes, apply to foster</button>

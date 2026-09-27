@@ -59,8 +59,9 @@ export function SignInToApply({ dogName, onClose }: { dogName: string; onClose: 
 
         <div className="account__upsell" style={{ textAlign: "left" }}>
           <p className="sub" style={{ fontSize: 13.5 }}>
-            Signing in gives your journey a home you can open on any device. You'll answer the
-            questionnaire once more on your new account — after that, {dogName} is waiting.
+            Signing in gives your journey a home you can open on any device. On a first
+            sign-in, your answers and saved dogs come with you — after that, {dogName} is
+            waiting.
           </p>
         </div>
 

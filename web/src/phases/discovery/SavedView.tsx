@@ -6,6 +6,7 @@ import { useApplication } from "../../hooks/useApplication";
 import { useDogs } from "../../hooks/useDogs";
 import { normalizeDog, recordedStay, thumbBackground, type RichDog } from "../../lib/dog";
 import { scoreDog } from "../../lib/matching";
+import { shelterName } from "../../lib/shelters";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
 import { APPLICATION_STAGES, activeStage, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState } from "../../lib/applicationView";
@@ -110,7 +111,10 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
   // Applying is what commits the foster to a dog — it sets matchedDogId and advances the
   // phase, which is exactly what the Match view (Sharang's) reads. It's also where a guest
   // has to become an account: everything past here needs a shelter to be able to reach them.
+  // PH-28: no org we can name means no shelter that would ever read the application.
+  const canApply = d.shelter != null;
   const apply = async () => {
+    if (!canApply) return;
     if (needsAccountToApply()) {
       setNeedsAccount(true);
       return;
@@ -138,15 +142,15 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
           </div>
           <div className="muted" style={{ marginTop: 2 }}>{d.breed} · {d.ageLabel}</div>
           <div className="muted" style={{ marginTop: 3 }}>
-            {d.shelter.short} · 🗓️ {d.derived.fosterWeeks ? <Unrecorded what="Stay" /> : d.fosterLength}
+            {d.shelter && `${d.shelter.short} · `}🗓️ {d.derived.fosterWeeks ? <Unrecorded what="Stay" /> : d.fosterLength}
           </div>
         </div>
       </button>
       <div className="row" style={{ gap: 9, marginTop: 12 }}>
         <button className="btn outline sm" style={{ flex: 1 }} onClick={remove}>Remove</button>
-        <button className="btn sm" style={{ flex: 1.5 }} onClick={apply} disabled={blocked}
+        <button className="btn sm" style={{ flex: 1.5 }} onClick={apply} disabled={blocked || !canApply}
           title={blocked ? "You already have a foster in progress" : undefined}>
-          Apply to foster
+          {canApply ? "Apply to foster" : "Not taking applications"}
         </button>
       </div>
 
@@ -172,7 +176,7 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
   const activeIdx = activeStage(approved, pickup);
   const decision = approvalDecision(application?.status);
   const declined = decision === "declined";
-  const badge = approvalBadge(decision, d.shelter.short, {
+  const badge = approvalBadge(decision, shelterName(d, "short", { start: true }), {
     tone: approved ? "sage" : "butter",
     label: approved ? "✓ Approved — request a pickup" : "⏳ Waiting for approval",
   });
@@ -202,7 +206,7 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontWeight: 800, fontSize: 16 }}>{d.name}</div>
           <div className="muted" style={{ marginTop: 2 }}>
-            {d.shelter.short} · 🗓️ {win.total ?? <Unrecorded what="Stay" />}
+            {d.shelter && `${d.shelter.short} · `}🗓️ {win.total ?? <Unrecorded what="Stay" />}
           </div>
         </div>
       </button>
@@ -215,7 +219,7 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
       {declined ? (
         <>
           <p className="muted" style={{ marginTop: 14, lineHeight: 1.5 }}>
-            {d.shelter.short} decided not to move forward with this one. You're free to apply
+            {shelterName(d, "short", { start: true })} decided not to move forward with this one. You're free to apply
             for another dog whenever you're ready — nothing else is holding you here.
           </p>
           <button className="btn sm" style={{ width: "100%", marginTop: 12 }} onClick={() => navigate("/discovery")}>
@@ -235,12 +239,12 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
 
           <p className="muted" style={{ marginTop: 14, lineHeight: 1.5 }}>
             {pickup === "confirmed"
-              ? `${d.shelter.short} confirmed your pickup time.`
+              ? `${shelterName(d, "short", { start: true })} confirmed your pickup time.`
               : pickup === "requested"
-              ? `You've asked ${d.shelter.short} for a pickup time. They haven't confirmed it yet.`
+              ? `You've asked ${shelterName(d)} for a pickup time. They haven't confirmed it yet.`
               : approved
-              ? `${d.shelter.short} approved you. Finish home prep and request a pickup time.`
-              : `${d.shelter.short} works through the approval checklist with you — open Match to see what's outstanding.`}
+              ? `${shelterName(d, "short", { start: true })} approved you. Finish home prep and request a pickup time.`
+              : `${shelterName(d, "short", { start: true })} works through the approval checklist with you — open Match to see what's outstanding.`}
           </p>
 
           <button className="btn sm" style={{ width: "100%", marginTop: 12 }} onClick={onOpenMatch}>

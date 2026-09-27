@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import type { AdoptionProfile } from "../../lib/adoption";
+import { shelterRecordTitle } from "../../lib/adoption";
 import { sizeLabel, type RichDog } from "../../lib/dog";
 import { ProfileAttribution } from "../../components/ProfileAttribution";
 
@@ -197,7 +198,7 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
         )}
       </Section>
 
-      <Section title={`${dog.shelter.short}'s record`} src="Recorded by the shelter, not observed in foster">
+      <Section title={shelterRecordTitle(dog)} src="Recorded by the shelter, not observed in foster">
         <div className="card" style={{ padding: "4px 17px" }}>
           {profile.shelterFacts.map((f, i) => (
             <KV key={f.label} k={f.label} v={f.value} last={i === profile.shelterFacts.length - 1} />
@@ -232,13 +233,17 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
         </Section>
       )}
 
-      <div className="card ap-shelter">
-        <div style={{ fontWeight: 800, fontSize: 14.5 }}>{dog.shelter.name}</div>
-        <div className="muted" style={{ marginTop: 2 }}>{dog.shelter.address}</div>
-        <p className="muted" style={{ marginTop: 8, lineHeight: 1.5 }}>
-          Adoption enquiries go through the shelter. They'll arrange a meet-and-greet.
-        </p>
-      </div>
+      {/* A public link must not send enquiries to an org that has never heard of this dog, so
+          with no org we can name there is no contact card at all (PH-28). */}
+      {dog.shelter && (
+        <div className="card ap-shelter">
+          <div style={{ fontWeight: 800, fontSize: 14.5 }}>{dog.shelter.name}</div>
+          <div className="muted" style={{ marginTop: 2 }}>{dog.shelter.address}</div>
+          <p className="muted" style={{ marginTop: 8, lineHeight: 1.5 }}>
+            Adoption enquiries go through the shelter. They'll arrange a meet-and-greet.
+          </p>
+        </div>
+      )}
     </>
   );
 }

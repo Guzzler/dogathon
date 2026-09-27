@@ -122,7 +122,7 @@ const stamp: any = {
 export function CardShell({ dog, me, score, behind }: {
   dog: RichDog; me: { lat: number; lng: number }; score: number; behind?: boolean;
 }) {
-  const miles = distanceMi(me, dog.shelter);
+  const miles = dog.shelter ? distanceMi(me, dog.shelter) : null;
   const photo = dogPhotoOrNull(dog, 800, 1000);
   return (
     <div style={{
@@ -145,7 +145,9 @@ export function CardShell({ dog, me, score, behind }: {
       {!behind && (
         <>
           <div style={{ position: "absolute", top: 16, left: 16, right: 16, display: "flex", gap: 8 }}>
-            <span className="chip" style={{ background: "rgba(255,255,255,.94)", fontWeight: 800 }}>{dog.shelter.short}</span>
+            {dog.shelter && (
+              <span className="chip" style={{ background: "rgba(255,255,255,.94)", fontWeight: 800 }}>{dog.shelter.short}</span>
+            )}
             <span className="sp" />
             <span className="chip" style={{ background: score >= 75 ? "var(--sage)" : "rgba(255,255,255,.94)", color: score >= 75 ? "#fff" : "var(--ink-2)", fontWeight: 800 }}>
               {score}% match
@@ -158,7 +160,7 @@ export function CardShell({ dog, me, score, behind }: {
               <span style={{ fontWeight: 700, fontSize: 16, opacity: .92 }}>{dog.ageLabel}</span>
             </div>
             <div style={{ fontSize: 14, opacity: .88, marginTop: 3, fontWeight: 600 }}>
-              {[dog.breed, dog.weight_lbs != null && `${dog.weight_lbs} lb`, `${miles.toFixed(1)} mi away`].filter(Boolean).join(" · ")}
+              {[dog.breed, dog.weight_lbs != null && `${dog.weight_lbs} lb`, miles != null && `${miles.toFixed(1)} mi away`].filter(Boolean).join(" · ")}
             </div>
             <div style={{ fontSize: 13.5, opacity: .95, marginTop: 6, fontWeight: 800 }}>
               🗓️ {dog.derived.fosterWeeks ? <Unrecorded what="Foster length" /> : `${dog.fosterLength} foster`}

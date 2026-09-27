@@ -4,6 +4,7 @@ import { useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
 import { AgentChatPanel } from "../../components/AgentChatPanel";
 import { normalizeDog } from "../../lib/dog";
+import { shelterName } from "../../lib/shelters";
 
 /**
  * The pickup chat gets its own screen rather than a panel wedged into the
@@ -67,7 +68,7 @@ export function MatchChatView() {
         <div className="chat-screen__title">
           <div className="chat-screen__name">Pawthway assistant</div>
           <div className="chat-screen__sub">
-            About your pickup request at {dog.shelter.short} · {pickupDateLabel}
+            About your pickup request at {shelterName(dog)} · {pickupDateLabel}
           </div>
         </div>
       </div>
@@ -77,7 +78,7 @@ export function MatchChatView() {
         variant="full"
         activityMode="minimal"
         placeholder="Ask about parking, what to bring…"
-        emptyState={`You've asked ${dog.shelter.short} for ${pickupDateLabel} at ${foster.pickup.time}. I'm Pawthway's assistant, not the shelter — I can help you get ready, but messages here don't reach them. Whether they've confirmed shows on the Match screen.`}
+        emptyState={`You've asked ${shelterName(dog)} for ${pickupDateLabel} at ${foster.pickup.time}. I'm Pawthway's assistant, not the shelter — I can help you get ready, but messages here don't reach them. Whether they've confirmed shows on the Match screen.`}
         quickActions={[
           {
             label: "What should I bring?",
@@ -89,7 +90,7 @@ export function MatchChatView() {
           },
           {
             label: "Parking?",
-            message: `Where should I park for pickup at ${dog.shelter.name}?`,
+            message: `Where should I park for pickup at ${shelterName(dog, "name")}?`,
           },
         ]}
       />

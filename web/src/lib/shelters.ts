@@ -20,11 +20,32 @@ export const SHELTERS: Shelter[] = [
   { id: "rocket",         name: "Rocket Dog Rescue",          short: "Rocket Dog",    address: "1173 Sutter St, San Francisco", lat: 37.7877, lng: -122.4184 },
 ];
 
-/** Dogs seeded without a shelter still need a pin, so fall back deterministically by id. */
-export function shelterFor(shelterId: string | undefined, dogId: string): Shelter {
-  const hit = SHELTERS.find(s => s.id === shelterId);
-  if (hit) return hit;
-  let h = 0;
-  for (const ch of dogId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return SHELTERS[h % SHELTERS.length];
+/**
+ * The org a `shelter_id` names, or `null` when it names none we know (PH-28).
+ *
+ * This used to hash an unknown id onto one of the entries above so every dog had a pin. That
+ * hash fed no geometry-only reader: every site that reads `dog.shelter` prints a name, an
+ * address, a distance or a sentence attributing a decision to that org — so an unknown id got
+ * credited to a real rescue that had never heard of the dog. A fallback may choose a pixel,
+ * never a name: an unknown org is absent, and a dog with no org is not listed.
+ */
+export function shelterFor(shelterId: string | undefined): Shelter | null {
+  return SHELTERS.find(s => s.id === shelterId) ?? null;
+}
+
+/** Anything with an optional resolved shelter — a `RichDog`, in practice. */
+type HasShelter = { shelter: Pick<Shelter, "name" | "short"> | null };
+
+/**
+ * The org's name for use **inside a sentence**, or "the shelter" when it has none. Never for a
+ * labelled row: "Shelter: the shelter" is a stand-in dressed as an answer, and a row with no
+ * value should be omitted instead.
+ */
+export function shelterName(
+  dog: HasShelter,
+  form: "short" | "name" = "short",
+  { start = false }: { start?: boolean } = {},
+): string {
+  if (dog.shelter) return dog.shelter[form];
+  return start ? "The shelter" : "the shelter";
 }

@@ -51,8 +51,9 @@ function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
     backstory: d.notes,
     photoUrl: dogPhotoOrNull(d, 600, 600) ?? undefined,
     // Name and address only -- the emergency screen says who to tell, without a call action,
-    // because no shelter record in this app carries a phone number (PH-18).
-    shelter: { name: d.shelter.name, address: d.shelter.address },
+    // because no shelter record in this app carries a phone number (PH-18). Omitted when there is
+    // no org we can name, and the emergency screen already skips the card then (PH-28).
+    shelter: d.shelter ? { name: d.shelter.name, address: d.shelter.address } : undefined,
   };
 }
 

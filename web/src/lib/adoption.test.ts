@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAdoptionProfile } from "./adoption";
+import { buildAdoptionProfile, shelterRecordTitle } from "./adoption";
 import { normalizeDog } from "./dog";
 import type { CareLogEntry, Dog, Foster } from "../types";
 import type { ScheduleBlock } from "../phases/careplan/types";
@@ -87,5 +87,15 @@ describe("buildAdoptionProfile with things the foster actually did", () => {
     expect(p.careDone).toHaveLength(2);
     expect(p.careOutstanding).toBe(1);
     expect(p.missing).not.toContain("medical record");
+  });
+});
+
+describe("shelterRecordTitle (PH-28)", () => {
+  it("names the org when there is one", () => {
+    expect(shelterRecordTitle(normalizeDog({ ...bareDog, shelter_id: "sfspca-mission" }))).toBe("SF SPCA's record");
+  });
+
+  it("never borrows another org's name when there isn't", () => {
+    expect(shelterRecordTitle(normalizeDog({ ...bareDog, shelter_id: "petsun" }))).toBe("The shelter's record");
   });
 });

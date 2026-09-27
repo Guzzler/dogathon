@@ -22,8 +22,8 @@ export function DemoIntroView() {
         <motion.div initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
           <h1 style={{ fontSize: 26 }}>You're in demo mode</h1>
           <p className="sub" style={{ marginTop: 14, fontSize: 15.5, lineHeight: 1.6 }}>
-            All dogs on the listing are real dogs available for fostering from SF SPCA, as of
-            August 23rd, 2025. The usual app flow requires the shelter to approve your
+            The dogs listed come from SF SPCA's public adoption listings; some may have been
+            adopted since. The usual app flow requires the shelter to approve your
             application — that's overridable with demo controls, so feel free to use them to
             go through the whole flow.
           </p>

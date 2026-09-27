@@ -18,7 +18,7 @@ const PHASE_COPY: Record<FosterPhase, { title: string; body: string; cta: string
   },
   discovery: {
     title: "Find your match",
-    body: "Swipe through dogs from nearby shelters that fit what you're looking for.",
+    body: "Swipe through dogs from shelters in San Francisco that fit what you're looking for.",
     cta: "Browse dogs",
     to: "/discovery",
   },

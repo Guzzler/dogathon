@@ -170,6 +170,12 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
     matched.discard(None)
     spoken_for = stale_ids & matched
     stale_ids -= spoken_for
+    # Kept for the foster is not the same as still listed (PH-28). A dog that fell out of the
+    # scrape has left the shelter's own listings, so an `available` one would stay in Discovery
+    # offering an application nobody will answer. `retired` is RS-6's value for "stop listing
+    # for a reason the others would misstate" -- it keeps the record readable by id, which is
+    # all Match, Care Plan and Post Foster need.
+    delist = sorted(i for i in spoken_for if existing[i].get("status") == "available")
 
     print(f"\nfirestore plan  ({len(existing)} docs live now)")
     print(f"  write   {len(dogs)}")
@@ -177,7 +183,10 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
     if hand_entered:
         print(f"  keep    {len(hand_entered)} entered by a shelter, not by this import: {sorted(hand_entered)}")
     if spoken_for:
-        print(f"  keep    {len(spoken_for)} stale but matched to a foster: {sorted(spoken_for)}")
+        print(
+            f"  keep    {len(spoken_for)} stale but matched to a foster: {sorted(spoken_for)}"
+            + (f" (delisted: {delist})" if delist else "")
+        )
 
     if plan_only:
         print("  (plan only -- nothing written)")
@@ -189,12 +198,18 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
             batch.delete(collection.document(doc_id))
         batch.commit()
 
+    if delist:  # a handful at most -- one per foster mid-journey on a vanished dog
+        batch = client.batch()
+        for doc_id in delist:
+            batch.update(collection.document(doc_id), {"status": "retired"})
+        batch.commit()
+
     for start in range(0, len(dogs), 400):
         batch = client.batch()
         for d in dogs[start : start + 400]:
             batch.set(collection.document(d["id"]), d)
         batch.commit()
-    print(f"  done: {len(dogs)} written, {len(stale_ids)} deleted")
+    print(f"  done: {len(dogs)} written, {len(stale_ids)} deleted, {len(delist)} delisted")
 
 
 def _summarise(dogs: list[dict]) -> None:

@@ -108,3 +108,99 @@ def test_a_good_scrape_still_exits_zero(monkeypatch, tmp_path):
     import_dogs.main()   # no SystemExit at all on the normal path
 
     assert json.loads((tmp_path / "dogs.json").read_text())[0]["id"] == "test-dog"
+
+
+# --- PH-28: kept for a foster is not the same as still listed ---------------------------------
+
+
+class _Snap:
+    def __init__(self, doc_id: str, data: dict):
+        self.id = doc_id
+        self._data = data
+
+    def to_dict(self) -> dict:
+        return dict(self._data)
+
+
+class _Collection:
+    def __init__(self, name: str, docs: dict[str, dict]):
+        self.name = name
+        self.docs = docs
+
+    def stream(self):
+        return [_Snap(i, d) for i, d in self.docs.items()]
+
+    def document(self, doc_id: str):
+        return (self.name, doc_id)
+
+
+class _Batch:
+    def __init__(self, log: list):
+        self.log = log
+        self.ops: list = []
+
+    def delete(self, ref):
+        self.ops.append(("delete", ref[1], None))
+
+    def set(self, ref, data):
+        self.ops.append(("set", ref[1], data))
+
+    def update(self, ref, data):
+        self.ops.append(("update", ref[1], data))
+
+    def commit(self):
+        self.log.extend(self.ops)
+
+
+class _Client:
+    """Just enough of the Admin SDK for `_push_to_firestore()`: stream, batch, and a write log."""
+
+    def __init__(self, dogs: dict[str, dict], fosters: dict[str, dict]):
+        self.cols = {"dogs": _Collection("dogs", dogs), "fosters": _Collection("fosters", fosters)}
+        self.log: list = []
+
+    def collection(self, name: str):
+        return self.cols[name]
+
+    def batch(self):
+        return _Batch(self.log)
+
+
+def _push(monkeypatch, client: _Client, roster: list[dict], plan_only: bool) -> list:
+    import agent.firestore_client as fc
+
+    monkeypatch.setattr(fc, "db", lambda: client)
+    import_dogs._push_to_firestore(roster, plan_only=plan_only)
+    return client.log
+
+
+def _live():
+    return _Client(
+        dogs={
+            "fresh": {"status": "available"},
+            "d-026": {"status": "available"},        # gone from the scrape, a foster has it
+            "d-kept-foster": {"status": "foster"},    # gone, matched, already not listed
+            "d-gone": {"status": "available"},       # gone, nobody has it
+        },
+        fosters={"a": {"matchedDogId": "d-026"}, "b": {"matchedDogId": "d-kept-foster"}},
+    )
+
+
+def test_a_stale_available_dog_matched_to_a_foster_is_kept_and_delisted(monkeypatch, capsys):
+    log = _push(monkeypatch, _live(), [{"id": "fresh", "status": "available"}], plan_only=False)
+    assert ("update", "d-026", {"status": "retired"}) in log
+    assert not any(op[1] == "d-026" and op[0] == "delete" for op in log)
+    # Already off the listings: its status is the shelter's word and is left alone.
+    assert not any(op[1] == "d-kept-foster" for op in log)
+    assert "(delisted: ['d-026'])" in capsys.readouterr().out
+
+
+def test_a_stale_unmatched_dog_is_still_deleted(monkeypatch):
+    log = _push(monkeypatch, _live(), [{"id": "fresh", "status": "available"}], plan_only=False)
+    assert ("delete", "d-gone", None) in log
+
+
+def test_plan_only_reports_the_delisting_and_writes_nothing(monkeypatch, capsys):
+    log = _push(monkeypatch, _live(), [{"id": "fresh", "status": "available"}], plan_only=True)
+    assert log == []
+    assert "(delisted: ['d-026'])" in capsys.readouterr().out
