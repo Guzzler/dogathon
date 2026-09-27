@@ -322,7 +322,7 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
 *(Both rows verbatim in
 [`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md);
 RS-4's also in [`archive/real-data-and-shelters-rs4-2026-09-17.md`](archive/real-data-and-shelters-rs4-2026-09-17.md).)*
-- 2026-09-23 — RS-14 `[large]` — PR #__ — **a pickup request lands where the shelter reads it, and
+- 2026-09-23 — RS-14 `[large]` — PR #102 — **a pickup request lands where the shelter reads it, and
   only the shelter answers.** `requestPickup()` writes `applications/{id}.pickup` *before*
   `fosters/{uid}.pickup` (a failed first write skips the second and says so); a third foster branch
   in `firestore.rules` admits only `pickup`/`pickupConfirmedAt`/`updatedAt` via `affectedKeys().hasOnly`

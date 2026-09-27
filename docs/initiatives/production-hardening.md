@@ -241,29 +241,42 @@ Read against `main` on 2026-09-21, that answers each tool:
 With this, every dangerous tool in the registry has been checked against a screen its user can
 reach, and the audit PH-26 began is complete — PH-27 is its last item, not the first of a series.
 
-### A default is honest when it is a fallback for the layout, and dishonest when it is an answer (2026-09-14)
+### A default is honest when it is a fallback for the layout (2026-09-14) — archived 2026-09-26
 
-The tense test asks whether a value could be *wrong about a specific animal*. A derived default
-can be both at once, which is why this one needed a line drawn rather than a deletion: `size:
-"medium"` stops a card's layout from breaking, and the very same value printed on a row labelled
-**Size** answers a question the shelter never answered. So:
+Shipped as PH-22 and restated by PH-28's design answer above; verbatim in
+[`archive/production-hardening-default-fallback-2026-09-26.md`](archive/production-hardening-default-fallback-2026-09-26.md).
+The rule to carry: **a default is a fallback when it feeds geometry and a claim when it feeds a
+labelled row or a sentence** — and `RichDog` carries provenance (`derived`) rather than going nullable.
 
-> **A default is a fallback when it feeds geometry and a claim when it feeds a labelled row or a
-> sentence.** Keep it for the first; the second must render the absence. The test is not what the
-> value *is*, it is whether a reader could mistake it for something someone recorded.
+### PH-31 — listed and appliable are one test, not two (queued 2026-09-26, after PH-28)
 
-Two consequences, both of which keep this from becoming a thirty-site refactor:
+PH-28's rule says *a dog nobody can apply to is not listed*. Read from the other side it says **a
+dog that is not listed cannot be applied to** — and on `main` at `6940633` neither apply site checks
+either half. `SavedView.tsx:34` maps `likedDogIds` with no status filter, and `DogDetailView` renders
+any id at `/dog/:id`, so a dog the shelter **retired** (RS-6), marked **adopted**, or got back as
+**ready_for_adoption** (RS-12) still offers *Apply to foster* to anyone who liked it — writing
+`matchedDogId` and an `applications` row into the inbox of a shelter that has already said no.
+Five of `DogStatus`'s six values mean "not taking applications"; the apply sites honour none.
+PH-28's in-flight build (`feat/ph28-fallback-never-a-name`, uncommitted in the shared checkout as
+this was written) adds `isListable()` to `lib/dog.ts` and a guard at both sites — but the guard is
+`dog.shelter != null`, the *shelter* half only. **This item is the status half; don't widen PH-28's
+PR for it.**
 
-1. **`RichDog` does not become nullable everywhere.** The non-null fields stay, because layout
-   genuinely needs them; what is missing is the *provenance* beside them, and the codebase
-   already has the idiom for it twice over — `adoption_profile_source` (PH-21) and
-   `dogPhotoOrNull()`'s branch on `source` (RS-6). A `derived` set on `RichDog`, or nullable
-   siblings beside the non-null ones, is one decision for execute to make; either satisfies the
-   rule, and neither requires every render site to learn about absence.
-2. **A score is a ranking, not an answer, so the number itself needs no "not recorded" state** —
-   but it does need to stop pretending its input was known, which is exactly what `compat()`'s
-   −4 already does for the four fields the normaliser passes through. Extending that to size and
-   energy is the same decision applied one layer earlier, not a new one.
+1. Both sites' `canApply` becomes `isListable(dog)`; the disabled label stays *Not taking
+   applications*. One predicate, three callers — Discovery, `DogDetailView`, `SavedCard`.
+2. **Write the application before the foster document.** Both `apply()`s `patchFoster({ matchedDogId,
+   phase: "match" })` first (`DogDetailView.tsx:57`, `SavedView.tsx:118`), so a failed
+   `createApplication()` strands the foster on Match for a dog no shelter was told about.
+   `requestPickup()` (RS-14) already has the right order; copy it. `createApplication()`'s silent
+   `if (!opts.shelterId) return;` (`applications.ts:22`) becomes a throw — no guarded caller can reach it.
+3. **Not in scope:** a foster *already* matched to a dog later retired (that is the shelter's
+   decline, RS-11's path), and two fosters applying for one available dog (the inbox shows both).
+
+**Verify:** vitest — `isListable` false for `retired`, `adopted`, `ready_for_adoption` and a
+`null`-shelter dog, true for an available `sfspca-mission` one; a rendered `SavedView` case
+(`MatchView.test.tsx`'s `renderToStaticMarkup` pattern) where a liked `retired` dog shows no enabled
+Apply button. `./node_modules/.bin/tsc -b`, build, lint at `main`'s count. If PH-28 ships with the
+status half already in, **discharge this with a Ledger line** rather than building it twice.
 
 ### Needs a human — PARKED, not pending; archived 2026-09-11
 
