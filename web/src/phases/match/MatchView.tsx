@@ -11,6 +11,7 @@ import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_PREP_CHECKLIST, checklistOwner } fr
 import { APPLICATION_STAGES, activeStage, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState } from "../../lib/applicationView";
 import { normalizeDog, thumbBackground } from "../../lib/dog";
 import { downloadIcs } from "../../lib/calendar";
+import { shelterName } from "../../lib/shelters";
 import { DEMO_MODE } from "../../lib/demoMode";
 import type { ChecklistItem, Pickup } from "../../types";
 
@@ -70,7 +71,7 @@ export function MatchView() {
   // It replaces the badge, and `declined` replaces the whole screen below it -- but it never
   // unlocks the scheduler and never ticks anybody's boxes. See approvalDecision().
   const decision = approvalDecision(application?.status);
-  const badge = approvalBadge(decision, dog.shelter.short, {
+  const badge = approvalBadge(decision, shelterName(dog, "short", { start: true }), {
     tone: shelterApproved ? "sage" : "butter",
     label: shelterApproved ? "✓ Shelter approved you as a foster" : "⏳ Waiting on shelter review",
   });
@@ -125,7 +126,7 @@ export function MatchView() {
           <div style={{ width: 56, height: 56, borderRadius: 17, flexShrink: 0, background: thumbBackground(dog, 300, 300) }} />
           <div style={{ minWidth: 0 }}>
             <h2 style={{ fontSize: 20 }}>You matched with {dog.name}!</h2>
-            <p className="muted" style={{ marginTop: 2 }}>{dog.shelter.name}</p>
+            {dog.shelter && <p className="muted" style={{ marginTop: 2 }}>{dog.shelter.name}</p>}
           </div>
         </motion.div>
 
@@ -145,10 +146,10 @@ export function MatchView() {
         </motion.div>
 
         {decision === "declined" ? (
-          <DeclinedNotice dogName={dog.name} shelterShort={dog.shelter.short} onBrowse={() => navigate("/discovery")} />
+          <DeclinedNotice dogName={dog.name} shelterShort={shelterName(dog, "short", { start: true })} onBrowse={() => navigate("/discovery")} />
         ) : (<>
         <ChecklistSection title="Your steps" items={yourSteps} onToggle={setApprovalItem} />
-        <ChecklistSection title={`What ${dog.shelter.short} handles`} items={shelterSteps} locked />
+        <ChecklistSection title={`What ${shelterName(dog)} handles`} items={shelterSteps} locked />
         <ChecklistSection title="Get ready at home" items={prep} onToggle={togglePrep} />
 
         {/* Pickup */}
@@ -162,7 +163,7 @@ export function MatchView() {
               <p className="muted" style={{ textAlign: "center", marginTop: 8, fontSize: 12 }}>
                 {shelterApproved
                   ? "Finish your own steps to unlock this."
-                  : `Unlocks once ${dog.shelter.short} finishes their review.`}
+                  : `Unlocks once ${shelterName(dog)} finishes their review.`}
               </p>
             </>
           ) : foster.pickup ? (
@@ -178,11 +179,11 @@ export function MatchView() {
                   on the application turns it green -- this screen never says so on its own. */}
               {pickup === "confirmed" ? (
                 <p style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: "var(--sage)" }}>
-                  ✓ {dog.shelter.short} confirmed this time.
+                  ✓ {shelterName(dog, "short", { start: true })} confirmed this time.
                 </p>
               ) : (
                 <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>
-                  You asked for this time. {dog.shelter.short} hasn't confirmed it yet
+                  You asked for this time. {shelterName(dog, "short", { start: true })} hasn't confirmed it yet
                   {application ? " — it shows here as soon as they do." : "."}
                 </p>
               )}
@@ -193,7 +194,7 @@ export function MatchView() {
                   style={{ flex: 1, margin: 0 }}
                   onClick={() => downloadIcs({
                     dogName: dog.name,
-                    shelterName: dog.shelter.name,
+                    shelterName: shelterName(dog, "name"),
                     date: foster.pickup!.date,
                     time: foster.pickup!.time,
                     location: foster.pickup!.location,
@@ -212,11 +213,20 @@ export function MatchView() {
               </div>
             </motion.div>
           ) : (
-            <PickupScheduler shelter={dog.shelter} onConfirm={writePickup} />
+            // PH-28: no org we can name means no address to collect from and nobody who would
+            // read the request, so the calendar would only collect a promise nobody can keep.
+            dog.shelter ? (
+              <PickupScheduler shelter={dog.shelter} onConfirm={writePickup} />
+            ) : (
+              <p className="muted" style={{ textAlign: "center", fontSize: 12 }}>
+                We can't tell which shelter has {dog.name}, so there's nowhere to send a pickup
+                request. Withdraw from Saved and apply for another dog.
+              </p>
+            )
           )}
           {pickupFailed && (
             <p role="alert" style={{ marginTop: 8, fontSize: 12, color: "var(--coral-dk)", fontWeight: 700, textAlign: "center" }}>
-              That didn't reach {dog.shelter.short}, so nothing changed. Check your connection and try again.
+              That didn't reach {shelterName(dog)}, so nothing changed. Check your connection and try again.
             </p>
           )}
         </div>

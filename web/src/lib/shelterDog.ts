@@ -155,8 +155,11 @@ export function dogFromForm(v: DogFormValues, shelterId: string, now: string): O
   // than a placedog stand-in for a source we entered by hand.
   if (v.photoUrl.trim()) dog.photo_urls = [v.photoUrl.trim()];
   // Denormalised only when we actually know the coordinates. `shelters/{id}` carries a name
-  // and an address but no lat/lng, and inventing a pin for a real org is worse than letting
-  // `normalizeDog()` fall back the way it already does for every seeded record.
+  // and an address but no lat/lng, and inventing a pin for a real org is worse than none. So a
+  // staff shelter missing from `SHELTERS` writes a dog `normalizeDog()` resolves to
+  // `shelter: null`, which Discovery does not list (PH-28) -- correct until a second shelter
+  // exists. Denormalising its name from `shelters/{id}` is the fix then; there is no second
+  // shelter now, and that document has no coordinates to pin.
   const known = SHELTERS.find((s) => s.id === shelterId);
   if (known) dog.shelter = known;
   return dog;

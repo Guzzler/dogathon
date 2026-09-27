@@ -60,8 +60,11 @@ export default function MapView({ dogs, me, scoreOf, onOpen }: {
   // Derived from the dogs, not from the SHELTERS constant — real orgs aren't in that list,
   // and iterating it would leave every genuine shelter without a pin.
   const shelters = useMemo(() => {
-    const by = new Map<string, { shelter: RichDog["shelter"]; dogs: RichDog[] }>();
+    // A dog with no resolvable org has no pin to stand on (PH-28) — Discovery doesn't list
+    // one, but this component shouldn't depend on that to avoid inventing an address.
+    const by = new Map<string, { shelter: NonNullable<RichDog["shelter"]>; dogs: RichDog[] }>();
     dogs.forEach(d => {
+      if (!d.shelter) return;
       const hit = by.get(d.shelter.id);
       if (hit) hit.dogs.push(d);
       else by.set(d.shelter.id, { shelter: d.shelter, dogs: [d] });
@@ -83,7 +86,9 @@ export default function MapView({ dogs, me, scoreOf, onOpen }: {
     if (!selS && sort === "easy") out = out.filter(d => !d.derived.energyLevel && d.energyLevel <= 2 && d.good_with_kids === true);
     if (!selS && sort === "small") out = out.filter(d => d.size === "small");
     const copy = [...out];
-    if (sort === "near") copy.sort((a, b) => distanceMi(me, a.shelter) - distanceMi(me, b.shelter));
+    // No org, no distance — sorts last rather than being given a made-up one.
+    const far = (d: RichDog) => (d.shelter ? distanceMi(me, d.shelter) : Infinity);
+    if (sort === "near") copy.sort((a, b) => far(a) - far(b));
     else copy.sort((a, b) => scoreOf(b) - scoreOf(a));
     return copy;
   }, [dogs, selS, sort, me]); // eslint-disable-line

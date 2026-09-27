@@ -21,10 +21,11 @@ export interface DerivedFields {
 }
 
 /** A dog with every Discovery field guaranteed — derived where the record didn't have one. */
-export interface RichDog extends Dog {
+export interface RichDog extends Omit<Dog, "shelter"> {
   /** What was derived rather than recorded. Never render a `true` field as a fact. */
   derived: DerivedFields;
-  shelter: Shelter;
+  /** `null` when the record names no org we know — such a dog is not listed (PH-28). */
+  shelter: Shelter | null;
   size: DogSize;
   energyLevel: number;
   groomingLevel: "low" | "high" | null;
@@ -85,8 +86,10 @@ export function normalizeDog(d: Dog): RichDog {
       size: recordedSize == null,
       energyLevel: d.energy_level == null,
     },
-    // A real org travels on the record; shelterFor() is the seeded-demo fallback.
-    shelter: d.shelter ?? shelterFor(d.shelter_id, d.id),
+    // A real org travels on the record; failing that, the id must name one we know. There is
+    // deliberately no third option (PH-28): an unknown org stays null rather than being hashed
+    // onto a real rescue, and `isListable()` keeps such a dog out of Discovery.
+    shelter: d.shelter ?? shelterFor(d.shelter_id),
     // A published size bucket is better evidence than a weight we had to infer.
     size: recordedSize ?? "medium",
     energyLevel: d.energy_level ?? guessEnergy(d),
@@ -116,6 +119,13 @@ export function normalizeDog(d: Dog): RichDog {
  */
 export const recordedStay = (d: RichDog): [number | null, string | null] =>
   d.derived.fosterWeeks ? [null, null] : [d.fosterWeeks, d.fosterLength];
+
+/**
+ * Whether Discovery lists this dog — the one place that is decided (PH-28). Available, and at
+ * an org we can name: a dog with no resolvable shelter is one nobody could apply to through a
+ * shelter that reads the application, so listing it only leads a foster to a dead end.
+ */
+export const isListable = (d: RichDog): boolean => d.status === "available" && d.shelter != null;
 
 /** "1 week", "6 weeks", "3 months" — months once a stay passes two. */
 export function formatWeeks(weeks: number): string {

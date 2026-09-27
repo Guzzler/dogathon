@@ -9,6 +9,7 @@ import { useAdoptionHighlights } from "../../lib/highlights";
 import { AgentChatPanel } from "../../components/AgentChatPanel";
 import { buildAdoptionProfile, noteTextsFor } from "../../lib/adoption";
 import { normalizeDog, recordedStay } from "../../lib/dog";
+import { shelterName } from "../../lib/shelters";
 import { Unrecorded } from "../../components/Unrecorded";
 import { fosterWindow } from "../../lib/foster";
 import { AdoptionProfileBody } from "./AdoptionProfile";
@@ -112,7 +113,7 @@ export function PostFosterView() {
       <div style={{ marginTop: 26 }}>
         <div className="eyebrow" style={{ marginBottom: 6 }}>Let the agent write it</div>
         <p className="ap-note-hint">
-          The agent can turn your journal into a polished write-up and send it to {dog.shelter.short}.
+          The agent can turn your journal into a polished write-up and send it to {shelterName(dog)}.
         </p>
         {drafting ? (
           <div className="care-tips-drawer">

@@ -3,14 +3,13 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { SHELTERS, shelterFor } from "./shelters";
+import { SHELTERS, shelterFor, shelterName } from "./shelters";
 
 /**
  * Regression guard for RS-3: data/dogs.json's shelter_id has to resolve to an exact
  * SHELTERS match. A future rename on either side (shelters.ts's ids, or the importer's
  * CAMPUS["id"] in scripts/shelters/sfspca.py) that lets them drift apart again would
- * silently fall shelterFor() back to its per-dog hash across whatever's left in
- * SHELTERS -- the exact bug this fixed. Read via fs, not a static import: data/ sits
+ * silently resolve every real dog to no shelter at all -- and since PH-28, unlist it. Read via fs, not a static import: data/ sits
  * outside web/'s tsconfig "include", so importing it as a module would break `tsc -b`.
  */
 const dogsPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../data/dogs.json");
@@ -28,14 +27,36 @@ describe("data/dogs.json shelter_id matches web/src/lib/shelters.ts", () => {
       expect(
         exactMatch,
         `dog ${dog.id}'s shelter_id "${dog.shelter_id}" has no exact id match in SHELTERS -- ` +
-          `shelterFor() would silently fall back to the per-dog hash`,
+          `shelterFor() would return null and Discovery would stop listing it`,
       ).toBe(true);
     }
   });
 
   it("shelterFor() returns the exact match, given a real shelter_id", () => {
     for (const dog of dogs) {
-      expect(shelterFor(dog.shelter_id, dog.id).id).toBe(dog.shelter_id);
+      expect(shelterFor(dog.shelter_id)?.id).toBe(dog.shelter_id);
     }
+  });
+});
+
+describe("a fallback may choose a pixel, never a name (PH-28)", () => {
+  it("shelterFor() returns null for an id shelters.ts removed, and for an unknown one", () => {
+    expect(shelterFor("petsun")).toBeNull();
+    expect(shelterFor("no-such-rescue")).toBeNull();
+    expect(shelterFor(undefined)).toBeNull();
+  });
+
+  it("no hash path is left to credit a dog to a real rescue", () => {
+    const src = readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "shelters.ts"), "utf-8");
+    expect(src).not.toMatch(/SHELTERS\[h/);
+  });
+
+  it("shelterName() names a known org and says 'the shelter' otherwise", () => {
+    const known = { shelter: { name: "SF SPCA Mission Campus", short: "SF SPCA" } };
+    expect(shelterName(known)).toBe("SF SPCA");
+    expect(shelterName(known, "name")).toBe("SF SPCA Mission Campus");
+    expect(shelterName({ shelter: null })).toBe("the shelter");
+    expect(shelterName({ shelter: null }, "name", { start: true })).toBe("The shelter");
+    expect(shelterName(known, "short", { start: true })).toBe("SF SPCA");
   });
 });

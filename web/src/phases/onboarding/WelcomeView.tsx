@@ -29,7 +29,7 @@ export function WelcomeView() {
         <motion.div initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
           <h1 style={{ fontSize: 40, lineHeight: 1.1 }}>Ready to find your new foster buddy?</h1>
           <p className="sub" style={{ marginTop: 16, fontSize: 16 }}>
-            A few quick questions and we'll match you with dogs waiting at shelters near you.
+            A few quick questions and we'll match you with dogs waiting at shelters in San Francisco.
           </p>
         </motion.div>
 

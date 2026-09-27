@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Dog } from "../types";
-import { normalizeDog, recordedStay } from "./dog";
+import { isListable, normalizeDog, recordedStay } from "./dog";
 
 /**
  * PH-22. `normalizeDog()` fills three holes so a card can lay itself out, and the question
@@ -64,5 +64,25 @@ describe("recordedStay", () => {
 
   it("hands it the weeks and the label when someone did", () => {
     expect(recordedStay(bare({ foster_weeks: 8 }))).toEqual([8, "2 months"]);
+  });
+});
+
+describe("a dog at an org we can't name is unlisted, not re-homed (PH-28)", () => {
+  it("resolves a removed shelter id to no shelter at all", () => {
+    // d-026's shape on the live roster: an id shelters.ts removed, no denormalised org.
+    expect(bare({ id: "d-026", shelter_id: "petsun" }).shelter).toBeNull();
+    expect(bare({ id: "d-026" }).shelter).toBeNull();
+  });
+
+  it("keeps the org a record carries, and resolves a known id", () => {
+    expect(bare({ shelter_id: "sfspca-mission" }).shelter?.short).toBe("SF SPCA");
+    const carried = { id: "x", name: "Real Rescue", short: "Real", address: "1 Main St", lat: 1, lng: 2 };
+    expect(bare({ shelter_id: "not-in-list", shelter: carried }).shelter).toEqual(carried);
+  });
+
+  it("lists an available dog at a known org and nothing else", () => {
+    expect(isListable(bare({ shelter_id: "sfspca-mission" }))).toBe(true);
+    expect(isListable(bare({ shelter_id: "petsun" }))).toBe(false);
+    expect(isListable(bare({ shelter_id: "sfspca-mission", status: "retired" }))).toBe(false);
   });
 });

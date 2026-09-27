@@ -47,6 +47,13 @@ export interface AdoptionProfile {
   missing: string[];
 }
 
+/**
+ * The heading over the shelter-recorded facts. Named for the org when we know it, and plain
+ * "The shelter's record" when we don't — never another org's name standing in (PH-28).
+ */
+export const shelterRecordTitle = (dog: Pick<RichDog, "shelter">): string =>
+  dog.shelter ? `${dog.shelter.short}'s record` : "The shelter's record";
+
 export function buildAdoptionProfile(
   dog: RichDog,
   foster: Foster | null,

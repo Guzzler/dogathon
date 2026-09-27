@@ -6,7 +6,7 @@ import SwipeDeck from "../../components/SwipeDeck";
 import DogGrow from "../../components/DogGrow";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
-import { ENERGY_WORD, normalizeDog, type RichDog } from "../../lib/dog";
+import { ENERGY_WORD, isListable, normalizeDog, type RichDog } from "../../lib/dog";
 import { energyAnswer, prefs, scoreDog, sizeAnswer, sizeWord, useMyLocation } from "../../lib/matching";
 import { PawMark, Wordmark } from "../../components/Logo";
 import type { FosterIntake } from "../../types";
@@ -18,13 +18,15 @@ export function DiscoveryView() {
   const [view, setView] = useState<"map" | "swipe">("map");
   const [filters, setFilters] = useState(false);
   const [q, setQ] = useState("");
-  const { pos, real } = useMyLocation();
+  const { pos } = useMyLocation();
 
   const intake = foster?.intake;
   const scoreOf = (d: RichDog) => scoreDog(d, intake);
 
+  // `isListable()` is the one place listing is decided (PH-28): available, and at an org we
+  // can name — a dog nobody could apply to through a shelter that reads it isn't listed.
   const available = useMemo(
-    () => dogs.filter(d => d.status === "available").map(normalizeDog),
+    () => dogs.map(normalizeDog).filter(isListable),
     [dogs]
   );
 
@@ -33,7 +35,7 @@ export function DiscoveryView() {
     // No match-score cutoff: the real roster is small, so a weak match still beats no
     // dog at all. Still ranked best-first via the sort below.
     return available
-      .filter(d => !needle || [d.name, d.breed, d.shelter.name, d.shelter.address].some(f => f.toLowerCase().includes(needle)))
+      .filter(d => !needle || [d.name, d.breed, d.shelter?.name, d.shelter?.address].some(f => f?.toLowerCase().includes(needle)))
       .sort((a, b) => scoreOf(b) - scoreOf(a));
   }, [available, intake, q]); // eslint-disable-line
 
@@ -91,7 +93,7 @@ export function DiscoveryView() {
           </div>
         ) : (
           <div className="row" style={{ gap: 10, marginTop: 9, justifyContent: "center" }}>
-            <span className="muted">{queue.length} left · {real ? "near you" : "near San Francisco"}</span>
+            <span className="muted">{queue.length} left · in San Francisco</span>
             <button className="chip" onClick={() => setFilters(true)} style={{ fontWeight: 800 }}>⚙ Filters</button>
           </div>
         )}
@@ -186,9 +188,9 @@ function FindingDogs() {
         transition={{ type: "spring", stiffness: 200, damping: 18 }}>
         <PawMark size={64} />
       </motion.div>
-      <h2 style={{ marginTop: 20 }}>Finding dogs near you</h2>
+      <h2 style={{ marginTop: 20 }}>Finding dogs</h2>
       <p className="sub" style={{ marginTop: 8, maxWidth: 260 }}>
-        Checking shelters in your area for dogs who need a foster.
+        Checking shelters in San Francisco for dogs who need a foster.
       </p>
       <div className="discovery-state__bar"><i /></div>
     </div>
@@ -200,9 +202,9 @@ function NoDogsNearby() {
   return (
     <div className="screen discovery-state">
       <div style={{ fontSize: 44 }}>🐾</div>
-      <h2 style={{ marginTop: 16 }}>No dogs nearby yet</h2>
+      <h2 style={{ marginTop: 16 }}>No dogs listed yet</h2>
       <p className="sub" style={{ marginTop: 8, maxWidth: 280 }}>
-        There aren't any dogs listed near you right now. Shelters add new ones all the time —
+        There aren't any dogs listed at shelters in San Francisco right now. Shelters add new ones all the time —
         it's worth checking back.
       </p>
     </div>
