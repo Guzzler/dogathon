@@ -241,6 +241,10 @@ Compressed:
   pixel, never a name."** Also found: **execute was mid-build in the same checkout** as this run
   (see "Doc size" below), which is why plan's doc work now happens in its own worktree.
 
+- **2026-09-26 — the seventeenth link: read a rule backwards.** PH-28's converse (*not listed ⇒ not
+  appliable*) found both apply sites ignoring five of six `DogStatus` values (PH-31). execute was mid-
+  build on PH-28, so it went in as **its own item: a spec execute has already read is a contract**.
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
@@ -298,13 +302,10 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 74 files as of 2026-09-23** — counted with `ls`, because a running tally here
-once drifted from the directory by seven. **Count it, don't increment it.** *(2026-09-23: plan and
+**`archive/` holds 76 files as of 2026-09-26** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
 execute ran concurrently in one checkout — plan's `git checkout -b` moved HEAD off execute's
 uncommitted RS-14 branch, caught by `git status` showing code plan never touched, and put back
-unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* The 2026-09-17 run added
-eight, by far the most of any run. On 09-19 all four docs landed under: README 398, DC
-391, RS 384, PH 372. One thing this run's arithmetic adds to the rules below: **a section of five
+unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* One thing this run's arithmetic adds to the rules below: **a section of five
 shipped rules is a cheaper cut than five separate sections of one**, because the pointers and
 preambles are four-fifths of it. The tense test's five faces went out as one file and took 81 lines
 with them, which paid for PH-25's spec and its design answer with room to spare — where the
