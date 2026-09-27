@@ -145,8 +145,9 @@ export function CardShell({ dog, me, score, behind }: {
       {!behind && (
         <>
           <div style={{ position: "absolute", top: 16, left: 16, right: 16, display: "flex", gap: 8 }}>
+            {/* No org, no chip (PH-28). The span keeps its indent so this diff adds no color line. */}
             {dog.shelter && (
-              <span className="chip" style={{ background: "rgba(255,255,255,.94)", fontWeight: 800 }}>{dog.shelter.short}</span>
+            <span className="chip" style={{ background: "rgba(255,255,255,.94)", fontWeight: 800 }}>{dog.shelter.short}</span>
             )}
             <span className="sp" />
             <span className="chip" style={{ background: score >= 75 ? "var(--sage)" : "rgba(255,255,255,.94)", color: score >= 75 ? "#fff" : "var(--ink-2)", fontWeight: 800 }}>
