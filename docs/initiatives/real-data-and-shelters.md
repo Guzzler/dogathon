@@ -88,7 +88,7 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   `applications`/`shelters` rules, in `shelter-integration.md`'s shape. Its two
   deferred halves became RS-2 (shipped, PR #34) and RS-6 (open).
 - **M3 — shelter accounts and the admin add/edit surface. Surfaces done 2026-09-05; the pickup
-  round trip shipped 2026-09-23 (RS-14).** Staff sign in with the existing Google auth, see their own shelter's
+  round trip shipped 2026-09-23 (RS-14); the shelter's second answer is RS-15, queued 2026-09-27.** Staff sign in with the existing Google auth, see their own shelter's
   applications, and add or retire their own dogs (RS-2, RS-5, RS-6, then RS-10/11/12's joins).
   *Corrected 2026-09-22 — this paragraph said "in progress, RS-6 is the remaining third" for three
   weeks after RS-6 shipped.* What M3 never carried is the pickup: the request goes nowhere a
@@ -151,6 +151,64 @@ don't "fix" the second by loosening `firestore.rules`.
 
 ### The items
 
+- [ ] **RS-15 `[large]` — the handoff happens on the shelter's say-so (queued 2026-09-27).** RS-14
+  made a pickup a *request* the shelter answers — but the shelter has one answer, **Confirm**, and
+  the foster's journey never waits for it. Read on `main` at `e646a73`:
+  - **The dog is "in your care" on a request.** `MatchView.tsx`'s *I've got {dog} → start Care
+    Plan* is `disabled={!foster.pickup}` — any request, confirmed or not — and `goToCarePlan()`
+    flips `phase: "care_plan"`, which Saved then renders as *"{dog} is in your care"*
+    (`SavedView.tsx:90`). A foster can declare a handoff the shelter never agreed to.
+  - **The countdown runs off an unanswered date.** `fosterWindow()` anchors on `foster.pickup.date`
+    at all three callers (`HubView.tsx:89`, `SavedView.tsx:172`, `PostFosterView.tsx:50`) with no
+    reference to `pickupState()`, so the Hub says "Pickup in 3 days" for a slot nobody confirmed.
+  - **A shelter that can't make the slot has no way to say so.** The inbox detail
+    (`ShelterApplicationsView.tsx:326-344`) offers Confirm / Undo confirmation. Not confirming is
+    silence, and the foster's card says "Pickup requested" forever.
+
+  **Design answer (this run's question — who owns the handoff?).** The same rule RS-14 set, read
+  one step further: **only the party that answers a request can turn it into a fact, and nothing
+  downstream may treat the request as the fact.** So the shelter gets a second answer, and every
+  screen that currently reads `foster.pickup` as "the dog is coming" reads `pickupState()` instead.
+  A shelter-typed note is the shelter speaking as itself, so it is allowed — attributed, never
+  paraphrased by a model. Where there is **no application** (`LOCAL_MODE`, the one path with nobody
+  to answer), keep today's behaviour: gating a local demo on a confirmation that cannot arrive
+  would strand it, and `pickupState()` already caps that case at `requested`.
+
+  1. **Staff: "Ask for another time".** Beside Confirm in the inbox detail, on the same condition
+     (`canConfirmPickup`). Writes `pickupDeclinedAt: serverTimestamp()`, `pickupConfirmedAt: null`,
+     and an optional `pickupNote` (≤ 200 chars, trimmed, `null` if blank); leaves `pickup` as it is
+     so the foster sees *which* slot was declined. Staff branch is `isStaff(...)` — no rules change
+     for this half. New helper in `lib/applications.ts` beside `setPickupConfirmed`. Types:
+     `Application` gains both fields, optional-nullable, same comment style as `pickupConfirmedAt`.
+  2. **`pickupState()` gains `"declined"`** — `pickupDeclinedAt` set **and** `application.pickup`
+     matches the foster's slot (`sameSlot`, the same fail-safe as `confirmed`). `activeStage()`
+     treats it like `requested` (stage 3, not done). `pickupAwaitingShelter()` is false on it, so
+     the inbox pill clears. The inbox row shows "Asked for another time" in its place.
+  3. **Foster: the declined card.** `MatchView`'s pickup card says *"{shelterName(dog)} asked for a
+     different time"*, renders the note attributed (*From {shelter}*, or nothing if `null` — no
+     stand-in), and reopens `PickupScheduler`. Reuse the confirmed/requested card's one class per
+     this doc's standing note — no fourth phrasing of a pickup state.
+  4. **Re-requesting clears the answer.** `requestPickup()` writes `pickupDeclinedAt: null` and
+     `pickupNote: null` alongside the new slot. **Rules:** the foster pickup branch's `hasOnly`
+     gains both keys, and the foster may set each **only to `null`** — the same shape as
+     `pickupConfirmedAt`. A foster must never be able to write a note in the shelter's voice.
+  5. **Care Plan waits for the shelter.** The start button's condition becomes `pickup ===
+     "confirmed"` when an application exists, `Boolean(foster.pickup)` when none does; its `title`
+     says *"Waiting for {shelter} to confirm pickup"*. The countdown callers pass the pickup date
+     only under the same condition (Hub and Saved already can: Saved has `useApplication`, Hub adds
+     it), so an unanswered request shows the total commitment, as before any pickup.
+
+  **Not in scope:** staff proposing a specific counter-slot (the note carries it in words; a second
+  writer of `pickup` is the drift RS-14 designed out); a foster *already* in `care_plan` on an
+  unconfirmed request before this ships (no users — leave them); `get_foster` reporting confirmation
+  (still true from RS-14); PH-31 (its own item). **Verify:** vitest — `pickupState` declined /
+  declined-then-re-requested (`requested`) / declined-slot-mismatch (`requested`); a rendered
+  `MatchView` case each for the start button disabled on `requested`, enabled on `confirmed`,
+  enabled with no application, and the declined card with and without a note
+  (`MatchView.test.tsx`'s `renderToStaticMarkup` pattern); `fosterWindow` callers not started on
+  `requested`. `./node_modules/.bin/tsc -b`, build, lint at `main`'s 8. The rules change cannot be
+  verified unattended — it joins **RS-14b** below as its step (6).
+
 - [x] **RS-14 `[large]` — shipped 2026-09-23. The pickup request reaches the shelter, only the
   shelter confirms it, and the chat stops speaking as the shelter.** The Ledger row is the account;
   the five-part spec and the design answer ("a model may help a person talk *about* an
@@ -170,12 +228,8 @@ don't "fix" the second by loosening `firestore.rules`.
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
-- **The `[large]` slot is back in this doc (2026-09-22)** after fourteen runs (2026-09-08 → 09-21)
-  in `production-hardening.md`, where it sat because M3 was finished and M5 is gated on a person.
-  RS-14 came from a line PH-23 left in *that* doc — "the request/confirm round trip is still
-  unbuilt" — and **the unbuilt half of a truthfulness fix was product work, not hardening.** The two
-  bullets that narrated the routing (and PH-22's fix to the callee behind RS-6's `dogFromForm()`)
-  are verbatim in
+- **The `[large]` slot is in this doc** (RS-14 from 2026-09-22, RS-15 from 2026-09-27); the routing
+  narrative is verbatim in
   [`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md).
 
 
@@ -187,7 +241,10 @@ shelter, per the section below.
   Then, as the foster, **Change request** and expect it back to requested. From the foster's
   console, `updateDoc` the application with a non-null `pickupConfirmedAt` and expect
   `permission-denied`. A denial on the foster's own request is a finding to queue, never licence to
-  widen the rule. **Write down what happened.**
+  widen the rule. **Once RS-15 ships, (6):** as staff press **Ask for another time** with a note;
+  expect the foster's card to show it attributed and Care Plan's start button disabled; from the
+  foster's console, `updateDoc` with a non-null `pickupNote` and expect `permission-denied`.
+  **Write down what happened.**
 
 
 - **RS-13b — a runner with an address sfspca.org will answer.** RS-13 made the weekly check
@@ -198,12 +255,9 @@ shelter, per the section below.
   `uv run python scripts/import_dogs.py --dry-run`, and the weekly issue says so in those words.
   **M4 is not closed by RS-13.**
 
-- **RS-9 and RS-5b — DONE, with Sharang present (2026-08-29, 2026-09-04).** RS-9 granted
-  `roles/datastore.indexAdmin` so the `applications` index reached `READY` (invocation in
-  [`docs/runbook-gcp.md`](../runbook-gcp.md)); RS-5b proved the staff branch of the read rule
-  serves the inbox's list query and both staff writes succeed. **Three `fixture-` applications
-  are still in production** with fixed ids — re-running `scripts/seed_test_applications.py`
-  resets rather than duplicates. Both entries verbatim in the 2026-09-22 archive.
+- **RS-9 and RS-5b — DONE, with Sharang present (2026-08-29, 2026-09-04)**; Ledger rows are the
+  account. **Three `fixture-` applications are still in production**; re-running
+  `scripts/seed_test_applications.py` resets rather than duplicates.
 
 - **RS-6b — PARTIALLY DONE 2026-09-04; the write half is still open.** Same sitting: `/shelter/dogs`
   loaded and listed all **19** SF SPCA dogs for the staff account and the add-a-dog form renders
@@ -253,7 +307,7 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status re-checked **2026-09-22**, not carried over: `git log --all --since=2026-09-19` is this
+*(Status re-checked **2026-09-27**, not carried over: `git log --since=2026-09-22` is this
 loop's own PRs and nothing else, and a grep across `docs/` turns up no commit, no doc edit from
 Sharang and no note anywhere saying this has happened. Recorded so a future run doesn't mistake
 the passage of time for progress. Now that M3 is finished this is the only thing standing between

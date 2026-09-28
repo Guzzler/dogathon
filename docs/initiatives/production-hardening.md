@@ -113,8 +113,8 @@ truthfulness, not because production-hardening has been re-ranked.
 
 - **PH-27 `[large]` — shipped 2026-09-21; the Ledger row is the full account.** Spec verbatim in
   [`archive/production-hardening-ph27-2026-09-21.md`](archive/production-hardening-ph27-2026-09-21.md).
-  The census of dangerous tools is complete. PH-28 `[large]` shipped 2026-09-26 (below), so
-  **this queue has no open item** as of that run.
+  The census of dangerous tools is complete. PH-28 `[large]` shipped 2026-09-26 (below); the one
+  open item is **PH-31**, re-verified 2026-09-27.
 
 ### PH-28 `[large]` + PH-29 + PH-30 — shipped 2026-09-26; the Ledger row is the full account
 
@@ -184,15 +184,15 @@ any id at `/dog/:id`, so a dog the shelter **retired** (RS-6), marked **adopted*
 **ready_for_adoption** (RS-12) still offers *Apply to foster* to anyone who liked it — writing
 `matchedDogId` and an `applications` row into the inbox of a shelter that has already said no.
 Five of `DogStatus`'s six values mean "not taking applications"; the apply sites honour none.
-PH-28's in-flight build (`feat/ph28-fallback-never-a-name`, uncommitted in the shared checkout as
-this was written) adds `isListable()` to `lib/dog.ts` and a guard at both sites — but the guard is
-`dog.shelter != null`, the *shelter* half only. **This item is the status half; don't widen PH-28's
-PR for it.**
+**Re-verified against `main` at `e646a73` (2026-09-27), after PH-28 merged as PR #104:** still
+open, exactly as described. `isListable()` (`lib/dog.ts:128`) checks both halves, but only
+Discovery calls it; both apply sites shipped `canApply = dog.shelter != null`
+(`DogDetailView.tsx:54`, `SavedView.tsx:115`) — the shelter half only. **Not discharged.**
 
 1. Both sites' `canApply` becomes `isListable(dog)`; the disabled label stays *Not taking
    applications*. One predicate, three callers — Discovery, `DogDetailView`, `SavedCard`.
 2. **Write the application before the foster document.** Both `apply()`s `patchFoster({ matchedDogId,
-   phase: "match" })` first (`DogDetailView.tsx:57`, `SavedView.tsx:118`), so a failed
+   phase: "match" })` first (`DogDetailView.tsx:58`, `SavedView.tsx:122`), so a failed
    `createApplication()` strands the foster on Match for a dog no shelter was told about.
    `requestPickup()` (RS-14) already has the right order; copy it. `createApplication()`'s silent
    `if (!opts.shelterId) return;` (`applications.ts:22`) becomes a throw — no guarded caller can reach it.
@@ -319,7 +319,7 @@ reaching the end of what it can give on this doc.)*
   `test_approval_store.py`'s opaque name is now `record_swipe`. 71 pytest (10 new cases), 168
   vitest, build green, lint 8 warnings as on `main`. **Not verified live** — the agent needs a
   signed-in token; reasoned from the tests and the route, not observed.
-- 2026-09-26 — PH-28 `[large]` + PH-29 + PH-30 — PR #__ — **an org we can't name is absent, not
+- 2026-09-26 — PH-28 `[large]` + PH-29 + PH-30 — PR #104 — **an org we can't name is absent, not
   hashed onto a real rescue, and a dog with no org isn't listed.** `shelterFor(id)` returns
   `Shelter | null`; `RichDog.shelter` is nullable (`RichDog` now extends `Omit<Dog, "shelter">`, since
   `Dog.shelter` is `undefined`-optional); `isListable()` gates Discovery; `shelterName(dog, form,
