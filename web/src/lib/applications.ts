@@ -9,9 +9,10 @@ import type { ApplicationStatus, ChecklistItem, Pickup } from "../types";
  * docs/shelter-integration.md). A guest can't reach this: applying already requires an
  * account (`SignInToApply`), so `fosterId` is always a real Firebase uid.
  *
- * `shelterId` comes from the dog's own `shelter_id`; a dog missing one (decorative roster
- * entries pre-dating real shelter data) skips the application rather than writing a doc
- * that could never resolve to a shelter.
+ * `shelterId` comes from the dog's own `shelter_id`. A dog missing one throws rather than
+ * returning quietly (PH-31): both callers gate on `isListable()` and write the foster record
+ * only after this resolves, so a silent skip here would have committed the foster to a dog
+ * whose shelter was never told.
  */
 export async function createApplication(opts: {
   fosterId: string;
@@ -19,7 +20,7 @@ export async function createApplication(opts: {
   dogId: string;
   shelterId: string | undefined;
 }): Promise<void> {
-  if (!opts.shelterId) return;
+  if (!opts.shelterId) throw new Error(`Dog ${opts.dogId} has no shelter_id to apply to`);
   await addDoc(collection(firestore, "applications"), {
     fosterId: opts.fosterId,
     fosterName: opts.fosterName,

@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
 import { useApplication } from "../../hooks/useApplication";
-import { ENERGY_WORD, normalizeDog, dogPhotoOrNull, sizeLabel } from "../../lib/dog";
+import { ENERGY_WORD, isListable, normalizeDog, dogPhotoOrNull, sizeLabel } from "../../lib/dog";
 import { distanceMi, matchReasons, scoreDog, useMyLocation } from "../../lib/matching";
 import { activeApplication, applicationStage } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
@@ -24,6 +24,7 @@ export function DogDetailView() {
   const { application: activeApp } = useApplication(foster?.matchedDogId);
   const [contact, setContact] = useState(false);
   const [needsAccount, setNeedsAccount] = useState(false);
+  const [applyFailed, setApplyFailed] = useState(false);
 
   if (loading) return <p className="pw-loading">Loading…</p>;
   const raw = dogs.find(d => d.id === id);
@@ -49,23 +50,35 @@ export function DogDetailView() {
   // over the account prompt — being told to sign in first would only bury it.
   const startApply = () =>
     blocked || !needsAccountToApply() ? setContact(true) : setNeedsAccount(true);
-  // PH-28: with no org we can name, an application would be addressed to a shelter id nobody
-  // staffs. Discovery doesn't list such a dog; this covers a saved one or a deep link.
-  const canApply = dog.shelter != null;
+  // One test for listed and appliable (PH-28, PH-31): a dog Discovery wouldn't show -- no org
+  // we can name, or a status that isn't `available` (retired, adopted, back from foster, ...) --
+  // is one no shelter is taking applications for. Discovery never lists it; this covers a saved
+  // one or a deep link.
+  const canApply = isListable(dog);
 
+  // The application goes first -- the copy the shelter reads -- and the foster's own record only
+  // once it has landed, the same order as RS-14's `writePickup`. The other way round, a failed
+  // write stranded the foster on Match for a dog no shelter was told about. No signed-in uid
+  // (LOCAL_MODE) has no application to write, and commits the foster record alone as before.
   const apply = async () => {
     if (!canApply) return;
+    setApplyFailed(false);
+    const fosterId = fosterDocId();
+    if (fosterId) {
+      try {
+        await createApplication({
+          fosterId, fosterName: foster?.name ?? "", dogId: dog.id, shelterId: raw.shelter_id,
+        });
+      } catch {
+        setApplyFailed(true);
+        return;
+      }
+    }
     await patchFoster({
       likedDogIds: [...new Set([...(foster?.likedDogIds ?? []), dog.id])],
       matchedDogId: dog.id,
       phase: "match",
     });
-    const fosterId = fosterDocId();
-    if (fosterId) {
-      await createApplication({
-        fosterId, fosterName: foster?.name ?? "", dogId: dog.id, shelterId: raw.shelter_id,
-      });
-    }
     setContact(false);
     navigate("/match");
   };
@@ -246,6 +259,11 @@ export function DogDetailView() {
                     have one application open at a time.
                   </p>
                   <button className="btn" style={{ marginTop: 20 }} onClick={apply}>Yes, apply to foster</button>
+                  {applyFailed && (
+                    <p role="alert" style={{ marginTop: 8, fontSize: 12, color: "var(--coral-dk)", fontWeight: 700 }}>
+                      That didn't reach {shelterName(dog)}, so you haven't applied yet. Check your connection and try again.
+                    </p>
+                  )}
                   <button className="btn ghost" style={{ marginTop: 4 }} onClick={() => setContact(false)}>Not yet</button>
                 </>
               )}

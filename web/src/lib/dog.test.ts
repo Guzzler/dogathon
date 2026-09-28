@@ -85,4 +85,13 @@ describe("a dog at an org we can't name is unlisted, not re-homed (PH-28)", () =
     expect(isListable(bare({ shelter_id: "petsun" }))).toBe(false);
     expect(isListable(bare({ shelter_id: "sfspca-mission", status: "retired" }))).toBe(false);
   });
+
+  // PH-31: the apply sites use this same test, so every non-`available` status is a dog nobody
+  // can apply to -- including the two a shelter reaches after a foster has had the dog.
+  it("treats every status but available as not taking applications", () => {
+    for (const status of ["foster", "medical_hold", "adopted", "ready_for_adoption", "retired"] as const) {
+      expect(isListable(bare({ shelter_id: "sfspca-mission", status }))).toBe(false);
+    }
+    expect(isListable(bare({ status: "available" }))).toBe(false);
+  });
 });

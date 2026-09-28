@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useApplication } from "../../hooks/useApplication";
 import { useDogs } from "../../hooks/useDogs";
-import { normalizeDog, recordedStay, thumbBackground, type RichDog } from "../../lib/dog";
+import { isListable, normalizeDog, recordedStay, thumbBackground, type RichDog } from "../../lib/dog";
 import { scoreDog } from "../../lib/matching";
 import { shelterName } from "../../lib/shelters";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
@@ -111,21 +111,32 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
   // Applying is what commits the foster to a dog — it sets matchedDogId and advances the
   // phase, which is exactly what the Match view (Sharang's) reads. It's also where a guest
   // has to become an account: everything past here needs a shelter to be able to reach them.
-  // PH-28: no org we can name means no shelter that would ever read the application.
-  const canApply = d.shelter != null;
+  // PH-28, PH-31: one test for listed and appliable. A saved dog the shelter has since retired,
+  // marked adopted or got back from foster is no longer taking applications, and neither is one
+  // at an org we can't name -- Discovery wouldn't show it, so it can't be applied to from here.
+  const canApply = isListable(d);
+  const [applyFailed, setApplyFailed] = useState(false);
+  // Application first, foster record second (RS-14's order): a failed application must not
+  // leave the foster on Match for a dog no shelter was told about.
   const apply = async () => {
     if (!canApply) return;
     if (needsAccountToApply()) {
       setNeedsAccount(true);
       return;
     }
-    await patchFoster({ matchedDogId: d.id, phase: "match" });
+    setApplyFailed(false);
     const fosterId = fosterDocId();
     if (fosterId) {
-      await createApplication({
-        fosterId, fosterName: foster?.name ?? "", dogId: d.id, shelterId: d.shelter_id,
-      });
+      try {
+        await createApplication({
+          fosterId, fosterName: foster?.name ?? "", dogId: d.id, shelterId: d.shelter_id,
+        });
+      } catch {
+        setApplyFailed(true);
+        return;
+      }
     }
+    await patchFoster({ matchedDogId: d.id, phase: "match" });
     navigate("/match");
   };
 
@@ -153,6 +164,11 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
           {canApply ? "Apply to foster" : "Not taking applications"}
         </button>
       </div>
+      {applyFailed && (
+        <p role="alert" style={{ marginTop: 8, fontSize: 12, color: "var(--coral-dk)", fontWeight: 700 }}>
+          That didn't reach {shelterName(d)}, so you haven't applied yet. Check your connection and try again.
+        </p>
+      )}
 
       <AnimatePresence>
         {needsAccount && <SignInToApply dogName={d.name} onClose={() => setNeedsAccount(false)} />}
