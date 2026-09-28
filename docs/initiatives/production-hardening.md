@@ -175,7 +175,13 @@ Shipped as PH-22 and restated by PH-28's design answer above; verbatim in
 The rule to carry: **a default is a fallback when it feeds geometry and a claim when it feeds a
 labelled row or a sentence** — and `RichDog` carries provenance (`derived`) rather than going nullable.
 
-### PH-31 — listed and appliable are one test, not two (queued 2026-09-26, after PH-28)
+### PH-31 — listed and appliable are one test, not two — **shipped 2026-09-27; the Ledger row is the account**
+
+- [x] PH-31. Spec kept below until plan archives it. **Reality differed in one place:** PH-28
+  shipped `isListable()` with the status half already in (`status === "available" && shelter !=
+  null`) but did not wire it to the apply sites, which still tested `shelter != null` — so this was
+  the wiring plus the write order, not a new predicate. **This queue has no open item** as of this run.
+
 
 PH-28's rule says *a dog nobody can apply to is not listed*. Read from the other side it says **a
 dog that is not listed cannot be applied to** — and on `main` at `6940633` neither apply site checks
@@ -342,3 +348,16 @@ reaching the end of what it can give on this doc.)*
   still deleted, `plan_only` writes nothing), `tsc -b`, build, lint at `main`'s 8. **Not verified:**
   any of it in a browser — the unattended run can't start a dev server. `CLAUDE.md`'s "`shelterFor()`
   remains only as the fallback for seeded records" is now stale; not this loop's file.
+- 2026-09-27 — PH-31 — PR #__ — **a dog that isn't listed can't be applied to, and a failed
+  application no longer strands the foster on Match.** Both apply sites' `canApply` is now
+  `isListable()` — the same test Discovery uses — so a saved or deep-linked dog that is `retired`,
+  `adopted`, `ready_for_adoption`, `foster` or `medical_hold` shows *Not taking applications*
+  (PH-28 had already put the status half into `isListable()`; the sites weren't calling it). Both
+  `apply()`s write `createApplication()` **before** `patchFoster()`, RS-14's order; a throw shows
+  "That didn't reach {shelter}, so you haven't applied yet" (MatchView's `pickupFailed` wording and
+  style) and writes nothing else. `createApplication()`'s silent return on a missing `shelterId`
+  is a throw. `LOCAL_MODE` (no uid) still commits the foster record alone. Verified: 198 vitest (8
+  new — every non-`available` status and a null-shelter dog in `isListable`, and a new
+  `SavedView.test.tsx` rendering a liked dog in each status plus `petsun`), `tsc -b`, build, lint
+  at `main`'s 8. **Not verified in a browser:** the committed roster is all `available`, so no
+  local walk reaches the disabled state, and the failure branch needs a Firestore write to fail.
