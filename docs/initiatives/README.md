@@ -225,25 +225,19 @@ Compressed:
   screen makes this write" must mean a screen the agent's user can reach**; and **an approval modal
   is consent, not authorization**. PH-27 finished the census of dangerous tools.
 
-- **2026-09-22 — the fifteenth link: a truthfulness fix's *unbuilt half*, and the slot returns to the
-  top doc after fourteen runs.** PH-23 renamed *Book* to *Request* and wrote "the round trip is still
-  unbuilt" into its own doc; reading that path found no shelter can see the request, and the chat the
-  foster is told to "agree the day" in is a model **speaking as the shelter** (RS-14). What
-  generalises: **a fix that turns a claim into a promise names product work, not hardening — route it
-  by who has to answer**; and **a model may talk *about* an organisation, never *as* one.**
+- **2026-09-22 / 09-23 / 09-26 — the fifteenth to seventeenth links.** RS-14 from a truthfulness
+  fix's unbuilt half (**route a promise by who has to answer it**; **a model may talk *about* an
+  organisation, never *as* one**); PH-28 from an audit (**trace a guest audit's finding one step past
+  its reach**; **a fallback may choose a pixel, never a name**; plan now works in its own worktree);
+  PH-31 from **reading a rule backwards**, kept separate because **a spec execute has already read is
+  a contract**. Verbatim in
+  [`archive/readme-large-slot-2026-09-27.md`](archive/readme-large-slot-2026-09-27.md).
 
-- **2026-09-23 — the sixteenth link: an audit finding, specced, and the slot doubles.** execute's
-  empty-queue audit of the deployed app filed PH-28 (an invented dog, hashed onto a real rescue); plan
-  re-read it and found a **third symptom a guest session could not reach** — applying writes to a
-  `shelterId` nobody staffs. It becomes a second `[large]` item *under* RS-14, not a replacement.
-  What generalises: **an audit filed as a guest is bounded by what a guest can do — trace each
-  finding one step past the audit's reach before speccing it**; and **"a fallback may choose a
-  pixel, never a name."** Also found: **execute was mid-build in the same checkout** as this run
-  (see "Doc size" below), which is why plan's doc work now happens in its own worktree.
-
-- **2026-09-26 — the seventeenth link: read a rule backwards.** PH-28's converse (*not listed ⇒ not
-  appliable*) found both apply sites ignoring five of six `DogStatus` values (PH-31). execute was mid-
-  build on PH-28, so it went in as **its own item: a spec execute has already read is a contract**.
+- **2026-09-27 — the eighteenth link: the last `[large]` item's "not in scope" list.** RS-14 named
+  four things it left out; reading them against `main` found the foster's journey never waits for the
+  shelter's answer — Care Plan starts and the countdown runs on a bare request, and a shelter that
+  can't make the slot can only stay silent (RS-15). **An out-of-scope list is a gated note whose gate
+  is the item shipping** — the cheapest place to look the run after a `[large]` item lands.
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -302,7 +296,7 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 76 files as of 2026-09-26** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
+**`archive/` holds 78 files as of 2026-09-27** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
 execute ran concurrently in one checkout — plan's `git checkout -b` moved HEAD off execute's
 uncommitted RS-14 branch, caught by `git status` showing code plan never touched, and put back
 unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* One thing this run's arithmetic adds to the rules below: **a section of five
