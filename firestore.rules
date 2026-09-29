@@ -54,10 +54,15 @@ service cloud.firestore {
       allow read: if request.auth != null && (
         resource.data.fosterId == request.auth.uid || isStaff(resource.data.shelterId)
       );
-      // A foster opens an application for themselves; only staff move it forward.
+      // A foster opens an application for themselves; only staff move it forward. RS-15: and
+      // it opens with no answer from the shelter already on it -- the three answer fields are
+      // staff's, and a create is the one write the update branches below never see.
       allow create: if request.auth != null
                     && request.resource.data.fosterId == request.auth.uid
-                    && request.resource.data.status == "submitted";
+                    && request.resource.data.status == "submitted"
+                    && request.resource.data.get("pickupConfirmedAt", null) == null
+                    && request.resource.data.get("pickupDeclinedAt", null) == null
+                    && request.resource.data.get("pickupNote", null) == null;
       // The foster branch is deliberately narrow: withdrawing your own application, and
       // nothing else. Requiring only the resulting status let a single write set it *and*
       // rewrite `checklist` (undoing a shelter's ticks), `createdAt`, or `shelterId` -- the
@@ -87,13 +92,23 @@ service cloud.firestore {
                     // every new slot does -- but may only leave it set if the slot is untouched.
                     // A foster can un-confirm by changing the request and can never confirm.
                     // `.get(..., null)` because applications written before RS-14 lack the field.
+                    // RS-15 adds the shelter's other answer, `pickupDeclinedAt` and its
+                    // `pickupNote`, on exactly the same terms: a foster may clear each (every new
+                    // request does), may leave it set only while the slot is untouched, and can
+                    // never set it -- a foster must never write a note in the shelter's voice.
                     || (resource.data.fosterId == request.auth.uid
                         && resource.data.status in ["submitted", "in_review", "approved"]
                         && request.resource.data.diff(resource.data).affectedKeys()
-                             .hasOnly(["pickup", "pickupConfirmedAt", "updatedAt"])
+                             .hasOnly(["pickup", "pickupConfirmedAt", "pickupDeclinedAt", "pickupNote", "updatedAt"])
                         && (request.resource.data.get("pickupConfirmedAt", null) == null
                             || !request.resource.data.diff(resource.data).affectedKeys()
-                                  .hasAny(["pickup", "pickupConfirmedAt"])));
+                                  .hasAny(["pickup", "pickupConfirmedAt"]))
+                        && (request.resource.data.get("pickupDeclinedAt", null) == null
+                            || !request.resource.data.diff(resource.data).affectedKeys()
+                                  .hasAny(["pickup", "pickupDeclinedAt"]))
+                        && (request.resource.data.get("pickupNote", null) == null
+                            || !request.resource.data.diff(resource.data).affectedKeys()
+                                  .hasAny(["pickup", "pickupNote"])));
     }
 
     // staffUids is what lets the rules above express "is this person staff here" without a

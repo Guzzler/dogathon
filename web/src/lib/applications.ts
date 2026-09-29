@@ -30,6 +30,8 @@ export async function createApplication(opts: {
     checklist: DEFAULT_APPROVAL_CHECKLIST,
     pickup: null,
     pickupConfirmedAt: null,
+    pickupDeclinedAt: null,
+    pickupNote: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -40,14 +42,18 @@ export async function createApplication(opts: {
  * lived only on `fosters/{uid}.pickup`, which no shelter can read, so a "request" had no
  * addressee.
  *
- * Always clears `pickupConfirmedAt`: a new slot -- or withdrawing the request with `null` -- is
- * not the slot the shelter agreed to. That is also the only value `firestore.rules`' foster
- * pickup branch lets a foster write there; confirming is staff-only (`confirmPickup`).
+ * Always clears the shelter's answer -- `pickupConfirmedAt`, and since RS-15 `pickupDeclinedAt`
+ * and `pickupNote`: a new slot, or withdrawing the request with `null`, is not the slot the
+ * shelter answered. `null` is also the only value `firestore.rules`' foster pickup branch lets a
+ * foster write to any of the three; answering is staff-only (`setPickupConfirmed`,
+ * `askForAnotherTime`). A foster must never be able to write a note in the shelter's voice.
  */
 export async function requestPickup(applicationId: string, pickup: Pickup | null): Promise<void> {
   await updateDoc(doc(firestore, "applications", applicationId), {
     pickup,
     pickupConfirmedAt: null,
+    pickupDeclinedAt: null,
+    pickupNote: null,
     updatedAt: serverTimestamp(),
   });
 }
@@ -55,10 +61,34 @@ export async function requestPickup(applicationId: string, pickup: Pickup | null
 /**
  * Staff agreeing to (or, with `confirmed: false`, taking back) the foster's requested slot.
  * The staff branch of the update rule already allows it; a foster calling this is refused.
+ *
+ * Either way it clears an earlier "ask for another time" (RS-15): confirming after asking is the
+ * shelter changing its mind, and the two answers must never both stand on one slot.
  */
 export async function setPickupConfirmed(applicationId: string, confirmed: boolean): Promise<void> {
   await updateDoc(doc(firestore, "applications", applicationId), {
     pickupConfirmedAt: confirmed ? serverTimestamp() : null,
+    pickupDeclinedAt: null,
+    pickupNote: null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** The longest note staff can send with "Ask for another time" -- one or two sentences. */
+export const PICKUP_NOTE_MAX = 200;
+
+/**
+ * Staff's second answer to a pickup request (RS-15): they can't make that slot. Leaves `pickup`
+ * as it is so the foster sees *which* slot was turned down, and never proposes a slot of its own
+ * -- a second writer of `pickup` is the drift RS-14 designed out; a counter-offer goes in the
+ * note, in words. A blank note is stored as `null`, so the foster sees no stand-in text.
+ */
+export async function askForAnotherTime(applicationId: string, note: string): Promise<void> {
+  const trimmed = note.trim().slice(0, PICKUP_NOTE_MAX);
+  await updateDoc(doc(firestore, "applications", applicationId), {
+    pickupDeclinedAt: serverTimestamp(),
+    pickupConfirmedAt: null,
+    pickupNote: trimmed || null,
     updatedAt: serverTimestamp(),
   });
 }

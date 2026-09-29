@@ -247,7 +247,7 @@ export function approvalBadge(
  */
 export const APPLICATION_STAGES = ["Applied", "Under review", "Approved", "Pickup requested", "Pickup confirmed"];
 
-export type PickupState = "none" | "requested" | "confirmed";
+export type PickupState = "none" | "requested" | "declined" | "confirmed";
 
 const sameSlot = (a: Pickup, b: Pickup) =>
   a.date === b.date && a.time === b.time && a.location === b.location;
@@ -262,28 +262,57 @@ const sameSlot = (a: Pickup, b: Pickup) =>
  * date, time and location. A mismatch reads as `requested` -- the foster asks again, which is
  * the right way to be wrong; showing up on a day nobody agreed to is not.
  *
+ * `declined` (RS-15) is the shelter's other answer -- "ask for another time" -- held to the same
+ * fail-safe: it applies only to the slot the foster still holds. Re-requesting clears the stamp
+ * on the application, so a new slot reads as `requested` again with nobody having to notice.
+ *
  * No application (guest, `LOCAL_MODE`, a record from before the collection) can be at most
- * `requested`: there is nobody on the other end to confirm anything.
+ * `requested`: there is nobody on the other end to answer anything.
  */
 export function pickupState(
   fosterPickup: Pickup | null | undefined,
-  application: Pick<Application, "pickup" | "pickupConfirmedAt"> | null | undefined,
+  application: Pick<Application, "pickup" | "pickupConfirmedAt" | "pickupDeclinedAt"> | null | undefined,
 ): PickupState {
   if (!fosterPickup) return "none";
-  if (application?.pickupConfirmedAt && application.pickup && sameSlot(application.pickup, fosterPickup)) {
-    return "confirmed";
-  }
+  const matches = Boolean(application?.pickup && sameSlot(application.pickup, fosterPickup));
+  if (matches && application?.pickupConfirmedAt) return "confirmed";
+  if (matches && application?.pickupDeclinedAt) return "declined";
   return "requested";
+}
+
+/**
+ * The pickup the foster's journey may treat as a fact (RS-15): the date the dog actually comes
+ * home, or `null` while nobody has agreed to one. **Only the party that answers a request can
+ * turn it into a fact**, so with an application this is the foster's slot once the shelter has
+ * confirmed it, and nothing before. It gates *I've got {dog} → start Care Plan* and anchors every
+ * `fosterWindow()` countdown, so an unanswered request shows the total commitment, as before any
+ * pickup at all.
+ *
+ * With **no application** -- `LOCAL_MODE`, the one path with nobody to answer -- the foster's own
+ * request stands, as it did before RS-15: gating a local demo on a confirmation that cannot
+ * arrive would strand it. `loading` is the third case and must not be mistaken for the second:
+ * an application still on its way is not an absent one, so it agrees to nothing yet.
+ */
+export function agreedPickup(
+  fosterPickup: Pickup | null | undefined,
+  application: Pick<Application, "pickup" | "pickupConfirmedAt" | "pickupDeclinedAt"> | null | undefined,
+  loading = false,
+): Pickup | null {
+  if (!fosterPickup || loading) return null;
+  if (!application) return fosterPickup;
+  return pickupState(fosterPickup, application) === "confirmed" ? fosterPickup : null;
 }
 
 /**
  * Which stage is current. A request can only *reach* "Pickup requested" and never mark it done
  * — `data-done` is `n < activeStage(...)` — because it advances on the foster's own tap. A
  * confirmation is the shelter's answer, so it returns past the last index: every stage done.
+ * A slot the shelter asked to move (`declined`, RS-15) stays at "Pickup requested", not done:
+ * the foster has a request to make again, not a step behind them.
  */
 export function activeStage(approved: boolean, pickup: PickupState): number {
   if (pickup === "confirmed") return APPLICATION_STAGES.length;
-  return pickup === "requested" ? 3 : approved ? 2 : 1;
+  return pickup === "requested" || pickup === "declined" ? 3 : approved ? 2 : 1;
 }
 
 /* ---------- the shelter's side of the pickup (RS-14) ---------- */
@@ -293,14 +322,28 @@ const LIVE: ApplicationStatus[] = ["submitted", "in_review", "approved"];
 
 /**
  * The one pickup state staff must act on: a slot requested on a live application that nobody
- * at the shelter has confirmed yet. Drives the inbox row's "Pickup requested" pill.
+ * at the shelter has answered yet. Drives the inbox row's "Pickup requested" pill. Asking for
+ * another time is an answer too (RS-15), so it clears the pill until the foster asks again.
  */
-export function pickupAwaitingShelter(app: Pick<Application, "status" | "pickup" | "pickupConfirmedAt">): boolean {
-  return LIVE.includes(app.status) && Boolean(app.pickup) && !app.pickupConfirmedAt;
+export function pickupAwaitingShelter(
+  app: Pick<Application, "status" | "pickup" | "pickupConfirmedAt" | "pickupDeclinedAt">,
+): boolean {
+  return LIVE.includes(app.status) && Boolean(app.pickup) && !app.pickupConfirmedAt && !app.pickupDeclinedAt;
 }
 
 /**
- * Whether the detail pane offers **Confirm pickup** (or **Undo**). Hidden on a withdrawn or
+ * The shelter has asked for another time and the foster hasn't answered yet (RS-15): the inbox
+ * row shows "Asked for another time" where the "Pickup requested" pill was.
+ */
+export function pickupAskedToMove(
+  app: Pick<Application, "status" | "pickup" | "pickupConfirmedAt" | "pickupDeclinedAt">,
+): boolean {
+  return LIVE.includes(app.status) && Boolean(app.pickup) && !app.pickupConfirmedAt && Boolean(app.pickupDeclinedAt);
+}
+
+/**
+ * Whether the detail pane offers **Confirm pickup** (or **Undo**), and since RS-15 **Ask for
+ * another time** beside it. Hidden on a withdrawn or
  * declined application -- there is no foster coming -- and when nothing has been requested.
  */
 export function canConfirmPickup(app: Pick<Application, "status" | "pickup">): boolean {

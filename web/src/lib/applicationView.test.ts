@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   APPLICATION_STAGES,
   activeStage,
+  agreedPickup,
   applicationAge,
   canConfirmPickup,
+  pickupAskedToMove,
   pickupAwaitingShelter,
   pickupState,
   approvalBadge,
@@ -276,6 +278,43 @@ describe("pickupState", () => {
   });
 });
 
+describe("pickupState, once the shelter asks for another time (RS-15)", () => {
+  it("is declined for the slot the shelter turned down", () => {
+    expect(pickupState(SLOT, { pickup: { ...SLOT }, pickupDeclinedAt: STAMP })).toBe("declined");
+  });
+
+  it("goes back to requested once the foster asks again -- the new request clears the stamp", () => {
+    const next = { ...SLOT, date: "2026-10-09" };
+    expect(pickupState(next, { pickup: next, pickupConfirmedAt: null, pickupDeclinedAt: null })).toBe("requested");
+  });
+
+  it("fails safe to requested when the declined slot isn't the one the foster holds", () => {
+    const other = { ...SLOT, time: "4:00 PM" };
+    expect(pickupState(SLOT, { pickup: other, pickupDeclinedAt: STAMP })).toBe("requested");
+  });
+
+  it("reaches Pickup requested on the timeline without ticking it", () => {
+    expect(APPLICATION_STAGES[activeStage(true, "declined")]).toBe("Pickup requested");
+  });
+});
+
+describe("agreedPickup", () => {
+  it("is the foster's slot only once the shelter confirmed it", () => {
+    expect(agreedPickup(SLOT, { pickup: SLOT, pickupConfirmedAt: STAMP })).toEqual(SLOT);
+    expect(agreedPickup(SLOT, { pickup: SLOT, pickupConfirmedAt: null })).toBeNull();
+    expect(agreedPickup(SLOT, { pickup: SLOT, pickupDeclinedAt: STAMP })).toBeNull();
+  });
+
+  it("lets the request stand when there is no application -- nobody could answer it", () => {
+    expect(agreedPickup(SLOT, null)).toEqual(SLOT);
+  });
+
+  it("agrees to nothing while the application is still loading, or with no request", () => {
+    expect(agreedPickup(SLOT, null, true)).toBeNull();
+    expect(agreedPickup(null, { pickup: SLOT, pickupConfirmedAt: STAMP })).toBeNull();
+  });
+});
+
 describe("activeStage", () => {
   it("reaches Pickup requested without ticking it, and ticks every stage once confirmed", () => {
     expect(activeStage(false, "none")).toBe(1);
@@ -306,6 +345,14 @@ describe("the shelter's side of a pickup", () => {
       expect(pickupAwaitingShelter(app(status, SLOT))).toBe(false);
       expect(canConfirmPickup(app(status, SLOT))).toBe(false);
     }
+  });
+
+  it("swaps the Pickup requested pill for Asked for another time once staff answer", () => {
+    const asked = { ...app("approved", SLOT), pickupDeclinedAt: STAMP } as Application;
+    expect(pickupAwaitingShelter(asked)).toBe(false);
+    expect(pickupAskedToMove(asked)).toBe(true);
+    expect(pickupAskedToMove(app("approved", SLOT))).toBe(false);
+    expect(pickupAskedToMove({ ...asked, status: "withdrawn" } as Application)).toBe(false);
   });
 
   it("offers confirm only when there is a slot to confirm", () => {

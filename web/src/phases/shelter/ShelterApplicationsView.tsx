@@ -2,7 +2,13 @@ import { useMemo, useState } from "react";
 import { useMyShelters } from "../../hooks/useStaffShelters";
 import { useShelterApplications } from "../../hooks/useShelterApplications";
 import { useDogs } from "../../hooks/useDogs";
-import { setApplicationChecklist, setApplicationStatus, setPickupConfirmed } from "../../lib/applications";
+import {
+  PICKUP_NOTE_MAX,
+  askForAnotherTime,
+  setApplicationChecklist,
+  setApplicationStatus,
+  setPickupConfirmed,
+} from "../../lib/applications";
 import {
   STATUS_LABELS,
   applicationAge,
@@ -10,6 +16,7 @@ import {
   createdAtMillis,
   inboxError,
   isActionable,
+  pickupAskedToMove,
   pickupAwaitingShelter,
   splitByOwner,
   staffTransitions,
@@ -169,6 +176,10 @@ function ApplicationList({
               {pickupAwaitingShelter(app) && (
                 <span className="shelter__pill shelter__pill--pickup">Pickup requested</span>
               )}
+              {/* RS-15: answered, but not agreed -- the foster's move, so it wears no alarm. */}
+              {pickupAskedToMove(app) && (
+                <span className="shelter__pill shelter__pill--pickup-moved">Asked for another time</span>
+              )}
               <span className="muted">{applicationAge(createdAtMillis(app), now)}</span>
             </span>
           </button>
@@ -296,12 +307,20 @@ function ApplicationDetail({ application }: { application: Application }) {
  * Confirming stamps `pickupConfirmedAt`; the foster's Match screen reads it back and says
  * "confirmed" only while the slot it holds still matches this one. If the foster changes the
  * request, their write clears the stamp and the row asks again -- nobody here has to notice.
+ *
+ * RS-15 gave the shelter its second answer, **Ask for another time**: before it, a shelter that
+ * couldn't make the slot could only stay silent. It stamps `pickupDeclinedAt` with an optional
+ * note the foster sees attributed to this shelter, and leaves the slot as it is so they can see
+ * which one. There is no counter-slot picker on purpose -- a second writer of `pickup` is the
+ * drift RS-14 designed out -- so a better time goes in the note, in words.
  */
 function PickupSection({ application, busy, run }: {
   application: Application;
   busy: boolean;
   run: (work: () => Promise<void>) => Promise<void>;
 }) {
+  const [asking, setAsking] = useState(false);
+  const [note, setNote] = useState("");
   const pickup = application.pickup;
   if (!pickup) return <p className="muted">No pickup requested yet.</p>;
 
@@ -311,6 +330,14 @@ function PickupSection({ application, busy, run }: {
     day: "numeric",
   });
   const confirmed = Boolean(application.pickupConfirmedAt);
+  const declined = !confirmed && Boolean(application.pickupDeclinedAt);
+
+  const sendAsk = () =>
+    run(async () => {
+      await askForAnotherTime(application.id, note);
+      setAsking(false);
+      setNote("");
+    });
 
   return (
     <div className="shelter__pickup">
@@ -321,30 +348,66 @@ function PickupSection({ application, busy, run }: {
       <p className="muted">
         {confirmed
           ? "You confirmed this time. The foster sees it as confirmed."
-          : "The foster asked for this time. Nothing is booked until you confirm it."}
+          : declined
+            ? "You asked the foster for another time. Their new request shows here when they pick one."
+            : "The foster asked for this time. Nothing is booked until you confirm it."}
       </p>
+      {declined && application.pickupNote && (
+        <p className="shelter__pickup-note">&ldquo;{application.pickupNote}&rdquo;</p>
+      )}
       {canConfirmPickup(application) && (
-        <div className="shelter__actions">
-          {confirmed ? (
-            <button
-              type="button"
-              className="btn outline"
-              disabled={busy}
-              onClick={() => run(() => setPickupConfirmed(application.id, false))}
-            >
-              Undo confirmation
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => run(() => setPickupConfirmed(application.id, true))}
-            >
-              Confirm pickup
-            </button>
-          )}
-        </div>
+        asking ? (
+          <div className="shelter__form">
+            <label className="shelter__field">
+              <span className="shelter__label">Note to the foster (optional)</span>
+              <textarea
+                rows={3}
+                maxLength={PICKUP_NOTE_MAX}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="e.g. We're short-staffed that Saturday. Any weekday afternoon works."
+              />
+              <span className="muted">
+                They see this word for word, signed as your shelter. {PICKUP_NOTE_MAX - note.length} characters left.
+              </span>
+            </label>
+            <div className="shelter__actions">
+              <button type="button" className="btn" disabled={busy} onClick={sendAsk}>
+                Send
+              </button>
+              <button type="button" className="btn outline" disabled={busy} onClick={() => setAsking(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="shelter__actions">
+            {confirmed ? (
+              <button
+                type="button"
+                className="btn outline"
+                disabled={busy}
+                onClick={() => run(() => setPickupConfirmed(application.id, false))}
+              >
+                Undo confirmation
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => run(() => setPickupConfirmed(application.id, true))}
+              >
+                Confirm pickup
+              </button>
+            )}
+            {!declined && (
+              <button type="button" className="btn outline" disabled={busy} onClick={() => setAsking(true)}>
+                Ask for another time
+              </button>
+            )}
+          </div>
+        )
       )}
     </div>
   );

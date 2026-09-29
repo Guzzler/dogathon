@@ -9,7 +9,7 @@ import { scoreDog } from "../../lib/matching";
 import { shelterName } from "../../lib/shelters";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
-import { APPLICATION_STAGES, activeStage, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState } from "../../lib/applicationView";
+import { APPLICATION_STAGES, activeStage, agreedPickup, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState } from "../../lib/applicationView";
 import { createApplication, setApplicationStatus } from "../../lib/applications";
 import { fosterDocId } from "../../lib/session";
 import { Unrecorded } from "../../components/Unrecorded";
@@ -180,12 +180,13 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
 function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }) {
   const navigate = useNavigate();
   const { foster } = useFoster();
-  const { application } = useApplication(d.id);
+  const { application, loading: applicationLoading } = useApplication(d.id);
 
   // Progress mirrors the Match phase's own checklist rather than inventing a second source --
   // including the join, so this timeline and the Match view can't disagree about whether the
   // shelter has finished its half.
-  const win = fosterWindow(...recordedStay(d), foster?.pickup?.date);
+  // RS-15: counted from the slot the shelter confirmed, never from a bare request.
+  const win = fosterWindow(...recordedStay(d), agreedPickup(foster?.pickup, application, applicationLoading)?.date);
   const approval = composeApprovalChecklist(foster?.approvalChecklist ?? [], application?.checklist ?? null);
   const approved = approval.length > 0 && approval.every(c => c.done);
   const pickup = pickupState(foster?.pickup, application);
