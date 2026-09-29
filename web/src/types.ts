@@ -186,6 +186,18 @@ export interface Application {
    */
   pickupConfirmedAt?: { toMillis(): number } | null;
   /**
+   * Set only by shelter staff, when they can't make `pickup` and ask for another time (RS-15).
+   * The slot is left in place so the foster sees which one was turned down. Same rules shape as
+   * `pickupConfirmedAt`: the foster may clear it -- every new request does -- and never set it.
+   * Optional because applications written before RS-15 lack the field; absent reads as no answer.
+   */
+  pickupDeclinedAt?: { toMillis(): number } | null;
+  /**
+   * What staff typed when asking for another time (RS-15), shown to the foster attributed to the
+   * shelter and never paraphrased. `null` when they left it blank. Staff-only, like the stamp.
+   */
+  pickupNote?: string | null;
+  /**
    * Written with `serverTimestamp()`, so it reads back as a Firestore `Timestamp` -- narrowed
    * here to the one method the UI calls rather than importing the SDK's type into a file the
    * pure helpers and their tests also import. It is briefly `null` on the local echo of a

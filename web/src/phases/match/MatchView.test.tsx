@@ -69,6 +69,9 @@ function screen(opts: {
   /** The application's own copy of the request, and the shelter's answer to it (RS-14). */
   appPickup?: Pickup | null;
   confirmed?: boolean;
+  /** The shelter's other answer (RS-15), and what staff typed with it. */
+  declined?: boolean;
+  note?: string | null;
 }): string {
   const list = CHECKLIST(opts.checklistDone ?? false);
   foster.current = {
@@ -88,7 +91,9 @@ function screen(opts: {
   application.current = opts.status
     ? ({ id: "a1", fosterId: "f1", fosterName: "Demo", dogId: "dog-1", shelterId: "sfspca-mission",
          status: opts.status, checklist: list, pickup: opts.appPickup ?? null,
-         pickupConfirmedAt: opts.confirmed ? { toMillis: () => 1 } : null } as Application)
+         pickupConfirmedAt: opts.confirmed ? { toMillis: () => 1 } : null,
+         pickupDeclinedAt: opts.declined ? { toMillis: () => 1 } : null,
+         pickupNote: opts.note ?? null } as Application)
     : null;
   return renderToStaticMarkup(
     <MemoryRouter>
@@ -242,5 +247,57 @@ describe("MatchView, on whether the shelter has answered the request", () => {
     expect(html).toContain("Ask Pawthway about pickup");
     expect(html).not.toContain("Message SF SPCA");
     expect(html).not.toContain("Confirm the day");
+  });
+});
+
+/**
+ * RS-15. The handoff happens on the shelter's say-so: Care Plan waits for a confirmation, and a
+ * shelter that can't make the slot can say so -- in its own words, attributed, never stood in for.
+ */
+describe("MatchView, on who gets to say the dog is coming home", () => {
+  const SLOT: Pickup = { date: "2099-06-12", time: "1:30 PM", location: "201 Alabama St" };
+  const startButton = (html: string) => html.match(/<button[^>]*>I&#x27;ve got Tip Toe → start Care Plan/)?.[0] ?? "";
+
+  it("keeps Care Plan shut on a request the shelter hasn't answered", () => {
+    const button = startButton(screen({ status: "approved", checklistDone: true, pickup: SLOT, appPickup: SLOT }));
+    expect(button).toContain("disabled");
+    expect(button).toContain("Waiting for SF SPCA to confirm pickup");
+  });
+
+  it("opens Care Plan once the shelter confirmed the slot", () => {
+    const button = startButton(screen({ status: "approved", checklistDone: true, pickup: SLOT, appPickup: SLOT, confirmed: true }));
+    expect(button).not.toBe("");
+    expect(button).not.toContain("disabled");
+  });
+
+  it("lets a request stand when there is no application -- nobody could answer it", () => {
+    const button = startButton(screen({ checklistDone: true, pickup: SLOT }));
+    expect(button).not.toBe("");
+    expect(button).not.toContain("disabled");
+  });
+
+  it("shows the shelter's note attributed, and reopens the calendar", () => {
+    const html = screen({
+      status: "approved", checklistDone: true, pickup: SLOT, appPickup: SLOT,
+      declined: true, note: "Short-staffed that day. Any weekday afternoon works.",
+    });
+    expect(html).toContain("SF SPCA asked for a different time");
+    expect(html).toContain("Short-staffed that day. Any weekday afternoon works.");
+    expect(html).toContain("From SF SPCA</div>");
+    expect(html).toContain("Pick another time");
+    // The scheduler is back, and the old card's own actions are not.
+    expect(html).toContain("Pawthway takes requests");
+    expect(html).not.toContain("Change request");
+    expect(html).not.toContain("confirmed this time");
+    expect(startButton(html)).toContain("disabled");
+  });
+
+  it("says nothing in the shelter's place when it left no note", () => {
+    const html = screen({
+      status: "approved", checklistDone: true, pickup: SLOT, appPickup: SLOT, declined: true,
+    });
+    expect(html).toContain("SF SPCA asked for a different time");
+    expect(html).not.toContain("From SF SPCA</div>");
+    expect(html).not.toContain("<blockquote");
   });
 });

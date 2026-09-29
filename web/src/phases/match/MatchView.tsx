@@ -8,7 +8,7 @@ import { PickupScheduler } from "../../components/PickupScheduler";
 import { requestPickup } from "../../lib/applications";
 import { DemoShelterPanel } from "../../components/DemoShelterPanel";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_PREP_CHECKLIST, checklistOwner } from "../../checklists";
-import { APPLICATION_STAGES, activeStage, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState } from "../../lib/applicationView";
+import { APPLICATION_STAGES, activeStage, agreedPickup, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState } from "../../lib/applicationView";
 import { normalizeDog, thumbBackground } from "../../lib/dog";
 import { downloadIcs } from "../../lib/calendar";
 import { shelterName } from "../../lib/shelters";
@@ -21,7 +21,7 @@ export function MatchView() {
   const { foster, loading } = useFoster();
   const { dogs } = useDogs();
   // The shelter's own ticks live on the application, not here -- see composeApprovalChecklist.
-  const { application } = useApplication(foster?.matchedDogId);
+  const { application, loading: applicationLoading } = useApplication(foster?.matchedDogId);
   const [pickupFailed, setPickupFailed] = useState(false);
 
   const raw = dogs.find((d) => d.id === foster?.matchedDogId);
@@ -67,6 +67,10 @@ export function MatchView() {
   // RS-14: "confirmed" only on the shelter's own write, and only for the slot the foster holds.
   const pickup = pickupState(foster.pickup, application);
   const activeIdx = activeStage(approved, pickup);
+  // RS-15: the handoff happens on the shelter's say-so. A request -- answered or not -- never
+  // starts Care Plan; only the slot the shelter confirmed does (or, with no application at all,
+  // the foster's own, since in LOCAL_MODE there is nobody to answer).
+  const handoff = agreedPickup(foster.pickup, application, applicationLoading);
   // The shelter's verdict, which is a different question from "is the paperwork finished".
   // It replaces the badge, and `declined` replaces the whole screen below it -- but it never
   // unlocks the scheduler and never ticks anybody's boxes. See approvalDecision().
@@ -155,7 +159,10 @@ export function MatchView() {
         {/* Pickup */}
         <div>
           <div className="eyebrow" style={{ marginBottom: 9 }}>
-            {pickup === "confirmed" ? "Pickup confirmed" : pickup === "requested" ? "Pickup requested" : "Request a pickup"}
+            {pickup === "confirmed" ? "Pickup confirmed"
+              : pickup === "requested" ? "Pickup requested"
+              : pickup === "declined" ? "Pick another time"
+              : "Request a pickup"}
           </div>
           {!approved ? (
             <>
@@ -165,6 +172,32 @@ export function MatchView() {
                   ? "Finish your own steps to unlock this."
                   : `Unlocks once ${shelterName(dog)} finishes their review.`}
               </p>
+            </>
+          ) : foster.pickup && pickup === "declined" ? (
+            <>
+              {/* RS-15: the shelter's second answer. The declined slot stays visible so the foster
+                  knows which one, the note is the shelter speaking as itself -- attributed, never
+                  paraphrased, and absent rather than stood in for -- and the calendar reopens,
+                  because the only way forward is a new request. */}
+              <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="card" style={{ padding: 15, marginBottom: 12 }}>
+                <div className="row" style={{ gap: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 13, background: "var(--butter-soft)", display: "grid", placeItems: "center", flexShrink: 0, fontSize: 17 }}>🗓️</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: 14.5, textDecoration: "line-through", opacity: .6 }}>{pickupDateLabel}</div>
+                    <div className="muted" style={{ marginTop: 2 }}>{foster.pickup.time} · {foster.pickup.location}</div>
+                  </div>
+                </div>
+                <p style={{ marginTop: 10, fontSize: 12, fontWeight: 800 }}>
+                  {shelterName(dog, "short", { start: true })} asked for a different time.
+                </p>
+                {application?.pickupNote && (
+                  <blockquote style={{ margin: "8px 0 0", padding: "8px 11px", borderRadius: 12, background: "var(--cream-2)", fontSize: 13 }}>
+                    “{application.pickupNote}”
+                    <div className="muted" style={{ marginTop: 4, fontSize: 11.5 }}>From {shelterName(dog)}</div>
+                  </blockquote>
+                )}
+              </motion.div>
+              {dog.shelter && <PickupScheduler shelter={dog.shelter} onConfirm={writePickup} />}
             </>
           ) : foster.pickup ? (
             <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="card" style={{ padding: 15 }}>
@@ -248,8 +281,10 @@ export function MatchView() {
         <button
           className="btn sm"
           style={{ margin: "2px auto 0" }}
-          disabled={!foster.pickup}
-          title={!foster.pickup ? "Request a pickup first" : undefined}
+          disabled={!handoff}
+          title={!foster.pickup ? "Request a pickup first"
+            : !handoff ? `Waiting for ${shelterName(dog)} to confirm pickup`
+            : undefined}
           onClick={goToCarePlan}
         >
           I've got {dog.name} → start Care Plan

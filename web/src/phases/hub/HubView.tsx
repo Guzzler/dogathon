@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { useDogs } from "../../hooks/useDogs";
+import { useApplication } from "../../hooks/useApplication";
+import { agreedPickup } from "../../lib/applicationView";
 import { ENERGY_WORD } from "../../lib/dog";
 import { prefs } from "../../lib/matching";
 import { fosterWindow } from "../../lib/foster";
 import { normalizeDog, recordedStay } from "../../lib/dog";
 import { Unrecorded } from "../../components/Unrecorded";
-import type { Dog as DogRecord, FosterIntake, FosterPhase } from "../../types";
+import type { Dog as DogRecord, FosterIntake, FosterPhase, Pickup } from "../../types";
 
 const PHASE_COPY: Record<FosterPhase, { title: string; body: string; cta: string; to: string }> = {
   onboarding: {
@@ -69,7 +71,7 @@ export function HubView() {
       <LookingForCard intake={foster.intake} />
 
       {matchedDog && (
-        <MatchedDogCard dog={matchedDog} pickupDate={foster.pickup?.date} />
+        <MatchedDogCard dog={matchedDog} pickup={foster.pickup} />
       )}
 
       <div className="hub-steps">
@@ -84,9 +86,12 @@ export function HubView() {
 }
 
 /** The matched dog, with how much of the foster window is left. */
-function MatchedDogCard({ dog, pickupDate }: { dog: DogRecord; pickupDate: string | undefined }) {
+function MatchedDogCard({ dog, pickup }: { dog: DogRecord; pickup: Pickup | null }) {
   const d = normalizeDog(dog);
-  const win = fosterWindow(...recordedStay(d), pickupDate);
+  // RS-15: the countdown starts from the day the shelter agreed to, not the one the foster asked
+  // for -- an unanswered request shows the total commitment, as before any pickup.
+  const { application, loading } = useApplication(dog.id);
+  const win = fosterWindow(...recordedStay(d), agreedPickup(pickup, application, loading)?.date);
 
   return (
     <div className="hub-card hub-card--dog">
