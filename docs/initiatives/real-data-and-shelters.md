@@ -79,6 +79,13 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   reach sfspca.org", label `roster-drift`) whose body says the freshness is *unknown*, that nothing
   was written, and quotes the import's own 403 line. That discharges the RS-13 row's "check the
   2026-09-21 run". Next Monday should *comment* on #96, not open a second issue — worth one look.
+  **2026-09-28 — it looked, for the first time.** Run `36403398124` took 2m19s against 21s for a
+  403, scraped **26** dogs against 19 committed, and commented on #96 (reused, as designed) with a
+  real plan: `write 26`, `delete 11`, `keep 2 … matched to a foster (delisted: ['d-026',
+  'sfspca-61200213'])`. So the drift signal works end to end, the roster has turned over by more
+  than half, and **the 403 is intermittent, not structural** — one success in three Mondays. Two
+  things the run exposed: #96 keeps its *could not reach* title under a comment saying it did, and
+  the `write 26` it plans is a whole-document replace over fields other writers now own — **RS-16**.
 
 ## Milestones (compressed; full narrative in the archive)
 
@@ -95,8 +102,8 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   shelter reads — **RS-14**, shipped 2026-09-23, signed-in half parked as RS-14b. Build from the
   queue items, not from this paragraph.
 - **M4 — decided 2026-08-26, shipped 2026-09-09 as RS-4 (PR #72), reopened 2026-09-17, and
-  **still open after RS-13**.** The cadence exists, reports honestly, and has never once run to
-  completion: the scrape 403s from a GitHub-hosted runner's IP range. RS-13 shipped the
+  **still open after RS-13**.** The cadence exists and reports honestly; it 403'd from a GitHub-hosted
+  runner on 2026-09-14 and 09-21 and **reached sfspca.org on 2026-09-28** — intermittent, not blocked. RS-13 shipped the
   honest-reporting half (a week with no check files an issue saying the freshness is *unknown*);
   the other half is an unblocked address, which is infrastructure a person owns — **RS-13b**. The
   original reasoning (yes to a cadence, no to Cloud Scheduler; weekly, plan-only, always
@@ -165,6 +172,11 @@ don't "fix" the second by loosening `firestore.rules`.
     (`ShelterApplicationsView.tsx:326-344`) offers Confirm / Undo confirmation. Not confirming is
     silence, and the foster's card says "Pickup requested" forever.
 
+  **Re-verified 2026-09-28 at `a9ba673`, after PH-31:** all three hold; `SavedView`'s `fosterWindow`
+  caller moved to `:188`. The census missed one reader of the phase — `DogDetailView.tsx:244`'s
+  *"{dog} is in your care right now"* on the one-at-a-time sheet — which item 5's gate makes true
+  along with `SavedView:90`, so no spec change; name it in the row.
+
   **Design answer (this run's question — who owns the handoff?).** The same rule RS-14 set, read
   one step further: **only the party that answers a request can turn it into a fact, and nothing
   downstream may treat the request as the fact.** So the shelter gets a second answer, and every
@@ -209,29 +221,62 @@ don't "fix" the second by loosening `firestore.rules`.
   `requested`. `./node_modules/.bin/tsc -b`, build, lint at `main`'s 8. The rules change cannot be
   verified unattended — it joins **RS-14b** below as its step (6).
 
-- [x] **RS-14 `[large]` — shipped 2026-09-23. The pickup request reaches the shelter, only the
-  shelter confirms it, and the chat stops speaking as the shelter.** The Ledger row is the account;
-  the five-part spec and the design answer ("a model may help a person talk *about* an
-  organisation; it may never talk *as* one") are verbatim in
-  [`archive/real-data-and-shelters-rs14-2026-09-23.md`](archive/real-data-and-shelters-rs14-2026-09-23.md).
-  The signed-in half is **RS-14b** under "Needs a human". **Named out of scope and still true:** the
-  countdown anchors on a *requested* date; "Start care plan" unlocks on a request; staff can't
-  propose a different time; `get_foster` doesn't report confirmation.
+- [ ] **RS-16 — the import writes the shelter's listing, not the shelter's decisions (queued
+  2026-09-28).** Found by reading a real run's output, not the code first: the 2026-09-28 weekly
+  check reached sfspca.org (see "Where this stands") and planned `write 26`. `_push_to_firestore()`
+  does that as `batch.set(collection.document(d["id"]), d)` (`scripts/import_dogs.py:210`) — a
+  **whole-document replace** — and `sfspca.to_dog()` hard-codes `"status": "available"`. Since
+  RS-6, RS-12 and PH-21, other writers put fields on those same scraped `dogs/{id}` documents that
+  the scrape never carries: **staff** (`shelterRoster.ts:47` — `status` for retire / relist /
+  adopted, plus `updatedAt`) and **the agent** (`adoption.py:150`, `:168` — `status:
+  "ready_for_adoption"`, `adoption_profile`, `adoption_profile_source`; since RS-12 that write *is*
+  the notification). So the first manual import after a foster finishes turns a **Back from
+  foster** dog back into `available` and deletes the paragraph staff were meant to read; a dog
+  staff retired or marked adopted reappears in Discovery and — through PH-31's `isListable()` —
+  becomes appliable again. *Reasoned from the code, not observed:* nobody has run a writing import
+  since RS-6, and an unattended run can't read production `dogs` to say whether any live document
+  carries such a field today. With no users, probably none; the hazard is the next import.
 
-- **Everything before RS-14 is shipped, and each item's Ledger row is its account** — RS-13 (PR
-  #88, the check can say *could not look*; **M4 stays reopened** on RS-13b), RS-4 (PR #72, the
-  weekly check, which 403s from a GitHub runner), and every M3 item: RS-6 `[large]` (PR #54),
-  RS-10 `[large]` (PR #56), RS-11 `[large]` (PRs #58, #59), RS-12 `[large]` (PR #63, which
-  **discharges PH-1**), RS-7/RS-5 (PRs #38, #39, #52). Three queue bullets restating those rows
-  went to the 2026-09-22 archive. The signed-in halves are under "Needs a human".
+  **Design answer (this run's question — who owns a field on a document two pipelines write?).**
+  RS-10's *one writer per field*, applied to the dog: **the scrape owns what the shelter's public
+  page says; Pawthway's writers own what happened inside Pawthway.** `status` on a document that
+  already exists belongs to whoever last decided it, unless it is still `available`, which the
+  scrape merely restates. `adoption_profile`, `adoption_profile_source` and `updatedAt` are never
+  the scrape's. **Not `merge=True`:** PH-25 found `{ merge: true }` keeps keys a writer meant to
+  remove, and a listing that stops stating a weight must lose `weight_lbs`, not keep the old one.
+  So: build the scraped record, overlay the preserved keys off the snapshot already read at `:152`,
+  and `set()` the result — no extra reads.
+
+  1. `import_dogs.py`: `PAWTHWAY_OWNED = ("adoption_profile", "adoption_profile_source",
+     "updatedAt")`, commented with the writer of each. In the write loop, a dog whose id is in
+     `existing` gets those keys copied over when present, and keeps `existing[id]["status"]` when
+     that is present and not `"available"`.
+  2. The plan output gains `  keep status  n  {id: status, …}` (first 6), same shape as the `keep`
+     lines above it, so whoever unticks *plan only* sees which decisions survive.
+  3. Rider, `import-dogs.yml`: when an open `roster-drift` issue exists, `gh issue edit "$existing"
+     --title "$TITLE"` before commenting. #96 is still titled *could not reach sfspca.org* under a
+     comment saying it did.
+
+  **Not in scope:** writing `status: "foster"` (a lead below); re-baking the roster and writing
+  enrichment for the new dogs (a person's — RS-13b); `data/dogs.json` (it carries no
+  Pawthway-owned field, so `--dry-run --from-cache` must produce it byte-identical). **Verify:**
+  pytest in `tests/test_import_dogs.py` against PH-28's fake Admin client — a scraped dog live as
+  `ready_for_adoption` with a profile keeps status, profile and source; one live as `retired` stays
+  `retired`; one live as `available` is rewritten; a field absent from this scrape (`weight_lbs`)
+  is **gone** afterwards; a new dog is written as scraped; `plan_only` writes nothing and prints the
+  keep-status line. Existing importer tests green. The workflow rider is observable only on the
+  next Monday run — say so in the row.
+
+- **Everything through RS-14 is shipped; each Ledger row is its account.** RS-14's spec and design
+  answer (*a model may talk about an organisation, never as one*) are in
+  [`archive/real-data-and-shelters-rs14-2026-09-23.md`](archive/real-data-and-shelters-rs14-2026-09-23.md);
+  its four named out-of-scope gaps became RS-15. The signed-in halves are under "Needs a human".
 
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
-- **The `[large]` slot is in this doc** (RS-14 from 2026-09-22, RS-15 from 2026-09-27); the routing
-  narrative is verbatim in
+- **The `[large]` slot is in this doc** (RS-14, then RS-15). Routing narrative in
   [`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md).
-
 
 ### Needs a human, not a queue item
 - **RS-14b — PARKED at queue time (2026-09-22); the signed-in half of RS-14.** One sitting with
@@ -253,7 +298,17 @@ shelter, per the section below.
   so the roster can only be checked on a cadence from a machine somebody owns — a self-hosted
   runner, or a scheduled re-bake on a laptop. Until then the drift signal is a person running
   `uv run python scripts/import_dogs.py --dry-run`, and the weekly issue says so in those words.
-  **M4 is not closed by RS-13.**
+  **M4 is not closed by RS-13.** *2026-09-28: the runner got through once (see above), so the
+  premise is now "intermittent", not "blocked" — one success is not a cadence.* The drift that run
+  found is a person's to take: re-bake with `--dry-run`, write `data/enrichment.json` entries for
+  the new dogs by hand, then untick *plan only* — **after RS-16 ships**, or the push resets every
+  shelter- and agent-written status on the scraped dogs.
+
+- **A lead, not an item (2026-09-28): nothing ever writes `status: "foster"`.** `DogStatus` has the
+  value and `rosterActions` handles it, but no screen, tool or script sets it — so a dog whose
+  pickup the shelter confirmed stays `available`, listed, and appliable by a second foster. RS-15
+  makes the confirmation the handoff, which is where this belongs; RS-16 is what keeps it from
+  being reset. Queue it once both ship, sized against whatever RS-15's row says.
 
 - **RS-9 and RS-5b — DONE, with Sharang present (2026-08-29, 2026-09-04)**; Ledger rows are the
   account. **Three `fixture-` applications are still in production**; re-running
@@ -307,7 +362,7 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status re-checked **2026-09-27**, not carried over: `git log --since=2026-09-22` is this
+*(Status re-checked **2026-09-28**, not carried over: `git log --since=2026-09-22` is this
 loop's own PRs and nothing else, and a grep across `docs/` turns up no commit, no doc edit from
 Sharang and no note anywhere saying this has happened. Recorded so a future run doesn't mistake
 the passage of time for progress. Now that M3 is finished this is the only thing standing between
@@ -323,72 +378,22 @@ change, and RS-5b's fixture write — is preserved verbatim in the
 supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md) and
 [2026-08-30](archive/real-data-and-shelters-ledger-2026-08-30.md) ones.)*
 
-- 2026-08-24 — M1 — PRs #6, #13, #14 — offline SF SPCA import, reviewed descriptions,
-  diff-before-write, replace-not-append.
-- 2026-08-24 — RS-1 — PR #21 — `applications/{id}` and `shelters/{id}` rules, plus
-  `createApplication()` from both apply sites.
-- 2026-08-25 — RS-3 — PR #24 — SF SPCA's id corrected to `"sfspca-mission"`; `shelters.test.ts`
-  added as the guard.
-- 2026-08-28 — RS-2 — PR #34 — staff resolution by `array-contains` query, the `/shelter` route,
-  first `shelters/{id}` document seeded. Verification partial on purpose — now RS-8, parked.
-- 2026-08-29 — RS-7 — PRs #38, #39 — `firestore.indexes.json` actually deploys, in its own step
-  after hosting and rules.
-- 2026-08-29 — RS-9 — no PR (an IAM change) — `roles/datastore.indexAdmin` granted; the
-  `applications` index reached **`READY`**. Invocation in [`docs/runbook-gcp.md`](../runbook-gcp.md).
-- 2026-08-31 — RS-5 — PR #52 — **the shelter's application inbox**, live at `/shelter`. Pure half
-  in `web/src/lib/applicationView.ts`, 8 unit tests, no Firebase config needed. Shipped unable to
-  verify its own read rule against an empty collection — that became RS-5b.
-- 2026-09-01 — RS-6 `[large]` — PR #54 — **add and retire a dog** at `/shelter/dogs`. Split
-  `match /dogs/{dogId}`'s blanket `allow write: if false` into create/update (both `isStaff`,
-  `shelter_id` pinned) + `delete: if false`; **no new index**. Two things the spec hadn't seen and
-  this fixed: the importer would have deleted every hand-entered dog, and `DogStatus` had no
-  honest value for "retired".
-- 2026-09-02 — RS-10 `[large]` — PR #56 — **the two approval checklists join by `owner`**, one
-  writer per field. `composeApprovalChecklist()` overlays the shelter's `done` onto the foster
-  document's list; MatchView keeps `stored` (writable) and `approval` (displayable) separate —
-  **don't collapse them back**.
-- 2026-09-03 — RS-11 `[large]` — PRs #58, #59 — **the round trip closes in both directions.**
-  `approvalDecision()` + `approvalBadge()` under the `declined` > `withdrawn` > `approved` >
-  checklist precedence; withdrawing writes `withdrawn` back, **no rules change**.
-  `activeApplication()` became `(foster, status)` with the second argument **required**, so two
-  call sites cannot disagree. 13 unit tests, plus six rendered cases in `MatchView.test.tsx`
-  (`renderToStaticMarkup`, no jsdom, no new dependency).
-- 2026-09-04 — RS-5b — no PR (a production fixture write + a signed-in check) — **the staff branch
-  of `applications`'s read rule serves the list query.** Three fixtures seeded, all three render at
-  `/shelter`, both staff write paths succeed. It could not be answered against an empty collection
-  because Firestore evaluates a list rule per candidate document.
-- 2026-09-05 — RS-12 `[large]` — PR #63 — **the dog comes back, and the shelter sees it.** The
-  agent's `adoption_profile`, written since the first Post Foster turn and read by nothing, lands in
-  a **Back from foster** group atop `ShelterRosterView`; `rosterActions` (plural); **no rules
-  change**; `notified_shelter` is true because the write lands where RS-5b proved staff read.
-  Discharges **PH-1**. Full row in
-  [`archive/real-data-and-shelters-rs12row-2026-09-17.md`](archive/real-data-and-shelters-rs12row-2026-09-17.md).
-- 2026-09-09 — RS-4 — PR #72 — **a weekly, plan-only-by-construction roster check** on
-  `import-dogs.yml` (`schedule: "0 9 * * 1"`; the scheduled branch always re-scrapes and has no path
-  to a Firestore write), reporting drift as one reused `roster-drift` issue. Its first real run
-  (2026-09-14) failed `403` from the GitHub runner — see RS-13.
-- 2026-09-17 — RS-13 — PR #88 — **the weekly check can say *could not look*.** `import_dogs.py`
-  exits `EXIT_UNREACHABLE = 75` having written nothing on an `httpx.HTTPError` **or a fresh scrape
-  of zero dogs** (the case the spec missed: `sfspca.scrape()` swallows per-page errors), and the
-  scheduled branch files that on the same issue. Manual dispatch unchanged. Observed on a real run
-  2026-09-21 (issue #96). M4 stays open on RS-13b.
-
-*(Both rows verbatim in
-[`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md);
-RS-4's also in [`archive/real-data-and-shelters-rs4-2026-09-17.md`](archive/real-data-and-shelters-rs4-2026-09-17.md).)*
-- 2026-09-23 — RS-14 `[large]` — PR #102 — **a pickup request lands where the shelter reads it, and
-  only the shelter answers.** `requestPickup()` writes `applications/{id}.pickup` *before*
-  `fosters/{uid}.pickup` (a failed first write skips the second and says so); a third foster branch
-  in `firestore.rules` admits only `pickup`/`pickupConfirmedAt`/`updatedAt` via `affectedKeys().hasOnly`
-  — stricter than the spec's field-by-field pins, same intent — on a live application, with
-  `pickupConfirmedAt` settable only to `null`. `pickupState()` says *confirmed* only on the staff
-  stamp **and** matching slots; the timeline gains a fifth stage and a confirmation ticks all five.
-  Inbox: a "Pickup requested" pill and **Confirm pickup / Undo confirmation**. The chat is titled
-  Pawthway's assistant and its prompt no longer speaks as the shelter. **Beyond the spec:** the
-  census had missed a third "agree the day" — `calendar.ts`'s `.ics` description told the foster to
-  "message them in the app"; the prompt claimed the agent could "change the pickup" when no tool
-  writes it; and Confirm is hidden on *declined* as well as withdrawn, matching the rule's
-  live-status list. Verified: 182 vitest (pickupState's three states, mismatch, absent application;
-  shelter helpers; four new rendered `MatchView` cases), 73 pytest incl. `test_pickup_voice.py`,
-  build, lint at 8. **Not verified:** the rules change, and any of it in a browser — the unattended
-  run can't start a dev server or sign in. That is RS-14b.
+- **2026-08-24 → 2026-09-05 — M1, RS-1, RS-3, RS-2, RS-7, RS-9, RS-5, RS-6 `[large]`, RS-10 `[large]`,
+  RS-11 `[large]`, RS-5b, RS-12 `[large]` — PRs #6/#13/#14, #21, #24, #34, #38/#39, #52, #54, #56,
+  #58/#59, #63. Compressed 2026-09-28; verbatim in
+  [`archive/real-data-and-shelters-ledger-2026-09-28.md`](archive/real-data-and-shelters-ledger-2026-09-28.md).**
+  Invariants a regression would break: staff-ness by `array-contains`; `dogs` create/update pinned to
+  the staff's `shelter_id`, `delete: if false`; the importer never deletes a hand-entered or matched
+  dog; checklist halves joined by `owner`, **never mirrored**; `activeApplication(foster, status)`
+  with the second argument required; RS-12's `adoption_profile` renders under **Back from foster**
+  and *is* the notification (discharging PH-1).
+- 2026-09-09 → 2026-09-23 — RS-4 (PR #72), RS-13 (PR #88), RS-14 `[large]` (PR #102). **Compressed
+  2026-09-28; verbatim in
+  [`archive/real-data-and-shelters-ledger-2026-09-28.md`](archive/real-data-and-shelters-ledger-2026-09-28.md).**
+  RS-4 made the roster check weekly and plan-only by construction; RS-13 made it able to say *could
+  not look* (`EXIT_UNREACHABLE = 75`, including a zero-dog scrape). RS-14 wrote the pickup request
+  to `applications/{id}` *before* the foster document, admitted a third foster rules branch
+  (`pickup`/`pickupConfirmedAt`/`updatedAt` via `affectedKeys().hasOnly`, the stamp only as `null`),
+  and made *confirmed* need the staff stamp **and** matching slots; beyond its spec it removed a
+  third "agree the day" in `calendar.ts`'s `.ics` and a prompt claim that the agent could change a
+  pickup. None of it verified signed in or in a browser — that is RS-14b.
