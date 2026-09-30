@@ -39,7 +39,7 @@ export function ShelterRosterView() {
   const [adding, setAdding] = useState(false);
 
   const dogs = result.state === "ready" ? result.dogs : [];
-  const { back, listed, rest } = groupRoster(dogs);
+  const { back, foster, listed, rest } = groupRoster(dogs);
 
   return (
     <div className="screen shelter__home">
@@ -49,8 +49,8 @@ export function ShelterRosterView() {
           {active ? active.name : "No shelter"}
           {result.state === "ready"
             ? ` · ${listed.length} listed, ${rest.length} not listed${
-                back.length ? `, ${back.length} back from foster` : ""
-              }`
+                foster.length ? `, ${foster.length} in foster` : ""
+              }${back.length ? `, ${back.length} back from foster` : ""}`
             : ""}
         </p>
         {shelters.length > 1 && (
@@ -123,6 +123,18 @@ export function ShelterRosterView() {
                   </li>
                 ))}
               </ul>
+            </section>
+          )}
+
+          {/* RS-17: out with one of Pawthway's fosters since you confirmed their pickup. Not
+              "not listed" -- nobody took this dog down, it's away. Omitted when empty, as above. */}
+          {foster.length > 0 && (
+            <section>
+              <h2 className="shelter__section">In foster</h2>
+              <p className="muted shelter__section-sub">
+                Taken off Discovery when you confirmed their pickup.
+              </p>
+              <DogRows dogs={foster} />
             </section>
           )}
 

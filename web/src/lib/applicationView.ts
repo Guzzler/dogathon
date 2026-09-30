@@ -1,4 +1,4 @@
-import type { Application, ApplicationStatus, ChecklistItem, Pickup } from "../types";
+import type { Application, ApplicationStatus, ChecklistItem, DogStatus, Pickup } from "../types";
 import { checklistOwner } from "../checklists";
 
 /**
@@ -348,4 +348,22 @@ export function pickupAskedToMove(
  */
 export function canConfirmPickup(app: Pick<Application, "status" | "pickup">): boolean {
   return LIVE.includes(app.status) && Boolean(app.pickup);
+}
+
+/* ---------- the dog's side of the handoff (RS-17) ---------- */
+
+/**
+ * A foster withdrew after the shelter confirmed their pickup, and the dog is still marked
+ * `foster`. The foster can't write `dogs` (RS-6), so nobody has put the dog back on the roster;
+ * the inbox says so and offers **List again**.
+ *
+ * Requires this application's own confirmation stamp (the foster's withdraw leaves it in place),
+ * so a withdrawn application from some *other* foster never offers to relist a dog a different
+ * foster is holding.
+ */
+export function withdrawnAfterHandoff(
+  app: Pick<Application, "status" | "pickupConfirmedAt">,
+  dogStatus: DogStatus | undefined,
+): boolean {
+  return app.status === "withdrawn" && Boolean(app.pickupConfirmedAt) && dogStatus === "foster";
 }

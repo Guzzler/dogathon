@@ -8,7 +8,10 @@ import {
   setApplicationChecklist,
   setApplicationStatus,
   setPickupConfirmed,
+  type HandoffDog,
 } from "../../lib/applications";
+import { relistDog } from "../../lib/shelterRoster";
+import { DOG_STATUS_LABELS } from "../../lib/shelterDog";
 import {
   STATUS_LABELS,
   applicationAge,
@@ -20,8 +23,9 @@ import {
   pickupAwaitingShelter,
   splitByOwner,
   staffTransitions,
+  withdrawnAfterHandoff,
 } from "../../lib/applicationView";
-import type { Application, ApplicationStatus, ChecklistItem } from "../../types";
+import type { Application, ApplicationStatus, ChecklistItem, Dog } from "../../types";
 
 /**
  * The shelter's application inbox (RS-5) -- the first surface on the shelter side that does
@@ -126,15 +130,24 @@ function InboxErrorState({ code, onRetry }: { code: string | undefined; onRetry:
  * A dog can legitimately be missing: the roster import replaces rather than appends, so an
  * application can outlive the listing it was opened against. Fall back to the id, which is at
  * least something staff can search for, rather than rendering an empty name.
+ *
+ * Returns the dog too (RS-17): the inbox's answers carry its status so a confirmed pickup can
+ * take it off the roster in the same write. A missing dog is `null`, and the answer is then the
+ * plain application update it always was.
  */
-function useDogName(dogId: string): string {
+function useApplicationDog(dogId: string): { name: string; dog: Dog | null } {
   const { dogs } = useDogs();
-  return useMemo(() => dogs.find((d) => d.id === dogId)?.name ?? dogId, [dogs, dogId]);
+  return useMemo(() => {
+    const dog = dogs.find((d) => d.id === dogId) ?? null;
+    return { name: dog?.name ?? dogId, dog };
+  }, [dogs, dogId]);
 }
 
 function DogName({ dogId }: { dogId: string }) {
-  return <>{useDogName(dogId)}</>;
+  return <>{useApplicationDog(dogId).name}</>;
 }
+
+const handoffDog = (dog: Dog | null): HandoffDog | null => (dog ? { id: dog.id, status: dog.status } : null);
 
 function StatusPill({ status }: { status: ApplicationStatus }) {
   return <span className={`shelter__pill shelter__pill--${status}`}>{STATUS_LABELS[status]}</span>;
@@ -190,7 +203,10 @@ function ApplicationList({
 }
 
 function ApplicationDetail({ application }: { application: Application }) {
-  const dogName = useDogName(application.dogId);
+  const { name: dogName, dog } = useApplicationDog(application.dogId);
+  // Whether this application holds the confirmation an answer would take back -- what decides
+  // if declining it relists the dog (`handoffStatus`'s `confirmedHere`).
+  const wasConfirmed = Boolean(application.pickupConfirmedAt);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const checklist = application.checklist ?? [];
@@ -266,7 +282,7 @@ function ApplicationDetail({ application }: { application: Application }) {
       </ul>
 
       <h3>Pickup</h3>
-      <PickupSection application={application} busy={busy} run={run} />
+      <PickupSection application={application} dog={dog} dogName={dogName} busy={busy} run={run} />
 
       <h3>Status</h3>
       {actionable ? (
@@ -280,7 +296,7 @@ function ApplicationDetail({ application }: { application: Application }) {
               // bookkeeping. Three identical buttons made all three look equally routine.
               className={`btn ${next === "approved" ? "" : "outline"} shelter__action--${next}`}
               disabled={busy}
-              onClick={() => run(() => setApplicationStatus(application.id, next))}
+              onClick={() => run(() => setApplicationStatus(application.id, next, handoffDog(dog), wasConfirmed))}
             >
               Mark {STATUS_LABELS[next].toLowerCase()}
             </button>
@@ -290,6 +306,25 @@ function ApplicationDetail({ application }: { application: Application }) {
         // withdrawn is the foster's to set (the foster branch of applications' update rule),
         // so there is nothing here for a shelter to do -- and a button would only fail the write.
         <p className="muted">This application was withdrawn by the foster.</p>
+      )}
+
+      {/* RS-17. The foster can undo a confirmed handoff by withdrawing, but can't write the dog,
+          so the one party who can is told -- here, on the record that explains why. */}
+      {withdrawnAfterHandoff(application, dog?.status) && (
+        <div className="shelter__notice">
+          <p>
+            {application.fosterName} withdrew after pickup was confirmed; {dogName} is still marked in
+            foster.
+          </p>
+          <button
+            type="button"
+            className="btn outline"
+            disabled={busy}
+            onClick={() => run(() => relistDog(application.dogId))}
+          >
+            List again
+          </button>
+        </div>
       )}
 
       {failed && (
@@ -314,8 +349,10 @@ function ApplicationDetail({ application }: { application: Application }) {
  * which one. There is no counter-slot picker on purpose -- a second writer of `pickup` is the
  * drift RS-14 designed out -- so a better time goes in the note, in words.
  */
-function PickupSection({ application, busy, run }: {
+function PickupSection({ application, dog, dogName, busy, run }: {
   application: Application;
+  dog: Dog | null;
+  dogName: string;
   busy: boolean;
   run: (work: () => Promise<void>) => Promise<void>;
 }) {
@@ -331,10 +368,11 @@ function PickupSection({ application, busy, run }: {
   });
   const confirmed = Boolean(application.pickupConfirmedAt);
   const declined = !confirmed && Boolean(application.pickupDeclinedAt);
+  const handoff = handoffDog(dog);
 
   const sendAsk = () =>
     run(async () => {
-      await askForAnotherTime(application.id, note);
+      await askForAnotherTime(application.id, note, handoff, confirmed);
       setAsking(false);
       setNote("");
     });
@@ -354,6 +392,13 @@ function PickupSection({ application, busy, run }: {
       </p>
       {declined && application.pickupNote && (
         <p className="shelter__pickup-note">&ldquo;{application.pickupNote}&rdquo;</p>
+      )}
+      {/* RS-17: confirming moves only an `available` dog. Anything else is a decision staff made
+          earlier, and the button must not read as though it overrules it. */}
+      {canConfirmPickup(application) && !confirmed && dog && dog.status !== "available" && (
+        <p className="muted shelter__handoff-note">
+          {dogName} is marked {DOG_STATUS_LABELS[dog.status].toLowerCase()} &mdash; confirming won&rsquo;t change that.
+        </p>
       )}
       {canConfirmPickup(application) && (
         asking ? (
@@ -387,7 +432,7 @@ function PickupSection({ application, busy, run }: {
                 type="button"
                 className="btn outline"
                 disabled={busy}
-                onClick={() => run(() => setPickupConfirmed(application.id, false))}
+                onClick={() => run(() => setPickupConfirmed(application.id, false, handoff, confirmed))}
               >
                 Undo confirmation
               </button>
@@ -396,7 +441,7 @@ function PickupSection({ application, busy, run }: {
                 type="button"
                 className="btn"
                 disabled={busy}
-                onClick={() => run(() => setPickupConfirmed(application.id, true))}
+                onClick={() => run(() => setPickupConfirmed(application.id, true, handoff))}
               >
                 Confirm pickup
               </button>

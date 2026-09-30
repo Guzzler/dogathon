@@ -116,3 +116,23 @@ describe("ShelterRosterView — back from foster", () => {
     expect(html).toContain("Not listed");
   });
 });
+
+describe("ShelterRosterView — in foster (RS-17)", () => {
+  it("puts a dog out with a foster under its own heading, between Back from foster and Listed", () => {
+    const html = render([
+      dog({ id: "a", name: "Arlo" }),
+      dog({ id: "f", name: "Fern", status: "foster" }),
+      dog({ id: "b", name: "Bean", status: "ready_for_adoption", adoption_profile: PROFILE }),
+    ]);
+    const inFoster = html.indexOf(">In foster<");
+    expect(inFoster).toBeGreaterThan(html.indexOf("Back from foster"));
+    expect(inFoster).toBeLessThan(html.indexOf(">Listed<"));
+    // Not beside retired dogs: nobody took Fern down, she's away.
+    expect(html).not.toContain("Not listed");
+    expect(html).toContain("List again");
+  });
+
+  it("omits the group when nobody is in foster", () => {
+    expect(render([dog({ id: "a" })])).not.toContain(">In foster<");
+  });
+});

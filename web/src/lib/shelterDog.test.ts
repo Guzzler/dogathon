@@ -6,6 +6,7 @@ import {
   dogIdFor,
   ROSTER_ACTION_STATUS,
   groupRoster,
+  handoffStatus,
   isHttpsUrl,
   rosterActions,
   rosterGroup,
@@ -137,9 +138,14 @@ describe("dogIdFor", () => {
 describe("rosterActions", () => {
   it("offers retire for anything still on the roster and relist for a retired dog", () => {
     expect(rosterActions("available")).toEqual(["retire"]);
-    expect(rosterActions("foster")).toEqual(["retire"]);
     expect(rosterActions("medical_hold")).toEqual(["retire"]);
     expect(rosterActions("retired")).toEqual(["relist"]);
+  });
+
+  // RS-17: a foster who withdraws after the pickup was confirmed can't write the dog, so the
+  // roster is where staff put it back.
+  it("offers a dog in foster List again as well as Retire", () => {
+    expect(rosterActions("foster")).toEqual(["relist", "retire"]);
   });
 
   it("offers nothing for an adopted dog -- that is not a checkbox to reopen", () => {
@@ -169,7 +175,7 @@ describe("rosterGroup / groupRoster", () => {
   it("puts a returned dog in its own group rather than the catch-all", () => {
     expect(rosterGroup("ready_for_adoption")).toBe("back");
     expect(rosterGroup("available")).toBe("listed");
-    expect(rosterGroup("foster")).toBe("rest");
+    expect(rosterGroup("foster")).toBe("foster");
     expect(rosterGroup("medical_hold")).toBe("rest");
     expect(rosterGroup("adopted")).toBe("rest");
     expect(rosterGroup("retired")).toBe("rest");
@@ -190,6 +196,46 @@ describe("rosterGroup / groupRoster", () => {
   });
 
   it("returns all three groups for an empty roster, so the view never reads undefined", () => {
-    expect(groupRoster([])).toEqual({ back: [], listed: [], rest: [] });
+    expect(groupRoster([])).toEqual({ back: [], foster: [], listed: [], rest: [] });
+  });
+
+  it("puts a dog in foster in its own group, never beside retired ones", () => {
+    const groups = groupRoster([
+      { id: "a", status: "foster" as DogStatus },
+      { id: "b", status: "retired" as DogStatus },
+    ]);
+    expect(groups.foster.map((d) => d.id)).toEqual(["a"]);
+    expect(groups.rest.map((d) => d.id)).toEqual(["b"]);
+  });
+});
+
+describe("handoffStatus (RS-17)", () => {
+  const ALL: DogStatus[] = ["available", "foster", "medical_hold", "adopted", "ready_for_adoption", "retired"];
+
+  it("takes a listed dog off the roster when staff confirm the pickup", () => {
+    expect(handoffStatus("confirm", "available")).toBe("foster");
+  });
+
+  it("puts a dog in foster back when the confirmation is taken back or the application declined", () => {
+    expect(handoffStatus("unconfirm", "foster")).toBe("available");
+    expect(handoffStatus("decline", "foster")).toBe("available");
+  });
+
+  it("leaves every other status alone -- staff's earlier decision is not overruled", () => {
+    for (const status of ALL) {
+      if (status !== "available") expect(handoffStatus("confirm", status)).toBeNull();
+      if (status !== "foster") {
+        expect(handoffStatus("unconfirm", status)).toBeNull();
+        expect(handoffStatus("decline", status)).toBeNull();
+      }
+    }
+  });
+
+  // The refinement over the queued table: without it, declining one foster's application would
+  // relist a dog a different foster is holding.
+  it("relists only when this application held the confirmation", () => {
+    expect(handoffStatus("unconfirm", "foster", false)).toBeNull();
+    expect(handoffStatus("decline", "foster", false)).toBeNull();
+    expect(handoffStatus("confirm", "available", false)).toBe("foster");
   });
 });
