@@ -247,6 +247,12 @@ Compressed:
   scheduled job's first success is evidence to read, not a green tick** — the plan text was the
   finding.
 
+- **2026-09-29 — the twentieth link: the lead a shipped `[large]` item's own spec pointed at.** RS-15's
+  queue note had said since 2026-09-28 where the `status: "foster"` write belongs; RS-15 shipped and
+  the lead's gate opened the same day — **RS-17**. Nothing new about the method: it is the first link
+  (re-read the queue) and the eighteenth (a shipped item's edges) meeting. **A dog's listing is a
+  field with an owner, and the owner is whoever answers the request that changes it.**
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
@@ -304,7 +310,7 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 81 files as of 2026-09-28** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
+**`archive/` holds 83 files as of 2026-09-29** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
 execute ran concurrently in one checkout — plan's `git checkout -b` moved HEAD off execute's
 uncommitted RS-14 branch, caught by `git status` showing code plan never touched, and put back
 unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* One thing this run's arithmetic adds to the rules below: **a section of five
