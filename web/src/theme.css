@@ -734,6 +734,9 @@ input,textarea,select{font-family:inherit}
 /* RS-15: the shelter asked for another time -- answered, and the foster's move next. */
 .shelter__pill--pickup-moved{background:var(--butter-soft);color:var(--ink-2)}
 .shelter__pickup .shelter__pickup-note{padding:8px 11px;border-radius:var(--r-sm);background:var(--cream-2);font-size:13.5px}
+/* RS-17: the dog's side of the handoff -- a withdrawal that left a dog marked in foster. */
+.shelter__notice{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-top:14px;padding:11px 13px;border-radius:var(--r-sm);background:var(--butter-soft);font-size:13.5px}
+.shelter__pickup .shelter__handoff-note{font-size:13px}
 
 .shelter__detail{
   background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);

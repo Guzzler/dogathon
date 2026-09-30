@@ -212,30 +212,72 @@ export function rosterActions(status: DogStatus): RosterAction[] {
   if (status === "ready_for_adoption") return ["list", "adopted"];
   if (status === "retired") return ["relist"];
   if (status === "adopted") return [];
+  // RS-17: a dog in a foster home comes back onto the roster by hand when the handoff falls
+  // through somewhere the inbox can't undo it for them -- a foster who withdrew after pickup
+  // was confirmed.
+  if (status === "foster") return ["relist", "retire"];
   return ["retire"];
 }
 
 /**
- * Which of the roster's three sections a dog belongs in.
+ * Which of the roster's sections a dog belongs in.
  *
  * `back` is rendered first and deliberately: `ready_for_adoption` is an arrival, not a resting
  * state -- a dog waiting on a person, which the old flat available/not-available split could
  * not express at all. It sat in the catch-all bucket with a status pill and a Retire button.
+ *
+ * `foster` (RS-17) is a dog out with one of Pawthway's fosters. Before it had its own group it
+ * sat under *Not listed* beside retired dogs, which says "we took this one down" about a dog
+ * that is simply away.
  */
-export type RosterGroup = "back" | "listed" | "rest";
+export type RosterGroup = "back" | "foster" | "listed" | "rest";
 
 export function rosterGroup(status: DogStatus): RosterGroup {
   if (status === "ready_for_adoption") return "back";
+  if (status === "foster") return "foster";
   if (status === "available") return "listed";
   return "rest";
 }
 
 /**
- * One pass over the roster instead of three inline `filter` calls in the view, so the
- * grouping is decided somewhere a test can reach it without a Firebase config.
+ * One pass over the roster instead of inline `filter` calls in the view, so the grouping is
+ * decided somewhere a test can reach it without a Firebase config.
  */
 export function groupRoster<T extends { status: DogStatus }>(dogs: T[]): Record<RosterGroup, T[]> {
-  const groups: Record<RosterGroup, T[]> = { back: [], listed: [], rest: [] };
+  const groups: Record<RosterGroup, T[]> = { back: [], foster: [], listed: [], rest: [] };
   for (const dog of dogs) groups[rosterGroup(dog.status)].push(dog);
   return groups;
+}
+
+/**
+ * The staff answers in the inbox that move a dog on or off the roster (RS-17).
+ *
+ * - `confirm` -- **Confirm pickup**: the dog is going home with a foster.
+ * - `unconfirm` -- taking that back: **Undo confirmation**, or **Ask for another time** on a
+ *   slot that was confirmed.
+ * - `decline` -- declining an application whose pickup was confirmed.
+ */
+export type HandoffEvent = "confirm" | "unconfirm" | "decline";
+
+/**
+ * What the dog's `status` should become when staff answer, or `null` for "leave it alone".
+ *
+ * **Why the shelter is the writer**, and in the same batch as its answer: the foster's rules
+ * cannot write `dogs` and must not (RS-6 -- `update` needs `isStaff(resource.data.shelter_id)`);
+ * the agent may write only the foster's matched dog, and only Post Foster's fields (PH-27); and a
+ * Cloud Function watching applications would be a third writer of `status`, which RS-10's and
+ * RS-16's *one writer per field* rule out. Staff already own the field, so no rule changes.
+ *
+ * `confirmedHere` is whether *this application* held the confirmation being taken back. Without
+ * it, declining one foster's application -- or asking them for another time on a slot nobody had
+ * agreed -- would relist a dog that a different foster is holding. It is ignored for `confirm`.
+ *
+ * Anything but the exact status on the left of each move is left alone: a `medical_hold` or
+ * `retired` dog is staff's own earlier decision, and confirming a pickup must not quietly
+ * overrule it (the inbox says so beside the button instead).
+ */
+export function handoffStatus(event: HandoffEvent, current: DogStatus, confirmedHere = true): DogStatus | null {
+  if (event === "confirm") return current === "available" ? "foster" : null;
+  if (!confirmedHere) return null;
+  return current === "foster" ? "available" : null;
 }

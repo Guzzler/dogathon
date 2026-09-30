@@ -17,6 +17,7 @@ import {
   isActionable,
   splitByOwner,
   staffTransitions,
+  withdrawnAfterHandoff,
 } from "./applicationView";
 import type { Application, ApplicationStatus, ChecklistItem, Pickup } from "../types";
 
@@ -358,5 +359,25 @@ describe("the shelter's side of a pickup", () => {
   it("offers confirm only when there is a slot to confirm", () => {
     expect(canConfirmPickup(app("approved", SLOT))).toBe(true);
     expect(canConfirmPickup(app("approved", null))).toBe(false);
+  });
+});
+
+describe("withdrawnAfterHandoff (RS-17)", () => {
+  const stamp = { toMillis: () => 1 };
+  const app = (status: ApplicationStatus, confirmed: boolean) =>
+    ({ status, pickupConfirmedAt: confirmed ? stamp : null }) as Application;
+
+  it("flags a withdrawal after confirmation that left the dog in foster", () => {
+    expect(withdrawnAfterHandoff(app("withdrawn", true), "foster")).toBe(true);
+  });
+
+  it("stays quiet once the dog is listed again, or was never taken off", () => {
+    expect(withdrawnAfterHandoff(app("withdrawn", true), "available")).toBe(false);
+    expect(withdrawnAfterHandoff(app("withdrawn", true), undefined)).toBe(false);
+  });
+
+  it("never offers to relist a dog some other foster holds", () => {
+    expect(withdrawnAfterHandoff(app("withdrawn", false), "foster")).toBe(false);
+    expect(withdrawnAfterHandoff(app("approved", true), "foster")).toBe(false);
   });
 });
