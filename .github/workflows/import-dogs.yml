@@ -220,6 +220,9 @@ jobs:
           existing=$(gh issue list --label roster-drift --state open --limit 1 \
             --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
+            # The title is this week's outcome, not the first one's: an issue opened as "could
+            # not reach sfspca.org" must not keep saying so under a comment reporting drift.
+            gh issue edit "$existing" --title "$TITLE"
             gh issue comment "$existing" --body-file "$RUNNER_TEMP/report.md"
             echo "commented on existing issue #$existing"
           else

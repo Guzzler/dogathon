@@ -43,6 +43,15 @@ from shelters import sfspca                 # noqa: E402
 # typed it in through the roster form (RS-6) rather than this scrape producing it.
 MANUAL_SOURCE = "shelter-manual"
 
+# Fields other writers put on a scraped dog's document that the scrape never carries (RS-16).
+# The scrape owns what the shelter's public page says; these record what happened inside
+# Pawthway, so a re-import carries them over rather than wiping them:
+#   adoption_profile, adoption_profile_source -- the agent (adoption.py), and since RS-12 that
+#       paragraph *is* the shelter's notification that the dog came back from foster
+#   updatedAt -- staff (shelterRoster.ts, applications.ts) whenever they change `status`
+# `status` is handled separately in _preserve_decisions: it is shared with the scrape.
+PAWTHWAY_OWNED = ("adoption_profile", "adoption_profile_source", "updatedAt")
+
 # The weekly drift check (.github/workflows/import-dogs.yml, `schedule`) has three states to
 # tell apart: drifted, clean, and *could not look*. A scrape that cannot reach the shelter is
 # the third, and reporting it as either of the first two is the exact lie the check exists to
@@ -138,6 +147,10 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
     roster *alongside* the dummy one -- which is exactly why production kept showing
     invented dogs long after data/dogs.json became real.
 
+    Replacing a document is not replacing its decisions, though: staff and the agent write
+    fields onto these same scraped documents, and those survive the import (RS-16 --
+    PAWTHWAY_OWNED and _preserve_decisions).
+
     `plan_only` still connects and still reads, so a preview proves the credentials work
     and shows the true diff. Only the writes are skipped.
     """
@@ -177,6 +190,14 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
     # all Match, Care Plan and Post Foster need.
     delist = sorted(i for i in spoken_for if existing[i].get("status") == "available")
 
+    # A whole-document set() below, so anything another writer decided has to be carried into
+    # the record being written -- see PAWTHWAY_OWNED and _preserve_decisions.
+    dogs = [_preserve_decisions(d, existing.get(d["id"])) for d in dogs]
+    kept_status = {
+        d["id"]: d["status"] for d in dogs
+        if _decided_status(existing.get(d["id"])) is not None
+    }
+
     print(f"\nfirestore plan  ({len(existing)} docs live now)")
     print(f"  write   {len(dogs)}")
     print(f"  delete  {len(stale_ids)}" + (f"  {sorted(stale_ids)[:6]}" if stale_ids else ""))
@@ -187,6 +208,9 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
             f"  keep    {len(spoken_for)} stale but matched to a foster: {sorted(spoken_for)}"
             + (f" (delisted: {delist})" if delist else "")
         )
+    if kept_status:
+        shown = dict(sorted(kept_status.items())[:6])
+        print(f"  keep status  {len(kept_status)}  {shown}")
 
     if plan_only:
         print("  (plan only -- nothing written)")
@@ -210,6 +234,37 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
             batch.set(collection.document(d["id"]), d)
         batch.commit()
     print(f"  done: {len(dogs)} written, {len(stale_ids)} deleted, {len(delist)} delisted")
+
+
+def _decided_status(live: dict | None) -> str | None:
+    """The status someone in Pawthway decided for a live dog, or None if there is nothing to keep.
+
+    `available` is what the scrape itself says about every listed dog, so a live `available`
+    is the scrape's own word restated and the new scrape may rewrite it. Anything else --
+    `foster`, `ready_for_adoption`, `retired`, `adopted` -- was decided by staff or the agent,
+    and the shelter's public page has no field that could overrule it.
+    """
+    status = (live or {}).get("status")
+    return status if status and status != "available" else None
+
+
+def _preserve_decisions(dog: dict, live: dict | None) -> dict:
+    """The scraped record, with what Pawthway's own writers put on the live document laid over it.
+
+    Not `merge=True`: a merge keeps every key the scrape no longer states (PH-25), so a listing
+    that stops giving a weight would keep the old one. The scrape stays the whole document; only
+    the keys it never owns survive from the live one.
+    """
+    if not live:
+        return dog
+    out = dict(dog)
+    for key in PAWTHWAY_OWNED:
+        if key in live:
+            out[key] = live[key]
+    decided = _decided_status(live)
+    if decided is not None:
+        out["status"] = decided
+    return out
 
 
 def _summarise(dogs: list[dict]) -> None:

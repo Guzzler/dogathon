@@ -204,3 +204,75 @@ def test_plan_only_reports_the_delisting_and_writes_nothing(monkeypatch, capsys)
     log = _push(monkeypatch, _live(), [{"id": "fresh", "status": "available"}], plan_only=True)
     assert log == []
     assert "(delisted: ['d-026'])" in capsys.readouterr().out
+
+
+# --- RS-16: the import writes the shelter's listing, not the shelter's decisions --------------
+
+
+def _decided():
+    return _Client(
+        dogs={
+            "back": {
+                "status": "ready_for_adoption", "weight_lbs": 40, "updatedAt": "t0",
+                "adoption_profile": "A paragraph staff are meant to read.",
+                "adoption_profile_source": "agent",
+            },
+            "retired": {"status": "retired", "updatedAt": "t1"},
+            "listed": {"status": "available", "weight_lbs": 22},
+        },
+        fosters={},
+    )
+
+
+def _scraped(doc_id: str, **extra) -> dict:
+    return {"id": doc_id, "name": doc_id.title(), "status": "available", **extra}
+
+
+def _written(log: list) -> dict[str, dict]:
+    return {op[1]: op[2] for op in log if op[0] == "set"}
+
+
+def test_a_dog_back_from_foster_keeps_its_status_and_profile(monkeypatch):
+    log = _push(monkeypatch, _decided(), [_scraped("back"), _scraped("retired"), _scraped("listed")], plan_only=False)
+    back = _written(log)["back"]
+    assert back["status"] == "ready_for_adoption"
+    assert back["adoption_profile"] == "A paragraph staff are meant to read."
+    assert back["adoption_profile_source"] == "agent"
+    assert back["updatedAt"] == "t0"
+
+
+def test_a_retired_dog_stays_retired(monkeypatch):
+    log = _push(monkeypatch, _decided(), [_scraped("retired")], plan_only=False)
+    assert _written(log)["retired"]["status"] == "retired"
+
+
+def test_an_available_dog_is_rewritten_as_scraped(monkeypatch):
+    log = _push(monkeypatch, _decided(), [_scraped("listed", weight_lbs=25)], plan_only=False)
+    assert _written(log)["listed"] == _scraped("listed", weight_lbs=25)
+
+
+def test_a_field_the_scrape_stopped_stating_is_gone(monkeypatch):
+    """Not a merge: a listing that no longer gives a weight must lose the old one (PH-25)."""
+    log = _push(monkeypatch, _decided(), [_scraped("back"), _scraped("listed")], plan_only=False)
+    written = _written(log)
+    assert "weight_lbs" not in written["back"]
+    assert "weight_lbs" not in written["listed"]
+
+
+def test_a_new_dog_is_written_as_scraped(monkeypatch):
+    log = _push(monkeypatch, _decided(), [_scraped("newcomer", weight_lbs=12)], plan_only=False)
+    assert _written(log)["newcomer"] == _scraped("newcomer", weight_lbs=12)
+
+
+def test_plan_only_names_the_kept_statuses_and_writes_nothing(monkeypatch, capsys):
+    log = _push(monkeypatch, _decided(), [_scraped("back"), _scraped("retired"), _scraped("listed")], plan_only=True)
+    assert log == []
+    out = capsys.readouterr().out
+    assert "keep status  2  {'back': 'ready_for_adoption', 'retired': 'retired'}" in out
+
+
+def test_the_committed_roster_carries_no_pawthway_owned_field():
+    """data/dogs.json is the scrape alone, so --dry-run --from-cache stays byte-identical."""
+    roster = json.loads(import_dogs.DOGS_JSON.read_text())
+    assert not any(key in d for d in roster for key in import_dogs.PAWTHWAY_OWNED)
+    assert {d.get("status") for d in roster} <= {"available"}
