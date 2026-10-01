@@ -253,6 +253,13 @@ Compressed:
   (re-read the queue) and the eighteenth (a shipped item's edges) meeting. **A dog's listing is a
   field with an owner, and the owner is whoever answers the request that changes it.**
 
+- **2026-09-30 — the twenty-first link: a lead re-read against `main` is bigger than the lead.**
+  RS-17's lead (a) said other applicants' rows "show as if the dog were free"; tracing it found the
+  inbox will *confirm* a second foster on a dog already `foster`, behind a muted line written for a
+  different case — **RS-18**. **A muted "won't change that" is a gate someone decided not to build;
+  check what it lets through.** Design: confirming one pickup makes the others answerable, not
+  answered.
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
@@ -310,7 +317,7 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 84 files as of 2026-09-29 (RS-17's archived spec)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
+**`archive/` holds 86 files as of 2026-09-30 (RS-16's spec, and this run's roster-signal cut)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
 execute ran concurrently in one checkout — plan's `git checkout -b` moved HEAD off execute's
 uncommitted RS-14 branch, caught by `git status` showing code plan never touched, and put back
 unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* One thing this run's arithmetic adds to the rules below: **a section of five
