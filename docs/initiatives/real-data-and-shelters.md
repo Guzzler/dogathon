@@ -364,7 +364,7 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   different foster holds; the withdrawn notice likewise needs the application's own stamp. The
   foster's withdraw call passes no dog. vitest 226 (new `ShelterApplicationsView.test.tsx`), tsc,
   build, lint 8. **Not verified against Firestore or signed in** — RS-14b (8).
-- 2026-09-30 — RS-16 — PR #__ — The import writes the shelter's listing, not the shelter's
+- 2026-09-30 — RS-16 — PR #111 — The import writes the shelter's listing, not the shelter's
   decisions: `PAWTHWAY_OWNED` (`adoption_profile`, `adoption_profile_source`, `updatedAt`) plus
   `_decided_status()` / `_preserve_decisions()` in `scripts/import_dogs.py` overlay the live
   document's Pawthway-owned keys onto the scraped record, then `set()` it whole — so a key the
