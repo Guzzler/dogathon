@@ -68,24 +68,13 @@ Unless a bullet says otherwise it was last confirmed **2026-09-01**.
   [`archive/real-data-and-shelters-settled-2026-09-17.md`](archive/real-data-and-shelters-settled-2026-09-17.md).
   What is *not* closed is that **no human has driven any of it end to end** — RS-6b, RS-12b and
   RS-8 under "Needs a human".
-- **2026-09-17 — the roster's only staleness signal has still never run, and now says so.**
-  RS-4's weekly `import-dogs.yml` schedule fired for the first time on 2026-09-14 and failed `403`
-  scraping SF SPCA's sitemap from the GitHub runner; the same URL returns `200` from a residential
-  IP with no `User-Agent`. RS-13 (shipped the same day) makes that outcome reportable rather than a
-  skipped step — *drifted, clean, or could not look*. **M4 stays reopened**: the check is honest,
-  and it still cannot look. RS-13b under "Needs a human" is the only thing that changes that.
-  **2026-09-21 — RS-13's scheduled branch observed on a real run, and it did what it says.** Run
-  `35582812290` went green, caught the 403, and opened issue **#96** ("Weekly roster check could not
-  reach sfspca.org", label `roster-drift`) whose body says the freshness is *unknown*, that nothing
-  was written, and quotes the import's own 403 line. That discharges the RS-13 row's "check the
-  2026-09-21 run". Next Monday should *comment* on #96, not open a second issue — worth one look.
-  **2026-09-28 — it looked, for the first time.** Run `36403398124` took 2m19s against 21s for a
-  403, scraped **26** dogs against 19 committed, and commented on #96 (reused, as designed) with a
-  real plan: `write 26`, `delete 11`, `keep 2 … matched to a foster (delisted: ['d-026',
-  'sfspca-61200213'])`. So the drift signal works end to end, the roster has turned over by more
-  than half, and **the 403 is intermittent, not structural** — one success in three Mondays. Two
-  things the run exposed: #96 keeps its *could not reach* title under a comment saying it did, and
-  the `write 26` it plans is a whole-document replace over fields other writers now own — **RS-16**.
+- **2026-09-17 → 09-28 — the weekly roster check is honest, and has now looked once.** It 403'd
+  from GitHub's runners on 09-14 and 09-21 (RS-13 turned that into issue **#96**, *freshness unknown*),
+  then reached sfspca.org on **2026-09-28** (run `36403398124`): 26 dogs scraped against 19 committed,
+  plan `write 26` / `delete 11` / `keep 2`. **The 403 is intermittent, not structural**, the roster has
+  turned over by more than half, and the `write 26` is a whole-document replace over fields other
+  writers own — **RS-16**. Dated history verbatim in
+  [`archive/real-data-and-shelters-2026-09-30.md`](archive/real-data-and-shelters-2026-09-30.md).
 
 ## Milestones (compressed; full narrative in the archive)
 
@@ -158,6 +147,58 @@ don't "fix" the second by loosening `firestore.rules`.
 
 ### The items
 
+- [ ] **RS-18 `[large]` — one dog, one confirmed pickup, and the other applicants are told
+  (queued 2026-09-30).** From RS-17's lead (a), read against `main` and found worse than the lead
+  said. Once staff confirm foster A's pickup, the dog is `foster` and leaves Discovery (`isListable`,
+  `lib/dog.ts:128`), but **foster B's earlier application is untouched**: B's Match view never reads
+  the dog's `status`, so B can still request a pickup (`MatchView.tsx:106` → `requestPickup`), the
+  inbox shows B's row as *Pickup requested*, and `canConfirmPickup` (`applicationView.ts:349`) checks
+  only B's own status and slot. Staff pressing **Confirm pickup** on B is told, in muted text,
+  *"{dog} is marked in foster — confirming won't change that"*
+  (`ShelterApplicationsView.tsx:398-401`, a line RS-17 wrote for `medical_hold`/`retired`) and B's
+  Care Plan unlocks. **Two fosters each holding a confirmed pickup for one dog** — reasoned from the
+  code, not observed; nobody has two test fosters on one dog.
+
+  **Design answer (this run's question — what does confirming one pickup do to the other
+  applications on the same dog?).** **It makes them answerable; it does not answer them.**
+  Auto-declining in the same batch would turn requests staff never opened into decisions — the
+  exact move RS-15 ruled out (*only the party that answers a request can turn it into a fact*) — and
+  a shelter keeping a second applicant in case the first falls through is ordinary practice, which
+  RS-17's lead (b) shows happens. So: **one confirmed pickup per dog is a hard gate, everything else
+  is information.** A pure check over data each side already loads, no new field and no rules change
+  — rules can't query sibling applications, and a `heldBy` field on the dog would be a fourth writer
+  of `dogs` to keep in sync (RS-10, RS-16). Staff are the only confirmers, so a UI gate on the one
+  surface that confirms is the whole enforcement; the rules half is a lead, not part of this item.
+
+  1. `applicationView.ts`: `heldByAnother(app, applications)` — true when some *other* application
+     with the same `dogId` is in `LIVE` with a non-null `pickupConfirmedAt`. Pure; vitest it,
+     including a withdrawn holder (not held) and the application itself (not "another").
+  2. Inbox detail (`ShelterApplicationsView.tsx`): when `heldByAnother`, **Confirm pickup** is not
+     offered (**Ask for another time** and **Decline** still are), and in place of the muted line:
+     *"{dog} is going home with {holder's fosterName}. Decline this application, or take that
+     confirmation back first."* The holder's name is a link that selects that row. The RS-17
+     *won't change that* line stays for `medical_hold`/`retired`/etc. and **must not render** for a
+     dog held here.
+  3. Inbox list: a held-by-another live row gets one pill, **Dog placed with another foster**, styled
+     as a state rather than an alarm (reuse an existing `shelter__pill--*` modifier if one reads
+     right; DC's one-class-per-state note), so staff can find the rows to answer without opening each.
+  4. Foster side, Match (and Saved's Applications tab, which reads the same timeline): when the
+     application is live, has no `pickupConfirmedAt` of its own, and the matched dog's `status` is
+     `foster`, say so — *"{dog} is now in another foster home. {shelterName} hasn't answered your
+     application yet."* — through `shelterName()` (PH-28) and **not** as a decline (RS-11: an absent
+     answer never renders as one). Pickup scheduling is withheld with that line as its reason; the
+     foster keeps **Withdraw**. Their own confirmed application never shows it (`foster` is then
+     *their* dog).
+
+  **Not in scope:** a bulk *Decline the others* (one item, one answer at a time first); a rules-level
+  guard; lead (b). **Verify:** vitest for `heldByAnother` and for the inbox (extend
+  `ShelterApplicationsView.test.tsx`): with A confirmed and B live with a pickup, B's detail offers no
+  **Confirm pickup**, shows the *going home with* line and not the *won't change that* line, and B's
+  row carries the pill; A's detail is unchanged. A Match test where the dog is `foster` and the
+  foster's application is unconfirmed renders the notice and no scheduler, and where it is confirmed
+  renders neither notice nor change. `npm run test`, `tsc`, `build`, `lint` green. Signed-in half is
+  RS-14b's step (9) — say so in the row.
+
 - [x] **RS-17 `[large]` — the listing follows the handoff (queued 2026-09-29, shipped 2026-09-29).**
   Staff's answers in the inbox now move the dog in the same `writeBatch`: **Confirm pickup** takes an
   `available` dog to `foster`; taking the confirmation back or declining puts it back. Design answer
@@ -191,8 +232,8 @@ don't "fix" the second by loosening `firestore.rules`.
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
-- **The `[large]` slot was in this doc** (RS-14, RS-15, RS-17 — **RS-17 shipped 2026-09-29, so it is
-  empty** until plan refills it; RS-17's leads above are the first place to look). Routing narrative in
+- **The `[large]` slot is in this doc** (RS-14, RS-15, RS-17, and since 2026-09-30 **RS-18**, from
+  RS-17's lead (a)). Routing narrative in
   [`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md).
 
 ### Needs a human, not a queue item
@@ -211,6 +252,9 @@ shelter, per the section below.
   expect it to land — `createApplication` writes all three as `null`, which the rule admits.
   **(8), once RS-17 ships:** as staff, confirm a pickup — expect the dog gone from foster-side
   Discovery and under *In foster* on `/shelter/dogs`; take the confirmation back, expect it listed again.
+  **(9), once RS-18 ships:** with a second test foster applied to the same dog, confirm the first's
+  pickup; expect the second's row to carry *Dog placed with another foster*, its detail to offer no
+  **Confirm pickup**, and the second foster's Match card to say the dog is in another home.
   **Write down what happened.**
 
 
@@ -226,14 +270,12 @@ shelter, per the section below.
   the new dogs by hand, then untick *plan only* — **safe since RS-16 shipped (2026-09-30)**; before it, the push reset every
   shelter- and agent-written status on the scraped dogs.
 
-- **Leads RS-17 left (2026-09-29), each still true when it shipped.** (a) **Other fosters' open
-  applications on a dog that just went `foster`** stay `submitted`, and the inbox shows them as if
-  the dog were free — a closing-the-others design, not a status write. (b) **A foster who uses
-  *Change request* after confirmation and then withdraws** leaves the dog `foster` with no notice:
-  the change cleared the application's `pickupConfirmedAt`, which is what the withdrawn-row notice
-  keys on (deliberately — without it, any withdrawn row would offer to relist a dog another foster
-  holds). The roster's *In foster* group still offers **List again**, so the dog is recoverable, not
-  lost. SF SPCA's `in_foster_home` prose flag stays unconflated with `status`, as specified.
+- **RS-17's two leads (2026-09-29), verbatim in
+  [`archive/real-data-and-shelters-2026-09-30.md`](archive/real-data-and-shelters-2026-09-30.md).** (a) is now **RS-18 `[large]`**.
+  (b) **A foster who uses *Change request* after confirmation and then withdraws** leaves the dog
+  `foster` with no notice (the change cleared the stamp the notice keys on). The roster's *In foster*
+  group still offers **List again**, so it is recoverable, not lost — still a lead, not an item.
+
 - **A lead, not an item (2026-09-28, found building RS-15): the foster's *withdraw* branch of
   `applications`' update rule pins five fields but has no `hasOnly`**, so a withdrawing write may
   also set `pickupNote`/`pickupConfirmedAt`/`pickupDeclinedAt`. On a withdrawn row nothing staff
@@ -268,7 +310,7 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status re-checked **2026-09-29**, not carried over: `git log --since=2026-09-22` is this
+*(Status re-checked **2026-09-30**, not carried over: `git log --since=2026-09-22` is this
 loop's own PRs and nothing else, and a grep across `docs/` turns up no commit, no doc edit from
 Sharang and no note anywhere saying this has happened. Recorded so a future run doesn't mistake
 the passage of time for progress. Now that M3 is finished this is the only thing standing between
@@ -311,7 +353,7 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   `create` rule requires all three answer fields null. vitest 211, tsc, build, lint 8; rules **not**
   verified against Firestore (RS-14b (6)–(7)). Full row verbatim in
   [`archive/real-data-and-shelters-rs15-ledger-2026-09-29.md`](archive/real-data-and-shelters-rs15-ledger-2026-09-29.md).
-- 2026-09-29 — RS-17 `[large]` — PR #__ — The listing follows the handoff: `handoffStatus()` in
+- 2026-09-29 — RS-17 `[large]` — PR #110 — The listing follows the handoff: `handoffStatus()` in
   `shelterDog.ts`; `setPickupConfirmed`, `askForAnotherTime` and `setApplicationStatus` take the dog
   and batch `dogs/{id}.status` with the application update; the inbox's muted *won't change that*
   line beside **Confirm pickup**, and a withdrawn-after-confirmation notice with **List again**;

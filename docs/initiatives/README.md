@@ -253,6 +253,13 @@ Compressed:
   (re-read the queue) and the eighteenth (a shipped item's edges) meeting. **A dog's listing is a
   field with an owner, and the owner is whoever answers the request that changes it.**
 
+- **2026-09-30 — the twenty-first link: a lead re-read against `main` is bigger than the lead.**
+  RS-17's lead (a) said other applicants' rows "show as if the dog were free"; tracing it found the
+  inbox will *confirm* a second foster on a dog already `foster`, behind a muted line written for a
+  different case — **RS-18**. **A muted "won't change that" is a gate someone decided not to build;
+  check what it lets through.** Design: confirming one pickup makes the others answerable, not
+  answered.
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
