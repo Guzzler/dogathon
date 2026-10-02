@@ -20,13 +20,14 @@ import type { Application, ApplicationStatus, ChecklistItem, Dog, Foster, Pickup
 
 const foster = vi.hoisted(() => ({ current: null as Foster | null }));
 const application = vi.hoisted(() => ({ current: null as Application | null }));
+const dogStatus = vi.hoisted(() => ({ current: "available" as Dog["status"] }));
 
 vi.mock("../../hooks/useFoster", () => ({
   useFoster: () => ({ foster: foster.current, loading: false }),
   patchFoster: vi.fn(),
 }));
 vi.mock("../../hooks/useDogs", () => ({
-  useDogs: () => ({ dogs: [DOG], loading: false }),
+  useDogs: () => ({ dogs: [{ ...DOG, status: dogStatus.current }], loading: false }),
 }));
 vi.mock("../../hooks/useApplication", () => ({
   useApplication: () => ({ application: application.current, loading: false }),
@@ -72,7 +73,10 @@ function screen(opts: {
   /** The shelter's other answer (RS-15), and what staff typed with it. */
   declined?: boolean;
   note?: string | null;
+  /** The dog's listing (RS-18): `foster` once staff confirmed somebody's pickup. */
+  dogStatus?: Dog["status"];
 }): string {
+  dogStatus.current = opts.dogStatus ?? "available";
   const list = CHECKLIST(opts.checklistDone ?? false);
   foster.current = {
     id: "f1",
@@ -299,5 +303,32 @@ describe("MatchView, on who gets to say the dog is coming home", () => {
     expect(html).toContain("SF SPCA asked for a different time");
     expect(html).not.toContain("From SF SPCA</div>");
     expect(html).not.toContain("<blockquote");
+  });
+});
+
+describe("MatchView, once the dog has gone home with another foster (RS-18)", () => {
+  const SLOT: Pickup = { date: "2026-10-03", time: "11:00", location: "SF SPCA Mission Campus" };
+
+  it("states the listing, keeps the scheduler, and does not read as a decline", () => {
+    const html = screen({ status: "approved", checklistDone: true, dogStatus: "foster" });
+    expect(html).toContain("Tip Toe is listed as in a foster home at SF SPCA. They haven&#x27;t confirmed a pickup");
+    expect(html).not.toContain("said no this time");
+    expect(html).toContain("Pawthway takes requests");
+  });
+
+  it("keeps Change request for the holder whose own change cleared the stamp (RS-19)", () => {
+    // The foster side can't tell this from someone else's applicant, so it must strand neither.
+    const html = screen({ status: "approved", checklistDone: true, dogStatus: "foster", pickup: SLOT, appPickup: SLOT });
+    expect(html).toContain("listed as in a foster home");
+    expect(html).toContain("Change request");
+    expect(html).not.toContain("another foster home");
+  });
+
+  it("never shows on the foster's own confirmed pickup", () => {
+    const html = screen({
+      status: "approved", checklistDone: true, dogStatus: "foster", pickup: SLOT, appPickup: SLOT, confirmed: true,
+    });
+    expect(html).not.toContain("listed as in a foster home");
+    expect(html).toContain("confirmed this time");
   });
 });

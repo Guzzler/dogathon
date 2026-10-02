@@ -18,6 +18,9 @@ import {
   splitByOwner,
   staffTransitions,
   withdrawnAfterHandoff,
+  heldByAnother,
+  pickupHolder,
+  placedElsewhere,
 } from "./applicationView";
 import type { Application, ApplicationStatus, ChecklistItem, Pickup } from "../types";
 
@@ -379,5 +382,43 @@ describe("withdrawnAfterHandoff (RS-17)", () => {
   it("never offers to relist a dog some other foster holds", () => {
     expect(withdrawnAfterHandoff(app("withdrawn", false), "foster")).toBe(false);
     expect(withdrawnAfterHandoff(app("approved", true), "foster")).toBe(false);
+  });
+});
+
+describe("one dog, one confirmed pickup (RS-18)", () => {
+  const stamp = { toMillis: () => 1 };
+  const app = (id: string, status: ApplicationStatus, confirmed: boolean, dogId = "d1") =>
+    ({ id, dogId, status, pickupConfirmedAt: confirmed ? stamp : null }) as Application;
+
+  it("holds the dog for a live application with a confirmed pickup", () => {
+    const a = app("a", "approved", true);
+    const b = app("b", "approved", false);
+    expect(heldByAnother(b, [a, b])).toBe(true);
+    expect(pickupHolder(b, [a, b])?.id).toBe("a");
+  });
+
+  it("never counts the application itself as another", () => {
+    const a = app("a", "approved", true);
+    expect(heldByAnother(a, [a])).toBe(false);
+  });
+
+  it("does not hold for a withdrawn or declined holder, or a different dog", () => {
+    const b = app("b", "approved", false);
+    expect(heldByAnother(b, [app("a", "withdrawn", true), b])).toBe(false);
+    expect(heldByAnother(b, [app("a", "declined", true), b])).toBe(false);
+    expect(heldByAnother(b, [app("a", "approved", true, "d2"), b])).toBe(false);
+    expect(heldByAnother(b, [app("a", "approved", false), b])).toBe(false);
+  });
+
+  it("tells the foster the dog went elsewhere only while their own application is open and unconfirmed", () => {
+    expect(placedElsewhere(app("b", "approved", false), "foster")).toBe(true);
+    expect(placedElsewhere(app("b", "submitted", false), "foster")).toBe(true);
+    // Their own confirmed pickup: `foster` is their dog.
+    expect(placedElsewhere(app("b", "approved", true), "foster")).toBe(false);
+    expect(placedElsewhere(app("b", "approved", false), "available")).toBe(false);
+    expect(placedElsewhere(app("b", "withdrawn", false), "foster")).toBe(false);
+    expect(placedElsewhere(app("b", "declined", false), "foster")).toBe(false);
+    // No application (LOCAL_MODE, guests): nobody to have placed the dog.
+    expect(placedElsewhere(null, "foster")).toBe(false);
   });
 });

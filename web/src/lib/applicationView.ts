@@ -320,6 +320,9 @@ export function activeStage(approved: boolean, pickup: PickupState): number {
 /** The statuses the foster may still request a pickup on -- mirrors the rules' pickup branch. */
 const LIVE: ApplicationStatus[] = ["submitted", "in_review", "approved"];
 
+/** Still open from both sides: a foster could yet be coming for the dog. */
+export const isLive = (status: ApplicationStatus): boolean => LIVE.includes(status);
+
 /**
  * The one pickup state staff must act on: a slot requested on a live application that nobody
  * at the shelter has answered yet. Drives the inbox row's "Pickup requested" pill. Asking for
@@ -366,4 +369,52 @@ export function withdrawnAfterHandoff(
   dogStatus: DogStatus | undefined,
 ): boolean {
   return app.status === "withdrawn" && Boolean(app.pickupConfirmedAt) && dogStatus === "foster";
+}
+
+/* ---------- one dog, one confirmed pickup (RS-18) ---------- */
+
+/**
+ * The application on the same dog that already holds a confirmed pickup, if any -- what stops
+ * staff confirming a second foster for one dog. A *live* holder only: a withdrawn or declined
+ * application's stamp is history, not a hold. Never the application itself.
+ *
+ * Confirming one pickup makes the other applications **answerable, not answered**: nothing here
+ * declines anybody. Rules can't query sibling applications and staff are the only confirmers, so
+ * this check on the one surface that confirms is the whole enforcement.
+ */
+export function pickupHolder<A extends Pick<Application, "id" | "dogId" | "status" | "pickupConfirmedAt">>(
+  app: Pick<Application, "id" | "dogId">,
+  applications: A[],
+): A | null {
+  return (
+    applications.find(
+      (other) =>
+        other.id !== app.id && other.dogId === app.dogId && LIVE.includes(other.status) && Boolean(other.pickupConfirmedAt),
+    ) ?? null
+  );
+}
+
+export function heldByAnother(
+  app: Pick<Application, "id" | "dogId">,
+  applications: Pick<Application, "id" | "dogId" | "status" | "pickupConfirmedAt">[],
+): boolean {
+  return pickupHolder(app, applications) !== null;
+}
+
+/**
+ * The foster's side of the same fact, as far as the foster can see it: their application is open
+ * and unconfirmed, and the dog is listed `foster` (only staff confirming a pickup writes that,
+ * RS-17). Not a decline -- an absent answer never renders as one (RS-11).
+ *
+ * It cannot say *whose* foster home (RS-19): rules let a foster read only their own application,
+ * and the foster staff confirmed matches this too after **Change request** clears their stamp.
+ * So screens state the listing and withhold nothing. Their own confirmed application never trips
+ * it: `foster` is then *their* dog.
+ */
+export function placedElsewhere(
+  application: Pick<Application, "status" | "pickupConfirmedAt"> | null | undefined,
+  dogStatus: DogStatus | undefined,
+): boolean {
+  if (!application || dogStatus !== "foster") return false;
+  return LIVE.includes(application.status) && !application.pickupConfirmedAt;
 }

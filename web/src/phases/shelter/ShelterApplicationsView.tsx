@@ -19,6 +19,8 @@ import {
   createdAtMillis,
   inboxError,
   isActionable,
+  isLive,
+  pickupHolder,
   pickupAskedToMove,
   pickupAwaitingShelter,
   splitByOwner,
@@ -104,7 +106,9 @@ export function ShelterApplicationsView() {
             selectedId={selected?.id ?? null}
             onSelect={setSelectedId}
           />
-          {selected && <ApplicationDetail application={selected} />}
+          {selected && (
+            <ApplicationDetail application={selected} applications={applications} onSelect={setSelectedId} />
+          )}
         </div>
       )}
     </div>
@@ -185,13 +189,23 @@ function ApplicationList({
             </span>
             <span className="shelter__row-meta">
               <StatusPill status={app.status} />
-              {/* RS-14: the one pickup state that is waiting on the shelter. */}
-              {pickupAwaitingShelter(app) && (
-                <span className="shelter__pill shelter__pill--pickup">Pickup requested</span>
-              )}
-              {/* RS-15: answered, but not agreed -- the foster's move, so it wears no alarm. */}
-              {pickupAskedToMove(app) && (
-                <span className="shelter__pill shelter__pill--pickup-moved">Asked for another time</span>
+              {/* RS-18: the dog went home with another foster, so this row is waiting on an
+                  answer that can't be "confirm". It replaces the pickup pills -- "Pickup
+                  requested" would invite the one action this application no longer has -- and is
+                  a state about the dog, not an alarm. */}
+              {isLive(app.status) && pickupHolder(app, applications) ? (
+                <span className="shelter__pill shelter__pill--dog">Dog placed with another foster</span>
+              ) : (
+                <>
+                  {/* RS-14: the one pickup state that is waiting on the shelter. */}
+                  {pickupAwaitingShelter(app) && (
+                    <span className="shelter__pill shelter__pill--pickup">Pickup requested</span>
+                  )}
+                  {/* RS-15: answered, but not agreed -- the foster's move, so it wears no alarm. */}
+                  {pickupAskedToMove(app) && (
+                    <span className="shelter__pill shelter__pill--pickup-moved">Asked for another time</span>
+                  )}
+                </>
               )}
               <span className="muted">{applicationAge(createdAtMillis(app), now)}</span>
             </span>
@@ -202,8 +216,14 @@ function ApplicationList({
   );
 }
 
-function ApplicationDetail({ application }: { application: Application }) {
+function ApplicationDetail({ application, applications, onSelect }: {
+  application: Application;
+  applications: Application[];
+  onSelect: (id: string) => void;
+}) {
   const { name: dogName, dog } = useApplicationDog(application.dogId);
+  // RS-18: another live application on this dog already holds a confirmed pickup.
+  const holder = isLive(application.status) ? pickupHolder(application, applications) : null;
   // Whether this application holds the confirmation an answer would take back -- what decides
   // if declining it relists the dog (`handoffStatus`'s `confirmedHere`).
   const wasConfirmed = Boolean(application.pickupConfirmedAt);
@@ -282,7 +302,16 @@ function ApplicationDetail({ application }: { application: Application }) {
       </ul>
 
       <h3>Pickup</h3>
-      <PickupSection application={application} dog={dog} dogName={dogName} busy={busy} run={run} />
+      {holder && (
+        <p className="shelter__handoff-note">
+          {dogName} is going home with{" "}
+          <button type="button" className="shelter__link" onClick={() => onSelect(holder.id)}>
+            {holder.fosterName}
+          </button>
+          . Decline this application, or take that confirmation back first.
+        </p>
+      )}
+      <PickupSection application={application} dog={dog} dogName={dogName} held={Boolean(holder)} busy={busy} run={run} />
 
       <h3>Status</h3>
       {actionable ? (
@@ -349,10 +378,12 @@ function ApplicationDetail({ application }: { application: Application }) {
  * which one. There is no counter-slot picker on purpose -- a second writer of `pickup` is the
  * drift RS-14 designed out -- so a better time goes in the note, in words.
  */
-function PickupSection({ application, dog, dogName, busy, run }: {
+function PickupSection({ application, dog, dogName, held, busy, run }: {
   application: Application;
   dog: Dog | null;
   dogName: string;
+  /** RS-18: another application on this dog holds the confirmation, so this one can't take it. */
+  held: boolean;
   busy: boolean;
   run: (work: () => Promise<void>) => Promise<void>;
 }) {
@@ -394,8 +425,10 @@ function PickupSection({ application, dog, dogName, busy, run }: {
         <p className="shelter__pickup-note">&ldquo;{application.pickupNote}&rdquo;</p>
       )}
       {/* RS-17: confirming moves only an `available` dog. Anything else is a decision staff made
-          earlier, and the button must not read as though it overrules it. */}
-      {canConfirmPickup(application) && !confirmed && dog && dog.status !== "available" && (
+          earlier, and the button must not read as though it overrules it. A dog held by another
+          application (RS-18) is the one case where there is no button to overrule anything with,
+          so the line above the section says what to do instead. */}
+      {canConfirmPickup(application) && !confirmed && !held && dog && dog.status !== "available" && (
         <p className="muted shelter__handoff-note">
           {dogName} is marked {DOG_STATUS_LABELS[dog.status].toLowerCase()} &mdash; confirming won&rsquo;t change that.
         </p>
@@ -436,7 +469,7 @@ function PickupSection({ application, dog, dogName, busy, run }: {
               >
                 Undo confirmation
               </button>
-            ) : (
+            ) : held ? null : (
               <button
                 type="button"
                 className="btn"
