@@ -8,7 +8,7 @@ import { PickupScheduler } from "../../components/PickupScheduler";
 import { requestPickup } from "../../lib/applications";
 import { DemoShelterPanel } from "../../components/DemoShelterPanel";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_PREP_CHECKLIST, checklistOwner } from "../../checklists";
-import { APPLICATION_STAGES, activeStage, agreedPickup, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState } from "../../lib/applicationView";
+import { APPLICATION_STAGES, activeStage, agreedPickup, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState, placedElsewhere } from "../../lib/applicationView";
 import { normalizeDog, thumbBackground } from "../../lib/dog";
 import { downloadIcs } from "../../lib/calendar";
 import { shelterName } from "../../lib/shelters";
@@ -75,6 +75,8 @@ export function MatchView() {
   // It replaces the badge, and `declined` replaces the whole screen below it -- but it never
   // unlocks the scheduler and never ticks anybody's boxes. See approvalDecision().
   const decision = approvalDecision(application?.status);
+  // RS-18: the shelter confirmed someone else's pickup for this dog and hasn't answered ours.
+  const elsewhere = placedElsewhere(application, raw?.status);
   const badge = approvalBadge(decision, shelterName(dog, "short", { start: true }), {
     tone: shelterApproved ? "sage" : "butter",
     label: shelterApproved ? "✓ Shelter approved you as a foster" : "⏳ Waiting on shelter review",
@@ -164,6 +166,20 @@ export function MatchView() {
               : pickup === "declined" ? "Pick another time"
               : "Request a pickup"}
           </div>
+          {elsewhere && (
+            // RS-18/RS-19. The foster side may say only what it can read: the dog's listing and
+            // this foster's own application, never a sibling's. So this states the listing, not
+            // who holds the dog -- the foster staff confirmed, after **Change request** (which
+            // clears the stamp), reads exactly like someone else's applicant. Not a decline
+            // (RS-11), and it withholds nothing: a request is harmless, because the inbox will
+            // not confirm a second pickup on a dog another application holds.
+            <div className="card" role="status" style={{ padding: 13, marginBottom: 12 }}>
+              <p style={{ fontSize: 13 }}>
+                {dog.name} is listed as in a foster home at {shelterName(dog)}. They haven't confirmed a pickup with
+                you yet — they'll tell you whether this can go ahead.
+              </p>
+            </div>
+          )}
           {!approved ? (
             <>
               <button className="btn" disabled>🔒 Request a pickup</button>

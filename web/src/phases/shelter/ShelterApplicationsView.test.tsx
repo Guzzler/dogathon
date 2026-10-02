@@ -98,3 +98,56 @@ describe("ShelterApplicationsView — the listing follows the handoff (RS-17)", 
     expect(html).not.toContain("List again");
   });
 });
+
+describe("ShelterApplicationsView — one dog, one confirmed pickup (RS-18)", () => {
+  const confirmedA = () =>
+    application({ id: "a1", fosterName: "Alex", pickupConfirmedAt: stamp as Application["pickupConfirmedAt"] });
+  const liveB = () => application({ id: "b1", fosterName: "Blair", fosterId: "u2" });
+
+  // The first row is the selected one, so the order picks whose detail renders.
+  const renderAll = (apps: Application[]) => {
+    state.dogs = [dog({ status: "foster" })];
+    state.applications = apps;
+    return renderToStaticMarkup(<ShelterApplicationsView />);
+  };
+  const detailOf = (html: string) => html.slice(html.indexOf("shelter__detail"));
+  const rowOf = (html: string, name: string) => {
+    const start = html.indexOf(`<strong>${name}</strong>`);
+    return html.slice(start, html.indexOf("</button>", start));
+  };
+
+  it("offers B no Confirm pickup and says who has the dog instead", () => {
+    const detail = detailOf(renderAll([liveB(), confirmedA()]));
+    expect(detail).not.toContain("Confirm pickup");
+    expect(detail).toContain("Fern is going home with");
+    expect(detail).toContain(">Alex</button>");
+    expect(detail).toContain("Decline this application, or take that confirmation back first.");
+    expect(detail).not.toContain("confirming won");
+    // Still answerable: another time, and the status controls.
+    expect(detail).toContain("Ask for another time");
+    expect(detail).toContain("Mark declined");
+  });
+
+  it("puts one pill on B's row, in place of Pickup requested", () => {
+    const html = renderAll([liveB(), confirmedA()]);
+    const row = rowOf(html, "Blair");
+    expect(row).toContain("Dog placed with another foster");
+    expect(row).not.toContain("Pickup requested");
+    expect(rowOf(html, "Alex")).not.toContain("Dog placed with another foster");
+  });
+
+  it("leaves A's own detail unchanged", () => {
+    const detail = detailOf(renderAll([confirmedA(), liveB()]));
+    expect(detail).toContain("Undo confirmation");
+    expect(detail).not.toContain("going home with");
+  });
+
+  it("frees the dog again once the holder withdraws", () => {
+    const withdrawnA = application({
+      id: "a1", fosterName: "Alex", status: "withdrawn", pickupConfirmedAt: stamp as Application["pickupConfirmedAt"],
+    });
+    const html = renderAll([liveB(), withdrawnA]);
+    expect(detailOf(html)).toContain("Confirm pickup");
+    expect(html).not.toContain("Dog placed with another foster");
+  });
+});
