@@ -199,30 +199,46 @@ don't "fix" the second by loosening `firestore.rules`.
   renders neither notice nor change. `npm run test`, `tsc`, `build`, `lint` green. Signed-in half is
   RS-14b's step (9) — say so in the row.
 
-- [x] **RS-17 `[large]` — the listing follows the handoff (queued 2026-09-29, shipped 2026-09-29).**
-  Staff's answers in the inbox now move the dog in the same `writeBatch`: **Confirm pickup** takes an
-  `available` dog to `foster`; taking the confirmation back or declining puts it back. Design answer
-  (*a dog's listing is a field with an owner, and the owner is whoever answers the request that
-  changes it*) and spec verbatim in
-  [`archive/real-data-and-shelters-rs17-2026-09-29.md`](archive/real-data-and-shelters-rs17-2026-09-29.md);
-  the Ledger row is what shipped. Signed-in half is RS-14b's step (8).
+- [ ] **RS-19 — the original holder's *Change request* is not "another foster home" (queued
+  2026-10-01; gated on RS-18 shipping).** Found re-verifying RS-18's spec against `main` while
+  execute was already building it (its branch was checked out with items 1–3 in progress), so kept
+  separate rather than edited into a contract (PH-31's rule). `requestPickup()`
+  (`lib/applications.ts:81`) **clears `pickupConfirmedAt` and does not touch the dog**. So when foster
+  A — the one staff confirmed — presses **Change request** (`MatchView.tsx:244`), A's own application
+  is live and unconfirmed and the dog is `foster`: exactly RS-18 item 4's predicate. A is told
+  *"{dog} is now in another foster home"* about **A's own dog**, and the scheduler is withheld at
+  the one moment A's only next step is to send a slot. The foster side cannot tell A from B: rules
+  let a foster read only their own application, and the stamp that would tell them apart is the one
+  *Change request* erases.
 
-- [x] **RS-15 `[large]` — the handoff happens on the shelter's say-so (queued 2026-09-27, shipped
-  2026-09-28).** Staff got a second answer, **Ask for another time** with an optional attributed
-  note; Care Plan and every countdown wait for the shelter's confirmation. Spec and design answer
-  (*only the party that answers a request can turn it into a fact*) verbatim in
-  [`archive/real-data-and-shelters-rs15-2026-09-28.md`](archive/real-data-and-shelters-rs15-2026-09-28.md);
-  the Ledger row is what shipped. Signed-in half is RS-14b's step (6).
+  **Design answer: the foster side may say only what it can read** — the dog's listing and its own
+  application, never a sibling's. So the notice states the listing, not who holds the dog, and does
+  not withhold the scheduler: a request is harmless, because RS-18's gate makes a second confirmation
+  impossible on the one surface that confirms. Rejected: a "was once confirmed" field (a new
+  foster-writable field kept only to remember a stamp — another writer to pin in rules, for one
+  sentence of copy), and letting fosters read sibling applications (exposes other applicants).
 
-- [x] **RS-16 — the import writes the shelter's listing, not the shelter's decisions (queued
-  2026-09-28, shipped 2026-09-30).** The importer's whole-document `set()` now overlays what
-  Pawthway's own writers put on a scraped dog — `adoption_profile`, `adoption_profile_source`,
-  `updatedAt`, and any `status` other than `available` — so a re-import no longer relists a retired,
-  adopted, in-foster or back-from-foster dog or deletes the paragraph staff read. Design answer
-  (*the scrape owns what the shelter's public page says; Pawthway's writers own what happened inside
-  Pawthway*) and spec verbatim in
-  [`archive/real-data-and-shelters-rs16-2026-09-30.md`](archive/real-data-and-shelters-rs16-2026-09-30.md);
-  the Ledger row is what shipped.
+  1. RS-18 item 4's copy becomes *"{dog} is listed as in a foster home at {shelterName}. They
+     haven't confirmed a pickup with you yet — they'll tell you whether this can go ahead."* Same
+     predicate, through `shelterName()`, still not a decline.
+  2. The scheduler and **Change request** stay available beneath it, in Match and wherever RS-18 put
+     the notice on Saved's Applications timeline.
+
+  **Verify:** extend RS-18's Match test — dog `foster`, application live with a `pickup` and
+  `pickupConfirmedAt: null` renders the reworded notice **and** the scheduler / **Change request**;
+  `grep -rn "another foster home" web/src` finds nothing outside tests. `npm run test`, `tsc`,
+  `build`, `lint`. **If RS-18 ships having already avoided both**, tick RS-19 with a Ledger row
+  saying so — don't invent a diff.
+
+- [x] **RS-15 `[large]` (2026-09-28), RS-16 (2026-09-30), RS-17 `[large]` (2026-09-29) — shipped;
+  compressed 2026-10-01.** In one line each, design answer first: **RS-15**, *only the party that
+  answers a request can turn it into a fact* — **Ask for another time**, Care Plan waits for the
+  shelter ([spec](archive/real-data-and-shelters-rs15-2026-09-28.md)); **RS-16**, *the scrape owns
+  what the shelter's page says, Pawthway's writers own what happened inside Pawthway* — the import
+  overlays Pawthway-owned keys ([spec](archive/real-data-and-shelters-rs16-2026-09-30.md));
+  **RS-17**, *a dog's listing is a field with an owner, and the owner is whoever answers the request
+  that changes it* — confirm/unconfirm/decline batch `dogs/{id}.status`
+  ([spec](archive/real-data-and-shelters-rs17-2026-09-29.md)). Ledger rows are what shipped.
 
 - **Everything through RS-14 is shipped; each Ledger row is its account.** RS-14's spec and design
   answer (*a model may talk about an organisation, never as one*) are in
@@ -254,8 +270,9 @@ shelter, per the section below.
   Discovery and under *In foster* on `/shelter/dogs`; take the confirmation back, expect it listed again.
   **(9), once RS-18 ships:** with a second test foster applied to the same dog, confirm the first's
   pickup; expect the second's row to carry *Dog placed with another foster*, its detail to offer no
-  **Confirm pickup**, and the second foster's Match card to say the dog is in another home.
-  **Write down what happened.**
+  **Confirm pickup**, and the second foster's Match card to say the dog is listed as in foster
+  (RS-19's wording) with the scheduler still there. Then, as the *first* foster, **Change request**
+  and expect no line claiming the dog is in another home. **Write down what happened.**
 
 
 - **RS-13b — a runner with an address sfspca.org will answer.** RS-13 made the weekly check
@@ -275,6 +292,8 @@ shelter, per the section below.
   (b) **A foster who uses *Change request* after confirmation and then withdraws** leaves the dog
   `foster` with no notice (the change cleared the stamp the notice keys on). The roster's *In foster*
   group still offers **List again**, so it is recoverable, not lost — still a lead, not an item.
+  *2026-10-01: the same erased stamp is what RS-19 turns on — the half of (b) that reaches a foster's
+  screen is now queued; the orphaned `foster` listing itself is still only a lead.*
 
 - **A lead, not an item (2026-09-28, found building RS-15): the foster's *withdraw* branch of
   `applications`' update rule pins five fields but has no `hasOnly`**, so a withdrawing write may
@@ -310,7 +329,7 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status re-checked **2026-09-30**, not carried over: `git log --since=2026-09-22` is this
+*(Status re-checked **2026-10-01**, not carried over: `git log --since=2026-09-22` is this
 loop's own PRs and nothing else, and a grep across `docs/` turns up no commit, no doc edit from
 Sharang and no note anywhere saying this has happened. Recorded so a future run doesn't mistake
 the passage of time for progress. Now that M3 is finished this is the only thing standing between
