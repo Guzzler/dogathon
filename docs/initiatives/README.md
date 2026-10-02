@@ -260,6 +260,12 @@ Compressed:
   check what it lets through.** Design: confirming one pickup makes the others answerable, not
   answered.
 
+- **2026-10-01 — no slot sought; RS-18's spec re-verified while execute was building it.** Its
+  foster-side predicate (live, unconfirmed, dog `foster`) also matches the *original holder* after
+  **Change request**, which erases the stamp — **RS-19**, queued separately because execute had
+  read the spec. **A screen may only say what its reader's rules let it read**; a predicate built
+  from what's visible to one side must be checked against every state that side can reach.
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
@@ -317,7 +323,7 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 86 files as of 2026-09-30 (RS-16's spec, and this run's roster-signal cut)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
+**`archive/` holds 86 files as of 2026-10-01 (recounted; this run archived nothing — it compressed three shipped bullets whose specs were already archived)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
 execute ran concurrently in one checkout — plan's `git checkout -b` moved HEAD off execute's
 uncommitted RS-14 branch, caught by `git status` showing code plan never touched, and put back
 unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* One thing this run's arithmetic adds to the rules below: **a section of five
