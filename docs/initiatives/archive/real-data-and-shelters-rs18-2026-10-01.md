@@ -53,3 +53,39 @@ From [`../real-data-and-shelters.md`](../real-data-and-shelters.md)'s Task queue
   foster's application is unconfirmed renders the notice and no scheduler, and where it is confirmed
   renders neither notice nor change. `npm run test`, `tsc`, `build`, `lint` green. Signed-in half is
   RS-14b's step (9) — say so in the row.
+
+
+# RS-19 spec, archived verbatim 2026-10-01 (folded into RS-18's PR)
+
+Queued by plan in PR #113 while RS-18 was being built; shipped in the same PR as RS-18.
+
+- [ ] **RS-19 — the original holder's *Change request* is not "another foster home" (queued
+  2026-10-01; gated on RS-18 shipping).** Found re-verifying RS-18's spec against `main` while
+  execute was already building it (its branch was checked out with items 1–3 in progress), so kept
+  separate rather than edited into a contract (PH-31's rule). `requestPickup()`
+  (`lib/applications.ts:81`) **clears `pickupConfirmedAt` and does not touch the dog**. So when foster
+  A — the one staff confirmed — presses **Change request** (`MatchView.tsx:244`), A's own application
+  is live and unconfirmed and the dog is `foster`: exactly RS-18 item 4's predicate. A is told
+  *"{dog} is now in another foster home"* about **A's own dog**, and the scheduler is withheld at
+  the one moment A's only next step is to send a slot. The foster side cannot tell A from B: rules
+  let a foster read only their own application, and the stamp that would tell them apart is the one
+  *Change request* erases.
+
+  **Design answer: the foster side may say only what it can read** — the dog's listing and its own
+  application, never a sibling's. So the notice states the listing, not who holds the dog, and does
+  not withhold the scheduler: a request is harmless, because RS-18's gate makes a second confirmation
+  impossible on the one surface that confirms. Rejected: a "was once confirmed" field (a new
+  foster-writable field kept only to remember a stamp — another writer to pin in rules, for one
+  sentence of copy), and letting fosters read sibling applications (exposes other applicants).
+
+  1. RS-18 item 4's copy becomes *"{dog} is listed as in a foster home at {shelterName}. They
+     haven't confirmed a pickup with you yet — they'll tell you whether this can go ahead."* Same
+     predicate, through `shelterName()`, still not a decline.
+  2. The scheduler and **Change request** stay available beneath it, in Match and wherever RS-18 put
+     the notice on Saved's Applications timeline.
+
+  **Verify:** extend RS-18's Match test — dog `foster`, application live with a `pickup` and
+  `pickupConfirmedAt: null` renders the reworded notice **and** the scheduler / **Change request**;
+  `grep -rn "another foster home" web/src` finds nothing outside tests. `npm run test`, `tsc`,
+  `build`, `lint`. **If RS-18 ships having already avoided both**, tick RS-19 with a Ledger row
+  saying so — don't invent a diff.
