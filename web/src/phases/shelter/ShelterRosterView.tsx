@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useMyShelters } from "../../hooks/useStaffShelters";
 import { useShelterDogs } from "../../hooks/useShelterDogs";
+import { useShelterApplications } from "../../hooks/useShelterApplications";
+import { isLive } from "../../lib/applicationView";
 import { addShelterDog, applyRosterAction } from "../../lib/shelterRoster";
 import { normalizeDog, dogPhotoOrNull } from "../../lib/dog";
 import {
@@ -40,6 +42,18 @@ export function ShelterRosterView() {
 
   const dogs = result.state === "ready" ? result.dogs : [];
   const { back, foster, listed, rest } = groupRoster(dogs);
+  // RS-20: one subscription for the whole roster, counted per dog, so taking a dog down can say
+  // who is still waiting on it. A failed or loading read counts nothing -- the note is a courtesy
+  // beside the button, never a gate on it.
+  const { result: applicationsResult } = useShelterApplications(active?.id ?? null);
+  const openApplications = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (applicationsResult.state !== "ready") return counts;
+    for (const a of applicationsResult.applications) {
+      if (isLive(a.status)) counts.set(a.dogId, (counts.get(a.dogId) ?? 0) + 1);
+    }
+    return counts;
+  }, [applicationsResult]);
 
   return (
     <div className="screen shelter__home">
@@ -119,7 +133,7 @@ export function ShelterRosterView() {
               <ul className="shelter__list shelter__list--wide">
                 {back.map((dog) => (
                   <li key={dog.id}>
-                    <ReturnedDog dog={dog} />
+                    <ReturnedDog dog={dog} open={openApplications.get(dog.id) ?? 0} />
                   </li>
                 ))}
               </ul>
@@ -134,20 +148,20 @@ export function ShelterRosterView() {
               <p className="muted shelter__section-sub">
                 Taken off Discovery when you confirmed their pickup.
               </p>
-              <DogRows dogs={foster} />
+              <DogRows dogs={foster} open={openApplications} />
             </section>
           )}
 
           {listed.length > 0 && (
             <section>
               <h2 className="shelter__section">Listed</h2>
-              <DogRows dogs={listed} />
+              <DogRows dogs={listed} open={openApplications} />
             </section>
           )}
           {rest.length > 0 && (
             <section>
               <h2 className="shelter__section">Not listed</h2>
-              <DogRows dogs={rest} />
+              <DogRows dogs={rest} open={openApplications} />
             </section>
           )}
         </div>
@@ -156,12 +170,12 @@ export function ShelterRosterView() {
   );
 }
 
-function DogRows({ dogs }: { dogs: Dog[] }) {
+function DogRows({ dogs, open }: { dogs: Dog[]; open: Map<string, number> }) {
   return (
     <ul className="shelter__list">
       {dogs.map((dog) => (
         <li key={dog.id}>
-          <DogRow dog={dog} />
+          <DogRow dog={dog} open={open.get(dog.id) ?? 0} />
         </li>
       ))}
     </ul>
@@ -222,7 +236,23 @@ function ActionButtons({
  * agent wrote for a human to read, and a shelter reading it is the whole notification. A dog
  * that came back without one says so rather than rendering an empty card.
  */
-function ReturnedDog({ dog }: { dog: Dog }) {
+/**
+ * RS-20. Taking a dog down -- **Retire**, or **Mark adopted** on a returned dog -- leaves every
+ * open application on it open: a bulk decline would be the shelter speaking to N people with one
+ * click. So the button stays one click, and this says beforehand what the fosters will see.
+ * A statement, not a confirm dialog. Shown only beside an action that takes the dog off the roster.
+ */
+function OpenApplicationsNote({ dog, open, actions }: { dog: Dog; open: number; actions: RosterAction[] }) {
+  if (open === 0 || !actions.some((a) => a === "retire" || a === "adopted")) return null;
+  return (
+    <span className="muted shelter__open-note">
+      {open} open application{open === 1 ? "" : "s"} &mdash; they stay open, and each foster will see {dog.name}{" "}
+      isn&rsquo;t listed. Answer them in Applications.
+    </span>
+  );
+}
+
+function ReturnedDog({ dog, open }: { dog: Dog; open: number }) {
   const rich = useMemo(() => normalizeDog(dog), [dog]);
   const photo = dogPhotoOrNull(rich, 400, 400);
   const { busy, failed, run } = useRosterWrite(dog.id);
@@ -261,6 +291,7 @@ function ReturnedDog({ dog }: { dog: Dog }) {
       )}
 
       {failed && <p className="shelter__failed">That didn&rsquo;t save. Try again.</p>}
+      <OpenApplicationsNote dog={dog} open={open} actions={rosterActions(dog.status)} />
       <div className="shelter__actions">
         <ActionButtons actions={rosterActions(dog.status)} busy={busy} run={run} />
       </div>
@@ -268,7 +299,7 @@ function ReturnedDog({ dog }: { dog: Dog }) {
   );
 }
 
-function DogRow({ dog }: { dog: Dog }) {
+function DogRow({ dog, open }: { dog: Dog; open: number }) {
   const rich = useMemo(() => normalizeDog(dog), [dog]);
   const photo = dogPhotoOrNull(rich, 200, 200);
   const { busy, failed, run } = useRosterWrite(dog.id);
@@ -290,6 +321,7 @@ function DogRow({ dog }: { dog: Dog }) {
           {dog.breed} · {rich.ageLabel}
         </span>
         <span className="shelter__pill shelter__pill--dog">{DOG_STATUS_LABELS[dog.status]}</span>
+        <OpenApplicationsNote dog={dog} open={open} actions={rosterActions(dog.status)} />
         {failed && <span className="shelter__failed">That didn&rsquo;t save. Try again.</span>}
       </div>
       <ActionButtons actions={rosterActions(dog.status)} busy={busy} run={run} />

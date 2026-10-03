@@ -147,55 +147,14 @@ don't "fix" the second by loosening `firestore.rules`.
 
 ### The items
 
-- [ ] **RS-20 `[large]` — a dog off the roster is not a pickup to confirm, and its applicants are
-  told (queued 2026-10-02).** *Grounded against `main` at `0d5dde4`.* Retiring a dog
-  (`ShelterRosterView.tsx` → `retireDog()`, `shelterRoster.ts:50`) reads no applications, so every
-  live application on it stays `submitted`/`approved` and nothing changes for anyone. In the inbox,
-  `canConfirmPickup()` (`applicationView.ts:352`) is status-and-slot only, so a **retired or adopted**
-  dog's application still offers **Confirm pickup** — under RS-17's muted *{dog} is marked retired —
-  confirming won't change that* (`ShelterApplicationsView.tsx:431`). Pressing it stamps
-  `pickupConfirmedAt`, `handoffStatus()` (`shelterDog.ts`) leaves `retired` alone by design, and the
-  foster's Match reads *confirmed* and unlocks Care Plan for a dog the shelter took down. On the
-  foster side `placedElsewhere()` keys on `foster` only, so a retired dog's applicant sees an
-  in-progress journey with a live scheduler indefinitely.
-  **Design answer (this run's question): *staff's earlier decision about a listing outranks a
-  request made against it — a dog not listed is not confirmable, and its applicants are told the
-  listing, not a verdict.*** RS-17's muted line was right for `medical_hold` (a pause; a slot after it
-  is a fair thing to agree) and wrong for `retired`/`adopted`, which PH-31 already treats as *not
-  appliable*; confirming is a stronger act than applying, so it can't be looser. And retiring does
-  **not** decline anybody — the same rule as RS-18, *answerable, not answered*: a bulk decline is
-  the shelter speaking to N people with one click, and RS-11 forbids rendering an absent answer as a
-  decline.
-  **Spec.** (1) `applicationView.ts`: a pure `offRoster(dogStatus)` — true for `retired` and
-  `adopted` only (not `medical_hold`, `foster`, `ready_for_adoption`); and `unlisted(application,
-  dogStatus)` — live application, `offRoster(dogStatus)`, and *not* the application's own confirmed
-  stamp on an `adopted` dog (that is the holder's finished journey, not a notice). (2) Inbox detail:
-  when `offRoster(dog.status)`, no **Confirm pickup** and no **Ask for another time**; in their
-  place *{dog} is marked {retired|adopted} on your roster. Relist it to confirm a pickup, or answer
-  the application below.* — the status buttons stay. The row pill reads *Dog not listed* (reuse
-  `shelter__pill--dog`, as RS-18 did; no new modifier). RS-17's *won't change that* line survives
-  for `medical_hold` only. (3) Roster: `DogRow`'s **Retire** (and `ReturnedDog`'s **Mark adopted**)
-  shows, when the dog has live applications, *{n} open application(s) — they stay open, and each
-  foster will see {dog} isn't listed. Answer them in Applications.* above the buttons; reading
-  `useShelterApplications(active.id)` once in `ShelterRosterView` and passing a per-dog count down —
-  no second subscription per row. Count with `isLive`. Retiring still takes one click; this is a
-  statement, not a confirm dialog. (4) Match and Saved: when `unlisted(...)`, a notice *{dog} isn't
-  listed by {shelter} right now. They haven't answered your application yet.* (name via
-  `shelterName()`, PH-28); the scheduler and **Change request** are hidden (a request nobody can
-  confirm is not one to offer — unlike RS-19's `foster` case, where the holder needs them), any
-  existing request text stays read-only, and **Withdraw** stays. Not the `declined` screen and not
-  the badge. Relisting the dog brings everything back, because it is all derived.
-  **Not in scope:** a rules-level guard (rules can't read the dog from an application update without
-  a `get()` the inbox doesn't need); a confirmed holder whose dog is then retired (lead (b)'s
-  family — note it in the row if found); `medical_hold` behaviour; bulk decline.
-  **Verify:** vitest for `offRoster`/`unlisted` (each `DogStatus`, live vs withdrawn, own confirmed
-  stamp on `adopted`); extend `ShelterApplicationsView.test.tsx` — a retired dog's live application
-  with a pickup shows no **Confirm pickup**, no **Ask for another time**, the *Relist it* line and
-  the pill, and a `medical_hold` dog's still shows RS-17's line and the button;
-  `ShelterRosterView.test.tsx` — a dog with two live and one withdrawn application shows *2 open
-  applications*; a Match test where the dog is `retired` renders the notice, no scheduler, and
-  **Withdraw**, and where it is `available` renders neither. `npm run test`, `tsc`, `build`, `lint`
-  green. Signed-in half is RS-14b's step (10) — say so in the row.
+- [x] **RS-20 `[large]` — a dog off the roster is not a pickup to confirm, and its applicants are
+  told (queued 2026-10-02, shipped the same day).** A `retired` or `adopted` dog's live application
+  offers no **Confirm pickup** or **Ask for another time** in the inbox, its row reads *Dog not
+  listed*, **Retire** / **Mark adopted** say how many applications stay open, and the foster's Match
+  and Saved state the listing with no scheduler. Design answer (*staff's earlier decision about a
+  listing outranks a request made against it*) and spec verbatim in
+  [`archive/real-data-and-shelters-rs20-2026-10-02.md`](archive/real-data-and-shelters-rs20-2026-10-02.md);
+  the Ledger row is what shipped. Signed-in half is RS-14b's step (10).
 
 - [x] **RS-18 `[large]` — one dog, one confirmed pickup, and the other applicants are told (queued
   2026-09-30, shipped 2026-10-01).** Once staff confirm one foster's pickup, every other live
@@ -231,8 +190,8 @@ don't "fix" the second by loosening `firestore.rules`.
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
-- **The `[large]` slot is in this doc** (RS-14, RS-15, RS-17, RS-18, and now **RS-20**, queued
-  2026-10-02). Routing narrative in
+- **The `[large]` slot is in this doc** (RS-14, RS-15, RS-17, RS-18, RS-20 — shipped 2026-10-02;
+  **empty again** until plan names the next). Routing narrative in
   [`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md).
 
 ### Needs a human, not a queue item
@@ -392,3 +351,21 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   pair still shows **Undo confirmation** on both — the line says which to take back. vitest 237
   (11 new), tsc, build, lint 8 (unchanged); `another foster home` appears nowhere outside tests.
   **Not verified signed in or against Firestore** — RS-14b (9).
+- 2026-10-02 — RS-20 `[large]` — PR #__ — A dog off the roster is not a pickup to confirm:
+  `offRoster()` (`retired`/`adopted` only) and `unlisted()` in `applicationView.ts`, pure. Inbox detail
+  drops **Confirm pickup** and **Ask for another time** for an unconfirmed live application on an
+  off-roster dog and says so; RS-17's *won't change that* now shows for `medical_hold` (and the
+  other in-progress statuses) only; the row pill *Dog not listed* reuses `shelter__pill--dog` via a
+  new `PickupPills` row component. `ShelterRosterView` subscribes to applications once and shows
+  *{n} open application(s)* beside **Retire** / **Mark adopted** (one new `.shelter__open-note`
+  rule). Match and Saved say *{dog} isn't listed by {shelter} right now* and hide the scheduler,
+  the locked request button and **Change request**; an existing request stays as a read-only card.
+  **Three deviations from the spec:** (1) `adopted` is terminal on the roster (`rosterActions`
+  offers nothing), so the inbox line for it says *there's no pickup to confirm* rather than
+  *Relist it*, which the roster can't do; `retired` says *List it again*, the roster's own label.
+  (2) Match has no **Withdraw** button (it lives in Saved), so Match's notice points at Saved
+  rather than rendering one. (3) The inbox gate excludes a pickup already confirmed (it keeps
+  **Undo confirmation**), the confirmed-holder case the spec put out of scope — but `unlisted()`
+  as specified still tells a confirmed holder of a *retired* dog, and Care Plan's start button
+  stays enabled for them: lead (b)'s family, noted not fixed. vitest 252 (15 new), tsc, build,
+  lint 8 (unchanged). **Not verified signed in or against Firestore** — RS-14b (10).

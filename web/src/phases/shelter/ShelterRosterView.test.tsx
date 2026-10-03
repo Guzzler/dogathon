@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { Dog } from "../../types";
+import type { Application, Dog } from "../../types";
 
 /**
  * The screen RS-12 added, rendered.
@@ -18,9 +18,13 @@ import type { Dog } from "../../types";
  */
 
 const dogs = vi.hoisted(() => ({ current: [] as Dog[] }));
+const applications = vi.hoisted(() => ({ current: [] as Application[] }));
 
 vi.mock("../../hooks/useStaffShelters", () => ({
   useMyShelters: () => [{ id: "sfspca-mission", name: "SF SPCA Mission Campus", address: "", staffUids: [] }],
+}));
+vi.mock("../../hooks/useShelterApplications", () => ({
+  useShelterApplications: () => ({ result: { state: "ready", applications: applications.current }, retry: vi.fn() }),
 }));
 vi.mock("../../hooks/useShelterDogs", () => ({
   useShelterDogs: () => ({ result: { state: "ready", dogs: dogs.current }, retry: vi.fn() }),
@@ -46,8 +50,9 @@ const dog = (over: Partial<Dog> & { id: string }): Dog => ({
   ...over,
 });
 
-const render = (roster: Dog[]) => {
+const render = (roster: Dog[], open: Application[] = []) => {
   dogs.current = roster;
+  applications.current = open;
   return renderToStaticMarkup(<ShelterRosterView />);
 };
 
@@ -134,5 +139,34 @@ describe("ShelterRosterView — in foster (RS-17)", () => {
 
   it("omits the group when nobody is in foster", () => {
     expect(render([dog({ id: "a" })])).not.toContain(">In foster<");
+  });
+});
+
+describe("ShelterRosterView — taking a dog down says who is still waiting (RS-20)", () => {
+  const app = (id: string, dogId: string, status: Application["status"]) =>
+    ({ id, dogId, status, fosterId: "u", fosterName: "Robin", shelterId: "sfspca-mission" }) as Application;
+
+  it("counts only live applications beside Retire", () => {
+    const html = render(
+      [dog({ id: "a", name: "Arlo" })],
+      [app("1", "a", "submitted"), app("2", "a", "approved"), app("3", "a", "withdrawn")],
+    );
+    expect(html).toContain("2 open applications");
+    expect(html).toContain("each foster will see Arlo isn");
+    expect(html).toContain(">Retire<");
+  });
+
+  it("says nothing for a dog nobody has applied to, or only a closed application", () => {
+    expect(render([dog({ id: "a" })])).not.toContain("open application");
+    expect(render([dog({ id: "a" })], [app("1", "a", "declined")])).not.toContain("open application");
+  });
+
+  it("says it beside Mark adopted on a returned dog, and not on a dog already retired", () => {
+    const returned = render(
+      [dog({ id: "b", name: "Bean", status: "ready_for_adoption", adoption_profile: PROFILE })],
+      [app("1", "b", "approved")],
+    );
+    expect(returned).toContain("1 open application —");
+    expect(render([dog({ id: "c", status: "retired" })], [app("1", "c", "approved")])).not.toContain("open application");
   });
 });

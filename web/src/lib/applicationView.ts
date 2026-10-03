@@ -418,3 +418,36 @@ export function placedElsewhere(
   if (!application || dogStatus !== "foster") return false;
   return LIVE.includes(application.status) && !application.pickupConfirmedAt;
 }
+
+/* ---------- a dog off the roster (RS-20) ---------- */
+
+/**
+ * The listing statuses staff set to take a dog down: `retired` (pulled, transferred, placed
+ * somewhere this app didn't see) and `adopted`. A dog not listed is not appliable (PH-31), and
+ * confirming a pickup is a stronger act than applying, so it can't be looser.
+ *
+ * Not `medical_hold` -- that is a pause, and a slot after it is a fair thing to agree, which is
+ * what RS-17's *confirming won't change that* line is still for. Not `foster` or
+ * `ready_for_adoption` either: both are a handoff in progress, not a decision against the dog
+ * being placed.
+ */
+export function offRoster(dogStatus: DogStatus | undefined): boolean {
+  return dogStatus === "retired" || dogStatus === "adopted";
+}
+
+/**
+ * The foster's side of the same fact: their application is open and the shelter has taken the
+ * dog off its roster. Staff's earlier decision about the listing outranks a request made against
+ * it, so the foster is told the listing -- never a verdict. Retiring declines nobody (RS-18's
+ * *answerable, not answered*), and an absent answer never renders as a decline (RS-11).
+ *
+ * The one exclusion is the application's own confirmed stamp on an `adopted` dog: that is the
+ * holder's finished journey, not a notice.
+ */
+export function unlisted(
+  application: Pick<Application, "status" | "pickupConfirmedAt"> | null | undefined,
+  dogStatus: DogStatus | undefined,
+): boolean {
+  if (!application || !LIVE.includes(application.status) || !offRoster(dogStatus)) return false;
+  return !(dogStatus === "adopted" && application.pickupConfirmedAt);
+}

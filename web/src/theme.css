@@ -850,6 +850,10 @@ input,textarea,select{font-family:inherit}
 .shelter__dog-main{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;min-width:0;flex:1}
 .shelter__dog-main strong{font-size:15px;flex-basis:100%}
 .shelter__dog-main .shelter__failed{flex-basis:100%}
+/* RS-20: what taking a dog down leaves waiting -- its own line under the name, never squeezed
+   beside the pills. On the returned-dog card it sits above the buttons as a block. */
+.shelter__dog-main .shelter__open-note{flex-basis:100%;font-size:12.5px}
+.shelter__returned .shelter__open-note{display:block;margin:4px 0 0;font-size:12.5px}
 .shelter__pill--dog{background:var(--cream-2);color:var(--ink-3)}
 
 /* ---------- back from foster (RS-12) ----------

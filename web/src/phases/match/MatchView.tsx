@@ -8,7 +8,7 @@ import { PickupScheduler } from "../../components/PickupScheduler";
 import { requestPickup } from "../../lib/applications";
 import { DemoShelterPanel } from "../../components/DemoShelterPanel";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_PREP_CHECKLIST, checklistOwner } from "../../checklists";
-import { APPLICATION_STAGES, activeStage, agreedPickup, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState, placedElsewhere } from "../../lib/applicationView";
+import { APPLICATION_STAGES, activeStage, agreedPickup, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState, placedElsewhere, unlisted } from "../../lib/applicationView";
 import { normalizeDog, thumbBackground } from "../../lib/dog";
 import { downloadIcs } from "../../lib/calendar";
 import { shelterName } from "../../lib/shelters";
@@ -77,6 +77,10 @@ export function MatchView() {
   const decision = approvalDecision(application?.status);
   // RS-18: the shelter confirmed someone else's pickup for this dog and hasn't answered ours.
   const elsewhere = placedElsewhere(application, raw?.status);
+  // RS-20: the shelter took the dog off its roster while this application is open. Staff's
+  // decision about the listing outranks the request, so there is nothing here to ask for --
+  // and nobody has answered the application either, so it is not a decline.
+  const notListed = unlisted(application, raw?.status);
   const badge = approvalBadge(decision, shelterName(dog, "short", { start: true }), {
     tone: shelterApproved ? "sage" : "butter",
     label: shelterApproved ? "✓ Shelter approved you as a foster" : "⏳ Waiting on shelter review",
@@ -161,7 +165,8 @@ export function MatchView() {
         {/* Pickup */}
         <div>
           <div className="eyebrow" style={{ marginBottom: 9 }}>
-            {pickup === "confirmed" ? "Pickup confirmed"
+            {notListed && !foster.pickup ? "Pickup"
+              : pickup === "confirmed" ? "Pickup confirmed"
               : pickup === "requested" ? "Pickup requested"
               : pickup === "declined" ? "Pick another time"
               : "Request a pickup"}
@@ -180,7 +185,37 @@ export function MatchView() {
               </p>
             </div>
           )}
-          {!approved ? (
+          {notListed && (
+            // RS-20. States the listing, never a verdict: retiring a dog declines nobody, and the
+            // application is still the shelter's to answer. The scheduler and Change request go,
+            // because a request nobody can confirm is not one to offer -- unlike RS-19's `foster`
+            // case, where the holder needs them. Withdrawing lives in Saved, as it always has.
+            <div className="card" role="status" style={{ padding: 13, marginBottom: 12 }}>
+              <p style={{ fontSize: 13 }}>
+                {dog.name} isn't listed by {shelterName(dog)} right now. They haven't answered your application yet.
+              </p>
+              <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                If you'd rather apply for another dog, withdraw this application from Saved.
+              </p>
+            </div>
+          )}
+          {notListed ? (
+            foster.pickup && (
+              // What the foster already asked for, kept visible and read-only.
+              <div className="card" style={{ padding: 15 }}>
+                <div className="row" style={{ gap: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 13, background: "var(--cream-2)", display: "grid", placeItems: "center", flexShrink: 0, fontSize: 17 }}>🗓️</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: 14.5 }}>{pickupDateLabel}</div>
+                    <div className="muted" style={{ marginTop: 2 }}>{foster.pickup.time} · {foster.pickup.location}</div>
+                  </div>
+                </div>
+                <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>
+                  {pickup === "confirmed" ? "The time you agreed." : "The time you asked for."}
+                </p>
+              </div>
+            )
+          ) : !approved ? (
             <>
               <button className="btn" disabled>🔒 Request a pickup</button>
               <p className="muted" style={{ textAlign: "center", marginTop: 8, fontSize: 12 }}>

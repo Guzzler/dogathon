@@ -20,6 +20,7 @@ import {
   inboxError,
   isActionable,
   isLive,
+  offRoster,
   pickupHolder,
   pickupAskedToMove,
   pickupAwaitingShelter,
@@ -189,30 +190,42 @@ function ApplicationList({
             </span>
             <span className="shelter__row-meta">
               <StatusPill status={app.status} />
-              {/* RS-18: the dog went home with another foster, so this row is waiting on an
-                  answer that can't be "confirm". It replaces the pickup pills -- "Pickup
-                  requested" would invite the one action this application no longer has -- and is
-                  a state about the dog, not an alarm. */}
-              {isLive(app.status) && pickupHolder(app, applications) ? (
-                <span className="shelter__pill shelter__pill--dog">Dog placed with another foster</span>
-              ) : (
-                <>
-                  {/* RS-14: the one pickup state that is waiting on the shelter. */}
-                  {pickupAwaitingShelter(app) && (
-                    <span className="shelter__pill shelter__pill--pickup">Pickup requested</span>
-                  )}
-                  {/* RS-15: answered, but not agreed -- the foster's move, so it wears no alarm. */}
-                  {pickupAskedToMove(app) && (
-                    <span className="shelter__pill shelter__pill--pickup-moved">Asked for another time</span>
-                  )}
-                </>
-              )}
+              <PickupPills app={app} applications={applications} />
               <span className="muted">{applicationAge(createdAtMillis(app), now)}</span>
             </span>
           </button>
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * What the row says about the pickup -- at most one state, because each one implies a different
+ * next move and two side by side would invite both.
+ */
+function PickupPills({ app, applications }: { app: Application; applications: Application[] }) {
+  const { dog } = useApplicationDog(app.dogId);
+  // RS-18: the dog went home with another foster, so this row is waiting on an answer that can't
+  // be "confirm". It replaces the pickup pills -- "Pickup requested" would invite the one action
+  // this application no longer has -- and is a state about the dog, not an alarm.
+  if (isLive(app.status) && pickupHolder(app, applications)) {
+    return <span className="shelter__pill shelter__pill--dog">Dog placed with another foster</span>;
+  }
+  // RS-20: staff took the dog off the roster, so there is no pickup to confirm either. Same
+  // reasoning, same pill.
+  if (isLive(app.status) && offRoster(dog?.status) && !app.pickupConfirmedAt) {
+    return <span className="shelter__pill shelter__pill--dog">Dog not listed</span>;
+  }
+  return (
+    <>
+      {/* RS-14: the one pickup state that is waiting on the shelter. */}
+      {pickupAwaitingShelter(app) && <span className="shelter__pill shelter__pill--pickup">Pickup requested</span>}
+      {/* RS-15: answered, but not agreed -- the foster's move, so it wears no alarm. */}
+      {pickupAskedToMove(app) && (
+        <span className="shelter__pill shelter__pill--pickup-moved">Asked for another time</span>
+      )}
+    </>
   );
 }
 
@@ -400,6 +413,10 @@ function PickupSection({ application, dog, dogName, held, busy, run }: {
   const confirmed = Boolean(application.pickupConfirmedAt);
   const declined = !confirmed && Boolean(application.pickupDeclinedAt);
   const handoff = handoffDog(dog);
+  // RS-20: staff took the dog off the roster. That earlier decision outranks this request, so
+  // there is nothing here to confirm or move -- the application itself is still answerable below.
+  // Not on a pickup already confirmed: taking that back is a different question (out of RS-20).
+  const notListed = !confirmed && Boolean(dog) && offRoster(dog?.status);
 
   const sendAsk = () =>
     run(async () => {
@@ -419,21 +436,31 @@ function PickupSection({ application, dog, dogName, held, busy, run }: {
           ? "You confirmed this time. The foster sees it as confirmed."
           : declined
             ? "You asked the foster for another time. Their new request shows here when they pick one."
-            : "The foster asked for this time. Nothing is booked until you confirm it."}
+            : notListed
+              ? "The foster asked for this time."
+              : "The foster asked for this time. Nothing is booked until you confirm it."}
       </p>
       {declined && application.pickupNote && (
         <p className="shelter__pickup-note">&ldquo;{application.pickupNote}&rdquo;</p>
       )}
+      {notListed && dog && (
+        <p className="shelter__handoff-note">
+          {dog.status === "retired"
+            ? <>{dogName} is marked retired on your roster. List it again to confirm a pickup, or answer the application below.</>
+            : <>{dogName} is marked adopted on your roster, so there&rsquo;s no pickup to confirm. Answer the application below.</>}
+        </p>
+      )}
       {/* RS-17: confirming moves only an `available` dog. Anything else is a decision staff made
           earlier, and the button must not read as though it overrules it. A dog held by another
           application (RS-18) is the one case where there is no button to overrule anything with,
-          so the line above the section says what to do instead. */}
-      {canConfirmPickup(application) && !confirmed && !held && dog && dog.status !== "available" && (
+          so the line above the section says what to do instead; a dog off the roster (RS-20) is
+          the other, and has its own line just above. */}
+      {canConfirmPickup(application) && !confirmed && !held && !notListed && dog && dog.status !== "available" && (
         <p className="muted shelter__handoff-note">
           {dogName} is marked {DOG_STATUS_LABELS[dog.status].toLowerCase()} &mdash; confirming won&rsquo;t change that.
         </p>
       )}
-      {canConfirmPickup(application) && (
+      {canConfirmPickup(application) && !notListed && (
         asking ? (
           <div className="shelter__form">
             <label className="shelter__field">
