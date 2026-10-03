@@ -21,8 +21,10 @@ import {
   heldByAnother,
   pickupHolder,
   placedElsewhere,
+  offRoster,
+  unlisted,
 } from "./applicationView";
-import type { Application, ApplicationStatus, ChecklistItem, Pickup } from "../types";
+import type { Application, ApplicationStatus, ChecklistItem, DogStatus, Pickup } from "../types";
 
 const at = (ms: number | null) =>
   ({ id: String(ms), createdAt: ms === null ? null : { toMillis: () => ms } }) as Application;
@@ -420,5 +422,37 @@ describe("one dog, one confirmed pickup (RS-18)", () => {
     expect(placedElsewhere(app("b", "declined", false), "foster")).toBe(false);
     // No application (LOCAL_MODE, guests): nobody to have placed the dog.
     expect(placedElsewhere(null, "foster")).toBe(false);
+  });
+});
+
+describe("a dog off the roster (RS-20)", () => {
+  const stamp = { toMillis: () => 1 };
+  const app = (status: ApplicationStatus, confirmed = false) =>
+    ({ status, pickupConfirmedAt: confirmed ? stamp : null }) as Application;
+  const ALL: DogStatus[] = ["available", "foster", "medical_hold", "adopted", "ready_for_adoption", "retired"];
+
+  it("counts only retired and adopted as off the roster", () => {
+    expect(ALL.filter(offRoster)).toEqual(["adopted", "retired"]);
+    expect(offRoster(undefined)).toBe(false);
+  });
+
+  it("tells a live applicant the dog isn't listed, for every off-roster status and no other", () => {
+    for (const s of ALL) {
+      expect(unlisted(app("submitted"), s)).toBe(s === "retired" || s === "adopted");
+      expect(unlisted(app("in_review"), s)).toBe(s === "retired" || s === "adopted");
+      expect(unlisted(app("approved"), s)).toBe(s === "retired" || s === "adopted");
+    }
+  });
+
+  it("says nothing on an application that is no longer open, or that doesn't exist", () => {
+    expect(unlisted(app("withdrawn"), "retired")).toBe(false);
+    expect(unlisted(app("declined"), "retired")).toBe(false);
+    expect(unlisted(null, "retired")).toBe(false);
+  });
+
+  it("leaves the holder's own finished journey alone on an adopted dog", () => {
+    expect(unlisted(app("approved", true), "adopted")).toBe(false);
+    // A confirmed holder whose dog was then *retired* is still told the listing.
+    expect(unlisted(app("approved", true), "retired")).toBe(true);
   });
 });

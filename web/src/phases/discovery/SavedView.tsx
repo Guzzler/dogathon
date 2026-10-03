@@ -9,7 +9,7 @@ import { scoreDog } from "../../lib/matching";
 import { shelterName } from "../../lib/shelters";
 import { activeApplication, applicationStage, fosterWindow } from "../../lib/foster";
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
-import { APPLICATION_STAGES, activeStage, agreedPickup, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState, placedElsewhere } from "../../lib/applicationView";
+import { APPLICATION_STAGES, activeStage, agreedPickup, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState, placedElsewhere, unlisted } from "../../lib/applicationView";
 import { createApplication, setApplicationStatus } from "../../lib/applications";
 import { fosterDocId } from "../../lib/session";
 import { Unrecorded } from "../../components/Unrecorded";
@@ -195,6 +195,8 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
   const declined = decision === "declined";
   // RS-18/RS-19: same check and same words as Match, so the two screens agree.
   const elsewhere = placedElsewhere(application, d.status);
+  // RS-20: same check and same words as Match. Withdraw stays below either way.
+  const notListed = unlisted(application, d.status);
   const badge = approvalBadge(decision, shelterName(d, "short", { start: true }), {
     tone: approved ? "sage" : "butter",
     label: approved ? "✓ Approved — request a pickup" : "⏳ Waiting for approval",
@@ -257,7 +259,9 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
           </div>
 
           <p className="muted" style={{ marginTop: 14, lineHeight: 1.5 }}>
-            {elsewhere
+            {notListed
+              ? `${d.name} isn't listed by ${shelterName(d)} right now. They haven't answered your application yet.`
+              : elsewhere
               ? `${d.name} is listed as in a foster home at ${shelterName(d)}. They haven't confirmed a pickup with you yet — they'll tell you whether this can go ahead.`
               : pickup === "confirmed"
               ? `${shelterName(d, "short", { start: true })} confirmed your pickup time.`

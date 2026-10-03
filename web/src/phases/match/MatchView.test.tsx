@@ -332,3 +332,36 @@ describe("MatchView, once the dog has gone home with another foster (RS-18)", ()
     expect(html).toContain("confirmed this time");
   });
 });
+
+describe("MatchView, once the shelter takes the dog off its roster (RS-20)", () => {
+  const SLOT: Pickup = { date: "2026-10-03", time: "11:00", location: "SF SPCA Mission Campus" };
+
+  it("states the listing, offers no scheduler, and points at withdrawing", () => {
+    const html = screen({ status: "approved", checklistDone: true, dogStatus: "retired" });
+    expect(html).toContain("Tip Toe isn&#x27;t listed by SF SPCA right now. They haven&#x27;t answered your application yet.");
+    expect(html).not.toContain("Pawthway takes requests");
+    expect(html).not.toContain("Request a pickup<");
+    expect(html).toContain("withdraw this application from Saved");
+    expect(html).not.toContain("said no this time");
+  });
+
+  it("keeps an existing request visible but offers no Change request", () => {
+    const html = screen({ status: "approved", checklistDone: true, dogStatus: "retired", pickup: SLOT, appPickup: SLOT });
+    expect(html).toContain("The time you asked for.");
+    expect(html).not.toContain("Change request");
+  });
+
+  it("says nothing for a listed dog", () => {
+    const html = screen({ status: "approved", checklistDone: true, dogStatus: "available" });
+    expect(html).not.toContain("isn&#x27;t listed by");
+    expect(html).toContain("Pawthway takes requests");
+  });
+
+  it("leaves the holder's own confirmed pickup on an adopted dog alone", () => {
+    const html = screen({
+      status: "approved", checklistDone: true, dogStatus: "adopted", pickup: SLOT, appPickup: SLOT, confirmed: true,
+    });
+    expect(html).not.toContain("isn&#x27;t listed by");
+    expect(html).toContain("confirmed this time");
+  });
+});

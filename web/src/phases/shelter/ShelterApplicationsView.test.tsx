@@ -151,3 +151,38 @@ describe("ShelterApplicationsView — one dog, one confirmed pickup (RS-18)", ()
     expect(html).not.toContain("Dog placed with another foster");
   });
 });
+
+describe("ShelterApplicationsView — a dog off the roster (RS-20)", () => {
+  it("offers a retired dog's live application no Confirm pickup and no Ask for another time", () => {
+    const html = render(dog({ status: "retired" }), application());
+    expect(html).not.toContain("Confirm pickup");
+    expect(html).not.toContain("Ask for another time");
+    expect(html).toContain("Fern is marked retired on your roster. List it again to confirm a pickup");
+    expect(html).toContain("Dog not listed");
+    expect(html).not.toContain("Pickup requested");
+    expect(html).not.toContain("confirming won");
+    // The application is still answerable -- retiring declined nobody.
+    expect(html).toContain("Mark declined");
+  });
+
+  it("says an adopted dog has no pickup to confirm, without promising a relist the roster can't do", () => {
+    const html = render(dog({ status: "adopted" }), application());
+    expect(html).not.toContain("Confirm pickup");
+    expect(html).toContain("Fern is marked adopted on your roster, so there");
+    expect(html).not.toContain("List it again");
+    expect(html).toContain("Dog not listed");
+  });
+
+  it("keeps RS-17's line and the button for a dog on medical hold", () => {
+    const html = render(dog({ status: "medical_hold" }), application());
+    expect(html).toContain("Confirm pickup");
+    expect(html).toContain("confirming won");
+    expect(html).not.toContain("Dog not listed");
+  });
+
+  it("leaves a pickup already confirmed alone", () => {
+    const html = render(dog({ status: "adopted" }), application({ pickupConfirmedAt: stamp }));
+    expect(html).toContain("Undo confirmation");
+    expect(html).not.toContain("Dog not listed");
+  });
+});
