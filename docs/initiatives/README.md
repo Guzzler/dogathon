@@ -266,6 +266,12 @@ Compressed:
   read the spec. **A screen may only say what its reader's rules let it read**; a predicate built
   from what's visible to one side must be checked against every state that side can reach.
 
+- **2026-10-02 — the twenty-second link: the last `[large]` item's muted line, read for every value it
+  covers.** RS-18 removed one case under RS-17's *won't change that*; the line still covers `retired`
+  and `adopted`, where **Confirm pickup** hands a foster a dog the shelter took down — **RS-20**. **A
+  guard written for one value of an enum must be re-read for each of the others**; and *confirming is
+  a stronger act than applying, so it can't be looser* (PH-31 already said not listed is not appliable).
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
@@ -323,7 +329,7 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 86 files as of 2026-10-01 (recounted; this run archived nothing — it compressed three shipped bullets whose specs were already archived)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
+**`archive/` holds 87 files as of 2026-10-02 (recounted; RS-18's spec archive landed after the last count; this run archived nothing)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
 execute ran concurrently in one checkout — plan's `git checkout -b` moved HEAD off execute's
 uncommitted RS-14 branch, caught by `git status` showing code plan never touched, and put back
 unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* One thing this run's arithmetic adds to the rules below: **a section of five
