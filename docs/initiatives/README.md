@@ -337,7 +337,7 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 89 files as of 2026-10-08 (recounted by plan after archiving four `real-data-and-shelters` Ledger rows to make room for RS-21)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
+**`archive/` holds 90 files as of 2026-10-08 (recounted by plan's second run that day, after archiving five `production-hardening` Ledger rows to make room for PH-32's spec)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
 execute ran concurrently in one checkout — plan's `git checkout -b` moved HEAD off execute's
 uncommitted RS-14 branch, caught by `git status` showing code plan never touched, and put back
 unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* One thing this run's arithmetic adds to the rules below: **a section of five
