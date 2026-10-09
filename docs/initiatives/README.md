@@ -272,6 +272,14 @@ Compressed:
   guard written for one value of an enum must be re-read for each of the others**; and *confirming is
   a stronger act than applying, so it can't be looser* (PH-31 already said not listed is not appliable).
 
+- **2026-10-08 — the twenty-third link: the last `[large]` item's Ledger deviation marked "noted, not
+  fixed".** RS-20's row said a confirmed holder of a retired dog is told nobody answered while Care
+  Plan stays open; tracing *how* a dog gets there found the roster's **List again** / **Retire**
+  keyed on status alone, a second writer of the handoff RS-17 gave to the inbox — **RS-21**. **A
+  deviation an execute row records is a lead with its grounding already written**; and *a button
+  that answers the same question as another surface must be gated on that surface's facts, not
+  only on its own*.
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
@@ -329,7 +337,7 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 88 files as of 2026-10-02 (recounted by execute after archiving RS-20's spec when it shipped)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
+**`archive/` holds 89 files as of 2026-10-08 (recounted by plan after archiving four `real-data-and-shelters` Ledger rows to make room for RS-21)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
 execute ran concurrently in one checkout — plan's `git checkout -b` moved HEAD off execute's
 uncommitted RS-14 branch, caught by `git status` showing code plan never touched, and put back
 unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* One thing this run's arithmetic adds to the rules below: **a section of five
