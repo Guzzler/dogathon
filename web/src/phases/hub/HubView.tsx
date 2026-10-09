@@ -91,7 +91,7 @@ function MatchedDogCard({ dog, pickup }: { dog: DogRecord; pickup: Pickup | null
   // RS-15: the countdown starts from the day the shelter agreed to, not the one the foster asked
   // for -- an unanswered request shows the total commitment, as before any pickup.
   const { application, loading } = useApplication(dog.id);
-  const win = fosterWindow(...recordedStay(d), agreedPickup(pickup, application, loading)?.date);
+  const win = fosterWindow(...recordedStay(d), agreedPickup(pickup, application, loading, dog.status)?.date);
 
   return (
     <div className="hub-card hub-card--dog">

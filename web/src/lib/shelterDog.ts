@@ -207,8 +207,15 @@ export const ROSTER_ACTION_LABELS: Record<RosterAction, string> = {
  * Retiring is offered for anything still on the roster; un-retiring only for a dog this
  * surface retired; `adopted` is terminal and offers nothing -- that is not a checkbox to
  * quietly reopen.
+ *
+ * `held` (RS-21): a live application holds a confirmed pickup on this dog. That confirmation is
+ * the shelter's answer to a foster, and only the surface that gave it -- the inbox, whose **Undo
+ * confirmation** relists *and* tells the foster -- may take it back. So a held dog that is still
+ * listed, in foster or on hold offers nothing here; the roster names the holder instead. A
+ * returned dog and the terminal statuses are unaffected: a stamp there is a finished handoff.
  */
-export function rosterActions(status: DogStatus): RosterAction[] {
+export function rosterActions(status: DogStatus, held = false): RosterAction[] {
+  if (held && (status === "available" || status === "foster" || status === "medical_hold")) return [];
   if (status === "ready_for_adoption") return ["list", "adopted"];
   if (status === "retired") return ["relist"];
   if (status === "adopted") return [];

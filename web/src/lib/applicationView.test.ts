@@ -23,6 +23,8 @@ import {
   placedElsewhere,
   offRoster,
   unlisted,
+  confirmedHolder,
+  takenDownAfterConfirm,
 } from "./applicationView";
 import type { Application, ApplicationStatus, ChecklistItem, DogStatus, Pickup } from "../types";
 
@@ -319,6 +321,16 @@ describe("agreedPickup", () => {
     expect(agreedPickup(SLOT, null, true)).toBeNull();
     expect(agreedPickup(null, { pickup: SLOT, pickupConfirmedAt: STAMP })).toBeNull();
   });
+
+  it("agrees to nothing on a dog the shelter retired after confirming (RS-21)", () => {
+    const confirmed = { pickup: SLOT, pickupConfirmedAt: STAMP };
+    expect(agreedPickup(SLOT, confirmed, false, "retired")).toBeNull();
+    // Adopted is the holder's finished journey, not a withdrawal.
+    expect(agreedPickup(SLOT, confirmed, false, "adopted")).toEqual(SLOT);
+    expect(agreedPickup(SLOT, confirmed, false, "foster")).toEqual(SLOT);
+    // No application (LOCAL_MODE): nobody retired anything on the foster's behalf.
+    expect(agreedPickup(SLOT, null, false, "retired")).toEqual(SLOT);
+  });
 });
 
 describe("activeStage", () => {
@@ -450,9 +462,45 @@ describe("a dog off the roster (RS-20)", () => {
     expect(unlisted(null, "retired")).toBe(false);
   });
 
-  it("leaves the holder's own finished journey alone on an adopted dog", () => {
+  it("never tells a confirmed holder the shelter hasn't answered (RS-21)", () => {
     expect(unlisted(app("approved", true), "adopted")).toBe(false);
-    // A confirmed holder whose dog was then *retired* is still told the listing.
-    expect(unlisted(app("approved", true), "retired")).toBe(true);
+    // RS-20 told a confirmed holder of a *retired* dog "they haven't answered" -- false, since
+    // staff confirmed. That state is takenDownAfterConfirm() now.
+    expect(unlisted(app("approved", true), "retired")).toBe(false);
+  });
+});
+
+describe("a confirmed pickup taken back where it was given (RS-21)", () => {
+  const stamp = { toMillis: () => 1 };
+  const app = (id: string, status: ApplicationStatus, confirmed: boolean, dogId = "d1") =>
+    ({ id, dogId, status, pickupConfirmedAt: confirmed ? stamp : null }) as Application;
+
+  it("finds the live, confirmed application on the dog", () => {
+    expect(confirmedHolder("d1", [app("a", "approved", false), app("b", "approved", true)])?.id).toBe("b");
+    expect(confirmedHolder("d1", [app("a", "submitted", true)])?.id).toBe("a");
+  });
+
+  it("ignores withdrawn and declined stamps, unconfirmed applications and other dogs", () => {
+    expect(confirmedHolder("d1", [app("a", "withdrawn", true)])).toBeNull();
+    expect(confirmedHolder("d1", [app("a", "declined", true)])).toBeNull();
+    expect(confirmedHolder("d1", [app("a", "approved", false)])).toBeNull();
+    expect(confirmedHolder("d1", [app("a", "approved", true, "d2")])).toBeNull();
+    expect(confirmedHolder("d1", [])).toBeNull();
+  });
+
+  it("is what pickupHolder asks, minus the application itself", () => {
+    const a = app("a", "approved", true);
+    expect(pickupHolder(a, [a])).toBeNull();
+    expect(confirmedHolder("d1", [a])?.id).toBe("a");
+  });
+
+  it("flags a live confirmed application on a retired dog, and nothing else", () => {
+    expect(takenDownAfterConfirm(app("a", "approved", true), "retired")).toBe(true);
+    expect(takenDownAfterConfirm(app("a", "submitted", true), "retired")).toBe(true);
+    expect(takenDownAfterConfirm(app("a", "approved", true), "adopted")).toBe(false);
+    expect(takenDownAfterConfirm(app("a", "approved", true), "foster")).toBe(false);
+    expect(takenDownAfterConfirm(app("a", "approved", false), "retired")).toBe(false);
+    expect(takenDownAfterConfirm(app("a", "withdrawn", true), "retired")).toBe(false);
+    expect(takenDownAfterConfirm(null, "retired")).toBe(false);
   });
 });

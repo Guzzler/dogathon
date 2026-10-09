@@ -169,6 +169,18 @@ describe("rosterActions", () => {
     expect(ROSTER_ACTION_STATUS.list).toBe("available");
     expect(ROSTER_ACTION_STATUS.adopted).toBe("adopted");
   });
+
+  // RS-21: a confirmed pickup is the inbox's answer, so the roster offers nothing on a dog one
+  // holds -- the holder line sends staff there instead.
+  it("offers nothing on a held dog that is listed, in foster or on hold, and is unchanged otherwise", () => {
+    const all: DogStatus[] = ["available", "foster", "medical_hold", "adopted", "ready_for_adoption", "retired"];
+    for (const status of all) {
+      const held = rosterActions(status, true);
+      if (status === "available" || status === "foster" || status === "medical_hold") expect(held).toEqual([]);
+      else expect(held).toEqual(rosterActions(status));
+    }
+    expect(rosterActions("foster", false)).toEqual(["relist", "retire"]);
+  });
 });
 
 describe("rosterGroup / groupRoster", () => {

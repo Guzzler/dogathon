@@ -8,7 +8,7 @@ import { PickupScheduler } from "../../components/PickupScheduler";
 import { requestPickup } from "../../lib/applications";
 import { DemoShelterPanel } from "../../components/DemoShelterPanel";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_PREP_CHECKLIST, checklistOwner } from "../../checklists";
-import { APPLICATION_STAGES, activeStage, agreedPickup, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState, placedElsewhere, unlisted } from "../../lib/applicationView";
+import { APPLICATION_STAGES, activeStage, agreedPickup, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState, placedElsewhere, takenDownAfterConfirm, unlisted } from "../../lib/applicationView";
 import { normalizeDog, thumbBackground } from "../../lib/dog";
 import { downloadIcs } from "../../lib/calendar";
 import { shelterName } from "../../lib/shelters";
@@ -70,7 +70,7 @@ export function MatchView() {
   // RS-15: the handoff happens on the shelter's say-so. A request -- answered or not -- never
   // starts Care Plan; only the slot the shelter confirmed does (or, with no application at all,
   // the foster's own, since in LOCAL_MODE there is nobody to answer).
-  const handoff = agreedPickup(foster.pickup, application, applicationLoading);
+  const handoff = agreedPickup(foster.pickup, application, applicationLoading, raw?.status);
   // The shelter's verdict, which is a different question from "is the paperwork finished".
   // It replaces the badge, and `declined` replaces the whole screen below it -- but it never
   // unlocks the scheduler and never ticks anybody's boxes. See approvalDecision().
@@ -81,6 +81,9 @@ export function MatchView() {
   // decision about the listing outranks the request, so there is nothing here to ask for --
   // and nobody has answered the application either, so it is not a decline.
   const notListed = unlisted(application, raw?.status);
+  // RS-21: the shelter confirmed this pickup, then took the dog off its roster. Both are true, so
+  // both are said, and nothing is agreed: `handoff` is already null for a retired dog.
+  const takenDown = takenDownAfterConfirm(application, raw?.status);
   const badge = approvalBadge(decision, shelterName(dog, "short", { start: true }), {
     tone: shelterApproved ? "sage" : "butter",
     label: shelterApproved ? "✓ Shelter approved you as a foster" : "⏳ Waiting on shelter review",
@@ -199,7 +202,17 @@ export function MatchView() {
               </p>
             </div>
           )}
-          {notListed ? (
+          {takenDown && (
+            // RS-21. Not a decline (RS-11), and not "they haven't answered" -- they did. The slot
+            // stays visible below, read-only, as the time that was agreed.
+            <div className="card" role="status" style={{ padding: 13, marginBottom: 12 }}>
+              <p style={{ fontSize: 13 }}>
+                {shelterName(dog, "short", { start: true })} confirmed your pickup, then took {dog.name} off its
+                roster. Check with them before you go to collect {dog.name}.
+              </p>
+            </div>
+          )}
+          {notListed || takenDown ? (
             foster.pickup && (
               // What the foster already asked for, kept visible and read-only.
               <div className="card" style={{ padding: 15 }}>
@@ -334,6 +347,7 @@ export function MatchView() {
           style={{ margin: "2px auto 0" }}
           disabled={!handoff}
           title={!foster.pickup ? "Request a pickup first"
+            : takenDown ? `Check with ${shelterName(dog)} first`
             : !handoff ? `Waiting for ${shelterName(dog)} to confirm pickup`
             : undefined}
           onClick={goToCarePlan}

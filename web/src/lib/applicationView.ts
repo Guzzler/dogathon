@@ -292,14 +292,20 @@ export function pickupState(
  * request stands, as it did before RS-15: gating a local demo on a confirmation that cannot
  * arrive would strand it. `loading` is the third case and must not be mistaken for the second:
  * an application still on its way is not an absent one, so it agrees to nothing yet.
+ *
+ * `dogStatus` (RS-21): a confirmed slot on a dog the shelter has since **retired** is not a fact
+ * to collect a dog on -- the shelter took the dog down after answering. `adopted` still agrees:
+ * that is the holder's finished journey, not a withdrawal.
  */
 export function agreedPickup(
   fosterPickup: Pickup | null | undefined,
   application: Pick<Application, "pickup" | "pickupConfirmedAt" | "pickupDeclinedAt"> | null | undefined,
   loading = false,
+  dogStatus?: DogStatus,
 ): Pickup | null {
   if (!fosterPickup || loading) return null;
   if (!application) return fosterPickup;
+  if (dogStatus === "retired") return null;
   return pickupState(fosterPickup, application) === "confirmed" ? fosterPickup : null;
 }
 
@@ -386,10 +392,24 @@ export function pickupHolder<A extends Pick<Application, "id" | "dogId" | "statu
   app: Pick<Application, "id" | "dogId">,
   applications: A[],
 ): A | null {
+  return confirmedHolder(
+    app.dogId,
+    applications.filter((other) => other.id !== app.id),
+  );
+}
+
+/**
+ * The live application holding a confirmed pickup on this dog, if any (RS-21) -- the one predicate
+ * behind both `pickupHolder()` (the inbox: is *another* foster holding it?) and the roster (is
+ * *anyone*?). A withdrawn or declined application's stamp is history, not a hold.
+ */
+export function confirmedHolder<A extends Pick<Application, "dogId" | "status" | "pickupConfirmedAt">>(
+  dogId: string,
+  applications: A[],
+): A | null {
   return (
     applications.find(
-      (other) =>
-        other.id !== app.id && other.dogId === app.dogId && LIVE.includes(other.status) && Boolean(other.pickupConfirmedAt),
+      (other) => other.dogId === dogId && LIVE.includes(other.status) && Boolean(other.pickupConfirmedAt),
     ) ?? null
   );
 }
@@ -441,13 +461,28 @@ export function offRoster(dogStatus: DogStatus | undefined): boolean {
  * it, so the foster is told the listing -- never a verdict. Retiring declines nobody (RS-18's
  * *answerable, not answered*), and an absent answer never renders as a decline (RS-11).
  *
- * The one exclusion is the application's own confirmed stamp on an `adopted` dog: that is the
- * holder's finished journey, not a notice.
+ * Never for an application carrying its own confirmed stamp (RS-21): the shelter *did* answer
+ * that one, so "they haven't answered" would be false. On an `adopted` dog the stamp is the
+ * holder's finished journey; on a `retired` one it is `takenDownAfterConfirm()`.
  */
 export function unlisted(
   application: Pick<Application, "status" | "pickupConfirmedAt"> | null | undefined,
   dogStatus: DogStatus | undefined,
 ): boolean {
   if (!application || !LIVE.includes(application.status) || !offRoster(dogStatus)) return false;
-  return !(dogStatus === "adopted" && application.pickupConfirmedAt);
+  return !application.pickupConfirmedAt;
+}
+
+/**
+ * The shelter confirmed this foster's pickup and then retired the dog (RS-21) -- possible only
+ * through a retire that landed before the roster stopped offering it on a held dog, or a direct
+ * write. Both things are true, so the foster is told both and agrees to nothing: `agreedPickup()`
+ * returns `null` for the same state. Never a decline (RS-11).
+ */
+export function takenDownAfterConfirm(
+  application: Pick<Application, "status" | "pickupConfirmedAt"> | null | undefined,
+  dogStatus: DogStatus | undefined,
+): boolean {
+  if (!application || !LIVE.includes(application.status)) return false;
+  return Boolean(application.pickupConfirmedAt) && dogStatus === "retired";
 }

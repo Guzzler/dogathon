@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMyShelters } from "../../hooks/useStaffShelters";
 import { useShelterDogs } from "../../hooks/useShelterDogs";
 import { useShelterApplications } from "../../hooks/useShelterApplications";
-import { isLive } from "../../lib/applicationView";
+import { confirmedHolder, isLive } from "../../lib/applicationView";
 import { addShelterDog, applyRosterAction } from "../../lib/shelterRoster";
 import { normalizeDog, dogPhotoOrNull } from "../../lib/dog";
 import {
@@ -16,7 +17,7 @@ import {
   type RosterAction,
   type TriState,
 } from "../../lib/shelterDog";
-import type { Dog, DogSize } from "../../types";
+import type { Application, Dog, DogSize } from "../../types";
 import { ProfileAttribution } from "../../components/ProfileAttribution";
 
 /**
@@ -53,6 +54,20 @@ export function ShelterRosterView() {
       if (isLive(a.status)) counts.set(a.dogId, (counts.get(a.dogId) ?? 0) + 1);
     }
     return counts;
+  }, [applicationsResult]);
+  // RS-21: the live application holding a confirmed pickup on each dog, from the same read. The
+  // roster doesn't act on a dog a confirmation holds -- the inbox gave that answer and only the
+  // inbox takes it back. A loading or failed read holds nothing, so the buttons fall back to
+  // today's rather than vanishing on a slow connection.
+  const holders = useMemo(() => {
+    const byDog = new Map<string, Application>();
+    if (applicationsResult.state !== "ready") return byDog;
+    const all = applicationsResult.applications;
+    for (const dogId of new Set(all.map((a) => a.dogId))) {
+      const holder = confirmedHolder(dogId, all);
+      if (holder) byDog.set(dogId, holder);
+    }
+    return byDog;
   }, [applicationsResult]);
 
   return (
@@ -133,7 +148,7 @@ export function ShelterRosterView() {
               <ul className="shelter__list shelter__list--wide">
                 {back.map((dog) => (
                   <li key={dog.id}>
-                    <ReturnedDog dog={dog} open={openApplications.get(dog.id) ?? 0} />
+                    <ReturnedDog dog={dog} open={openApplications.get(dog.id) ?? 0} holder={holders.get(dog.id) ?? null} />
                   </li>
                 ))}
               </ul>
@@ -148,20 +163,20 @@ export function ShelterRosterView() {
               <p className="muted shelter__section-sub">
                 Taken off Discovery when you confirmed their pickup.
               </p>
-              <DogRows dogs={foster} open={openApplications} />
+              <DogRows dogs={foster} open={openApplications} holders={holders} />
             </section>
           )}
 
           {listed.length > 0 && (
             <section>
               <h2 className="shelter__section">Listed</h2>
-              <DogRows dogs={listed} open={openApplications} />
+              <DogRows dogs={listed} open={openApplications} holders={holders} />
             </section>
           )}
           {rest.length > 0 && (
             <section>
               <h2 className="shelter__section">Not listed</h2>
-              <DogRows dogs={rest} open={openApplications} />
+              <DogRows dogs={rest} open={openApplications} holders={holders} />
             </section>
           )}
         </div>
@@ -170,12 +185,20 @@ export function ShelterRosterView() {
   );
 }
 
-function DogRows({ dogs, open }: { dogs: Dog[]; open: Map<string, number> }) {
+function DogRows({
+  dogs,
+  open,
+  holders,
+}: {
+  dogs: Dog[];
+  open: Map<string, number>;
+  holders: Map<string, Application>;
+}) {
   return (
     <ul className="shelter__list">
       {dogs.map((dog) => (
         <li key={dog.id}>
-          <DogRow dog={dog} open={open.get(dog.id) ?? 0} />
+          <DogRow dog={dog} open={open.get(dog.id) ?? 0} holder={holders.get(dog.id) ?? null} />
         </li>
       ))}
     </ul>
@@ -252,10 +275,30 @@ function OpenApplicationsNote({ dog, open, actions }: { dog: Dog; open: number; 
   );
 }
 
-function ReturnedDog({ dog, open }: { dog: Dog; open: number }) {
+/**
+ * RS-21. A dog a live confirmation holds offers no roster button: say who it's going home with
+ * and send staff to the one surface that can take the confirmation back *and* tell the foster.
+ * A statement, not a prompt (RS-20's rule), and no new class.
+ */
+function HeldNote({ holder }: { holder: Application | null }) {
+  if (!holder) return null;
+  const date = holder.pickup
+    ? new Date(holder.pickup.date + "T00:00:00").toLocaleDateString(undefined, { month: "long", day: "numeric" })
+    : null;
+  return (
+    <span className="muted shelter__open-note">
+      Going home with {holder.fosterName}
+      {date ? <> &middot; pickup {date}</> : null}. To change that, take back the confirmation in{" "}
+      <Link to={`/shelter?app=${encodeURIComponent(holder.id)}`}>Applications</Link>.
+    </span>
+  );
+}
+
+function ReturnedDog({ dog, open, holder }: { dog: Dog; open: number; holder: Application | null }) {
   const rich = useMemo(() => normalizeDog(dog), [dog]);
   const photo = dogPhotoOrNull(rich, 400, 400);
   const { busy, failed, run } = useRosterWrite(dog.id);
+  const actions = rosterActions(dog.status, Boolean(holder));
 
   return (
     <article className="shelter__returned">
@@ -291,18 +334,20 @@ function ReturnedDog({ dog, open }: { dog: Dog; open: number }) {
       )}
 
       {failed && <p className="shelter__failed">That didn&rsquo;t save. Try again.</p>}
-      <OpenApplicationsNote dog={dog} open={open} actions={rosterActions(dog.status)} />
+      <HeldNote holder={actions.length ? null : holder} />
+      <OpenApplicationsNote dog={dog} open={open} actions={actions} />
       <div className="shelter__actions">
-        <ActionButtons actions={rosterActions(dog.status)} busy={busy} run={run} />
+        <ActionButtons actions={actions} busy={busy} run={run} />
       </div>
     </article>
   );
 }
 
-function DogRow({ dog, open }: { dog: Dog; open: number }) {
+function DogRow({ dog, open, holder }: { dog: Dog; open: number; holder: Application | null }) {
   const rich = useMemo(() => normalizeDog(dog), [dog]);
   const photo = dogPhotoOrNull(rich, 200, 200);
   const { busy, failed, run } = useRosterWrite(dog.id);
+  const actions = rosterActions(dog.status, Boolean(holder));
 
   return (
     <div className="shelter__dog">
@@ -321,10 +366,11 @@ function DogRow({ dog, open }: { dog: Dog; open: number }) {
           {dog.breed} · {rich.ageLabel}
         </span>
         <span className="shelter__pill shelter__pill--dog">{DOG_STATUS_LABELS[dog.status]}</span>
-        <OpenApplicationsNote dog={dog} open={open} actions={rosterActions(dog.status)} />
+        <HeldNote holder={actions.length ? null : holder} />
+        <OpenApplicationsNote dog={dog} open={open} actions={actions} />
         {failed && <span className="shelter__failed">That didn&rsquo;t save. Try again.</span>}
       </div>
-      <ActionButtons actions={rosterActions(dog.status)} busy={busy} run={run} />
+      <ActionButtons actions={actions} busy={busy} run={run} />
     </div>
   );
 }
