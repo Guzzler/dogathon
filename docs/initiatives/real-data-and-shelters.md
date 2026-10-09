@@ -147,6 +147,13 @@ don't "fix" the second by loosening `firestore.rules`.
 
 ### The items
 
+- [ ] **RS-21 — PROPOSED by execute's audit, 2026-10-08: ages render as decimal years.** The
+  shelter publishes *"11 y, 1 m"*; `parse_age_years()` (`scripts/shelters/sfspca.py:183`) stores
+  `11.08`, and `normalizeDog()`'s `ageLabel` (`web/src/lib/dog.ts:105-110`) prints it raw — the
+  deployed dog profile, card and public adoption page all read *11.08 yrs*. 14 of the 19 committed
+  dogs carry a fractional age. Render whole years plus months (*11 yrs 1 mo*), keep `age_years` as
+  stored; a `dog.test.ts` case per branch. Small; a rider candidate.
+
 - [x] **RS-20 `[large]` — a dog off the roster is not a pickup to confirm, and its applicants are
   told (queued 2026-10-02, shipped the same day).** A `retired` or `adopted` dog's live application
   offers no **Confirm pickup** or **Ask for another time** in the inbox, its row reads *Dog not
@@ -351,7 +358,7 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   pair still shows **Undo confirmation** on both — the line says which to take back. vitest 237
   (11 new), tsc, build, lint 8 (unchanged); `another foster home` appears nowhere outside tests.
   **Not verified signed in or against Firestore** — RS-14b (9).
-- 2026-10-02 — RS-20 `[large]` — PR #__ — A dog off the roster is not a pickup to confirm:
+- 2026-10-02 — RS-20 `[large]` — PR #116 — A dog off the roster is not a pickup to confirm:
   `offRoster()` (`retired`/`adopted` only) and `unlisted()` in `applicationView.ts`, pure. Inbox detail
   drops **Confirm pickup** and **Ask for another time** for an unconfirmed live application on an
   off-roster dog and says so; RS-17's *won't change that* now shows for `medical_hold` (and the
