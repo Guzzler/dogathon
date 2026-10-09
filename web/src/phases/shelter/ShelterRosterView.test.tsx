@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import type { Application, Dog } from "../../types";
 
@@ -53,7 +54,11 @@ const dog = (over: Partial<Dog> & { id: string }): Dog => ({
 const render = (roster: Dog[], open: Application[] = []) => {
   dogs.current = roster;
   applications.current = open;
-  return renderToStaticMarkup(<ShelterRosterView />);
+  return renderToStaticMarkup(
+    <MemoryRouter>
+      <ShelterRosterView />
+    </MemoryRouter>,
+  );
 };
 
 const PROFILE =
@@ -168,5 +173,49 @@ describe("ShelterRosterView — taking a dog down says who is still waiting (RS-
     );
     expect(returned).toContain("1 open application —");
     expect(render([dog({ id: "c", status: "retired" })], [app("1", "c", "approved")])).not.toContain("open application");
+  });
+});
+
+describe("ShelterRosterView — a confirmed pickup is taken back where it was given (RS-21)", () => {
+  const stamp = { toMillis: () => 1 };
+  const app = (id: string, dogId: string, confirmed: boolean, status: Application["status"] = "approved") =>
+    ({
+      id,
+      dogId,
+      status,
+      fosterId: "u",
+      fosterName: "Robin",
+      shelterId: "sfspca-mission",
+      pickup: { date: "2026-10-17", time: "11:00", location: "SF SPCA Mission Campus" },
+      pickupConfirmedAt: confirmed ? stamp : null,
+    }) as unknown as Application;
+
+  it("names the holder of a dog in foster and offers neither List again nor Retire", () => {
+    const html = render([dog({ id: "a", name: "Arlo", status: "foster" })], [app("x1", "a", true)]);
+    expect(html).toContain("Going home with Robin");
+    expect(html).toContain("take back the confirmation in");
+    expect(html).toContain('href="/shelter?app=x1"');
+    expect(html).not.toContain(">List again<");
+    expect(html).not.toContain(">Retire<");
+  });
+
+  it("still offers both on a dog in foster nobody holds", () => {
+    const html = render([dog({ id: "a", status: "foster" })], [app("x1", "a", false), app("x2", "a", true, "withdrawn")]);
+    expect(html).toContain(">List again<");
+    expect(html).toContain(">Retire<");
+    expect(html).not.toContain("Going home with");
+  });
+
+  it("holds a listed dog too, and leaves a returned or retired one's buttons alone", () => {
+    expect(render([dog({ id: "a" })], [app("x1", "a", true)])).not.toContain(">Retire<");
+    const returned = render(
+      [dog({ id: "b", status: "ready_for_adoption", adoption_profile: PROFILE })],
+      [app("x1", "b", true)],
+    );
+    expect(returned).toContain(">Mark adopted<");
+    expect(returned).not.toContain("Going home with");
+    const retired = render([dog({ id: "c", status: "retired" })], [app("x1", "c", true)]);
+    expect(retired).toContain(">List again<");
+    expect(retired).not.toContain("Going home with");
   });
 });

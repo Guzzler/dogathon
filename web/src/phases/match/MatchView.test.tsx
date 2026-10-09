@@ -365,3 +365,24 @@ describe("MatchView, once the shelter takes the dog off its roster (RS-20)", () 
     expect(html).toContain("confirmed this time");
   });
 });
+
+describe("MatchView, once the shelter confirmed and then retired the dog (RS-21)", () => {
+  const SLOT: Pickup = { date: "2099-06-12", time: "1:30 PM", location: "201 Alabama St" };
+  const startButton = (html: string) => html.match(/<button[^>]*>I&#x27;ve got Tip Toe → start Care Plan/)?.[0] ?? "";
+  const html = () =>
+    screen({ status: "approved", checklistDone: true, dogStatus: "retired", pickup: SLOT, appPickup: SLOT, confirmed: true });
+
+  it("says both true things and never that the shelter hasn't answered", () => {
+    expect(html()).toContain("SF SPCA confirmed your pickup, then took Tip Toe off its");
+    expect(html()).toContain("Check with them before you go to collect Tip Toe.");
+    expect(html()).not.toContain("haven&#x27;t answered");
+    expect(html()).not.toContain("said no this time");
+  });
+
+  it("keeps the agreed slot read-only and keeps Care Plan shut", () => {
+    expect(html()).toContain("The time you agreed.");
+    expect(html()).not.toContain("Change request");
+    expect(startButton(html())).toContain("disabled");
+    expect(startButton(html())).toContain("Check with SF SPCA first");
+  });
+});

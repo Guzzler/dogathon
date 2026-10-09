@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMyShelters } from "../../hooks/useStaffShelters";
 import { useShelterApplications } from "../../hooks/useShelterApplications";
 import { useDogs } from "../../hooks/useDogs";
@@ -45,7 +46,10 @@ export function ShelterApplicationsView() {
   const [shelterId, setShelterId] = useState<string | null>(shelters[0]?.id ?? null);
   const active = shelters.find((s) => s.id === shelterId) ?? shelters[0];
   const { result, retry } = useShelterApplications(active?.id ?? null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // RS-21: the roster links a held dog's note here as `?app={id}`, read once as the initial
+  // selection. It falls back to the newest like any stale selection does.
+  const [params] = useSearchParams();
+  const [selectedId, setSelectedId] = useState<string | null>(() => params.get("app"));
 
   const applications = result.state === "ready" ? result.applications : [];
   // Falls back to the first row rather than trusting a stored selection: the list is a live
@@ -440,6 +444,15 @@ function PickupSection({ application, dog, dogName, held, busy, run }: {
               ? "The foster asked for this time."
               : "The foster asked for this time. Nothing is booked until you confirm it."}
       </p>
+      {/* RS-21: the shelter confirmed this pickup and then retired the dog -- a retire that landed
+          before the roster stopped offering it, or a direct write. The foster still sees it
+          confirmed, so say so beside the one button that tells them. */}
+      {confirmed && isLive(application.status) && dog?.status === "retired" && (
+        <p className="shelter__handoff-note">
+          {dogName} is retired on your roster, but this pickup is still confirmed &mdash; the foster still sees
+          it. Undo the confirmation to tell them, or List {dogName} again.
+        </p>
+      )}
       {declined && application.pickupNote && (
         <p className="shelter__pickup-note">&ldquo;{application.pickupNote}&rdquo;</p>
       )}

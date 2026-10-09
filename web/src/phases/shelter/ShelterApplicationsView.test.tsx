@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import type { Application, Dog } from "../../types";
 
@@ -65,7 +66,11 @@ const application = (over: Partial<Application> = {}): Application =>
 const render = (d: Dog, a: Application) => {
   state.dogs = [d];
   state.applications = [a];
-  return renderToStaticMarkup(<ShelterApplicationsView />);
+  return renderToStaticMarkup(
+    <MemoryRouter>
+      <ShelterApplicationsView />
+    </MemoryRouter>,
+  );
 };
 
 describe("ShelterApplicationsView — the listing follows the handoff (RS-17)", () => {
@@ -108,7 +113,11 @@ describe("ShelterApplicationsView — one dog, one confirmed pickup (RS-18)", ()
   const renderAll = (apps: Application[]) => {
     state.dogs = [dog({ status: "foster" })];
     state.applications = apps;
-    return renderToStaticMarkup(<ShelterApplicationsView />);
+    return renderToStaticMarkup(
+    <MemoryRouter>
+      <ShelterApplicationsView />
+    </MemoryRouter>,
+  );
   };
   const detailOf = (html: string) => html.slice(html.indexOf("shelter__detail"));
   const rowOf = (html: string, name: string) => {
@@ -184,5 +193,40 @@ describe("ShelterApplicationsView — a dog off the roster (RS-20)", () => {
     const html = render(dog({ status: "adopted" }), application({ pickupConfirmedAt: stamp }));
     expect(html).toContain("Undo confirmation");
     expect(html).not.toContain("Dog not listed");
+  });
+});
+
+describe("ShelterApplicationsView — a confirmed pickup on a retired dog (RS-21)", () => {
+  const confirmed = () => application({ pickupConfirmedAt: stamp as Application["pickupConfirmedAt"] });
+
+  it("keeps Undo confirmation and says the foster still sees the pickup", () => {
+    const html = render(dog({ status: "retired" }), confirmed());
+    expect(html).toContain("Undo confirmation");
+    expect(html).toContain("Fern is retired on your roster, but this pickup is still confirmed");
+    expect(html).not.toContain("Confirm pickup");
+  });
+
+  it("says nothing of the kind for a dog in foster, or an unconfirmed application", () => {
+    expect(render(dog({ status: "foster" }), confirmed())).not.toContain("still confirmed");
+    expect(render(dog({ status: "retired" }), application())).not.toContain("still confirmed");
+  });
+
+  it("selects the application the roster linked to with ?app=", () => {
+    state.dogs = [dog({ status: "foster" })];
+    state.applications = [
+      application({ id: "a1", fosterName: "Alex" }),
+      application({ id: "b1", fosterName: "Blair", fosterId: "u2" }),
+    ];
+    const at = (url: string) =>
+      renderToStaticMarkup(
+        <MemoryRouter initialEntries={[url]}>
+          <ShelterApplicationsView />
+        </MemoryRouter>,
+      );
+    const detailHead = (html: string) => html.slice(html.indexOf("shelter__detail")).match(/<h2>([^<]*)<\/h2>/)?.[1];
+    expect(detailHead(at("/shelter?app=b1"))).toBe("Blair");
+    // No param, or one naming nothing, falls back to the first row as before.
+    expect(detailHead(at("/shelter"))).toBe("Alex");
+    expect(detailHead(at("/shelter?app=gone"))).toBe("Alex");
   });
 });
