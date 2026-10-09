@@ -151,6 +151,14 @@ truthfulness, not because production-hardening has been re-ranked.
   not what it used to. Whether demo mode should instead get a real path (e.g. a demo shelter the
   visitor can sign in as staff of) is plan's call — it must not loosen `applications`' rules.
 
+- [ ] **PH-34 — PROPOSED by execute's audit, 2026-10-08: ages render as decimal years.** Filed
+  here, not in `real-data-and-shelters.md`, only because plan's concurrent PR #117 was rewriting
+  that doc (and took the id RS-21); move it if plan prefers. The shelter publishes *"11 y, 1 m"*;
+  `parse_age_years()` (`scripts/shelters/sfspca.py:183`) stores `11.08`, and `normalizeDog()`'s
+  `ageLabel` (`web/src/lib/dog.ts:105-110`) prints it raw, so the deployed profile and the public
+  adoption page both read *11.08 yrs*. 14 of the 19 committed dogs have a fractional age. Render
+  *11 yrs 1 mo*, keep `age_years` as stored, add a `dog.test.ts` case per branch. Small; a rider.
+
 ### PH-28 `[large]` + PH-29 + PH-30 — shipped 2026-09-26; the Ledger row is the full account
 
 Spec verbatim in
