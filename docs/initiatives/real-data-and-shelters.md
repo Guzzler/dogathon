@@ -147,6 +147,68 @@ don't "fix" the second by loosening `firestore.rules`.
 
 ### The items
 
+- [ ] **RS-21 `[large]` — a confirmed pickup is taken back where it was given (queued 2026-10-08).**
+  *Found by reading RS-20's Ledger deviation (3) against `main`* — "noted, not fixed". Grounding,
+  each line re-read at `7f81d39`:
+  - `rosterActions()` (`lib/shelterDog.ts:211`) is keyed on **status alone**: a `foster` dog gets
+    `["relist", "retire"]` and a `medical_hold` dog `["retire"]`, whether or not a live application
+    holds a confirmed pickup on it. RS-17 added them for the *withdrawn-after-handoff* case, but
+    nothing restricts them to it, so **List again** puts a dog promised to a foster back into
+    Discovery, and **Retire** takes it down, both without a word to the holder.
+  - The roster already subscribes to the shelter's applications (`ShelterRosterView.tsx:48`, RS-20),
+    so the holder is computable there at no extra read.
+  - After a retire, the holder's Match is self-contradicting: `unlisted()` (`applicationView.ts:447`)
+    excludes a confirmed stamp only for `adopted`, so the card says *"They haven't answered your
+    application yet"* about an application staff **confirmed**, while `agreedPickup()` still returns
+    the slot — Care Plan's start button stays enabled and Hub/Saved count down to a pickup for a dog
+    the shelter took down. The inbox detail says nothing either (`notListed = !confirmed && …`,
+    `ShelterApplicationsView.tsx:419`); only `handoffStatus` is already right (unconfirm on a
+    `retired` dog writes no status, `shelterDog.ts:279`).
+
+  **Design answer: a confirmed pickup is the shelter's answer, and only the surface that gave it
+  can take it back.** RS-17 made the inbox the owner of the handoff; the roster's buttons are a
+  second writer of the same fact that skips the person it was promised to. So the roster does not
+  act on a dog a live confirmation holds — it names the holder and sends staff to the inbox, where
+  **Undo confirmation** already relists and already tells the foster. Not a confirm dialog (RS-20's
+  rule: a statement, not a prompt), and not a bulk decline. A returned dog (`ready_for_adoption`)
+  and the terminal statuses are unaffected: the holder's stamp there is a finished handoff, not a
+  hold. The foster side, for the state that can still exist (a retire that landed before this
+  ships, or a direct console write), says both true things and agrees to nothing.
+
+  **Spec.**
+  1. `lib/applicationView.ts`: export `confirmedHolder(dogId, applications)` — the live application
+     on that dog with `pickupConfirmedAt` — and have `pickupHolder()` call it (one predicate, not
+     two). `unlisted()` returns false for **any** confirmed stamp; add `takenDownAfterConfirm(app,
+     dogStatus)` = live, confirmed, dog `retired`. `agreedPickup()` gains an optional fourth input
+     `dogStatus` and returns `null` when it is `retired` (not `adopted` — that is the finished
+     journey); pass it at all three call sites (`MatchView.tsx:73`, `HubView.tsx:94`,
+     `SavedView.tsx:189`).
+  2. `lib/shelterDog.ts`: `rosterActions(status, held = false)` returns `[]` when `held` and `status`
+     is `available`, `foster` or `medical_hold`; unchanged otherwise.
+  3. `ShelterRosterView.tsx`: compute holders beside `openApplications` (same `ready` guard — a
+     loading read holds nothing, so it falls back to today's buttons) and pass `held` to every
+     `rosterActions` call. A held `DogRow` renders, in `shelter__open-note`, *Going home with
+     {fosterName} · pickup {date}. To change that, take back the confirmation in Applications.*
+     with **Applications** linking to `/shelter?app={id}` — no new class.
+  4. `ShelterApplicationsView.tsx`: read `?app=` once as the initial `selectedId` (falls back to the
+     newest as now). In the pickup detail, a confirmed application on a `retired` dog keeps **Undo
+     confirmation** and gains the line *{dog} is retired on your roster, but this pickup is still
+     confirmed — the foster still sees it. Undo the confirmation to tell them, or List {dog} again.*
+  5. `MatchView.tsx` (and Saved's card): when `takenDownAfterConfirm`, a `role="status"` card reads
+     *{shelter} confirmed your pickup, then took {dog} off its roster. Check with them before you go
+     to collect {dog}.* and **I've got {dog}** is disabled (it follows `agreedPickup`, so this is
+     step 1 doing its job). Never a decline (RS-11).
+
+  **Not in scope:** a retire that happens *after* the foster is in Care Plan (status is still
+  `foster`, so step 2 already blocks the roster path; a direct write is RS-17 lead (b)'s family);
+  the withdraw-branch `hasOnly` lead below; any rules change. **Verify:** vitest — `rosterActions`
+  held × each status; `confirmedHolder` ignores withdrawn/declined stamps and other dogs;
+  `unlisted` false and `takenDownAfterConfirm` true for confirmed+`retired`; `agreedPickup` null for
+  `retired`, the slot for `adopted`; extend `ShelterRosterView.test.tsx` so a held `foster` dog
+  renders the holder line and no **List again**/**Retire**, and an unheld one still offers both;
+  `?app=` selects in `ShelterApplicationsView.test.tsx`. `tsc -b`, build, lint at `main`'s 8. The
+  signed-in half is RS-14b step (11).
+
 - [x] **RS-20 `[large]` — a dog off the roster is not a pickup to confirm, and its applicants are
   told (queued 2026-10-02, shipped the same day).** A `retired` or `adopted` dog's live application
   offers no **Confirm pickup** or **Ask for another time** in the inbox, its row reads *Dog not
@@ -156,21 +218,11 @@ don't "fix" the second by loosening `firestore.rules`.
   [`archive/real-data-and-shelters-rs20-2026-10-02.md`](archive/real-data-and-shelters-rs20-2026-10-02.md);
   the Ledger row is what shipped. Signed-in half is RS-14b's step (10).
 
-- [x] **RS-18 `[large]` — one dog, one confirmed pickup, and the other applicants are told (queued
-  2026-09-30, shipped 2026-10-01).** Once staff confirm one foster's pickup, every other live
-  application on that dog loses **Confirm pickup** in the inbox and says who has the dog; its row
-  carries *Dog placed with another foster*; the other foster's Match and Saved say the dog is in
-  another home without reading as a decline. Design answer (*confirming one pickup makes the others
-  answerable, not answered*) and spec verbatim in
-  [`archive/real-data-and-shelters-rs18-2026-10-01.md`](archive/real-data-and-shelters-rs18-2026-10-01.md);
-  the Ledger row is what shipped. Signed-in half is RS-14b's step (9).
-
-- [x] **RS-19 — the original holder's *Change request* is not "another foster home" (queued
-  2026-10-01, shipped the same day inside RS-18's PR).** RS-18's foster-side notice states the
-  listing (*{dog} is listed as in a foster home at {shelter}…*) and withholds nothing, because the
-  holder after **Change request** is indistinguishable from another applicant. Design answer (*the
-  foster side may say only what it can read*) and spec verbatim in
-  [`archive/real-data-and-shelters-rs18-2026-10-01.md`](archive/real-data-and-shelters-rs18-2026-10-01.md).
+- [x] **RS-18 `[large]` + RS-19 — shipped 2026-10-01 in one PR; compressed 2026-10-08.** Design
+  answers: **RS-18**, *confirming one pickup makes the others answerable, not answered* — the inbox
+  drops **Confirm pickup** where another live application holds the stamp; **RS-19**, *the foster
+  side may say only what it can read* — Match states the listing and withholds nothing. Specs
+  verbatim in [`archive/real-data-and-shelters-rs18-2026-10-01.md`](archive/real-data-and-shelters-rs18-2026-10-01.md).
 
 - [x] **RS-15 `[large]` (2026-09-28), RS-16 (2026-09-30), RS-17 `[large]` (2026-09-29) — shipped;
   compressed 2026-10-01.** In one line each, design answer first: **RS-15**, *only the party that
@@ -190,8 +242,8 @@ don't "fix" the second by loosening `firestore.rules`.
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
-- **The `[large]` slot is in this doc** (RS-14, RS-15, RS-17, RS-18, RS-20 — shipped 2026-10-02;
-  **empty again** until plan names the next). Routing narrative in
+- **The `[large]` slot is in this doc** (RS-14, RS-15, RS-17, RS-18, RS-20 shipped; **RS-21 open
+  since 2026-10-08**, from RS-20's own Ledger deviation). Routing narrative in
   [`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md).
 
 ### Needs a human, not a queue item
@@ -216,7 +268,10 @@ shelter, per the section below.
   (RS-19's wording) with the scheduler still there. Then, as the *first* foster, **Change request**
   and expect no line claiming the dog is in another home. **(10), once RS-20 ships:** retire a dog
   with a test foster's live application on it; expect the inbox to offer no **Confirm pickup**, the
-  foster's Match to say the dog isn't listed with no scheduler, and both back after **List again**. **Write down what happened.**
+  foster's Match to say the dog isn't listed with no scheduler, and both back after **List again**.
+  **(11), once RS-21 ships:** confirm a test foster's pickup, then expect `/shelter/dogs` to show
+  *Going home with …* and no **List again**/**Retire** on that dog; follow the link, **Undo
+  confirmation**, and expect both buttons back. **Write down what happened.**
 
 
 - **RS-13b — a runner with an address sfspca.org will answer.** RS-13 made the weekly check
@@ -273,7 +328,7 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status re-checked **2026-10-02**, not carried over: `git log --since=2026-09-22` is this
+*(Status re-checked **2026-10-08**, not carried over: `git log --since=2026-09-22` is this
 loop's own PRs and nothing else, and a grep across `docs/` turns up no commit, no doc edit from
 Sharang and no note anywhere saying this has happened. Recorded so a future run doesn't mistake
 the passage of time for progress. Now that M3 is finished this is the only thing standing between
@@ -308,50 +363,16 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   and made *confirmed* need the staff stamp **and** matching slots; beyond its spec it removed a
   third "agree the day" in `calendar.ts`'s `.ics` and a prompt claim that the agent could change a
   pickup. None of it verified signed in or in a browser — that is RS-14b.
-- 2026-09-28 — RS-15 `[large]` — PR #108 — The handoff happens on the shelter's say-so: staff's
-  **Ask for another time** (`askForAnotherTime()`, optional note ≤ 200 or `null`, slot left in place),
-  `pickupState()`'s `declined`, and `agreedPickup(fosterPickup, application, loading)` gating Care
-  Plan and anchoring Hub's and Saved's countdowns. Beyond the spec: `loading` as a third input (a
-  loading application must not unlock Care Plan), `setPickupConfirmed` clears a decline, and the
-  `create` rule requires all three answer fields null. vitest 211, tsc, build, lint 8; rules **not**
-  verified against Firestore (RS-14b (6)–(7)). Full row verbatim in
-  [`archive/real-data-and-shelters-rs15-ledger-2026-09-29.md`](archive/real-data-and-shelters-rs15-ledger-2026-09-29.md).
-- 2026-09-29 — RS-17 `[large]` — PR #110 — The listing follows the handoff: `handoffStatus()` in
-  `shelterDog.ts`; `setPickupConfirmed`, `askForAnotherTime` and `setApplicationStatus` take the dog
-  and batch `dogs/{id}.status` with the application update; the inbox's muted *won't change that*
-  line beside **Confirm pickup**, and a withdrawn-after-confirmation notice with **List again**;
-  `rosterActions("foster")` is `["relist", "retire"]` and the roster has an **In foster** group.
-  **One deviation from the table:** `handoffStatus` takes a third input, `confirmedHere` — *unconfirm*
-  and *decline* relist only when this application held the confirmation, since otherwise declining
-  one foster's application (or asking for another time on an unagreed slot) would relist a dog a
-  different foster holds; the withdrawn notice likewise needs the application's own stamp. The
-  foster's withdraw call passes no dog. vitest 226 (new `ShelterApplicationsView.test.tsx`), tsc,
-  build, lint 8. **Not verified against Firestore or signed in** — RS-14b (8).
-- 2026-09-30 — RS-16 — PR #111 — The import writes the shelter's listing, not the shelter's
-  decisions: `PAWTHWAY_OWNED` (`adoption_profile`, `adoption_profile_source`, `updatedAt`) plus
-  `_decided_status()` / `_preserve_decisions()` in `scripts/import_dogs.py` overlay the live
-  document's Pawthway-owned keys onto the scraped record, then `set()` it whole — so a key the
-  scrape stopped stating is still dropped (no `merge=True`). The plan gains `keep status  n  {…}`.
-  Rider: `import-dogs.yml` retitles the open `roster-drift` issue to this week's outcome before
-  commenting. pytest 83 (seven new, against PH-28's fake client, including one pinning that
-  `data/dogs.json` carries no Pawthway-owned key); `--dry-run --from-cache` re-bake byte-identical.
-  **Not verified against live Firestore** (no writing import run, as required), and the retitle is
-  observable only on the next Monday run — #96 should then carry this week's title.
-- 2026-10-01 — RS-18 `[large]` + RS-19 — PR #114 — One dog, one confirmed pickup: `pickupHolder()` /
-  `heldByAnother()` / `placedElsewhere()` / `isLive()` in `applicationView.ts`, all pure. The inbox
-  detail drops **Confirm pickup** when another live application holds the stamp and shows *{dog} is
-  going home with {holder}* (the name a button that selects that row) under **Pickup**, in place of
-  RS-17's *won't change that*; **Ask for another time** and the status buttons stay. Match withholds
-  nothing: per **RS-19** (queued by plan mid-build, PR #113, and folded in here so the stranding
-  version never deployed) Match and Saved say *{dog} is listed as in a foster home at {shelter}* and
-  keep the scheduler and **Change request**. **Two choices the spec left open:** the row pill *replaces*
-  *Pickup requested* / *Asked for another time* rather than sitting beside them, since *requested*
-  invites the one action the row no longer has; and it reuses `shelter__pill--dog` (no new pill
-  modifier), with one new `.shelter__link` rule for the holder's name. A legacy double-confirmed
-  pair still shows **Undo confirmation** on both — the line says which to take back. vitest 237
-  (11 new), tsc, build, lint 8 (unchanged); `another foster home` appears nowhere outside tests.
-  **Not verified signed in or against Firestore** — RS-14b (9).
-- 2026-10-02 — RS-20 `[large]` — PR #__ — A dog off the roster is not a pickup to confirm:
+- 2026-09-28 → 2026-10-01 — RS-15 `[large]` (PR #108), RS-17 `[large]` (PR #110), RS-16 (PR #111),
+  RS-18 `[large]` + RS-19 (PR #114). **Compressed 2026-10-08; verbatim in
+  [`archive/real-data-and-shelters-ledger-2026-10-08.md`](archive/real-data-and-shelters-ledger-2026-10-08.md).**
+  Invariants a regression would break: `agreedPickup(fosterPickup, application, loading)` gates Care
+  Plan and anchors every countdown, and a loading application agrees to nothing; `handoffStatus(event,
+  current, confirmedHere)` relists on unconfirm/decline **only** when this application held the stamp,
+  so it never writes over a `retired` dog; the import overlays `PAWTHWAY_OWNED` keys then `set()`s
+  whole; `pickupHolder()` is the whole one-dog-one-pickup enforcement (rules can't query siblings);
+  the foster side says only what it can read (RS-19). None of it verified signed in — RS-14b (6)–(9).
+- 2026-10-02 — RS-20 `[large]` — PR #116 — A dog off the roster is not a pickup to confirm:
   `offRoster()` (`retired`/`adopted` only) and `unlisted()` in `applicationView.ts`, pure. Inbox detail
   drops **Confirm pickup** and **Ask for another time** for an unconfirmed live application on an
   off-roster dog and says so; RS-17's *won't change that* now shows for `medical_hold` (and the
