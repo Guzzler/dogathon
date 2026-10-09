@@ -116,6 +116,49 @@ truthfulness, not because production-hardening has been re-ranked.
   The census of dangerous tools is complete. PH-28 `[large]` shipped 2026-09-26 and PH-31
   on 2026-09-27 (both below); nothing here is open.
 
+- [ ] **PH-32 `[large]` — PROPOSED by execute's audit, 2026-10-08; plan to confirm and specify.
+  The shared adoption link shows the foster's work to nobody but the foster.** Found walking
+  `/adoption/sfspca-30469611` on the deployed app as a guest. `PublicAdoptionView.tsx` reads
+  journal, care schedule, `adoptionNote` and `adoptionHighlights` through `useFoster()` — the
+  **viewer's** own foster document — and shows them only when `foster?.matchedDogId === id`. That
+  holds for exactly one person: the foster who sent the link. `firestore.rules:32-36` scopes
+  `fosters/{uid}` to its owner, so no recipient could read it even if the view asked. Everyone the
+  Post Foster share sheet reaches (`PostFosterView.tsx:51`: copy link, `mailto:`, Web Share) sees
+  the shelter's record, the agent's `dogs/{id}.adoption_profile` if one was sent, and empty states
+  saying *Nothing logged yet* — a false claim about a dog whose foster may have logged weeks. The
+  sender previews the same URL and sees everything, so they cannot notice. Evidence, verbatim from
+  the guest walk: *"The foster hasn't added their note. This is the part adopters read first, so
+  it's worth writing."* and *"Care items you tick off in the Care Plan show up here as you go."* —
+  foster-addressed prompts (`AdoptionProfile.tsx:62, :128, :197`) rendered to an adopter; the
+  first one also says notes the foster **stars** are summarised, against the rule that the summary
+  reads every entry. **The design question for plan:** the content has to be *published* somewhere
+  a stranger can read — a snapshot the foster writes for their own `matchedDogId` only (e.g.
+  `adoptionProfiles/{dogId}`, `read: if true`, write pinned to the owner of that match), re-written
+  on each change or on an explicit **Publish**. That is a new, scoped rules branch, not a loosening
+  of `fosters/{uid}`, and must stay so. Also in scope: reader-addressed empty states on the public
+  view. **Do not** make `fosters/{uid}` readable to fix this.
+
+- [ ] **PH-33 — PROPOSED by execute's audit, 2026-10-08. The demo intro promises controls the
+  hosted app never shows.** `DemoIntroView.tsx` (Eesha, `a8c774e`) is the first screen after
+  sign-in or guest, titled *You're in demo mode* before the visitor has chosen, and says shelter
+  approval is *"overridable with demo controls, so feel free to use them to go through the whole
+  flow."* On the hosted app that is never true: a guest cannot apply (`needsAccountToApply()`), a
+  signed-in foster always gets an `applications` row (PH-31's apply-first order), and
+  `MatchView.tsx:349` renders `DemoShelterPanel` only when `!application`. Since RS-15, Care Plan
+  waits for a staff-stamped pickup with no demo override either, so a demo visitor's journey ends at
+  Match waiting on a shelter nobody staffs. **Smallest honest version:** neutral title, and copy that
+  says what demo mode does on this build (the Care Plan day controls once a pickup is confirmed),
+  not what it used to. Whether demo mode should instead get a real path (e.g. a demo shelter the
+  visitor can sign in as staff of) is plan's call — it must not loosen `applications`' rules.
+
+- [ ] **PH-34 — PROPOSED by execute's audit, 2026-10-08: ages render as decimal years.** Filed
+  here, not in `real-data-and-shelters.md`, only because plan's concurrent PR #117 was rewriting
+  that doc (and took the id RS-21); move it if plan prefers. The shelter publishes *"11 y, 1 m"*;
+  `parse_age_years()` (`scripts/shelters/sfspca.py:183`) stores `11.08`, and `normalizeDog()`'s
+  `ageLabel` (`web/src/lib/dog.ts:105-110`) prints it raw, so the deployed profile and the public
+  adoption page both read *11.08 yrs*. 14 of the 19 committed dogs have a fractional age. Render
+  *11 yrs 1 mo*, keep `age_years` as stored, add a `dog.test.ts` case per branch. Small; a rider.
+
 ### PH-28 `[large]` + PH-29 + PH-30 — shipped 2026-09-26; the Ledger row is the full account
 
 Spec verbatim in
