@@ -280,6 +280,11 @@ Compressed:
   that answers the same question as another surface must be gated on that surface's facts, not
   only on its own*.
 
+- **2026-10-09 — the twenty-fourth link: the last `[large]` item's predicate walked to the journey's
+  end.** RS-21's *live + stamped* hold never ends, because nothing closes a finished foster's
+  application — a dog relisted after its foster is held forever (**RS-22**). **A predicate is checked
+  against every state its subject reaches, the last one included**; it also amended PH-32's gate.
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
