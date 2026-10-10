@@ -189,7 +189,7 @@ All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
 - **The `[large]` slot is in this doc** (RS-14, RS-15, RS-17, RS-18, RS-20, RS-21 shipped — **RS-21
-  shipped 2026-10-08, so the slot here is empty**; PH-32 `[large]` in `production-hardening.md` is open). Routing narrative in
+  shipped 2026-10-08, so the slot here is empty**; PH-32 `[large]` in `production-hardening.md` shipped 2026-10-09, so no `[large]` item is open anywhere). Routing narrative in
   [`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md).
 
 ### Needs a human, not a queue item

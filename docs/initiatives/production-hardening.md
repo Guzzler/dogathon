@@ -116,76 +116,13 @@ truthfulness, not because production-hardening has been re-ranked.
   The census of dangerous tools is complete. PH-28 `[large]` shipped 2026-09-26 and PH-31
   on 2026-09-27 (both below); nothing here is open.
 
-- [ ] **PH-32 `[large]` — the shared adoption link shows what the foster published (confirmed and
-  specified by plan 2026-10-08, re-read at `306e2d6`).** Execute's audit found it on the deployed
-  app; every line re-read against `main`:
-  - `PublicAdoptionView.tsx:19-25` reads journal, schedule, `adoptionNote` and `adoptionHighlights`
-    through `useFoster()` — the **viewer's** document — and uses them only when
-    `foster?.matchedDogId === id`. `firestore.rules:32-33` scopes `fosters/{uid}` to its owner, so
-    no recipient could read it even if the view asked. Every person the share sheet reaches sees the
-    shelter's record plus empty states that read as *nothing happened*.
-  - **One more than the audit named:** `PublicAdoptionView.tsx:31` passes `[]` for `careLog`
-    entries even for the sender, while `PostFosterView.tsx:30` passes them — so weigh-ins and vet
-    visits never reach the shared page for anyone, the sender included. The two views already
-    disagree about what the page is.
-  - The sender previewing their own link sees their own data, so the one person who could notice
-    cannot. The empty-state copy at `AdoptionProfile.tsx:62, :128, :197` is foster-addressed, and
-    :62 says *starred* notes are summarised, against the rule that the summary reads every entry.
-
-  **Design answer: a shared page shows what its foster *published*, and the sender sees exactly
-  what the reader sees.** The content moves to a place a stranger may read — `adoptionProfiles/{dogId}`
-  — by an explicit **Publish**, never by syncing on every change: a journal is written for oneself
-  (an address, a neighbour's name, a bad night), and nothing in it should become public because it
-  was typed. The write is pinned to the **shelter's** act, not the foster's claim: `matchedDogId` is
-  foster-writable, so a rule keyed on it lets anyone publish a page for any dog; a live application
-  carrying `pickupConfirmedAt` is a stamp only staff can set (RS-14/RS-15 rules). A new, scoped
-  branch — `fosters/{uid}` stays exactly as it is.
-
-  **Spec.**
-  1. `firestore.rules`: `match /adoptionProfiles/{dogId}` — `read: if true`; `create`/`update` when
-     signed in, `request.resource.data.fosterId == request.auth.uid`, and the application
-     `get()`-ed at `request.resource.data.applicationId` has that `fosterId`, `dogId == dogId`,
-     `status in ["submitted","in_review","approved"]` and a non-null `pickupConfirmedAt`; `update`
-     additionally needs `resource.data.fosterId == request.auth.uid` (no overwriting another
-     foster's page); `delete` only by `resource.data.fosterId`. Comment the derivation, as the
-     `applications` branch does.
-  2. `lib/adoption.ts`: `publishedPart(profile, tags, summary)` → the foster-sourced fields only
-     (`journalNotes`, journal-sourced `photos`, `careDone`, `careOutstanding`, `milestones`,
-     `medical`, `weight` when its source is `"care plan"`, `fosterNote`, `tags`, `summary`) — never
-     the shelter's fields, which the public view keeps reading live off `dogs/{id}`.
-     `withPublished(profile, snapshot | null)` overlays it onto `buildAdoptionProfile(dog, null, …)`;
-     `null` returns the shelter-only profile unchanged.
-  3. `lib/adoptionProfiles.ts` (new): `publishAdoptionProfile(dogId, applicationId, part)` (`setDoc`
-     with `fosterId`, `publishedAt`), `unpublishAdoptionProfile(dogId)`, and a
-     `usePublishedProfile(dogId)` hook whose `onSnapshot` error callback degrades to `null`.
-     `LOCAL_MODE`: no-op publish, `null` read — the local page keeps today's own-data behaviour.
-  4. `PostFosterView.tsx`: a **Publish** button (first time) / **Publish changes** (when
-     `publishedPart(live)` differs from the snapshot) with *Published {date}* beside it. Before a
-     first publish the share actions say *Until you publish, this link shows only {shelter}'s
-     record* rather than sharing silently. The application id comes from `useApplication`.
-  5. `PublicAdoptionView.tsx`: render `withPublished(buildAdoptionProfile(dog, null, [], [], []),
-     usePublishedProfile(id))` — for everyone, the sender included. Drop the `useFoster` /
-     `useJournal*` reads.
-  6. `AdoptionProfile.tsx`: `AdoptionProfileBody` gains `audience: "foster" | "reader"` (default
-     `"foster"`). Reader copy at the three sites: *No journal notes have been published for {dog}.*,
-     *The foster hasn't written a note for adopters.*, *No care has been published yet.* Fix :62's
-     foster copy to say every note is summarised, not starred ones.
-  7. `web/src/auth.ts`: `deleteAccount()` deletes `adoptionProfiles` where `fosterId == uid` before
-     the foster document goes; `exportAccountData()` includes them. The foster's withdraw
-     (`setApplicationStatus(…, "withdrawn")` from the foster side) calls `unpublishAdoptionProfile`
-     — a withdrawn foster's notes come down with the application.
-
-  **Not in scope:** photo upload (journal entries still carry `imageColor` only, `careplan/types.ts:77`);
-  the agent's `dogs/{id}.adoption_profile` paragraph (already public and attributed, PH-21);
-  showing the snapshot shelter-side. **Verify:** vitest — `publishedPart` drops every shelter
-  field and keeps a weight only from the care plan; `withPublished(p, null)` equals `p`; a
-  `PublicAdoptionView.test.tsx` rendering with a snapshot (notes shown) and without (reader empty
-  states, none of the foster-addressed strings); `PostFosterView` shows **Publish** with no
-  snapshot and **Publish changes** after a journal edit. `tsc -b`, build, lint at `main`'s 8. The
-  rules branch can't be verified unattended (no emulator in CI) — its live check is **PH-32b**
-  under "Needs a human": as the confirmed test foster, publish; as a second account, `setDoc`
-  `adoptionProfiles/{that dog}` and expect `permission-denied`; signed out, open the link and see
-  the notes.
+- [x] **PH-32 `[large]` — the shared adoption link shows what the foster published (specified by
+  plan 2026-10-08, shipped 2026-10-09).** Design answer: *a shared page shows what its foster
+  published, and the sender sees exactly what the reader sees* — `adoptionProfiles/{dogId}`,
+  written only by an explicit **Publish**, admitted by `firestore.rules` only for the holder of a
+  live application carrying the shelter's `pickupConfirmedAt`. Spec verbatim in
+  [`archive/production-hardening-ph32-2026-10-09.md`](archive/production-hardening-ph32-2026-10-09.md);
+  the Ledger row is what shipped. The live rules check is **PH-32b** under "Needs a human".
 
 - [ ] **PH-34 — confirmed by plan 2026-10-08: ages render as decimal years.** Kept here (it
   touches `lib/dog.ts`, which this doc already owns via PH-22/PH-28). `ageLabel`
@@ -303,7 +240,7 @@ prints `keep 2 stale but matched to a foster: ['d-026', 'sfspca-61200213'] (deli
 **some `fosters/*` document still has `matchedDogId: "d-026"`**, and the rule above says leave it.
 Whose is the half still needing the console; the plan line never names a foster, by design.
 
-**PH-32b — PARKED at queue time (2026-10-08); the signed-in half of PH-32.** Once PH-32 ships, its
+**PH-32b — PARKED at queue time (2026-10-08); the signed-in half of PH-32 (shipped 2026-10-09).** Its
 spec's last sentence is the whole check: publish as the confirmed test foster, attempt the same
 write from a second account (expect `permission-denied` — a success is a finding to queue, never
 licence to widen the rule), then open the link signed out and see the published notes.
@@ -376,3 +313,27 @@ reaching the end of what it can give on this doc.)*
   `SavedView.test.tsx` rendering a liked dog in each status plus `petsun`), `tsc -b`, build, lint
   at `main`'s 8. **Not verified in a browser:** the committed roster is all `available`, so no
   local walk reaches the disabled state, and the failure branch needs a Firestore write to fail.
+- 2026-10-09 — PH-32 `[large]` — PR #__ — **the shared adoption link shows what the foster
+  published, to everyone, the sender included.** New `adoptionProfiles/{dogId}` (rules: public
+  read; create/update only by the foster named in `fosterId` whose `applicationId` is live on this
+  dog with a non-null `pickupConfirmedAt`; update/delete only by the stored author).
+  `lib/adoption.ts` gains `publishedPart` / `withPublished` / `samePublished`; new
+  `lib/adoptionProfiles.ts`; `PublicAdoptionView` renders the shelter-only profile with the
+  snapshot laid over it and no longer reads the viewer's foster document; `AdoptionProfileBody`
+  takes `audience` with the three reader empty states, and the foster copy no longer says *starred*
+  notes are summarised; Post Foster has a **Publish** / **Publish changes** card and the share
+  sheet says *Until you publish, this link shows only {shelter}'s record*; deletion takes published
+  pages down first and export includes them; Saved's withdraw unpublishes. **Departures from the
+  spec:** `publishAdoptionProfile` takes the `fosterId` explicitly; `unpublishAdoptionProfile` reads
+  before deleting (a delete of a missing doc or another foster's page is refused by the rule, so
+  neither is attempted — no rule loosened for it); the Publish control is replaced by a line saying
+  why when there is no confirmed application, rather than rendering disabled; `LOCAL_MODE` keeps
+  today's own-data page as its own component, and now passes the careLog entries the spec noted
+  the old view dropped. **Noted, not fixed:** a page stays published if staff later *undo* the
+  confirmation — its author can still delete it but can no longer update it; whether undo should
+  take it down is a question for plan. Verified: 276 vitest (10 new — 5 for the helpers, 2 for
+  `PublicAdoptionView.test.tsx` incl. a mock that throws if the page reads `useFoster`, 3 for
+  `PostFosterView.test.tsx`), `tsc -b`, build, lint at `main`'s 8, and `firestore.rules` compiled by
+  `firebase deploy --only firestore:rules --dry-run` (nothing released). **Not verified in a
+  browser** — the unattended run's dev-server start was declined — **nor against live rules**:
+  that is PH-32b.

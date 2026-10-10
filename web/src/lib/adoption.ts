@@ -188,3 +188,108 @@ export const noteTextsFor = (p: AdoptionProfile) => [
   ...p.journalNotes.map((n) => n.text),
   ...p.photos.filter((ph) => ph.source === "journal" && ph.caption).map((ph) => ph.caption!),
 ];
+
+/**
+ * PH-32. The part of an adoption page a foster **publishes** to `adoptionProfiles/{dogId}` --
+ * everything the foster supplied, and nothing the shelter did. The shared link keeps reading the
+ * shelter's record live off `dogs/{id}`, so a published snapshot can never go stale about it, and
+ * a stranger never reads the foster's private document (which `firestore.rules` wouldn't let
+ * them do anyway -- that is why the link used to show nothing but empty states).
+ *
+ * A weight survives only when the foster measured it: the shelter's intake figure is the
+ * shelter's, and the reader gets it from the live record instead.
+ */
+export interface PublishedPart {
+  journalNotes: AdoptionProfile["journalNotes"];
+  photos: AdoptionProfile["photos"];
+  careDone: AdoptionProfile["careDone"];
+  careOutstanding: number;
+  milestones: AdoptionProfile["milestones"];
+  medical: AdoptionProfile["medical"];
+  weight: AdoptionProfile["weight"] | null;
+  fosterNote: string | null;
+  tags: string[];
+  summary: string;
+}
+
+/**
+ * Firestore refuses `undefined` and hands maps back in its own key order, so the part is
+ * normalised once -- `undefined` dropped -- before it is written *and* before it is compared.
+ */
+const normalise = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+export function publishedPart(profile: AdoptionProfile, tags: string[], summary: string): PublishedPart {
+  return normalise({
+    journalNotes: profile.journalNotes,
+    photos: profile.photos.filter((p) => p.source === "journal"),
+    careDone: profile.careDone,
+    careOutstanding: profile.careOutstanding,
+    milestones: profile.milestones,
+    medical: profile.medical,
+    weight: profile.weight.source === "care plan" ? profile.weight : null,
+    fosterNote: profile.fosterNote,
+    tags,
+    summary,
+  });
+}
+
+/** A key-order-independent fingerprint, so "Publish changes" means a change and not a re-read. */
+function fingerprint(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(fingerprint).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort()
+      .map((k) => `${JSON.stringify(k)}:${fingerprint((value as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
+const PART_KEYS: (keyof PublishedPart)[] = [
+  "journalNotes", "photos", "careDone", "careOutstanding", "milestones",
+  "medical", "weight", "fosterNote", "tags", "summary",
+];
+
+/** True when `live` is what was published -- comparing only the published fields. */
+export function samePublished(live: PublishedPart, published: Partial<PublishedPart>): boolean {
+  const pick = (p: Partial<PublishedPart>) =>
+    Object.fromEntries(PART_KEYS.map((k) => [k, p[k] ?? null]));
+  return fingerprint(pick(normalise(live))) === fingerprint(pick(published));
+}
+
+/**
+ * The page a reader sees: the shelter-only profile (`buildAdoptionProfile(dog, null, ...)`) with
+ * the published part laid over it. `null` -- nothing published -- returns it unchanged, so the
+ * reader gets the shelter's record and honest empty states, never somebody else's journal.
+ */
+export function withPublished(
+  profile: AdoptionProfile,
+  part: Partial<PublishedPart> | null,
+): AdoptionProfile {
+  if (!part) return profile;
+  const journalPhotos = (part.photos ?? []).filter((p) => p.source === "journal");
+  const journalNotes = part.journalNotes ?? [];
+  const careDone = part.careDone ?? [];
+  const medical = part.medical ?? null;
+  const fosterNote = part.fosterNote?.trim() || null;
+
+  const missing: string[] = [];
+  if (!journalPhotos.length) missing.push("photos");
+  if (!journalNotes.length) missing.push("journal notes");
+  if (!careDone.length) missing.push("care plan items");
+  if (!medical) missing.push("medical record");
+  if (!fosterNote) missing.push("your note");
+
+  return {
+    ...profile,
+    photos: [...profile.photos.filter((p) => p.source === "shelter"), ...journalPhotos],
+    hasJournalPhotos: journalPhotos.length > 0,
+    journalNotes,
+    careDone,
+    careOutstanding: part.careOutstanding ?? 0,
+    milestones: part.milestones ?? [],
+    medical,
+    weight: part.weight?.source === "care plan" ? part.weight : profile.weight,
+    fosterNote,
+    missing,
+  };
+}
