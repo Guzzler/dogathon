@@ -117,10 +117,12 @@ truthfulness, not because production-hardening has been re-ranked.
   on 2026-09-27 (both below); nothing here is open.
 
 - [x] **PH-32 `[large]` — the shared adoption link shows what the foster published (specified by
-  plan 2026-10-08, shipped 2026-10-09).** Design answer: *a shared page shows what its foster
-  published, and the sender sees exactly what the reader sees* — `adoptionProfiles/{dogId}`,
-  written only by an explicit **Publish**, admitted by `firestore.rules` only for the holder of a
-  live application carrying the shelter's `pickupConfirmedAt`. Spec verbatim in
+  plan 2026-10-08, gate amended 2026-10-09, shipped 2026-10-09).** Design answer: *a shared page
+  shows what its foster published, and the sender sees exactly what the reader sees* —
+  `adoptionProfiles/{dogId}`, written only by an explicit **Publish**, and *visible exactly as long
+  as the act that authorized it holds*: rules run one predicate (the shelter's `pickupConfirmedAt`
+  on this foster's application for this dog, not declined/withdrawn) on both the write and the
+  read. Spec verbatim in
   [`archive/production-hardening-ph32-2026-10-09.md`](archive/production-hardening-ph32-2026-10-09.md);
   the Ledger row is what shipped. The live rules check is **PH-32b** under "Needs a human".
 
@@ -135,7 +137,8 @@ truthfulness, not because production-hardening has been re-ranked.
 - [ ] **PH-33 — confirmed by plan 2026-10-08: the demo intro promises controls the hosted app never
   shows.** Re-read: `phases/auth/DemoIntroView.tsx:23` titles *You're in demo mode* before the
   visitor chooses, `:27` promises shelter approval *"overridable with demo controls"*, and
-  `MatchView.tsx:349-350` renders `DemoShelterPanel` only without an application — which a signed-in
+  `MatchView.tsx:363-365` (moved by RS-21; re-read 2026-10-09) renders `DemoShelterPanel` only as
+  `DEMO_MODE && !application` — which a signed-in
   foster always has (PH-31). **Design answer: the smallest honest version, not a demo shelter.** A
   visitor signing in as staff of a demo shelter needs a uid in `staffUids`, which is hand-written by
   design (`firestore.rules:114-115`, *no self-serve signup*); the first self-serve staff path does
@@ -243,7 +246,9 @@ Whose is the half still needing the console; the plan line never names a foster,
 **PH-32b — PARKED at queue time (2026-10-08); the signed-in half of PH-32 (shipped 2026-10-09).** Its
 spec's last sentence is the whole check: publish as the confirmed test foster, attempt the same
 write from a second account (expect `permission-denied` — a success is a finding to queue, never
-licence to widen the rule), then open the link signed out and see the published notes.
+licence to widen the rule), then open the link signed out and see the published notes. *(2026-10-09)*
+Then, as staff, **Undo confirmation** and expect the signed-out link to show only the shelter's
+record; confirm again and expect the notes back.
 
 Per the README's "nobody uses this app yet", the length of that list is not debt. Do not queue
 them, and do not add to it without reading the archived preamble first.
@@ -313,26 +318,31 @@ reaching the end of what it can give on this doc.)*
   `SavedView.test.tsx` rendering a liked dog in each status plus `petsun`), `tsc -b`, build, lint
   at `main`'s 8. **Not verified in a browser:** the committed roster is all `available`, so no
   local walk reaches the disabled state, and the failure branch needs a Firestore write to fail.
-- 2026-10-09 — PH-32 `[large]` — PR #__ — **the shared adoption link shows what the foster
-  published, to everyone, the sender included.** New `adoptionProfiles/{dogId}` (rules: public
-  read; create/update only by the foster named in `fosterId` whose `applicationId` is live on this
-  dog with a non-null `pickupConfirmedAt`; update/delete only by the stored author).
-  `lib/adoption.ts` gains `publishedPart` / `withPublished` / `samePublished`; new
-  `lib/adoptionProfiles.ts`; `PublicAdoptionView` renders the shelter-only profile with the
-  snapshot laid over it and no longer reads the viewer's foster document; `AdoptionProfileBody`
-  takes `audience` with the three reader empty states, and the foster copy no longer says *starred*
-  notes are summarised; Post Foster has a **Publish** / **Publish changes** card and the share
-  sheet says *Until you publish, this link shows only {shelter}'s record*; deletion takes published
-  pages down first and export includes them; Saved's withdraw unpublishes. **Departures from the
-  spec:** `publishAdoptionProfile` takes the `fosterId` explicitly; `unpublishAdoptionProfile` reads
-  before deleting (a delete of a missing doc or another foster's page is refused by the rule, so
-  neither is attempted — no rule loosened for it); the Publish control is replaced by a line saying
-  why when there is no confirmed application, rather than rendering disabled; `LOCAL_MODE` keeps
-  today's own-data page as its own component, and now passes the careLog entries the spec noted
-  the old view dropped. **Noted, not fixed:** a page stays published if staff later *undo* the
-  confirmation — its author can still delete it but can no longer update it; whether undo should
-  take it down is a question for plan. Verified: 276 vitest (10 new — 5 for the helpers, 2 for
-  `PublicAdoptionView.test.tsx` incl. a mock that throws if the page reads `useFoster`, 3 for
+- 2026-10-09 — PH-32 `[large]` — PR #122 — **the shared adoption link shows what the foster
+  published, to everyone, the sender included — for exactly as long as the shelter's confirmation
+  holds.** New `adoptionProfiles/{dogId}`; `firestore.rules` runs one `publishAuthorized()`
+  (application has this `fosterId` and `dogId`, a non-null `pickupConfirmedAt`, status not
+  `declined`/`withdrawn` — so RS-22's `completed` is admitted with no rules edit) on `get`,
+  `create` and `update`; `list` is owner-only; update/delete only by the stored author.
+  `lib/adoption.ts` gains `publishedPart` / `withPublished` / `samePublished` (key-order-proof, so
+  **Publish changes** means a change); `applicationView.ts` gains `authorizesPublishing`, the
+  client twin of the rules predicate; new `lib/adoptionProfiles.ts`. `PublicAdoptionView` renders
+  the shelter-only profile with the snapshot over it and no longer reads the viewer's foster
+  document; `AdoptionProfileBody` takes `audience` with the three reader empty states, and the
+  foster copy no longer says *starred* notes are summarised. Post Foster: **Publish** / **Publish
+  changes** card, and the plan-amended *{shelter} hasn't confirmed your pickup, so this link shows
+  only {shelter}'s record* in its place where the predicate fails; the share sheet says the same
+  before a first publish. Deletion takes published pages down first; export includes them; Saved's
+  withdraw unpublishes. **Surprises / departures:** plan amended the gate *while this was being
+  built* (PR #121 merged under the open branch) — the first cut had `read: if true` and had noted the
+  undo-leaves-it-public gap as unfixed; the amendment closed it and the rebased PR implements it.
+  Because a withdrawn application now hides its page from `get`, `unpublishAdoptionProfile` finds
+  the page through the owner's `list` query (`fosterId` + `dogId`, no index) rather than reading it.
+  `get` also admits `resource == null`, so an unpublished link degrades to the shelter's record
+  without a permission error — it exposes nothing. `publishAdoptionProfile` takes `fosterId`
+  explicitly. `LOCAL_MODE` keeps the own-data page as its own component and now passes the careLog
+  entries the old view dropped. Verified: 281 vitest (15 new — 5 helpers, 3 `authorizesPublishing`,
+  2 `PublicAdoptionView.test.tsx` incl. a `useFoster` mock that throws if the page reads it, 5
   `PostFosterView.test.tsx`), `tsc -b`, build, lint at `main`'s 8, and `firestore.rules` compiled by
   `firebase deploy --only firestore:rules --dry-run` (nothing released). **Not verified in a
   browser** — the unattended run's dev-server start was declined — **nor against live rules**:

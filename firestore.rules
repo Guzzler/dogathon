@@ -116,29 +116,41 @@ service cloud.firestore {
     // this is a separate, scoped branch holding only what the foster chose to publish.
     //
     // The write is pinned to the shelter's act, not the foster's claim. `matchedDogId` is
-    // foster-writable, so a rule keyed on it would let anyone publish a page for any dog. A
-    // live application carrying `pickupConfirmedAt` is a stamp only staff can set (RS-14/RS-15
+    // foster-writable, so a rule keyed on it would let anyone publish a page for any dog. An
+    // application carrying `pickupConfirmedAt` is a stamp only staff can set (RS-14/RS-15
     // branches above), so the foster must name that application and the rule reads it back.
-    // An update additionally needs the stored page to be theirs -- no overwriting another
-    // foster's page by confirming on the same dog later -- and only its author may delete it.
-    function confirmedHolder(applicationId, dogId) {
-      return get(/databases/$(database)/documents/applications/$(applicationId)).data.fosterId == request.auth.uid
+    //
+    // And a page is visible exactly as long as that act holds: `get` runs the same predicate at
+    // read time (a rules `get()` is not subject to the target's own read rule), so staff taking
+    // the confirmation back, or declining, hides the page with no cleanup path -- staff can't
+    // delete a foster's document, and don't need to. The predicate is *stamped and not
+    // declined/withdrawn* rather than *live*, so a finished foster (RS-22's `completed`) keeps
+    // their page up while the dog is relisted for adoption, which is when it is read.
+    //
+    // A missing document may be read (it holds nothing), so an unpublished link degrades to the
+    // shelter's record without a permission error. `list` is the owner's only -- deleteAccount()
+    // and export need it; strangers may not enumerate who published what.
+    function publishAuthorized(applicationId, fosterId, dogId) {
+      return get(/databases/$(database)/documents/applications/$(applicationId)).data.fosterId == fosterId
         && get(/databases/$(database)/documents/applications/$(applicationId)).data.dogId == dogId
-        && get(/databases/$(database)/documents/applications/$(applicationId)).data.status in ["submitted", "in_review", "approved"]
-        && get(/databases/$(database)/documents/applications/$(applicationId)).data.get("pickupConfirmedAt", null) != null;
+        && get(/databases/$(database)/documents/applications/$(applicationId)).data.get("pickupConfirmedAt", null) != null
+        && !(get(/databases/$(database)/documents/applications/$(applicationId)).data.status in ["declined", "withdrawn"]);
     }
 
     match /adoptionProfiles/{dogId} {
-      allow read: if true;
+      allow get: if resource == null
+                 || publishAuthorized(resource.data.applicationId, resource.data.fosterId, dogId);
+      allow list: if request.auth != null && resource.data.fosterId == request.auth.uid;
       allow create: if request.auth != null
                     && request.resource.data.fosterId == request.auth.uid
                     && request.resource.data.dogId == dogId
-                    && confirmedHolder(request.resource.data.applicationId, dogId);
+                    && publishAuthorized(request.resource.data.applicationId, request.auth.uid, dogId);
+      // No overwriting another foster's page by being confirmed on the same dog later.
       allow update: if request.auth != null
                     && resource.data.fosterId == request.auth.uid
                     && request.resource.data.fosterId == request.auth.uid
                     && request.resource.data.dogId == dogId
-                    && confirmedHolder(request.resource.data.applicationId, dogId);
+                    && publishAuthorized(request.resource.data.applicationId, request.auth.uid, dogId);
       allow delete: if request.auth != null && resource.data.fosterId == request.auth.uid;
     }
 

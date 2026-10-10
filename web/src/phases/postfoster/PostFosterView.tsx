@@ -10,7 +10,7 @@ import { AgentChatPanel } from "../../components/AgentChatPanel";
 import { buildAdoptionProfile, noteTextsFor, publishedPart, samePublished } from "../../lib/adoption";
 import { publishAdoptionProfile, publishedDate, usePublishedProfile } from "../../lib/adoptionProfiles";
 import { useApplication } from "../../hooks/useApplication";
-import { confirmedHolder } from "../../lib/applicationView";
+import { authorizesPublishing } from "../../lib/applicationView";
 import { fosterDocId } from "../../lib/session";
 import { LOCAL_MODE } from "../../lib/localMode";
 import type { PublishedPart } from "../../lib/adoption";
@@ -62,9 +62,10 @@ export function PostFosterView() {
   // PH-32. The shared link shows only what was published, so sharing before a first publish
   // would send a stranger the shelter's record and nothing else -- said, not done silently.
   // LOCAL_MODE has nothing to publish to and its link keeps showing this browser's own data.
-  const unpublishedNote = !LOCAL_MODE && !published
-    ? `Until you publish, this link shows only ${shelterName(dog)}'s record.`
-    : null;
+  const canPublish = authorizesPublishing(application, dog.id);
+  const unpublishedNote = LOCAL_MODE || published ? null
+    : canPublish ? `Until you publish, this link shows only ${shelterName(dog)}'s record.`
+    : `${shelterName(dog)} hasn't confirmed your pickup, so this link shows only ${shelterName(dog)}'s record.`;
 
   return (
     <div className="pw-page">
@@ -120,8 +121,8 @@ export function PostFosterView() {
         noteEditor={<FosterNoteEditor dogName={dog.name} initial={foster.adoptionNote ?? ""} />} />
 
       {!LOCAL_MODE && (
-        <PublishCard dogId={dog.id} dogName={dog.name}
-          applicationId={application && confirmedHolder(dog.id, [application]) ? application.id : null}
+        <PublishCard dogId={dog.id} shelter={shelterName(dog)}
+          applicationId={application && canPublish ? application.id : null}
           live={publishedPart(profile, tags, summary)} published={published} busy={tagsPending} />
       )}
 
@@ -181,12 +182,13 @@ export function PostFosterView() {
  * should become public because it was typed. The page a reader sees changes only when the foster
  * presses this, and the button says when what they'd publish differs from what is published.
  *
- * Offered only to the foster whose application carries the shelter's confirmed pickup -- the
- * same stamp `firestore.rules` checks, so the button never offers a write the database refuses.
+ * Offered only where `authorizesPublishing` holds -- the predicate `firestore.rules` checks on
+ * both the write and the read, so the button never offers a write the database refuses, and the
+ * snapshot shown here comes through the same gated read a stranger's does.
  */
-function PublishCard({ dogId, dogName, applicationId, live, published, busy }: {
+function PublishCard({ dogId, shelter, applicationId, live, published, busy }: {
   dogId: string;
-  dogName: string;
+  shelter: string;
   applicationId: string | null;
   live: PublishedPart;
   published: PublishedProfile | null;
@@ -211,21 +213,23 @@ function PublishCard({ dogId, dogName, applicationId, live, published, busy }: {
   return (
     <div className="card" style={{ marginTop: 26, padding: 17 }}>
       <div style={{ fontWeight: 800, fontSize: 14.5 }}>What the shared link shows</div>
-      <p className="muted" style={{ marginTop: 5, lineHeight: 1.5 }}>
-        {published
-          ? `Anyone with the link sees ${dogName}'s page as you last published it${when ? ` on ${when}` : ""}. Your journal stays private until you publish again.`
-          : `Nothing you've logged is public yet. Anyone with the link sees only the shelter's record until you publish.`}
-      </p>
       {applicationId ? (
-        <button className="btn btn--primary" style={{ width: "100%", marginTop: 12 }}
-          disabled={busy || state === "saving" || upToDate} onClick={publish}>
-          {state === "saving" ? "Publishing…"
-            : upToDate ? `✓ Published${when ? ` ${when}` : ""}`
-            : published ? "Publish changes" : "Publish"}
-        </button>
+        <>
+          <p className="muted" style={{ marginTop: 5, lineHeight: 1.5 }}>
+            {published
+              ? `Anyone with the link sees this page as you last published it${when ? ` on ${when}` : ""}. Your journal stays private until you publish again.`
+              : `Nothing you've logged is public yet. Anyone with the link sees only ${shelter}'s record until you publish.`}
+          </p>
+          <button className="btn btn--primary" style={{ width: "100%", marginTop: 12 }}
+            disabled={busy || state === "saving" || upToDate} onClick={publish}>
+            {state === "saving" ? "Publishing…"
+              : upToDate ? `✓ Published${when ? ` ${when}` : ""}`
+              : published ? "Publish changes" : "Publish"}
+          </button>
+        </>
       ) : (
-        <p className="muted" style={{ marginTop: 10, lineHeight: 1.5 }}>
-          You can publish once the shelter has confirmed your pickup of {dogName}.
+        <p className="muted" style={{ marginTop: 5, lineHeight: 1.5 }}>
+          {shelter} hasn't confirmed your pickup, so this link shows only {shelter}'s record.
         </p>
       )}
       {state === "failed" && (

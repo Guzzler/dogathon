@@ -107,9 +107,19 @@ describe("publishing the adoption page (PH-32)", () => {
     expect(publishButton()).toMatch(/>Publish changes<\/button>$/);
   });
 
-  it("offers nothing to publish before the shelter confirms the pickup", () => {
+  it("offers nothing to publish, and says why, before the shelter confirms the pickup", () => {
     state.application = { ...CONFIRMED, pickupConfirmedAt: null } as Application;
     state.published = null;
     expect(publishButton()).toBeNull();
+    const html = renderToStaticMarkup(<MemoryRouter><PostFosterView /></MemoryRouter>);
+    expect(html).toMatch(/hasn&#x27;t confirmed your pickup, so this link shows only .*&#x27;s record/);
   });
+
+  for (const status of ["declined", "withdrawn"] as const) {
+    it(`offers nothing to publish on a ${status} application, stamp or not`, () => {
+      state.application = { ...CONFIRMED, status } as Application;
+      state.published = null;
+      expect(publishButton()).toBeNull();
+    });
+  }
 });

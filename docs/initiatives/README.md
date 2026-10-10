@@ -280,6 +280,11 @@ Compressed:
   that answers the same question as another surface must be gated on that surface's facts, not
   only on its own*.
 
+- **2026-10-09 — the twenty-fourth link: the last `[large]` item's predicate walked to the journey's
+  end.** RS-21's *live + stamped* hold never ends, because nothing closes a finished foster's
+  application — a dog relisted after its foster is held forever (**RS-22**). **A predicate is checked
+  against every state its subject reaches, the last one included**; it also amended PH-32's gate.
+
 ## What's already decided, so plan doesn't re-litigate it
 
 - **Data sourcing is offline, reviewed, and committed — not a live pipeline.**
@@ -337,7 +342,7 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 90 files as of 2026-10-08 (recounted by plan's second run that day, after archiving five `production-hardening` Ledger rows to make room for PH-32's spec)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
+**`archive/` holds 92 files as of 2026-10-09 (recounted after archiving RS-20's Ledger row to make room for RS-22's spec)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
 execute ran concurrently in one checkout — plan's `git checkout -b` moved HEAD off execute's
 uncommitted RS-14 branch, caught by `git status` showing code plan never touched, and put back
 unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* One thing this run's arithmetic adds to the rules below: **a section of five

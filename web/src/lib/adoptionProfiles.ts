@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, where,
+  collection, deleteDoc, doc, getDocs, onSnapshot, query, serverTimestamp, setDoc, where,
   type Timestamp,
 } from "firebase/firestore";
 import { firestore } from "../firebase";
@@ -41,15 +41,20 @@ export async function publishAdoptionProfile(
 }
 
 /**
- * Takes down this foster's page for a dog. Reads first: the rules let only a page's author delete
- * it, and a delete of a missing document (nothing published) or of another foster's page would be
- * refused -- so neither is attempted.
+ * Takes down this foster's page for a dog, if they have one. Found by the owner's own `list`
+ * query rather than a `get`: the rules hide a page whose authorizing application was withdrawn,
+ * which is exactly the moment the withdraw path calls this. Deleting only what the query found
+ * also means a missing page, or another foster's page on the same dog, is never attempted.
+ * Two equalities and no `orderBy`, so no composite index.
  */
 export async function unpublishAdoptionProfile(dogId: string, fosterId: string): Promise<void> {
   if (LOCAL_MODE) return;
-  const ref = doc(firestore, "adoptionProfiles", dogId);
-  const snap = await getDoc(ref);
-  if (snap.exists() && snap.data().fosterId === fosterId) await deleteDoc(ref);
+  const snap = await getDocs(query(
+    collection(firestore, "adoptionProfiles"),
+    where("fosterId", "==", fosterId),
+    where("dogId", "==", dogId),
+  ));
+  await Promise.all(snap.docs.map((page) => deleteDoc(page.ref)));
 }
 
 /** Every page this foster has published -- for account export and deletion. */
@@ -61,9 +66,11 @@ export async function publishedByFoster(fosterId: string) {
 }
 
 /**
- * The published page for a dog, live. `null` for nothing published, for `LOCAL_MODE`, and for a
- * refused or failed read -- every caller wants the shelter-only page in all of them, so the error
- * callback degrades rather than throws, as `useFoster`'s does.
+ * The published page for a dog, live, as a reader sees it -- the sender included. `null` for
+ * nothing published, for `LOCAL_MODE`, and for a refused or failed read. Refused is a real state:
+ * the rules hide a page once the shelter takes back the confirmation that authorized it. Every
+ * caller wants the shelter-only page in all of them, so the error callback degrades rather than
+ * throws, as `useFoster`'s does.
  */
 export function usePublishedProfile(dogId: string | null | undefined): {
   published: PublishedProfile | null;

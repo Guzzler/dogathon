@@ -1,4 +1,4 @@
-# PH-32 `[large]` — spec as queued (archived verbatim 2026-10-09, the day it shipped)
+# PH-32 `[large]` — spec as queued, with plan's 2026-10-09 amendment (archived verbatim 2026-10-09, the day it shipped)
 
 Archived from `production-hardening.md`'s Task queue by execute in the same PR as the code. The Ledger row there is what shipped, including where it departed from this.
 
@@ -27,13 +27,26 @@ Archived from `production-hardening.md`'s Task queue by execute in the same PR a
   carrying `pickupConfirmedAt` is a stamp only staff can set (RS-14/RS-15 rules). A new, scoped
   branch — `fosters/{uid}` stays exactly as it is.
 
+  **Amended by plan 2026-10-09, before execute started it (citations re-read at `8e0e0ab`, all
+  hold).** The write was pinned to the shelter's act and the read was `if true`, so a page would
+  outlive the act that authorized it: staff **Undo confirmation** or a decline leaves a stranger's
+  notes public on a dog they never took home, and staff can't delete a foster's document. **A
+  published page is visible exactly as long as the act that authorized it holds** — the read
+  is gated on the same predicate as the write, evaluated by rules at read time (a rules `get()`
+  is not subject to the target's own read rule), so no staff-side cleanup path is needed. And
+  the predicate is *stamped and not `declined`/`withdrawn`*, not *live*: RS-22 adds `completed`,
+  and a finished foster's page must stay up exactly when the dog is relisted for adoption.
+
   **Spec.**
-  1. `firestore.rules`: `match /adoptionProfiles/{dogId}` — `read: if true`; `create`/`update` when
-     signed in, `request.resource.data.fosterId == request.auth.uid`, and the application
-     `get()`-ed at `request.resource.data.applicationId` has that `fosterId`, `dogId == dogId`,
-     `status in ["submitted","in_review","approved"]` and a non-null `pickupConfirmedAt`; `update`
-     additionally needs `resource.data.fosterId == request.auth.uid` (no overwriting another
-     foster's page); `delete` only by `resource.data.fosterId`. Comment the derivation, as the
+  1. `firestore.rules`: `match /adoptionProfiles/{dogId}`, with one function `authorized(appId,
+     fosterId)` — the application `get()`-ed at `appId` has that `fosterId`, `dogId == dogId`,
+     a non-null `pickupConfirmedAt`, and `!(status in ["declined","withdrawn"])`. `get: if
+     authorized(resource.data.applicationId, resource.data.fosterId)` — for everyone, owner
+     included; `list: if` signed in and `resource.data.fosterId == request.auth.uid` (only
+     `deleteAccount`'s query needs it; strangers may not enumerate). `create`/`update` when signed
+     in, `request.resource.data.fosterId == request.auth.uid` and `authorized(request.resource.data
+     .applicationId, request.auth.uid)`; `update` additionally needs `resource.data.fosterId ==
+     request.auth.uid`; `delete` only by `resource.data.fosterId`. Comment the derivation, as the
      `applications` branch does.
   2. `lib/adoption.ts`: `publishedPart(profile, tags, summary)` → the foster-sourced fields only
      (`journalNotes`, journal-sourced `photos`, `careDone`, `careOutstanding`, `milestones`,
@@ -49,6 +62,9 @@ Archived from `production-hardening.md`'s Task queue by execute in the same PR a
      `publishedPart(live)` differs from the snapshot) with *Published {date}* beside it. Before a
      first publish the share actions say *Until you publish, this link shows only {shelter}'s
      record* rather than sharing silently. The application id comes from `useApplication`.
+     *(2026-10-09)* Where that application fails item 1's predicate, render *{shelter} hasn't
+     confirmed your pickup, so this link shows only {shelter}'s record* in place of the button —
+     the sender reads the snapshot through the same gated `get`, so they see what readers see.
   5. `PublicAdoptionView.tsx`: render `withPublished(buildAdoptionProfile(dog, null, [], [], []),
      usePublishedProfile(id))` — for everyone, the sender included. Drop the `useFoster` /
      `useJournal*` reads.
