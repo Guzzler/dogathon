@@ -141,13 +141,26 @@ truthfulness, not because production-hardening has been re-ranked.
   carrying `pickupConfirmedAt` is a stamp only staff can set (RS-14/RS-15 rules). A new, scoped
   branch — `fosters/{uid}` stays exactly as it is.
 
+  **Amended by plan 2026-10-09, before execute started it (citations re-read at `8e0e0ab`, all
+  hold).** The write was pinned to the shelter's act and the read was `if true`, so a page would
+  outlive the act that authorized it: staff **Undo confirmation** or a decline leaves a stranger's
+  notes public on a dog they never took home, and staff can't delete a foster's document. **A
+  published page is visible exactly as long as the act that authorized it holds** — the read
+  is gated on the same predicate as the write, evaluated by rules at read time (a rules `get()`
+  is not subject to the target's own read rule), so no staff-side cleanup path is needed. And
+  the predicate is *stamped and not `declined`/`withdrawn`*, not *live*: RS-22 adds `completed`,
+  and a finished foster's page must stay up exactly when the dog is relisted for adoption.
+
   **Spec.**
-  1. `firestore.rules`: `match /adoptionProfiles/{dogId}` — `read: if true`; `create`/`update` when
-     signed in, `request.resource.data.fosterId == request.auth.uid`, and the application
-     `get()`-ed at `request.resource.data.applicationId` has that `fosterId`, `dogId == dogId`,
-     `status in ["submitted","in_review","approved"]` and a non-null `pickupConfirmedAt`; `update`
-     additionally needs `resource.data.fosterId == request.auth.uid` (no overwriting another
-     foster's page); `delete` only by `resource.data.fosterId`. Comment the derivation, as the
+  1. `firestore.rules`: `match /adoptionProfiles/{dogId}`, with one function `authorized(appId,
+     fosterId)` — the application `get()`-ed at `appId` has that `fosterId`, `dogId == dogId`,
+     a non-null `pickupConfirmedAt`, and `!(status in ["declined","withdrawn"])`. `get: if
+     authorized(resource.data.applicationId, resource.data.fosterId)` — for everyone, owner
+     included; `list: if` signed in and `resource.data.fosterId == request.auth.uid` (only
+     `deleteAccount`'s query needs it; strangers may not enumerate). `create`/`update` when signed
+     in, `request.resource.data.fosterId == request.auth.uid` and `authorized(request.resource.data
+     .applicationId, request.auth.uid)`; `update` additionally needs `resource.data.fosterId ==
+     request.auth.uid`; `delete` only by `resource.data.fosterId`. Comment the derivation, as the
      `applications` branch does.
   2. `lib/adoption.ts`: `publishedPart(profile, tags, summary)` → the foster-sourced fields only
      (`journalNotes`, journal-sourced `photos`, `careDone`, `careOutstanding`, `milestones`,
@@ -163,6 +176,9 @@ truthfulness, not because production-hardening has been re-ranked.
      `publishedPart(live)` differs from the snapshot) with *Published {date}* beside it. Before a
      first publish the share actions say *Until you publish, this link shows only {shelter}'s
      record* rather than sharing silently. The application id comes from `useApplication`.
+     *(2026-10-09)* Where that application fails item 1's predicate, render *{shelter} hasn't
+     confirmed your pickup, so this link shows only {shelter}'s record* in place of the button —
+     the sender reads the snapshot through the same gated `get`, so they see what readers see.
   5. `PublicAdoptionView.tsx`: render `withPublished(buildAdoptionProfile(dog, null, [], [], []),
      usePublishedProfile(id))` — for everyone, the sender included. Drop the `useFoster` /
      `useJournal*` reads.
@@ -198,7 +214,8 @@ truthfulness, not because production-hardening has been re-ranked.
 - [ ] **PH-33 — confirmed by plan 2026-10-08: the demo intro promises controls the hosted app never
   shows.** Re-read: `phases/auth/DemoIntroView.tsx:23` titles *You're in demo mode* before the
   visitor chooses, `:27` promises shelter approval *"overridable with demo controls"*, and
-  `MatchView.tsx:349-350` renders `DemoShelterPanel` only without an application — which a signed-in
+  `MatchView.tsx:363-365` (moved by RS-21; re-read 2026-10-09) renders `DemoShelterPanel` only as
+  `DEMO_MODE && !application` — which a signed-in
   foster always has (PH-31). **Design answer: the smallest honest version, not a demo shelter.** A
   visitor signing in as staff of a demo shelter needs a uid in `staffUids`, which is hand-written by
   design (`firestore.rules:114-115`, *no self-serve signup*); the first self-serve staff path does
@@ -306,7 +323,9 @@ Whose is the half still needing the console; the plan line never names a foster,
 **PH-32b — PARKED at queue time (2026-10-08); the signed-in half of PH-32.** Once PH-32 ships, its
 spec's last sentence is the whole check: publish as the confirmed test foster, attempt the same
 write from a second account (expect `permission-denied` — a success is a finding to queue, never
-licence to widen the rule), then open the link signed out and see the published notes.
+licence to widen the rule), then open the link signed out and see the published notes. *(2026-10-09)*
+Then, as staff, **Undo confirmation** and expect the signed-out link to show only the shelter's
+record; confirm again and expect the notes back.
 
 Per the README's "nobody uses this app yet", the length of that list is not debt. Do not queue
 them, and do not add to it without reading the archived preamble first.
