@@ -11,6 +11,7 @@ import { activeApplication, applicationStage, fosterWindow } from "../../lib/fos
 import { SignInToApply, needsAccountToApply } from "../../components/SignInToApply";
 import { APPLICATION_STAGES, activeStage, agreedPickup, approvalBadge, approvalDecision, composeApprovalChecklist, pickupState, placedElsewhere, takenDownAfterConfirm, unlisted } from "../../lib/applicationView";
 import { createApplication, setApplicationStatus } from "../../lib/applications";
+import { unpublishAdoptionProfile } from "../../lib/adoptionProfiles";
 import { fosterDocId } from "../../lib/session";
 import { Unrecorded } from "../../components/Unrecorded";
 
@@ -217,6 +218,11 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
         // The shelter's inbox keeps a live row it shouldn't. Losing the foster's own ability
         // to move on is the worse of the two failures.
       }
+      // PH-32: a withdrawn foster's notes come down with the application. Best-effort for the
+      // same reason, and a no-op when nothing of theirs was published.
+      try {
+        await unpublishAdoptionProfile(application.dogId, application.fosterId);
+      } catch { /* leaves a page only its author can delete; they can still reach it */ }
     }
     await patchFoster({ matchedDogId: null, phase: "discovery" });
   };

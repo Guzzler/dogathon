@@ -486,3 +486,18 @@ export function takenDownAfterConfirm(
   if (!application || !LIVE.includes(application.status)) return false;
   return Boolean(application.pickupConfirmedAt) && dogStatus === "retired";
 }
+
+/**
+ * PH-32. Whether this application lets its foster publish the dog's adoption page -- and, since
+ * `firestore.rules` runs the same predicate when the page is read, whether a published page is
+ * visible at all. The shelter's stamp, on this dog, on an application nobody ended by declining or
+ * withdrawing. Deliberately not `isLive`: a finished foster's page must stay up while the dog is
+ * relisted for adoption, which is exactly when it is read.
+ */
+export function authorizesPublishing(
+  app: Pick<Application, "dogId" | "status" | "pickupConfirmedAt"> | null,
+  dogId: string,
+): boolean {
+  return Boolean(app && app.dogId === dogId && app.pickupConfirmedAt
+    && app.status !== "declined" && app.status !== "withdrawn");
+}

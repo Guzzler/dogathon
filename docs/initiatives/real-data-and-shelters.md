@@ -241,8 +241,8 @@ All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
 - **The `[large]` slot is in this doc** (RS-14, RS-15, RS-17, RS-18, RS-20, RS-21 shipped; **RS-22
-  queued 2026-10-09 and on top** — PH-32 `[large]` in `production-hardening.md` is also open and
-  comes next, the two interlocking on the `completed` status). Routing narrative in
+  queued 2026-10-09 and on top** — PH-32 `[large]` in `production-hardening.md` shipped 2026-10-09 (PR #122) with its
+  gate already admitting `completed`, so RS-22 needs no rules edit for it). Routing narrative in
   [`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md).
 
 ### Needs a human, not a queue item

@@ -11,6 +11,7 @@ import { firebaseApp, firestore } from "./firebase";
 // because neither side reads the other at module-evaluation time — `authHeader()` reads
 // `auth` when a request is made, and `resetChat` is called from inside deleteAccount().
 import { resetChat } from "./api";
+import { publishedByFoster } from "./lib/adoptionProfiles";
 import { BLANK_FOSTER, clearGuestData, readLocalCareLog, readLocalFoster, LOCAL_MODE } from "./lib/localMode";
 import { clearGuest, setSession, wasGuest } from "./lib/session";
 
@@ -179,6 +180,18 @@ export async function deleteAccount(): Promise<void> {
     );
   }
 
+  // PH-32: the pages this foster published are public, so they go before anything else of
+  // theirs does -- and before the Auth user, because only their own uid may delete them.
+  try {
+    const published = await publishedByFoster(uid);
+    await Promise.all(published.map((page) => deleteDoc(page.ref)));
+  } catch {
+    throw new AccountDeletionError(
+      "Couldn't take down the adoption pages you published, so nothing was deleted. " +
+      "Check your connection and try again.",
+    );
+  }
+
   const careLog = await getDocs(collection(firestore, "fosters", uid, "careLog"));
   await Promise.all(careLog.docs.map((entry) => deleteDoc(entry.ref)));
   await deleteDoc(doc(firestore, "fosters", uid));
@@ -215,12 +228,14 @@ export async function exportAccountData(): Promise<void> {
   const applicationsSnap = await getDocs(
     query(collection(firestore, "applications"), where("fosterId", "==", uid)),
   );
+  const published = await publishedByFoster(uid);
 
   const payload = {
     exportedAt: new Date().toISOString(),
     foster: fosterSnap.exists() ? fosterSnap.data() : null,
     careLog: careLogSnap.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
     applications: applicationsSnap.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+    adoptionProfiles: published.map((entry) => ({ id: entry.id, ...entry.data() })),
   };
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });

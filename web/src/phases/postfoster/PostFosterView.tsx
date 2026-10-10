@@ -7,7 +7,14 @@ import { useCareScheduleBlocks, useJournalEntries } from "../../hooks/useJournal
 import { daysSincePickup } from "../../phases/careplan/data";
 import { useAdoptionHighlights } from "../../lib/highlights";
 import { AgentChatPanel } from "../../components/AgentChatPanel";
-import { buildAdoptionProfile, noteTextsFor } from "../../lib/adoption";
+import { buildAdoptionProfile, noteTextsFor, publishedPart, samePublished } from "../../lib/adoption";
+import { publishAdoptionProfile, publishedDate, usePublishedProfile } from "../../lib/adoptionProfiles";
+import { useApplication } from "../../hooks/useApplication";
+import { authorizesPublishing } from "../../lib/applicationView";
+import { fosterDocId } from "../../lib/session";
+import { LOCAL_MODE } from "../../lib/localMode";
+import type { PublishedPart } from "../../lib/adoption";
+import type { PublishedProfile } from "../../lib/adoptionProfiles";
 import { normalizeDog, recordedStay } from "../../lib/dog";
 import { shelterName } from "../../lib/shelters";
 import { Unrecorded } from "../../components/Unrecorded";
@@ -33,6 +40,8 @@ export function PostFosterView() {
     [dog, foster, entries, journal, schedule],
   );
   const { tags, summary, pending: tagsPending } = useAdoptionHighlights(foster, profile ? noteTextsFor(profile) : []);
+  const { application } = useApplication(foster?.matchedDogId);
+  const { published } = usePublishedProfile(foster?.matchedDogId);
 
   if (loading) return <p className="pw-loading">Loading…</p>;
   if (!foster?.matchedDogId || !dog || !profile) {
@@ -50,6 +59,13 @@ export function PostFosterView() {
   const win = fosterWindow(...recordedStay(dog), foster.pickup?.date);
   const shareUrl = `${window.location.origin}/adoption/${dog.id}`;
   const journalCount = journal.length + entries.length;
+  // PH-32. The shared link shows only what was published, so sharing before a first publish
+  // would send a stranger the shelter's record and nothing else -- said, not done silently.
+  // LOCAL_MODE has nothing to publish to and its link keeps showing this browser's own data.
+  const canPublish = authorizesPublishing(application, dog.id);
+  const unpublishedNote = LOCAL_MODE || published ? null
+    : canPublish ? `Until you publish, this link shows only ${shelterName(dog)}'s record.`
+    : `${shelterName(dog)} hasn't confirmed your pickup, so this link shows only ${shelterName(dog)}'s record.`;
 
   return (
     <div className="pw-page">
@@ -104,6 +120,12 @@ export function PostFosterView() {
       <AdoptionProfileBody dog={dog} profile={profile} tags={tags} summary={summary} tagsPending={tagsPending}
         noteEditor={<FosterNoteEditor dogName={dog.name} initial={foster.adoptionNote ?? ""} />} />
 
+      {!LOCAL_MODE && (
+        <PublishCard dogId={dog.id} shelter={shelterName(dog)}
+          applicationId={application && canPublish ? application.id : null}
+          live={publishedPart(profile, tags, summary)} published={published} busy={tagsPending} />
+      )}
+
       <div style={{ marginTop: 28 }}>
         <button className="btn btn--primary" style={{ width: "100%" }} onClick={() => setSharing(true)}>
           Share {dog.name}'s page
@@ -148,8 +170,71 @@ export function PostFosterView() {
       )}
 
       <AnimatePresence>
-        {sharing && <ShareSheet dogName={dog.name} url={shareUrl} summary={profile.shelterNotes} onClose={() => setSharing(false)} />}
+        {sharing && <ShareSheet dogName={dog.name} url={shareUrl} summary={profile.shelterNotes}
+          unpublishedNote={unpublishedNote} onClose={() => setSharing(false)} />}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * PH-32. Publishing is explicit, never a sync: a journal is written for oneself, and nothing in it
+ * should become public because it was typed. The page a reader sees changes only when the foster
+ * presses this, and the button says when what they'd publish differs from what is published.
+ *
+ * Offered only where `authorizesPublishing` holds -- the predicate `firestore.rules` checks on
+ * both the write and the read, so the button never offers a write the database refuses, and the
+ * snapshot shown here comes through the same gated read a stranger's does.
+ */
+function PublishCard({ dogId, shelter, applicationId, live, published, busy }: {
+  dogId: string;
+  shelter: string;
+  applicationId: string | null;
+  live: PublishedPart;
+  published: PublishedProfile | null;
+  busy: boolean;
+}) {
+  const [state, setState] = useState<"idle" | "saving" | "failed">("idle");
+  const uid = fosterDocId();
+  const upToDate = published ? samePublished(live, published) : false;
+  const when = publishedDate(published);
+
+  async function publish() {
+    if (!uid || !applicationId) return;
+    setState("saving");
+    try {
+      await publishAdoptionProfile(dogId, uid, applicationId, live);
+      setState("idle");
+    } catch {
+      setState("failed");
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 26, padding: 17 }}>
+      <div style={{ fontWeight: 800, fontSize: 14.5 }}>What the shared link shows</div>
+      {applicationId ? (
+        <>
+          <p className="muted" style={{ marginTop: 5, lineHeight: 1.5 }}>
+            {published
+              ? `Anyone with the link sees this page as you last published it${when ? ` on ${when}` : ""}. Your journal stays private until you publish again.`
+              : `Nothing you've logged is public yet. Anyone with the link sees only ${shelter}'s record until you publish.`}
+          </p>
+          <button className="btn btn--primary" style={{ width: "100%", marginTop: 12 }}
+            disabled={busy || state === "saving" || upToDate} onClick={publish}>
+            {state === "saving" ? "Publishing…"
+              : upToDate ? `✓ Published${when ? ` ${when}` : ""}`
+              : published ? "Publish changes" : "Publish"}
+          </button>
+        </>
+      ) : (
+        <p className="muted" style={{ marginTop: 5, lineHeight: 1.5 }}>
+          {shelter} hasn't confirmed your pickup, so this link shows only {shelter}'s record.
+        </p>
+      )}
+      {state === "failed" && (
+        <p className="muted" style={{ marginTop: 8 }}>Couldn't publish — check your connection and try again.</p>
+      )}
     </div>
   );
 }
@@ -182,8 +267,8 @@ function FosterNoteEditor({ dogName, initial }: { dogName: string; initial: stri
   );
 }
 
-function ShareSheet({ dogName, url, summary, onClose }: {
-  dogName: string; url: string; summary: string; onClose: () => void;
+function ShareSheet({ dogName, url, summary, unpublishedNote, onClose }: {
+  dogName: string; url: string; summary: string; unpublishedNote: string | null; onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -220,6 +305,7 @@ function ShareSheet({ dogName, url, summary, onClose }: {
         <p className="muted" style={{ marginTop: 5 }}>
           Anyone with the link can read the profile — they don't need an account.
         </p>
+        {unpublishedNote && <p className="pw-banner" style={{ marginTop: 10 }}>{unpublishedNote}</p>}
 
         <div className="sharesheet__url">{url}</div>
 

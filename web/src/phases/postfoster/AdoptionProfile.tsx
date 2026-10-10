@@ -10,12 +10,20 @@ import { ProfileAttribution } from "../../components/ProfileAttribution";
  * or the shelter's record — and shows an empty state rather than filler when there's nothing
  * logged yet.
  */
-export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tagsPending, noteEditor }: {
+export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tagsPending, noteEditor, audience = "foster" }: {
   dog: RichDog; profile: AdoptionProfile; tags?: string[]; summary?: string;
   tagsPending?: boolean;
   /** The foster's own view passes an editor; the public link doesn't. */
   noteEditor?: React.ReactNode;
+  /**
+   * PH-32. Who is reading. The empty states used to be foster-addressed on the shared link too
+   * ("Care items you tick off..."), which told a stranger to do the foster's job -- and, since the
+   * link showed nothing a foster logged, told them nothing happened. A reader is told what has
+   * not been *published*, which is the true statement from where they stand.
+   */
+  audience?: "foster" | "reader";
 }) {
+  const reader = audience === "reader";
   const [hero, setHero] = useState(0);
   const shot = profile.photos[Math.min(hero, profile.photos.length - 1)];
 
@@ -40,7 +48,9 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
           </div>
         )}
         {!profile.hasJournalPhotos && (
-          <span className="ap-placeholder">Shelter photo only — photos added in the journal appear here too</span>
+          <span className="ap-placeholder">
+            {reader ? "Shelter photo only" : "Shelter photo only — photos added in the journal appear here too"}
+          </span>
         )}
       </div>
 
@@ -58,8 +68,13 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
           : undefined}
       >
         {!profile.journalNotes.length && !profile.hasJournalPhotos ? (
-          <EmptyBlock icon="📔" title="Nothing logged yet"
-            body={`Notes and photos the foster stars in ${dog.name}'s journal are summarised here.`} />
+          reader ? (
+            <EmptyBlock icon="📔" title="Nothing published yet"
+              body={`No journal notes have been published for ${dog.name}.`} />
+          ) : (
+            <EmptyBlock icon="📔" title="Nothing logged yet"
+              body={`Every note and photo you add to ${dog.name}'s journal is summarised here.`} />
+          )
         ) : (
           <>
             {tagsPending && <span className="muted">Reading the journal…</span>}
@@ -125,7 +140,9 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
         {noteEditor}
         {!profile.fosterNote && !noteEditor && (
           <EmptyBlock icon="✍️" title="Not written yet"
-            body="The foster hasn't added their note. This is the part adopters read first, so it's worth writing." />
+            body={reader
+              ? "The foster hasn't written a note for adopters."
+              : "The foster hasn't added their note. This is the part adopters read first, so it's worth writing."} />
         )}
       </Section>
 
@@ -133,7 +150,7 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
         title="Health &amp; care record"
         src={profile.careDone.length
           ? `${profile.careDone.length} of ${profile.careDone.length + profile.careOutstanding} care items completed`
-          : "Nothing ticked off in the Care Plan yet"}
+          : reader ? undefined : "Nothing ticked off in the Care Plan yet"}
       >
         {profile.careDone.length || profile.milestones.length || profile.medical ? (
           <>
@@ -194,7 +211,9 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
           </>
         ) : (
           <EmptyBlock icon="⚖️" title="No health entries yet"
-            body="Care items you tick off in the Care Plan show up here as you go." />
+            body={reader
+              ? "No care has been published yet."
+              : "Care items you tick off in the Care Plan show up here as you go."} />
         )}
       </Section>
 

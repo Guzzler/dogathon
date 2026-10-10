@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  authorizesPublishing,
   APPLICATION_STAGES,
   activeStage,
   agreedPickup,
@@ -502,5 +503,27 @@ describe("a confirmed pickup taken back where it was given (RS-21)", () => {
     expect(takenDownAfterConfirm(app("a", "approved", false), "retired")).toBe(false);
     expect(takenDownAfterConfirm(app("a", "withdrawn", true), "retired")).toBe(false);
     expect(takenDownAfterConfirm(null, "retired")).toBe(false);
+  });
+});
+
+describe("authorizesPublishing (PH-32)", () => {
+  const app = (status: ApplicationStatus, stamped = true) =>
+    ({ dogId: "d1", status, pickupConfirmedAt: stamped ? { seconds: 1 } : null }) as unknown as Application;
+
+  it("admits the confirmed foster on any status nobody ended", () => {
+    for (const s of ["submitted", "in_review", "approved"] as const) {
+      expect(authorizesPublishing(app(s), "d1")).toBe(true);
+    }
+  });
+
+  it("refuses without the shelter's stamp, on another dog, or with no application", () => {
+    expect(authorizesPublishing(app("approved", false), "d1")).toBe(false);
+    expect(authorizesPublishing(app("approved"), "d2")).toBe(false);
+    expect(authorizesPublishing(null, "d1")).toBe(false);
+  });
+
+  it("refuses once the application was declined or withdrawn, stamp or not", () => {
+    expect(authorizesPublishing(app("declined"), "d1")).toBe(false);
+    expect(authorizesPublishing(app("withdrawn"), "d1")).toBe(false);
   });
 });
