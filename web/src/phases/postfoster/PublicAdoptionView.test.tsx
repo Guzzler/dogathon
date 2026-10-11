@@ -86,3 +86,40 @@ describe("the shared adoption page (PH-32)", () => {
     expect(html).not.toContain("No journal notes have been published");
   });
 });
+
+describe("the contact card states the listing (PH-35)", () => {
+  const ENQUIRY = "Adoption enquiries go through the shelter";
+  const withDog = (over: Partial<Dog>) => {
+    const saved = { ...DOG };
+    Object.assign(DOG, over);
+    state.published = null;
+    try {
+      return render();
+    } finally {
+      Object.assign(DOG, saved);
+    }
+  };
+
+  it("says an adopted dog has been adopted, instead of inviting enquiries", () => {
+    const html = withDog({ status: "adopted" });
+    expect(html).toContain("Juniper has been adopted through SF SPCA");
+    expect(html).not.toContain(ENQUIRY);
+  });
+
+  it("says a retired dog isn't listed, instead of inviting enquiries", () => {
+    const html = withDog({ status: "retired" });
+    expect(html).toContain("listing Juniper right now.");
+    expect(html).not.toContain(ENQUIRY);
+  });
+
+  it("keeps the enquiry line for a dog still adoptable through the shelter", () => {
+    expect(withDog({ status: "available" })).toContain(ENQUIRY);
+    expect(withDog({ status: "ready_for_adoption" })).toContain(ENQUIRY);
+  });
+
+  it("renders no card at all for an org it can't name", () => {
+    const html = withDog({ status: "adopted", shelter_id: "nowhere-at-all" });
+    expect(html).not.toContain(ENQUIRY);
+    expect(html).not.toContain("has been adopted through");
+  });
+});

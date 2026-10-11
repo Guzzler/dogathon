@@ -9,6 +9,7 @@ import { normalizeDog, dogPhotoOrNull } from "../../lib/dog";
 import {
   DOG_STATUS_LABELS,
   EMPTY_DOG_FORM,
+  ENDS_FOSTER,
   ROSTER_ACTION_LABELS,
   groupRoster,
   rosterActions,
@@ -210,7 +211,7 @@ function DogRows({
  * subscription puts the row back the way the database has it, so a failure only has to say
  * that the write didn't land.
  */
-function useRosterWrite(dogId: string) {
+function useRosterWrite(dogId: string, holder: Application | null = null) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -218,7 +219,7 @@ function useRosterWrite(dogId: string) {
     setBusy(true);
     setFailed(false);
     try {
-      await applyRosterAction(dogId, action);
+      await applyRosterAction(dogId, action, holder);
     } catch {
       setFailed(true);
     } finally {
@@ -294,10 +295,25 @@ function HeldNote({ holder }: { holder: Application | null }) {
   );
 }
 
+/**
+ * RS-22. The foster still holding a returned dog is the one who brought it back, and either move
+ * on this card closes their application in the same write. Said beforehand, as RS-20's note is,
+ * so the button stays one click. A statement, not a prompt, and no new class.
+ */
+function FosteredByNote({ holder, actions }: { holder: Application | null; actions: RosterAction[] }) {
+  if (!holder || !actions.some((a) => ENDS_FOSTER.includes(a))) return null;
+  return (
+    <span className="muted shelter__open-note">
+      Fostered by {holder.fosterName}. Listing or marking adopted closes their application.
+    </span>
+  );
+}
+
 function ReturnedDog({ dog, open, holder }: { dog: Dog; open: number; holder: Application | null }) {
   const rich = useMemo(() => normalizeDog(dog), [dog]);
   const photo = dogPhotoOrNull(rich, 400, 400);
-  const { busy, failed, run } = useRosterWrite(dog.id);
+  // RS-22: the holder rides along so the acknowledgement can close their application.
+  const { busy, failed, run } = useRosterWrite(dog.id, holder);
   const actions = rosterActions(dog.status, Boolean(holder));
 
   return (
@@ -335,7 +351,9 @@ function ReturnedDog({ dog, open, holder }: { dog: Dog; open: number; holder: Ap
 
       {failed && <p className="shelter__failed">That didn&rsquo;t save. Try again.</p>}
       <HeldNote holder={actions.length ? null : holder} />
-      <OpenApplicationsNote dog={dog} open={open} actions={actions} />
+      <FosteredByNote holder={holder} actions={actions} />
+      {/* The holder's own application is the one these buttons close, so it isn't "still open". */}
+      <OpenApplicationsNote dog={dog} open={holder ? open - 1 : open} actions={actions} />
       <div className="shelter__actions">
         <ActionButtons actions={actions} busy={busy} run={run} />
       </div>

@@ -191,7 +191,10 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
   const approval = composeApprovalChecklist(foster?.approvalChecklist ?? [], application?.checklist ?? null);
   const approved = approval.length > 0 && approval.every(c => c.done);
   const pickup = pickupState(foster?.pickup, application);
-  const activeIdx = activeStage(approved, pickup);
+  // RS-22: the shelter closed this foster when it took the dog back -- every stage is behind them,
+  // whatever the two copies of the pickup say by now.
+  const finished = application?.status === "completed";
+  const activeIdx = finished ? APPLICATION_STAGES.length : activeStage(approved, pickup);
   const decision = approvalDecision(application?.status);
   const declined = decision === "declined";
   // RS-18/RS-19: same check and same words as Match, so the two screens agree.
@@ -242,7 +245,7 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
 
       <div className="row" style={{ gap: 7, marginTop: 12, flexWrap: "wrap" }}>
         <span className={`chip ${badge.tone}`} style={{ fontWeight: 800 }}>{badge.label}</span>
-        {!declined && win.started && <span className="chip coral" style={{ fontWeight: 800 }}>⏳ {win.leftLabel}</span>}
+        {!declined && !finished && win.started && <span className="chip coral" style={{ fontWeight: 800 }}>⏳ {win.leftLabel}</span>}
       </div>
 
       {declined ? (
@@ -267,7 +270,9 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
           </div>
 
           <p className="muted" style={{ marginTop: 14, lineHeight: 1.5 }}>
-            {takenDown
+            {finished
+              ? `You fostered ${d.name}, and ${shelterName(d, "short", { start: true })} has them back. Thank you.`
+              : takenDown
               ? `${shelterName(d, "short", { start: true })} confirmed your pickup, then took ${d.name} off its roster. Check with them before you go to collect ${d.name}.`
               : notListed
               ? `${d.name} isn't listed by ${shelterName(d)} right now. They haven't answered your application yet.`
@@ -282,12 +287,22 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
               : `${shelterName(d, "short", { start: true })} works through the approval checklist with you — open Match to see what's outstanding.`}
           </p>
 
-          <button className="btn sm" style={{ width: "100%", marginTop: 12 }} onClick={onOpenMatch}>
-            Open Match checklist
-          </button>
-          <button className="btn ghost sm" style={{ width: "100%", marginTop: 4 }} onClick={withdraw}>
-            Withdraw application
-          </button>
+          {/* A finished foster has no checklist left and nothing to withdraw -- withdrawing would
+              also take their published adoption page down while the dog is being adopted. */}
+          {finished ? (
+            <button className="btn sm" style={{ width: "100%", marginTop: 12 }} onClick={() => navigate("/discovery")}>
+              Browse other dogs
+            </button>
+          ) : (
+            <>
+              <button className="btn sm" style={{ width: "100%", marginTop: 12 }} onClick={onOpenMatch}>
+                Open Match checklist
+              </button>
+              <button className="btn ghost sm" style={{ width: "100%", marginTop: 4 }} onClick={withdraw}>
+                Withdraw application
+              </button>
+            </>
+          )}
         </>
       )}
     </motion.div>

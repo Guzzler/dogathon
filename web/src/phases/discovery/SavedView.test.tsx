@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import type { Dog, DogStatus, Foster } from "../../types";
+import type { Application, Dog, DogStatus, Foster } from "../../types";
 
 /**
  * PH-31: *not listed* means *not appliable*. A dog the foster saved while it was available can
@@ -13,6 +13,7 @@ import type { Dog, DogStatus, Foster } from "../../types";
  */
 
 const dogs = vi.hoisted(() => ({ current: [] as Dog[] }));
+const app = vi.hoisted(() => ({ current: null as Application | null }));
 
 vi.mock("../../hooks/useFoster", () => ({
   useFoster: () => ({ foster: FOSTER, loading: false }),
@@ -22,7 +23,7 @@ vi.mock("../../hooks/useDogs", () => ({
   useDogs: () => ({ dogs: dogs.current, loading: false }),
 }));
 vi.mock("../../hooks/useApplication", () => ({
-  useApplication: () => ({ application: null, loading: false }),
+  useApplication: () => ({ application: app.current, loading: false }),
 }));
 
 const { SavedView } = await import("./SavedView");
@@ -76,5 +77,28 @@ describe("a saved dog is appliable only while it is listed (PH-31)", () => {
     const b = applyButton(dog("available", "petsun"));
     expect(b).toContain("Not taking applications");
     expect(b).toContain("disabled");
+  });
+});
+
+describe("a finished foster on the Applications tab (RS-22)", () => {
+  it("shows every stage done, thanks them, and offers no withdraw", () => {
+    const pickup = { date: "2026-10-03", time: "11:00", location: "SF SPCA Mission Campus" };
+    Object.assign(FOSTER, { matchedDogId: "dog-1", phase: "complete", pickup });
+    app.current = {
+      id: "a1", fosterId: "f1", fosterName: "Demo", dogId: "dog-1", shelterId: "sfspca-mission",
+      status: "completed", checklist: [], pickup, pickupConfirmedAt: { toMillis: () => 1 },
+    } as Application;
+    dogs.current = [dog("available")];
+    try {
+      const html = renderToStaticMarkup(
+        <MemoryRouter initialEntries={["/saved?tab=applied"]}><SavedView /></MemoryRouter>,
+      );
+      expect(html.match(/data-done="true"/g)?.length).toBe(5);
+      expect(html).toContain("You fostered Tip Toe");
+      expect(html).not.toContain("Withdraw application");
+    } finally {
+      Object.assign(FOSTER, { matchedDogId: null, phase: "discovery", pickup: undefined });
+      app.current = null;
+    }
   });
 });

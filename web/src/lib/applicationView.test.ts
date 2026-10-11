@@ -26,6 +26,7 @@ import {
   unlisted,
   confirmedHolder,
   takenDownAfterConfirm,
+  STATUS_LABELS,
 } from "./applicationView";
 import type { Application, ApplicationStatus, ChecklistItem, DogStatus, Pickup } from "../types";
 
@@ -525,5 +526,30 @@ describe("authorizesPublishing (PH-32)", () => {
   it("refuses once the application was declined or withdrawn, stamp or not", () => {
     expect(authorizesPublishing(app("declined"), "d1")).toBe(false);
     expect(authorizesPublishing(app("withdrawn"), "d1")).toBe(false);
+  });
+});
+
+describe("a foster that ended is history, not a hold (RS-22)", () => {
+  const stamp = { toMillis: () => 1 };
+  const app = (id: string, status: ApplicationStatus) =>
+    ({ id, dogId: "d1", status, pickupConfirmedAt: stamp }) as unknown as Application;
+
+  it("releases the dog: a completed application's stamp holds nothing", () => {
+    expect(confirmedHolder("d1", [app("a1", "completed")])).toBe(null);
+    expect(pickupHolder({ id: "a2", dogId: "d1" }, [app("a1", "completed")])).toBe(null);
+    expect(confirmedHolder("d1", [app("a1", "approved")])?.id).toBe("a1");
+  });
+
+  it("is labelled, terminal, and never a decline", () => {
+    expect(STATUS_LABELS.completed).toBe("Fostered");
+    expect(staffTransitions("completed")).toEqual([]);
+    expect(isActionable("completed")).toBe(false);
+    expect(canConfirmPickup({ status: "completed", pickup: { date: "2026-10-03", time: "11:00", location: "x" } })).toBe(false);
+    expect(approvalDecision("completed")).toBe("approved");
+    expect(releasesFoster("completed")).toBe(true);
+  });
+
+  it("still authorizes the foster's published page while the dog is relisted (PH-32)", () => {
+    expect(authorizesPublishing(app("a1", "completed"), "d1")).toBe(true);
   });
 });

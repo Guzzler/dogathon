@@ -230,3 +230,16 @@ describe("ShelterApplicationsView — a confirmed pickup on a retired dog (RS-21
     expect(detailHead(at("/shelter?app=gone"))).toBe("Alex");
   });
 });
+
+describe("ShelterApplicationsView — a completed foster offers nothing (RS-22)", () => {
+  it("reads Fostered, with no status buttons and no pickup answers", () => {
+    const html = render(dog({ status: "available" }), application({ status: "completed", pickupConfirmedAt: stamp }));
+    expect(html).toContain("Fostered");
+    expect(html).toContain("Robin fostered Fern.");
+    expect(html).not.toContain("Mark approved");
+    expect(html).not.toContain("Mark declined");
+    expect(html).not.toContain("Undo confirmation");
+    expect(html).not.toContain("Confirm pickup");
+    expect(html).not.toContain("Ask for another time");
+  });
+});

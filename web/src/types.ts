@@ -161,7 +161,11 @@ export interface Pickup {
   location: string;
 }
 
-export type ApplicationStatus = "submitted" | "in_review" | "approved" | "declined" | "withdrawn";
+/**
+ * `completed` (RS-22) is the end of a foster that happened: staff set it when they acknowledge the
+ * dog's return by listing it for adoption or marking it adopted. Not live, so it holds nothing.
+ */
+export type ApplicationStatus = "submitted" | "in_review" | "approved" | "declined" | "withdrawn" | "completed";
 
 /**
  * A relationship between a foster and a shelter -- queryable from both sides, unlike the
@@ -197,6 +201,11 @@ export interface Application {
    * shelter and never paraphrased. `null` when they left it blank. Staff-only, like the stamp.
    */
   pickupNote?: string | null;
+  /**
+   * When staff closed a finished foster (RS-22), in the same write that relisted or adopted the
+   * dog. Staff-only; absent on every application that never reached `completed`.
+   */
+  completedAt?: { toMillis(): number } | null;
   /**
    * Written with `serverTimestamp()`, so it reads back as a Firestore `Timestamp` -- narrowed
    * here to the one method the UI calls rather than importing the SDK's type into a file the

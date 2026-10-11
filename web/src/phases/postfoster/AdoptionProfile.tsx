@@ -4,6 +4,7 @@ import type { AdoptionProfile } from "../../lib/adoption";
 import { shelterRecordTitle } from "../../lib/adoption";
 import { sizeLabel, type RichDog } from "../../lib/dog";
 import { ProfileAttribution } from "../../components/ProfileAttribution";
+import { offRoster } from "../../lib/applicationView";
 
 /**
  * The adoption page. Every section states where its content came from — the foster's journal
@@ -258,8 +259,16 @@ export function AdoptionProfileBody({ dog, profile, tags = [], summary = "", tag
         <div className="card ap-shelter">
           <div style={{ fontWeight: 800, fontSize: 14.5 }}>{dog.shelter.name}</div>
           <div className="muted" style={{ marginTop: 2 }}>{dog.shelter.address}</div>
+          {/* PH-35: the one sentence on this page that is a claim about availability. A shared link
+              outlives the listing, so it states the listing rather than inviting enquiries about
+              a dog who has gone home or been taken down. Name and address stay -- they are the
+              shelter's record. The page itself stays up: the foster's notes are still true. */}
           <p className="muted" style={{ marginTop: 8, lineHeight: 1.5 }}>
-            Adoption enquiries go through the shelter. They'll arrange a meet-and-greet.
+            {!offRoster(dog.status)
+              ? "Adoption enquiries go through the shelter. They'll arrange a meet-and-greet."
+              : dog.status === "adopted"
+              ? `${dog.name} has been adopted through ${dog.shelter.name}.`
+              : `${dog.shelter.name} isn't listing ${dog.name} right now.`}
           </p>
         </div>
       )}

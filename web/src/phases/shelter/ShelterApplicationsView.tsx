@@ -348,6 +348,13 @@ function ApplicationDetail({ application, applications, onSelect }: {
             </button>
           ))}
         </div>
+      ) : application.status === "completed" ? (
+        // RS-22: closed when the roster acknowledged the dog's return. History, not a task --
+        // no status button, and nothing in Pickup either, since `canConfirmPickup` is live-only.
+        <p className="muted">
+          {application.fosterName} fostered {dogName}. This closed when {dogName} was listed for adoption or marked
+          adopted.
+        </p>
       ) : (
         // withdrawn is the foster's to set (the foster branch of applications' update rule),
         // so there is nothing here for a shelter to do -- and a button would only fail the write.
@@ -436,7 +443,9 @@ function PickupSection({ application, dog, dogName, held, busy, run }: {
         <span className="muted"> · {pickup.location}</span>
       </p>
       <p className="muted">
-        {confirmed
+        {application.status === "completed"
+          ? `You confirmed this time. This foster has finished and ${dogName} is back with you.`
+          : confirmed
           ? "You confirmed this time. The foster sees it as confirmed."
           : declined
             ? "You asked the foster for another time. Their new request shows here when they pick one."
