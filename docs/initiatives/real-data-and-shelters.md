@@ -148,7 +148,9 @@ don't "fix" the second by loosening `firestore.rules`.
 ### The items
 
 - [ ] **RS-22 `[large]` — a foster that ended is history, not a hold (queued by plan 2026-10-09,
-  at `8e0e0ab`).** RS-21's predicate read against the one state its spec didn't walk: the dog
+  at `8e0e0ab`; re-verified 2026-10-10 at `03e308e`, after PH-32 merged under it — every citation
+  holds, the staff branch of `applications` is still unconditional, so "no rules change" stands;
+  PH-35 is its natural rider).** RS-21's predicate read against the one state its spec didn't walk: the dog
   *coming back*. Every line re-read against `main`:
   - `confirmedHolder()` (`lib/applicationView.ts:406`) is *live + stamped*, and nothing ever moves
     a finished foster's application out of `approved`. **Mark journey complete** writes only
@@ -240,9 +242,8 @@ don't "fix" the second by loosening `firestore.rules`.
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
-- **The `[large]` slot is in this doc** (RS-14, RS-15, RS-17, RS-18, RS-20, RS-21 shipped; **RS-22
-  queued 2026-10-09 and on top** — PH-32 `[large]` in `production-hardening.md` shipped 2026-10-09 (PR #122) with its
-  gate already admitting `completed`, so RS-22 needs no rules edit for it). Routing narrative in
+- **The `[large]` slot is in this doc** (RS-22 on top, unbuilt; PH-32 shipped 2026-10-09, PR #122,
+  its gate already admitting `completed`). Routing narrative in
   [`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md).
 
 ### Needs a human, not a queue item
