@@ -134,31 +134,9 @@ truthfulness, not because production-hardening has been re-ranked.
   one-month floor duplicated in `DogProfile.ageMonths`. A `dog.test.ts` case per branch. Small; a
   rider on any run with room (PH-32 shipped without it; citations re-read 2026-10-10).
 
-- [ ] **PH-35 — the adoption page invites enquiries about a dog that is gone (found by plan
-  2026-10-10, at `03e308e`).** PH-32's predicate walked to the journey's end, the same way RS-22
-  walked RS-21's: the page stays up while the application is `approved` — and, once RS-22 ships,
-  `completed` — **whatever the dog's status**, because nothing on it reads the status at all.
-  `PublishedAdoptionView` (`phases/postfoster/PublicAdoptionView.tsx:32-48`) takes the dog from an
-  unfiltered `useDogs()` snapshot, and `AdoptionProfileBody`'s contact card
-  (`AdoptionProfile.tsx:257-264`) prints *Adoption enquiries go through the shelter. They'll arrange
-  a meet-and-greet.* for any dog with a known org. So after **Mark adopted** — which RS-22 makes the
-  ordinary end of a foster — every link the foster sent keeps inviting strangers to enquire about a
-  dog who has gone home; after **Retire**, about one the shelter took down.
-  **Design answer: the page states the listing; it does not come down.** The foster's notes are
-  history and stay true after adoption, the link is already in people's inboxes, and PH-32's gate is
-  about *who authorized* the page, not whether the dog is free — so **no rules edit**, and no
-  dog-status read in `publishAuthorized()`. What changes is the one sentence that is a claim about
-  availability. Reuse `offRoster()` (`lib/applicationView.ts:454`), the predicate RS-20 already uses
-  for exactly these two statuses: in the contact card, `adopted` → *{name} has been adopted through
-  {shelter}.* and `retired` → *{shelter} isn't listing {name} right now.*, each **replacing** the
-  enquiry line (name and address stay — they are the shelter's record). Every other status keeps the
-  line: `foster`, `medical_hold` and `ready_for_adoption` are still adoptable through the shelter.
-  The card is shared, so Post Foster's own preview says the same — the sender sees what the reader
-  sees (PH-32). **Not in scope:** the page's closing *Interested in fostering a dog like {name}?*
-  card is about Pawthway, not this dog, and stays. **Verify:** an `AdoptionProfile` render test per
-  branch (`adopted`, `retired`, `available`, and `shelter: null` still rendering no card), asserting
-  the enquiry sentence is absent on the first two; `tsc -b`, build, lint at `main`'s 8. Small; a
-  natural rider on RS-22, whose **Mark adopted** is what makes it reachable on every journey.
+- [x] **PH-35 — shipped 2026-10-10 as RS-22's rider (PR #__).** Design answer: *the page states the
+  listing; it does not come down.* Spec verbatim in
+  [`archive/production-hardening-ph35-2026-10-10.md`](archive/production-hardening-ph35-2026-10-10.md).
 
 - [ ] **PH-33 — confirmed by plan 2026-10-08: the demo intro promises controls the hosted app never
   shows.** Re-read: `phases/auth/DemoIntroView.tsx:23` titles *You're in demo mode* before the
@@ -373,3 +351,9 @@ reaching the end of what it can give on this doc.)*
   `firebase deploy --only firestore:rules --dry-run` (nothing released). **Not verified in a
   browser** — the unattended run's dev-server start was declined — **nor against live rules**:
   that is PH-32b.
+- 2026-10-10 — PH-35 — PR #__ — **the adoption page states the listing instead of inviting
+  enquiries about a dog who is gone.** `AdoptionProfileBody`'s contact card gates the enquiry line on
+  `offRoster()`: `adopted` → *{name} has been adopted through {shelter}.*, `retired` → *{shelter}
+  isn't listing {name} right now.*; every other status keeps it; no rules edit. Shared, so Post
+  Foster's preview says the same. Four render cases in `PublicAdoptionView.test.tsx` (adopted,
+  retired, still-adoptable, unnamed org renders no card). Shipped in RS-22's PR.

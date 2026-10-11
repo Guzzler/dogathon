@@ -13,21 +13,27 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   approved: "Approved",
   declined: "Declined",
   withdrawn: "Withdrawn",
+  completed: "Fostered",
 };
 
 /**
  * What a staff member may move an application to. `withdrawn` is absent on purpose: it's the
  * foster's own action, and `firestore.rules`' foster branch is the only place it's set. A
- * withdrawn row is terminal from the shelter's side, so it offers nothing.
+ * withdrawn row is terminal from the shelter's side, so it offers nothing. So is a `completed`
+ * one (RS-22): the foster happened, and no button here can un-happen it. `completed` is never a
+ * target either -- only the roster's acknowledgement of the dog's return sets it.
  */
 export function staffTransitions(status: ApplicationStatus): ApplicationStatus[] {
-  if (status === "withdrawn") return [];
+  if (!isActionable(status)) return [];
   return (["in_review", "approved", "declined"] as ApplicationStatus[]).filter((s) => s !== status);
 }
 
-/** A withdrawn application is a record, not a task -- nothing on it is the shelter's to change. */
+/**
+ * A withdrawn or completed application is a record, not a task -- nothing on it is the shelter's
+ * to change.
+ */
 export function isActionable(status: ApplicationStatus): boolean {
-  return status !== "withdrawn";
+  return status !== "withdrawn" && status !== "completed";
 }
 
 const DAY = 86_400_000;
@@ -183,10 +189,18 @@ export type ApprovalDecision = "declined" | "withdrawn" | "approved" | null;
  * "✓ Approved — schedule pickup", inviting someone to book a pickup for a dog they were refused.
  */
 export function approvalDecision(status: ApplicationStatus | null | undefined): ApprovalDecision {
-  if (status === "declined") return "declined";
-  if (status === "withdrawn") return "withdrawn";
-  if (status === "approved") return "approved";
-  return null;
+  switch (status) {
+    case "declined":
+      return "declined";
+    case "withdrawn":
+      return "withdrawn";
+    case "approved":
+    // RS-22: a finished foster was approved -- it never renders as a decline or a withdrawal.
+    case "completed":
+      return "approved";
+    default:
+      return null;
+  }
 }
 
 /**
@@ -199,6 +213,10 @@ export function approvalDecision(status: ApplicationStatus | null | undefined): 
  * happened stays on the Applications tab until they do.
  */
 export function releasesFoster(status: ApplicationStatus | null | undefined): boolean {
+  // RS-22: a completed foster is over too. `activeApplication()` already releases a foster whose
+  // own phase is `complete`; this covers one who never pressed **Mark journey complete** before
+  // the shelter took the dog back.
+  if (status === "completed") return true;
   const d = approvalDecision(status);
   return d === "declined" || d === "withdrawn";
 }
@@ -323,7 +341,11 @@ export function activeStage(approved: boolean, pickup: PickupState): number {
 
 /* ---------- the shelter's side of the pickup (RS-14) ---------- */
 
-/** The statuses the foster may still request a pickup on -- mirrors the rules' pickup branch. */
+/**
+ * The statuses the foster may still request a pickup on -- mirrors the rules' pickup branch.
+ * `completed` is deliberately absent (RS-22): a finished foster's stamp is history, so
+ * `confirmedHolder()` and `pickupHolder()` release it with no edit of their own.
+ */
 const LIVE: ApplicationStatus[] = ["submitted", "in_review", "approved"];
 
 /** Still open from both sides: a foster could yet be coming for the dog. */

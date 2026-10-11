@@ -219,3 +219,27 @@ describe("ShelterRosterView — a confirmed pickup is taken back where it was gi
     expect(retired).not.toContain("Going home with");
   });
 });
+
+describe("ShelterRosterView — a foster that ended is history, not a hold (RS-22)", () => {
+  const stamp = { toMillis: () => 1 };
+  const app = (id: string, dogId: string, status: Application["status"]) =>
+    ({ id, dogId, status, fosterId: "u", fosterName: "Robin", shelterId: "sfspca-mission", pickupConfirmedAt: stamp }) as unknown as Application;
+
+  it("says on a returned dog who fostered it, and that acknowledging closes their application", () => {
+    const html = render(
+      [dog({ id: "b", name: "Bean", status: "ready_for_adoption", adoption_profile: PROFILE })],
+      [app("x1", "b", "approved")],
+    );
+    expect(html).toContain("Fostered by Robin. Listing or marking adopted closes their application.");
+    // Robin's application is the one being closed, so it isn't counted as one left open.
+    expect(html).not.toContain("open application");
+    expect(html).toContain(">List for adoption<");
+  });
+
+  it("treats a relisted dog whose foster is completed as free: Retire, and no Going home with", () => {
+    const html = render([dog({ id: "a", name: "Arlo" })], [app("x1", "a", "completed")]);
+    expect(html).toContain(">Retire<");
+    expect(html).not.toContain("Going home with");
+    expect(html).not.toContain("open application");
+  });
+});

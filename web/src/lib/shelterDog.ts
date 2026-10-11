@@ -196,6 +196,9 @@ export const ROSTER_ACTION_STATUS: Record<RosterAction, DogStatus> = {
   adopted: "adopted",
 };
 
+/** The roster actions that acknowledge a returned dog, and so end its foster (RS-22). */
+export const ENDS_FOSTER: RosterAction[] = ["list", "adopted"];
+
 export const ROSTER_ACTION_LABELS: Record<RosterAction, string> = {
   retire: "Retire",
   relist: "List again",

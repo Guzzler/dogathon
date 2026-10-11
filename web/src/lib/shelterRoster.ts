@@ -1,6 +1,7 @@
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, updateDoc, writeBatch } from "firebase/firestore";
 import { firestore } from "../firebase";
 import {
+  ENDS_FOSTER,
   ROSTER_ACTION_STATUS,
   dogFromForm,
   dogIdFor,
@@ -8,7 +9,7 @@ import {
   type DogFormValues,
   type RosterAction,
 } from "./shelterDog";
-import type { DogStatus } from "../types";
+import type { Application, DogStatus } from "../types";
 
 /**
  * The two writes RS-6 adds to `dogs/{id}`, kept apart from `shelterDog.ts` so the pure form
@@ -54,6 +55,26 @@ export const relistDog = (dogId: string) => setDogStatus(dogId, "available");
  * The one entry point the roster's buttons use. Every action is a status-only write on a dog
  * the staff member's shelter already owns, which `firestore.rules` (RS-6) already permits:
  * `shelter_id` is untouched, so the pinned-id check passes without any rules change.
+ *
+ * RS-22: **List for adoption** / **Mark adopted** on a dog a finished foster still holds are the
+ * shelter acknowledging the dog is back, so they close that foster's application in the same
+ * batch -- `completed`, not live, so it stops holding the dog. Without it the relisted dog stayed
+ * held by the foster who had just returned it, and nobody else's pickup could ever be confirmed.
+ * The staff branch of `applications`' update rule already admits the write. Every other action,
+ * and either of these with no holder, stays the single dog write.
  */
-export const applyRosterAction = (dogId: string, action: RosterAction) =>
-  setDogStatus(dogId, ROSTER_ACTION_STATUS[action]);
+export async function applyRosterAction(
+  dogId: string,
+  action: RosterAction,
+  holder: Pick<Application, "id"> | null = null,
+): Promise<void> {
+  if (!holder || !ENDS_FOSTER.includes(action)) return setDogStatus(dogId, ROSTER_ACTION_STATUS[action]);
+  const batch = writeBatch(firestore);
+  batch.update(doc(firestore, "dogs", dogId), { status: ROSTER_ACTION_STATUS[action], updatedAt: serverTimestamp() });
+  batch.update(doc(firestore, "applications", holder.id), {
+    status: "completed",
+    completedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
