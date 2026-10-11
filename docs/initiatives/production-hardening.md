@@ -134,7 +134,7 @@ truthfulness, not because production-hardening has been re-ranked.
   one-month floor duplicated in `DogProfile.ageMonths`. A `dog.test.ts` case per branch. Small; a
   rider on any run with room (PH-32 shipped without it; citations re-read 2026-10-10).
 
-- [x] **PH-35 — shipped 2026-10-10 as RS-22's rider (PR #__).** Design answer: *the page states the
+- [x] **PH-35 — shipped 2026-10-10 as RS-22's rider (PR #124).** Design answer: *the page states the
   listing; it does not come down.* Spec verbatim in
   [`archive/production-hardening-ph35-2026-10-10.md`](archive/production-hardening-ph35-2026-10-10.md).
 
@@ -351,7 +351,7 @@ reaching the end of what it can give on this doc.)*
   `firebase deploy --only firestore:rules --dry-run` (nothing released). **Not verified in a
   browser** — the unattended run's dev-server start was declined — **nor against live rules**:
   that is PH-32b.
-- 2026-10-10 — PH-35 — PR #__ — **the adoption page states the listing instead of inviting
+- 2026-10-10 — PH-35 — PR #124 — **the adoption page states the listing instead of inviting
   enquiries about a dog who is gone.** `AdoptionProfileBody`'s contact card gates the enquiry line on
   `offRoster()`: `adopted` → *{name} has been adopted through {shelter}.*, `retired` → *{shelter}
   isn't listing {name} right now.*; every other status keeps it; no rules edit. Shared, so Post

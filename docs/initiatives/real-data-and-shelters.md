@@ -147,7 +147,7 @@ don't "fix" the second by loosening `firestore.rules`.
 
 ### The items
 
-- [x] **RS-22 `[large]` — shipped 2026-10-10 (PR #__).** Design answer: *the shelter ends a foster
+- [x] **RS-22 `[large]` — shipped 2026-10-10 (PR #124).** Design answer: *the shelter ends a foster
   by acknowledging the dog's return, in the same write* — **List for adoption** / **Mark adopted**
   on a held returned dog batch the dog's status with the holder's application → `completed`. Spec
   verbatim in [`archive/real-data-and-shelters-rs22-2026-10-10.md`](archive/real-data-and-shelters-rs22-2026-10-10.md);
@@ -344,7 +344,7 @@ supersedes the [2026-08-31](archive/real-data-and-shelters-ledger-2026-08-31.md)
   again** and gets no holder line (spec: unchanged otherwise). Both shelter view tests now render
   inside `MemoryRouter`. vitest 266 (14 new), tsc, build, lint at `main`'s 8. **Not verified signed
   in, against Firestore or in a browser** — the shelter screens need a staff uid; RS-14b (11).
-- 2026-10-10 — RS-22 `[large]` — PR #__ — A foster that ended is history, not a hold.
+- 2026-10-10 — RS-22 `[large]` — PR #124 — A foster that ended is history, not a hold.
   `ApplicationStatus` gains `completed` (label *Fostered*, `completedAt`), not in `LIVE`, so
   `confirmedHolder`/`pickupHolder` release it untouched; `isActionable`/`staffTransitions` treat it
   as terminal, `approvalDecision` → `approved`. `applyRosterAction(dogId, action, holder)` batches the
