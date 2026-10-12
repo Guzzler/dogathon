@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
+import { leaveJourney } from "../../lib/journey";
 import { useDogs } from "../../hooks/useDogs";
 import { useApplication } from "../../hooks/useApplication";
 import { agreedPickup } from "../../lib/applicationView";
@@ -9,7 +10,7 @@ import { prefs } from "../../lib/matching";
 import { fosterWindow } from "../../lib/foster";
 import { normalizeDog, recordedStay } from "../../lib/dog";
 import { Unrecorded } from "../../components/Unrecorded";
-import type { Dog as DogRecord, FosterIntake, FosterPhase, Pickup } from "../../types";
+import type { Dog as DogRecord, Foster, FosterIntake, FosterPhase, Pickup } from "../../types";
 
 const PHASE_COPY: Record<FosterPhase, { title: string; body: string; cta: string; to: string }> = {
   onboarding: {
@@ -68,7 +69,7 @@ export function HubView() {
         </Link>
       </div>
 
-      <LookingForCard intake={foster.intake} />
+      <LookingForCard foster={foster} />
 
       {matchedDog && (
         <MatchedDogCard dog={matchedDog} pickup={foster.pickup} />
@@ -133,7 +134,8 @@ const HOME_LABEL: Record<string, string> = {
 };
 
 /** What the questionnaire concluded, with a way to start it over. */
-function LookingForCard({ intake }: { intake: FosterIntake }) {
+function LookingForCard({ foster }: { foster: Foster }) {
+  const intake: FosterIntake = foster.intake;
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState(false);
   const p = prefs(intake);
@@ -154,7 +156,9 @@ function LookingForCard({ intake }: { intake: FosterIntake }) {
     // Clearing intake sends them back through the front door. The empty map is a real clear
     // because `patchFoster` replaces a key rather than merging into it (PH-25) -- under the
     // old `{ merge: true }` this line was a no-op and every answer survived "Change answers".
-    await patchFoster({ intake: {}, phase: "onboarding", likedDogIds: [], passedDogIds: [], matchedDogId: null });
+    // It also lets go of the matched dog, so that journey is filed first (PH-36).
+    const leave = await leaveJourney(foster);
+    await patchFoster({ ...leave, intake: {}, phase: "onboarding", likedDogIds: [], passedDogIds: [], matchedDogId: null });
     navigate("/welcome");
   }
 

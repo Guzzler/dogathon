@@ -194,6 +194,9 @@ export async function deleteAccount(): Promise<void> {
 
   const careLog = await getDocs(collection(firestore, "fosters", uid, "careLog"));
   await Promise.all(careLog.docs.map((entry) => deleteDoc(entry.ref)));
+  // PH-36: past foster periods, archived beside the care log -- the same kind of record.
+  const journeys = await getDocs(collection(firestore, "fosters", uid, "journeys"));
+  await Promise.all(journeys.docs.map((entry) => deleteDoc(entry.ref)));
   await deleteDoc(doc(firestore, "fosters", uid));
 
   try {
@@ -210,7 +213,7 @@ export async function deleteAccount(): Promise<void> {
 
 /**
  * Builds a JSON export of everything a foster gave the app: their `fosters/{uid}` doc, its
- * `careLog` subcollection, and their `applications` rows (queried by `fosterId`, since
+ * `careLog` and `journeys` subcollections, and their `applications` rows (queried by `fosterId`, since
  * `applications` lives outside `fosters/{uid}` — see docs/shelter-integration.md).
  *
  * Deliberately excludes `fosters/{uid}/agentSession/current`: it's a `messagesJson` dump of
@@ -225,6 +228,7 @@ export async function exportAccountData(): Promise<void> {
 
   const fosterSnap = await getDoc(doc(firestore, "fosters", uid));
   const careLogSnap = await getDocs(collection(firestore, "fosters", uid, "careLog"));
+  const journeysSnap = await getDocs(collection(firestore, "fosters", uid, "journeys"));
   const applicationsSnap = await getDocs(
     query(collection(firestore, "applications"), where("fosterId", "==", uid)),
   );
@@ -234,6 +238,7 @@ export async function exportAccountData(): Promise<void> {
     exportedAt: new Date().toISOString(),
     foster: fosterSnap.exists() ? fosterSnap.data() : null,
     careLog: careLogSnap.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+    journeys: journeysSnap.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
     applications: applicationsSnap.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
     adoptionProfiles: published.map((entry) => ({ id: entry.id, ...entry.data() })),
   };

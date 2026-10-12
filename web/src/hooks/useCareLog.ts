@@ -4,9 +4,15 @@ import { firestore } from "../firebase";
 import { fosterDocId, subscribeSession } from "../lib/session";
 import type { CareLogEntry } from "../types";
 import { appendLocalCareLog, subscribeLocalCareLog } from "../lib/localMode";
+import { belongsToDog } from "../lib/journey";
 
-/** Subcollection of the signed-in user's foster doc; localStorage for guests. */
-export function useCareLog() {
+/**
+ * Subcollection of the signed-in user's foster doc; localStorage for guests.
+ *
+ * Only the entries about `dogId` -- the foster's current dog -- plus untagged ones, which are the
+ * current journey's until `leaveJourney` files them (PH-36). A dog fostered before is not this one.
+ */
+export function useCareLog(dogId: string | null | undefined) {
   const [entries, setEntries] = useState<CareLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [docId, setDocId] = useState<string | null>(fosterDocId);
@@ -34,10 +40,11 @@ export function useCareLog() {
     );
   }, [docId]);
 
-  return { entries, loading };
+  return { entries: entries.filter((e) => belongsToDog(e, dogId)), loading };
 }
 
-export async function addCareLogEntry(entry: {
+/** `dogId` is the foster's current dog, so the entry is filed under the animal it is about. */
+export async function addCareLogEntry(dogId: string | null | undefined, entry: {
   type: CareLogEntry["type"];
   note?: string;
   value?: string;
@@ -49,6 +56,7 @@ export async function addCareLogEntry(entry: {
     note: entry.note ?? "",
     value: entry.value ?? "",
     photo_url: entry.photo_url ?? "",
+    ...(dogId ? { dogId } : {}),
   };
   if (!id) { appendLocalCareLog(base); return; }
   await addDoc(collection(firestore, "fosters", id, "careLog"), { ...base, created_at: serverTimestamp() });

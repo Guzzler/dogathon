@@ -43,11 +43,17 @@ function mergesNestedMaps(stored: Doc, data: Doc): Doc {
 /** `mergeFields` — each listed key is written whole, anything unlisted is untouched. */
 function replacesListedFields(stored: Doc, data: Doc, fields: string[]): Doc {
   const out: Doc = { ...stored };
-  for (const f of fields) out[f] = data[f];
+  for (const f of fields) {
+    if (data[f] === DELETE) delete out[f];
+    else out[f] = data[f];
+  }
   return out;
 }
 
 const store = new Map<string, Doc>();
+
+/** Stands in for `deleteField()`; `replacesListedFields` removes a key that carries it. */
+const DELETE = Symbol("deleteField");
 
 class FakeFieldPath {
   // A plain field rather than a parameter property: `erasableSyntaxOnly` is on.
@@ -59,6 +65,7 @@ vi.mock("../firebase", () => ({ firestore: {} }));
 
 vi.mock("firebase/firestore", () => ({
   FieldPath: FakeFieldPath,
+  deleteField: () => DELETE,
   doc: (_db: unknown, ...path: string[]) => ({ path: path.join("/") }),
   onSnapshot: vi.fn(),
   setDoc: vi.fn(async (
@@ -245,5 +252,17 @@ describe("what omitting a key means at the write layer", () => {
 
     expect(setDoc).not.toHaveBeenCalled();
     expect(store.has("fosters/foster-1")).toBe(false);
+  });
+
+  it.each(LAYERS)("removes a key named with no value, rather than storing a blank (%s, PH-36)", async (layer) => {
+    docId = layer === "firestore" ? "foster-1" : null;
+    await patchFoster({ adoptionNote: "About dog A", journal: [{ id: "j1" }] });
+    await patchFoster({ adoptionNote: undefined, journal: [] });
+
+    const stored = layer === "firestore"
+      ? (store.get("fosters/foster-1") ?? {})
+      : (JSON.parse(memory.get("pawthway.localFoster.v1") ?? "{}") as Doc);
+    expect(stored).not.toHaveProperty("adoptionNote");
+    expect(stored.journal).toEqual([]);
   });
 });

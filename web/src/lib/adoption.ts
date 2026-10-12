@@ -1,6 +1,7 @@
 import type { CareLogEntry, Foster } from "../types";
 import type { JournalEntry, Milestone, ScheduleBlock } from "../phases/careplan/types";
 import { ENERGY_WORD, dogPhotoOrNull, sizeLabel, type RichDog } from "./dog";
+import { belongsToDog } from "./journey";
 
 /**
  * The adoption page's content, with a source for every field.
@@ -63,6 +64,9 @@ export function buildAdoptionProfile(
   dayInFoster = Number.POSITIVE_INFINITY,
   milestones: Milestone[] = [],
 ): AdoptionProfile {
+  // A weigh-in filed under another dog is a record about a different animal (PH-36). The hook
+  // already filters; this is the page's own guarantee, whoever calls it.
+  entries = entries.filter((e) => belongsToDog(e, dog.id));
   // Oldest first, so the page and the summary both read Day 1 → today rather than newest-first.
   const byDay = [...journal].sort((a, b) => a.dayInFoster - b.dayInFoster);
 

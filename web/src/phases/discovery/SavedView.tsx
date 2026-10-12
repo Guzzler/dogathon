@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
+import { leaveJourney, movesOffDog } from "../../lib/journey";
 import { useApplication } from "../../hooks/useApplication";
 import { useDogs } from "../../hooks/useDogs";
 import { isListable, normalizeDog, recordedStay, thumbBackground, type RichDog } from "../../lib/dog";
@@ -126,6 +127,14 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
       return;
     }
     setApplyFailed(false);
+    // PH-36: file the previous foster's records under that dog first; see DogDetailView.
+    let reset: Record<string, unknown> = {};
+    try {
+      if (movesOffDog(foster, d.id)) reset = await leaveJourney(foster);
+    } catch {
+      setApplyFailed(true);
+      return;
+    }
     const fosterId = fosterDocId();
     if (fosterId) {
       try {
@@ -137,7 +146,7 @@ function SavedCard({ d, i, blocked }: { d: RichDog; i: number; blocked: boolean 
         return;
       }
     }
-    await patchFoster({ matchedDogId: d.id, phase: "match" });
+    await patchFoster({ ...reset, matchedDogId: d.id, phase: "match" });
     navigate("/match");
   };
 
@@ -227,7 +236,10 @@ function AppliedCard({ d, onOpenMatch }: { d: RichDog; onOpenMatch: () => void }
         await unpublishAdoptionProfile(application.dogId, application.fosterId);
       } catch { /* leaves a page only its author can delete; they can still reach it */ }
     }
-    await patchFoster({ matchedDogId: null, phase: "discovery" });
+    // PH-36: withdrawing ends this journey, so its records are filed under the dog they were
+    // about rather than carried into whichever dog the foster applies for next.
+    const reset = await leaveJourney(foster);
+    await patchFoster({ ...reset, matchedDogId: null, phase: "discovery" });
   };
 
   return (
