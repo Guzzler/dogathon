@@ -24,7 +24,7 @@ import { AdoptionProfileBody } from "./AdoptionProfile";
 export function PostFosterView() {
   const { foster, loading } = useFoster();
   const { dogs } = useDogs();
-  const { entries } = useCareLog();
+  const { entries } = useCareLog(foster?.matchedDogId);
   const journal = useJournalEntries();
   const schedule = useCareScheduleBlocks();
   const [sharing, setSharing] = useState(false);

@@ -246,4 +246,30 @@ export interface CareLogEntry {
   value: string;
   photo_url: string;
   created_at: { seconds: number; nanoseconds: number } | null;
+  /**
+   * The dog this entry is about (PH-36). Absent on entries written before the tag existed,
+   * which read as the current journey's until `leaveJourney` stamps them -- see
+   * `belongsToDog` in lib/journey.ts.
+   */
+  dogId?: string;
+}
+
+/**
+ * One finished (or abandoned) foster period, filed at `fosters/{uid}/journeys/{auto-id}` the
+ * moment `matchedDogId` moved off its dog (PH-36). Auto-id rather than the dog's id because a
+ * dog can be fostered twice. Nothing reads these yet beyond the data export; they exist so that
+ * starting a second journey loses nothing of the first.
+ */
+export interface JourneyArchive {
+  dogId: string;
+  archivedAt: unknown;
+  journal?: JournalEntry[];
+  careSchedule?: ScheduleBlock[];
+  adoptionNote?: string;
+  adoptionHighlights?: Foster["adoptionHighlights"];
+  pickup: Pickup | null;
+  prepChecklist: ChecklistItem[];
+  careChecklist: ChecklistItem[];
+  approvalChecklist: ChecklistItem[];
+  readyForAdoption: boolean;
 }

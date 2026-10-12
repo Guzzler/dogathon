@@ -52,7 +52,7 @@ function LocalAdoptionView() {
   const { id = "" } = useParams();
   const { dogs, loading } = useDogs();
   const { foster } = useFoster();
-  const { entries } = useCareLog();
+  const { entries } = useCareLog(foster?.matchedDogId);
   const journal = useJournalEntries();
   const schedule = useCareScheduleBlocks();
   const isTheirFoster = foster?.matchedDogId === id;

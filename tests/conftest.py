@@ -22,6 +22,7 @@ class FakeDocument:
     def __init__(self, store: dict[str, dict[str, Any]], path: str) -> None:
         self._store = store
         self._path = path
+        self.id = path.rsplit("/", 1)[-1]
 
     def get(self) -> "FakeSnapshot":
         return FakeSnapshot(self._store.get(self._path), self._path.rsplit("/", 1)[-1])
@@ -75,7 +76,10 @@ class FakeCollection:
         self._store = store
         self._path = path
 
-    def document(self, name: str) -> FakeDocument:
+    def document(self, name: str | None = None) -> FakeDocument:
+        # No name is Firestore's auto-id; a counter is enough to keep ids unique per store.
+        if name is None:
+            name = f"auto-{sum(k.startswith(self._path + '/') for k in self._store)}"
         return FakeDocument(self._store, f"{self._path}/{name}")
 
     def order_by(self, field: str) -> "FakeQuery":

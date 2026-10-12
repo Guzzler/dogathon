@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { patchFoster, useFoster } from "../../hooks/useFoster";
+import { leaveJourney, movesOffDog } from "../../lib/journey";
 import { useDogs } from "../../hooks/useDogs";
 import { useApplication } from "../../hooks/useApplication";
 import { ENERGY_WORD, isListable, normalizeDog, dogPhotoOrNull, sizeLabel } from "../../lib/dog";
@@ -63,6 +64,15 @@ export function DogDetailView() {
   const apply = async () => {
     if (!canApply) return;
     setApplyFailed(false);
+    // PH-36: a previous foster's records are filed under that dog before anything else is
+    // written, so a failure here leaves both journeys exactly as they were.
+    let reset: Record<string, unknown> = {};
+    try {
+      if (movesOffDog(foster, dog.id)) reset = await leaveJourney(foster);
+    } catch {
+      setApplyFailed(true);
+      return;
+    }
     const fosterId = fosterDocId();
     if (fosterId) {
       try {
@@ -75,6 +85,7 @@ export function DogDetailView() {
       }
     }
     await patchFoster({
+      ...reset,
       likedDogIds: [...new Set([...(foster?.likedDogIds ?? []), dog.id])],
       matchedDogId: dog.id,
       phase: "match",

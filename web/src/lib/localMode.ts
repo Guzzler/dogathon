@@ -1,5 +1,5 @@
 import demoDogs from "../../../data/dogs.json";
-import type { CareLogEntry, Dog, Foster } from "../types";
+import type { CareLogEntry, Dog, Foster, JourneyArchive } from "../types";
 import { DEFAULT_APPROVAL_CHECKLIST, DEFAULT_CARE_CHECKLIST, DEFAULT_PREP_CHECKLIST } from "../checklists";
 
 /**
@@ -74,6 +74,7 @@ export function resetLocalFoster() {
 export function clearGuestData() {
   localStorage.removeItem(KEY);
   localStorage.removeItem(LOG_KEY);
+  localStorage.removeItem(JOURNEYS_KEY);
   listeners.forEach(fn => fn(BLANK_FOSTER));
   logListeners.forEach(fn => fn([]));
 }
@@ -86,18 +87,46 @@ export function readLocalCareLog(): CareLogEntry[] {
   try { return JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); } catch { return []; }
 }
 
+function writeLocalCareLog(next: CareLogEntry[]) {
+  localStorage.setItem(LOG_KEY, JSON.stringify(next));
+  logListeners.forEach(fn => fn(next));
+}
+
 export function appendLocalCareLog(entry: Omit<CareLogEntry, "id" | "created_at">) {
   const next = [...readLocalCareLog(), {
     ...entry,
     id: `local-${Date.now()}`,
     created_at: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0 },
   }];
-  localStorage.setItem(LOG_KEY, JSON.stringify(next));
-  logListeners.forEach(fn => fn(next));
+  writeLocalCareLog(next);
+}
+
+/**
+ * File every untagged entry under `dogId` -- the local half of `leaveJourney`'s stamp (PH-36).
+ * Already-tagged entries keep the dog they were written about. Writes nothing when there is
+ * nothing to stamp, so leaving a dog nobody logged anything about is a no-op here too.
+ */
+export function stampLocalCareLog(dogId: string): number {
+  const log = readLocalCareLog();
+  const untagged = log.filter(e => !e.dogId).length;
+  if (untagged) writeLocalCareLog(log.map(e => (e.dogId ? e : { ...e, dogId })));
+  return untagged;
 }
 
 export function subscribeLocalCareLog(fn: (e: CareLogEntry[]) => void) {
   logListeners.add(fn);
   fn(readLocalCareLog());
   return () => { logListeners.delete(fn); };
+}
+
+/* ---------- journey archive (local mode, PH-36) ---------- */
+const JOURNEYS_KEY = "pawthway.localJourneys.v1";
+
+export function readLocalJourneys(): JourneyArchive[] {
+  try { return JSON.parse(localStorage.getItem(JOURNEYS_KEY) || "[]"); } catch { return []; }
+}
+
+/** The guest's `fosters/{uid}/journeys`: append-only, cleared only by `clearGuestData()`. */
+export function appendLocalJourney(archive: JourneyArchive) {
+  localStorage.setItem(JOURNEYS_KEY, JSON.stringify([...readLocalJourneys(), archive]));
 }

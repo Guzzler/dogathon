@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FieldPath, doc, onSnapshot, setDoc } from "firebase/firestore";
+import { FieldPath, deleteField, doc, onSnapshot, setDoc } from "firebase/firestore";
 import { firestore } from "../firebase";
 import type { Foster } from "../types";
 import { subscribeLocalFoster, writeLocalFoster } from "../lib/localMode";
@@ -64,6 +64,10 @@ export function useFoster() {
  *
  * A `FieldPath` per key rather than a bare string, because `mergeFields` parses a string as a
  * dotted path — `new FieldPath(k)` is one segment whatever `k` contains.
+ *
+ * A key named with the value `undefined` is **removed** (PH-36's journey reset). Firestore
+ * rejects `undefined`, so it becomes `deleteField()` there; `writeLocalFoster` stores JSON, which
+ * drops the key. Either way the field ends up absent, exactly as if it had never been written.
  */
 export async function patchFoster(patch: Record<string, unknown>): Promise<void> {
   const keys = Object.keys(patch);
@@ -72,7 +76,10 @@ export async function patchFoster(patch: Record<string, unknown>): Promise<void>
   if (!keys.length) return;
   const id = fosterDocId();
   if (!id) { writeLocalFoster(patch); return; }
-  await setDoc(doc(firestore, "fosters", id), patch, {
+  const data = Object.fromEntries(
+    Object.entries(patch).map(([k, v]) => [k, v === undefined ? deleteField() : v]),
+  );
+  await setDoc(doc(firestore, "fosters", id), data, {
     mergeFields: keys.map((k) => new FieldPath(k)),
   });
 }

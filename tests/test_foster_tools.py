@@ -118,3 +118,41 @@ def test_list_dogs_leaves_out_an_unknown_weight_under_a_limit(fake_db):
 
     assert [d["id"] for d in shelter.list_dogs(max_weight_lbs=50)] == ["d-light"]
     assert len(shelter.list_dogs()) == 3
+
+
+# --- PH-36: a care-log entry belongs to the dog it was written about -----------------------
+
+
+def test_log_care_entry_files_the_entry_under_the_matched_dog(fake_db, monkeypatch):
+    from firebase_admin import firestore as fa_firestore
+
+    # The fake stores JSON; a server-timestamp sentinel isn't, and isn't what's under test.
+    monkeypatch.setattr(fa_firestore, "SERVER_TIMESTAMP", 1)
+    _seed(fake_db, matchedDogId="dog-b")
+    out = care.log_care_entry(foster_id=FOSTER_ID, entry_type="weigh_in", value="40 lbs")
+    assert fake_db.docs[f"{PATH}/careLog/{out['id']}"]["dogId"] == "dog-b"
+
+
+def test_log_care_entry_with_no_matched_dog_writes_no_tag(fake_db, monkeypatch):
+    from firebase_admin import firestore as fa_firestore
+
+    monkeypatch.setattr(fa_firestore, "SERVER_TIMESTAMP", 1)
+    _seed(fake_db, matchedDogId=None)
+    out = care.log_care_entry(foster_id=FOSTER_ID, entry_type="note", note="Hello")
+    assert "dogId" not in fake_db.docs[f"{PATH}/careLog/{out['id']}"]
+
+
+def test_get_care_log_drops_another_dogs_entries_and_keeps_untagged(fake_db):
+    _seed(fake_db, matchedDogId="dog-b")
+    fake_db.docs[f"{PATH}/careLog/a"] = {"type": "weigh_in", "value": "11 lbs", "created_at": 1, "dogId": "dog-a"}
+    fake_db.docs[f"{PATH}/careLog/u"] = {"type": "note", "note": "untagged", "created_at": 2}
+    fake_db.docs[f"{PATH}/careLog/b"] = {"type": "weigh_in", "value": "40 lbs", "created_at": 3, "dogId": "dog-b"}
+    assert [e["id"] for e in care.get_care_log(foster_id=FOSTER_ID)] == ["u", "b"]
+
+
+def test_the_adoption_profile_is_built_from_the_current_dogs_log_only(fake_db):
+    _seed(fake_db, matchedDogId="dog-b", intake={})
+    fake_db.docs["dogs/dog-b"] = {"name": "Bea", "breed": "Mix", "status": "foster"}
+    fake_db.docs[f"{PATH}/careLog/a"] = {"type": "weigh_in", "value": "11 lbs", "created_at": 1, "dogId": "dog-a"}
+    out = adoption.generate_adoption_profile(foster_id=FOSTER_ID)
+    assert out["care_log"] == []

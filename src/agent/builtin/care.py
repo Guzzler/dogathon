@@ -15,15 +15,28 @@ CARE_LOG = "careLog"
 ENTRY_TYPES = ("weigh_in", "vet_visit", "note", "photo")
 
 
+def belongs_to(entry: dict, dog_id: str | None) -> bool:
+    """Whether a care-log entry is about the foster's current dog (PH-36).
+
+    Entries carry the `dogId` they were written about. An untagged one predates the tag and is
+    the current journey's until the foster's first `leaveJourney` (web/src/lib/journey.ts)
+    stamps it with the dog it was about -- the same predicate as the web's `belongsToDog`.
+    """
+    tagged = entry.get("dogId")
+    return not tagged or tagged == dog_id
+
+
 @tool
 def get_care_log(foster_id: str = "") -> list[dict]:
-    """Read a foster's full care log: weigh-ins, vet visits, notes, and photos, oldest first.
+    """Read the care log for a foster's current dog: weigh-ins, vet visits, notes, and photos,
+    oldest first. Entries about a dog they fostered before are not included.
 
     Args:
         foster_id: The foster's id. Leave this out -- it defaults to the
             signed-in foster the app is showing.
     """
     foster_id = resolve(foster_id)
+    dog_id = get_foster(foster_id=foster_id).get("matchedDogId")
     docs = (
         db()
         .collection(FOSTERS)
@@ -32,7 +45,8 @@ def get_care_log(foster_id: str = "") -> list[dict]:
         .order_by("created_at")
         .stream()
     )
-    return [{"id": d.id, **d.to_dict()} for d in docs]
+    entries = [{"id": d.id, **d.to_dict()} for d in docs]
+    return [e for e in entries if belongs_to(e, dog_id)]
 
 
 @tool
@@ -58,6 +72,9 @@ def log_care_entry(
     foster_id = resolve(foster_id)
     from firebase_admin import firestore as fa_firestore
 
+    # Filed under the dog it is about, so a second foster's log doesn't open on the first
+    # dog's weigh-ins (PH-36). No matched dog leaves it untagged, which reads as current.
+    dog_id = get_foster(foster_id=foster_id).get("matchedDogId")
     entry = {
         "type": entry_type,
         "note": note,
@@ -65,6 +82,8 @@ def log_care_entry(
         "photo_url": photo_url,
         "created_at": fa_firestore.SERVER_TIMESTAMP,
     }
+    if dog_id:
+        entry["dogId"] = dog_id
     ref = db().collection(FOSTERS).document(foster_id).collection(CARE_LOG).document()
     ref.set(entry)
     return {"id": ref.id, **entry}
