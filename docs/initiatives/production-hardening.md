@@ -116,7 +116,7 @@ truthfulness, not because production-hardening has been re-ranked.
   The census of dangerous tools is complete. PH-28 `[large]` shipped 2026-09-26 and PH-31
   on 2026-09-27 (both below); nothing here is open.
 
-- [x] **PH-36 `[large]` — shipped 2026-10-11 (PR #__).** Design answer: *a journey's records belong
+- [x] **PH-36 `[large]` — shipped 2026-10-11 (PR #126).** Design answer: *a journey's records belong
   to the dog they were written about, and the moment the pointer moves is the moment they are
   filed.* `leaveJourney()` (`web/src/lib/journey.ts`) archives to `fosters/{uid}/journeys` and
   returns the reset, at all four pointer moves; care-log entries carry `dogId` and every reader
@@ -329,7 +329,7 @@ reaching the end of what it can give on this doc.)*
   isn't listing {name} right now.*; every other status keeps it; no rules edit. Shared, so Post
   Foster's preview says the same. Four render cases in `PublicAdoptionView.test.tsx` (adopted,
   retired, still-adoptable, unnamed org renders no card). Shipped in RS-22's PR.
-- 2026-10-11 — PH-36 `[large]` — PR #__ — **a second foster starts with a clean journal.**
+- 2026-10-11 — PH-36 `[large]` — PR #126 — **a second foster starts with a clean journal.**
   `leaveJourney(foster)` files the nine per-journey fields to `fosters/{uid}/journeys/{auto-id}`
   (guest: `pawthway.localJourneys.v1`, cleared by `clearGuestData()`), stamps untagged `careLog`
   entries with the old `dogId` in one batch, and returns the reset; `patchFoster` now reads a key
