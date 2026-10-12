@@ -190,8 +190,11 @@ don't "fix" the second by loosening `firestore.rules`.
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
-- **The `[large]` slot is empty as of 2026-10-10** — RS-22 shipped (with PH-35 as its rider);
-  plan names the next one. Routing narrative in
+- **The `[large]` slot is routed to `production-hardening.md` as of 2026-10-11 — PH-36**, a second
+  foster starts with a clean journal. It is RS-22's consequence on the foster's document (the release
+  RS-22 shipped is what makes a second journey routine), but the defect is records attributed to the
+  wrong animal, which that doc owns. This queue has no buildable item: M3 is finished, M5 is gated on
+  a real shelter. Routing for one run, not a re-rank. Routing narrative in
   [`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md).
 
 ### Needs a human, not a queue item
@@ -279,7 +282,7 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status re-checked **2026-10-08**, not carried over: `git log --since=2026-09-22` is this
+*(Status re-checked **2026-10-11**, not carried over: `git log --since=2026-09-22` is this
 loop's own PRs and nothing else, and a grep across `docs/` turns up no commit, no doc edit from
 Sharang and no note anywhere saying this has happened. Recorded so a future run doesn't mistake
 the passage of time for progress. Now that M3 is finished this is the only thing standing between

@@ -116,15 +116,75 @@ truthfulness, not because production-hardening has been re-ranked.
   The census of dangerous tools is complete. PH-28 `[large]` shipped 2026-09-26 and PH-31
   on 2026-09-27 (both below); nothing here is open.
 
-- [x] **PH-32 `[large]` — the shared adoption link shows what the foster published (specified by
-  plan 2026-10-08, gate amended 2026-10-09, shipped 2026-10-09).** Design answer: *a shared page
-  shows what its foster published, and the sender sees exactly what the reader sees* —
-  `adoptionProfiles/{dogId}`, written only by an explicit **Publish**, and *visible exactly as long
-  as the act that authorized it holds*: rules run one predicate (the shelter's `pickupConfirmedAt`
-  on this foster's application for this dog, not declined/withdrawn) on both the write and the
-  read. Spec verbatim in
-  [`archive/production-hardening-ph32-2026-10-09.md`](archive/production-hardening-ph32-2026-10-09.md);
-  the Ledger row is what shipped. The live rules check is **PH-32b** under "Needs a human".
+- [ ] **PH-36 `[large]` — a second foster starts with a clean journal (queued by plan 2026-10-11, at
+  `5467778`).** RS-22 made the end of a journey routine — the shelter closes the application, and
+  `releasesFoster("completed")` lets the foster apply again, as does `phase: "complete"`. Walking
+  the foster's document into that **second** journey: nothing on `fosters/{uid}` that describes a
+  foster period is keyed by dog. Every line re-read against `main`:
+  - `Foster` (`web/src/types.ts:218-240`) holds one `journal`, `careSchedule`, `adoptionNote`,
+    `adoptionHighlights`, `pickup`, `prepChecklist`, `careChecklist`, `approvalChecklist`,
+    `readyForAdoption`; `CareLogEntry` (`:242-249`) has no `dogId`.
+  - Both apply sites change only the pointer: `DogDetailView.tsx:77-81` and `SavedView.tsx:140`
+    patch `matchedDogId` + `phase`. So does withdraw (`SavedView.tsx:230`) and **Change answers**
+    (`HubView.tsx:157`).
+  - So dog B's Care Plan opens on dog A's journal and schedule; `buildAdoptionProfile` prints dog
+    A's weigh-ins, photos and the foster's note *about dog A* under dog B's name, and **Publish**
+    (PH-32) puts them on dog B's public page; the Hub's `MatchedDogCard` (`HubView.tsx:74`) and
+    `MatchChatView.tsx:30-45` state dog A's pickup date for dog B; `CarePlanView.tsx:99` counts days
+    from it. The agent's `get_care_log` (`care.py:19-35`) and `generate_adoption_profile`
+    (`adoption.py:87-113`) read the same unscoped data, so the paragraph sent to the shelter is
+    built from the wrong animal. This is PH-17's test failing whole: *a record about a specific
+    animal* attributed to a different one.
+
+  **Design answer: a journey's records belong to the dog they were written about, and the moment
+  the pointer moves is the moment they are filed.** Not a re-key of every per-journey field under
+  `journeys/{dogId}` — that rewrites ~20 call sites to protect against one transition. The current
+  journey stays on `fosters/{uid}` exactly as today; leaving it *archives then resets*, in one
+  helper, at every site that moves `matchedDogId` off a dog. Nothing is deleted (a foster's notes
+  about a dog they loved are theirs), and nothing is carried.
+
+  **Spec.**
+  1. `types.ts`: `CareLogEntry.dogId?: string`; new `JourneyArchive` — `dogId`, `archivedAt`, and
+     the nine fields above as they stood.
+  2. New `web/src/lib/journey.ts`: `JOURNEY_FIELDS` (the nine), `hasJourney(foster)` (any of them
+     non-empty/non-default), and `leaveJourney(foster)` — if `foster.matchedDogId` and
+     `hasJourney`, write `fosters/{uid}/journeys/{auto-id}` (a dog can be fostered twice, so not
+     keyed by dog id), stamp every **untagged** `careLog` entry with the old `dogId` in one batch,
+     then return the reset patch: `journal: []`, `pickup: null`, `readyForAdoption: false`, the three
+     checklists from `checklists.ts`' defaults, and `careSchedule` / `adoptionNote` /
+     `adoptionHighlights` **removed** (named with no value — PH-25's `mergeFields` convention; read
+     `hooks/useFoster.ts:50-80` first). `LOCAL_MODE` mirrors it into a localStorage key in
+     `lib/localMode.ts`; `clearGuestData()` clears that key too.
+  3. Call it at all four pointer moves — both apply sites when the new dog differs from
+     `matchedDogId`, withdraw, and **Change answers** — merging the reset into the existing
+     `patchFoster`. Re-applying to the *same* dog writes nothing extra.
+  4. Tag on write: `log_care_entry` (`care.py:39-71`) sets `dogId` from the foster's
+     `matchedDogId`; `addCareLogEntry` (`useCareLog.ts:40`) and `appendLocalCareLog` take it too.
+     **Filter on read** with one predicate, *untagged or equal to `matchedDogId`*: `useCareLog`
+     (takes the dog id), `get_care_log`. Untagged entries are the current journey's until the first
+     `leaveJourney` stamps them — honest, because before this ships no foster could have
+     *completed* a second journey with care-log entries on the first.
+  5. `firestore.rules`: `match /journeys/{id}` under `fosters/{uid}`, owner-only, like `careLog`.
+     `auth.ts`: deletion removes `journeys` (beside `careLog`, `:195`), export includes them (`:227-238`).
+
+  **Not in scope:** a *Past fosters* screen reading `journeys` (the archive exists so nothing is
+  lost and export carries it; surfacing it is the next lead); PH-32's published page for dog A,
+  which lives at `adoptionProfiles/{dogA}` and is unaffected. **A lead found on the way, not an
+  item:** `addCareLogEntry` has **no caller** under `web/src` — PH-27 called it `log_care_entry`'s
+  screen twin, but no screen calls it, so by PH-26's rule the agent tool is the only live writer of
+  `careLog`. **Verify:** vitest — `leaveJourney` with a fake foster writes the archive, stamps only
+  untagged entries and returns the reset; same-dog re-apply and a foster with no journey write
+  nothing; both apply sites, withdraw and Change answers call it (render tests on `SavedView` /
+  `DogDetailView` with `patchFoster` mocked); `buildAdoptionProfile` fed dog A's tagged entries
+  for dog B prints none of them. pytest — `get_care_log` drops another dog's entries and keeps
+  untagged; `log_care_entry` writes `dogId`. `firebase deploy --only firestore:rules --dry-run`,
+  `tsc -b`, build, lint at `main`'s 8. Signed-in half is **PH-36b**, parked below.
+
+- [x] **PH-32 `[large]` (PR #122) and PH-35 (PR #124, RS-22's rider) — shipped; compressed
+  2026-10-11.** Design answers: *a shared page shows what its foster published, visible exactly as
+  long as the shelter's confirmation holds*; *the page states the listing, it does not come down.*
+  Specs verbatim in [PH-32's](archive/production-hardening-ph32-2026-10-09.md) and
+  [PH-35's](archive/production-hardening-ph35-2026-10-10.md) archives; Ledger rows are what shipped.
 
 - [ ] **PH-34 — confirmed by plan 2026-10-08: ages render as decimal years.** Kept here (it
   touches `lib/dog.ts`, which this doc already owns via PH-22/PH-28). `ageLabel`
@@ -132,16 +192,12 @@ truthfulness, not because production-hardening has been re-ranked.
   Render *11 yrs 1 mo* (months from `Math.round((age % 1) * 12)`, dropped when 0, a 12 rolling into
   the year), keep `age_years` as stored, and while there take PH-22's standing lead — the
   one-month floor duplicated in `DogProfile.ageMonths`. A `dog.test.ts` case per branch. Small; a
-  rider on any run with room (PH-32 shipped without it; citations re-read 2026-10-10).
-
-- [x] **PH-35 — shipped 2026-10-10 as RS-22's rider (PR #124).** Design answer: *the page states the
-  listing; it does not come down.* Spec verbatim in
-  [`archive/production-hardening-ph35-2026-10-10.md`](archive/production-hardening-ph35-2026-10-10.md).
+  rider on any run with room (PH-32 shipped without it; citations re-read 2026-10-11).
 
 - [ ] **PH-33 — confirmed by plan 2026-10-08: the demo intro promises controls the hosted app never
   shows.** Re-read: `phases/auth/DemoIntroView.tsx:23` titles *You're in demo mode* before the
   visitor chooses, `:27` promises shelter approval *"overridable with demo controls"*, and
-  `MatchView.tsx:363-365` (moved by RS-21; re-read 2026-10-09) renders `DemoShelterPanel` only as
+  `MatchView.tsx:363-365` (moved by RS-21; re-read 2026-10-11) renders `DemoShelterPanel` only as
   `DEMO_MODE && !application` — which a signed-in
   foster always has (PH-31). **Design answer: the smallest honest version, not a demo shelter.** A
   visitor signing in as staff of a demo shelter needs a uid in `staffUids`, which is hand-written by
@@ -254,6 +310,12 @@ licence to widen the rule), then open the link signed out and see the published 
 Then, as staff, **Undo confirmation** and expect the signed-out link to show only the shelter's
 record; confirm again and expect the notes back.
 
+**PH-36b — PARKED at queue time (2026-10-11); the signed-in half of PH-36.** In the same sitting as
+RS-14b (12): with that test foster's journey `completed`, apply for a second dog and expect Care Plan
+to open with an empty journal and no pickup, the Hub to show no pickup date, and
+`fosters/{uid}/journeys` in the console to hold the first dog's journal. Then open the first dog's
+shared link and expect its published notes unchanged. **Write down what happened.**
+
 Per the README's "nobody uses this app yet", the length of that list is not debt. Do not queue
 them, and do not add to it without reading the archived preamble first.
 
@@ -309,48 +371,13 @@ reaching the end of what it can give on this doc.)*
   PH-27: the agent writes only its foster's dog (`_own_dog()`, `update_dog` removed). PH-28: an org
   we can't name is absent — `shelterFor()` returns `null`, `isListable()` gates Discovery,
   `shelterName()` for sentences; PH-29/PH-30 were copy riders on the demo intro and `SignInToApply`.
-- 2026-09-27 — PH-31 — PR #106 — **a dog that isn't listed can't be applied to, and a failed
-  application no longer strands the foster on Match.** Both apply sites' `canApply` is now
-  `isListable()` — the same test Discovery uses — so a saved or deep-linked dog that is `retired`,
-  `adopted`, `ready_for_adoption`, `foster` or `medical_hold` shows *Not taking applications*
-  (PH-28 had already put the status half into `isListable()`; the sites weren't calling it). Both
-  `apply()`s write `createApplication()` **before** `patchFoster()`, RS-14's order; a throw shows
-  "That didn't reach {shelter}, so you haven't applied yet" (MatchView's `pickupFailed` wording and
-  style) and writes nothing else. `createApplication()`'s silent return on a missing `shelterId`
-  is a throw. `LOCAL_MODE` (no uid) still commits the foster record alone. Verified: 198 vitest (8
-  new — every non-`available` status and a null-shelter dog in `isListable`, and a new
-  `SavedView.test.tsx` rendering a liked dog in each status plus `petsun`), `tsc -b`, build, lint
-  at `main`'s 8. **Not verified in a browser:** the committed roster is all `available`, so no
-  local walk reaches the disabled state, and the failure branch needs a Firestore write to fail.
-- 2026-10-09 — PH-32 `[large]` — PR #122 — **the shared adoption link shows what the foster
-  published, to everyone, the sender included — for exactly as long as the shelter's confirmation
-  holds.** New `adoptionProfiles/{dogId}`; `firestore.rules` runs one `publishAuthorized()`
-  (application has this `fosterId` and `dogId`, a non-null `pickupConfirmedAt`, status not
-  `declined`/`withdrawn` — so RS-22's `completed` is admitted with no rules edit) on `get`,
-  `create` and `update`; `list` is owner-only; update/delete only by the stored author.
-  `lib/adoption.ts` gains `publishedPart` / `withPublished` / `samePublished` (key-order-proof, so
-  **Publish changes** means a change); `applicationView.ts` gains `authorizesPublishing`, the
-  client twin of the rules predicate; new `lib/adoptionProfiles.ts`. `PublicAdoptionView` renders
-  the shelter-only profile with the snapshot over it and no longer reads the viewer's foster
-  document; `AdoptionProfileBody` takes `audience` with the three reader empty states, and the
-  foster copy no longer says *starred* notes are summarised. Post Foster: **Publish** / **Publish
-  changes** card, and the plan-amended *{shelter} hasn't confirmed your pickup, so this link shows
-  only {shelter}'s record* in its place where the predicate fails; the share sheet says the same
-  before a first publish. Deletion takes published pages down first; export includes them; Saved's
-  withdraw unpublishes. **Surprises / departures:** plan amended the gate *while this was being
-  built* (PR #121 merged under the open branch) — the first cut had `read: if true` and had noted the
-  undo-leaves-it-public gap as unfixed; the amendment closed it and the rebased PR implements it.
-  Because a withdrawn application now hides its page from `get`, `unpublishAdoptionProfile` finds
-  the page through the owner's `list` query (`fosterId` + `dogId`, no index) rather than reading it.
-  `get` also admits `resource == null`, so an unpublished link degrades to the shelter's record
-  without a permission error — it exposes nothing. `publishAdoptionProfile` takes `fosterId`
-  explicitly. `LOCAL_MODE` keeps the own-data page as its own component and now passes the careLog
-  entries the old view dropped. Verified: 281 vitest (15 new — 5 helpers, 3 `authorizesPublishing`,
-  2 `PublicAdoptionView.test.tsx` incl. a `useFoster` mock that throws if the page reads it, 5
-  `PostFosterView.test.tsx`), `tsc -b`, build, lint at `main`'s 8, and `firestore.rules` compiled by
-  `firebase deploy --only firestore:rules --dry-run` (nothing released). **Not verified in a
-  browser** — the unattended run's dev-server start was declined — **nor against live rules**:
-  that is PH-32b.
+- **2026-09-27 — PH-31 (PR #106); 2026-10-09 — PH-32 `[large]` (PR #122). Archived 2026-10-11**,
+  verbatim, in [`archive/production-hardening-ledger-2026-10-11.md`](archive/production-hardening-ledger-2026-10-11.md).
+  PH-31: both apply sites gate on `isListable()` and write `createApplication()` before
+  `patchFoster()`. PH-32: `adoptionProfiles/{dogId}`, written only by **Publish**, read and written
+  under one rules predicate (`publishAuthorized()` — the shelter's stamp on this foster's live or
+  `completed` application); `unpublishAdoptionProfile` finds the page by the owner's `list` query.
+  Neither verified in a browser or against live rules — PH-32b.
 - 2026-10-10 — PH-35 — PR #124 — **the adoption page states the listing instead of inviting
   enquiries about a dog who is gone.** `AdoptionProfileBody`'s contact card gates the enquiry line on
   `offRoster()`: `adopted` → *{name} has been adopted through {shelter}.*, `retired` → *{shelter}
