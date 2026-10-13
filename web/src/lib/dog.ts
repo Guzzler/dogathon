@@ -102,13 +102,25 @@ export function normalizeDog(d: Dog): RichDog {
     fosterLength: formatWeeks(weeks),
     photoId: photoFor(d),
     photos: d.photo_urls ?? [],
-    ageLabel:
-      d.age_years < 1
-        ? `${Math.max(1, Math.round(d.age_years * 12))} mo`
-        : d.age_years === 1
-          ? "1 yr"
-          : `${d.age_years} yrs`,
+    ageLabel: formatAge(d.age_years),
   };
+}
+
+/**
+ * A recorded age in whole months, never below one (PH-34). The scrape stores `age_years` as a
+ * decimal (`11.08`), and both the label below and Care Plan's `ageMonths` round it here so the
+ * one-month floor lives in one place rather than two.
+ */
+export const ageMonths = (ageYears: number): number => Math.max(1, Math.round(ageYears * 12));
+
+/** "4 mo", "1 yr", "11 yrs 1 mo" — never the stored decimal (PH-34). */
+export function formatAge(ageYears: number): string {
+  const total = ageMonths(ageYears);
+  if (total < 12) return `${total} mo`;
+  const years = Math.floor(total / 12);
+  const months = total % 12;
+  const y = years === 1 ? "1 yr" : `${years} yrs`;
+  return months ? `${y} ${months} mo` : y;
 }
 
 /**
