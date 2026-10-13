@@ -190,11 +190,33 @@ don't "fix" the second by loosening `firestore.rules`.
 All of these ship to test accounts only until Sharang has actually spoken to a
 shelter, per the section below.
 
-- **The `[large]` slot is routed to `production-hardening.md` as of 2026-10-11 — PH-36**, a second
-  foster starts with a clean journal. It is RS-22's consequence on the foster's document (the release
-  RS-22 shipped is what makes a second journey routine), but the defect is records attributed to the
-  wrong animal, which that doc owns. This queue has no buildable item: M3 is finished, M5 is gated on
-  a real shelter. Routing for one run, not a re-rank. Routing narrative in
+- [ ] **RS-23 — queued 2026-10-13: the importer deletes a dog Pawthway still has records about.
+  Ship as PH-37's rider** (it is what lets that screen name its dogs); alone, it is a small run.
+  **Grounding, re-read at `9d153f6`:** `push()` in `scripts/import_dogs.py:166-185` deletes every
+  stale scraped dog except hand-entered ones and those in some `fosters/*.matchedDogId`. That
+  predicate was complete while a foster's pointer never moved. RS-22 and PH-36 made it move: the
+  moment a foster applies for a second dog, the first leaves `matched` — and a dog adopted after
+  its foster is exactly the one that falls off sfspca.org. The next real import then deletes it,
+  and with it: the subject of a `completed` application in `/shelter`'s inbox, the dog document
+  `/adoption/{dogId}` renders from (PH-35's *has been adopted* line never shows), and the name on
+  the foster's archived journey. **Design answer: *a scraped dog is the importer's to delete only
+  while nothing in Pawthway has been written about it.*** Extend `matched` to the union of
+  `fosters/*.matchedDogId`, `applications/*.dogId` (every status), `adoptionProfiles` doc ids, and
+  `collection_group("journeys")` `dogId`s. The `available` → `retired` delist rule is unchanged;
+  `_preserve_decisions` already keeps `adopted`. Rename the plan line to `keep N stale but
+  referenced in Pawthway: [...]` and keep the `(delisted: [...])` suffix — PH-28b reads it.
+  **Verify:** `tests/test_import_dogs.py`'s fake gains `applications`, `adoptionProfiles` and a
+  `collection_group`; one test per source keeping a stale dog, one that a dog with none is still
+  deleted, the existing `d-026` cases green; `uv run pytest`. No Firestore run — that is a person
+  unticking *plan only* (RS-13b).
+
+- **The `[large]` slot is routed to `production-hardening.md` as of 2026-10-13 — PH-37**, Past
+  fosters (it was PH-36 on 2026-10-11, shipped as PR #126). PH-37 is the read path for what PH-36
+  filed and the only surface from which a foster can take down a page about a dog they no longer
+  hold — foster-side records, which that doc owns. RS-23 above is its rider, and it sits here
+  because the importer is roster ownership (as RS-16 did). Otherwise this queue has no buildable
+  item: M3 is finished, M5 is gated on a real shelter. Routing for one run, not a re-rank. Routing
+  narrative in
   [`archive/real-data-and-shelters-routing-ledger-2026-09-22.md`](archive/real-data-and-shelters-routing-ledger-2026-09-22.md).
 
 ### Needs a human, not a queue item
@@ -282,7 +304,7 @@ that conversation happening first — the surface can be built and verified
 with a manually-added test uid — but nothing should be represented as live
 to a real user until it has.
 
-*(Status re-checked **2026-10-11**, not carried over: `git log --since=2026-09-22` is this
+*(Status re-checked **2026-10-13**, not carried over: `git log --since=2026-09-22` is this
 loop's own PRs and nothing else, and a grep across `docs/` turns up no commit, no doc edit from
 Sharang and no note anywhere saying this has happened. Recorded so a future run doesn't mistake
 the passage of time for progress. Now that M3 is finished this is the only thing standing between

@@ -248,6 +248,12 @@ Compressed:
   checklists, the foster's own note all carry over, so dog A's weigh-ins print on dog B's adoption
   page (**PH-36 `[large]`**). **When an item makes a state repeatable, check what the first pass left
   behind for the second** — a release is a beginning, and every per-journey field is read again.
+- **2026-10-13 — the twenty-sixth link: PH-36's lead, and every predicate keyed on the pointer it
+  moved.** The lead was a missing read path (**PH-37 `[large]`**, Past fosters); reading it found a
+  missing *control* behind it — a published page whose author has no surface once the pointer
+  leaves its dog. Then the same question asked of the other language: `import_dogs.py` keeps a dog
+  only while some `matchedDogId` names it (**RS-23**). **When an item moves a pointer, grep for
+  every predicate that reads it — "still referenced" was only ever "currently referenced".**
 
 ## What's already decided, so plan doesn't re-litigate it
 
@@ -306,7 +312,7 @@ hardening crossed the line *because of* the 2026-08-29 refill, and archiving in 
 what kept the working doc at 347 instead of merging a 420-line version for someone to notice
 later.
 
-**`archive/` holds 97 files as of 2026-10-11 (recounted after archiving the README's eighteenth–twenty-fourth links and PH-31/PH-32's Ledger rows to make room for PH-36's spec)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
+**`archive/` holds 98 files as of 2026-10-13 (recounted; this run archived nothing)** — counted with `ls`; **count it, don't increment it.** *(2026-09-23: plan and
 execute ran concurrently in one checkout — plan's `git checkout -b` moved HEAD off execute's
 uncommitted RS-14 branch, caught by `git status` showing code plan never touched, and put back
 unharmed. **plan writes docs in a `git worktree` off `origin/main`, never in the shared checkout.**)* One thing this run's arithmetic adds to the rules below: **a section of five
