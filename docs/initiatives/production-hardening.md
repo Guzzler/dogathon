@@ -116,14 +116,54 @@ truthfulness, not because production-hardening has been re-ranked.
   The census of dangerous tools is complete. PH-28 `[large]` shipped 2026-09-26 and PH-31
   on 2026-09-27 (both below); nothing here is open.
 
+- [ ] **PH-37 `[large]` — queued 2026-10-13: Past fosters, and the page its author can no longer
+  reach.** The repo's `[large]` slot (routing note in `real-data-and-shelters.md`). Ship **RS-23**
+  in the same PR as its rider: without it this screen names dogs the next import deletes.
+  **Grounding, re-read against `main` at `9d153f6`:** `fosters/{uid}/journeys` has no reader but
+  account export and deletion (`auth.ts:198`, `:231`; `types.ts:258` says *"Nothing reads these
+  yet"*). Worse, the one write that outlives a journey has no surface either: `PostFosterView`
+  resolves everything off `foster.matchedDogId` (`:27`-`:47`), Saved's Applications tab counts
+  `matched ? 1 : 0` (`SavedView.tsx:48`), and the only `unpublishAdoptionProfile` caller is
+  Saved's **Withdraw** on the *live* application (`:236`) — which RS-22 replaced with **Browse other
+  dogs** once `completed`. So a foster who published dog A's page and applies for dog B has a
+  public page about A, still authorized by A's `completed` application (`publishAuthorized()`),
+  that they can neither find nor take down. **Design answer: *a foster's records outlive the
+  pointer, and so does their authorship* — every filed journey is readable by its foster, and
+  every page they published is reachable by the one person who can take it down.**
+  - **Data:** `web/src/hooks/useJourneys.ts` — signed in, `onSnapshot` on `fosters/{uid}/journeys`
+    (uid from `fosterDocId()`), newest `archivedAt` first; guest/`LOCAL_MODE`, `readLocalJourneys()`.
+    Outcome from the foster's own applications (`where("fosterId", "==", uid)` — the rules'
+    `fosterId == auth.uid` branch admits it; `auth.ts` already runs the query), latest per `dogId`;
+    published pages from `publishedByFoster(uid)` (`adoptionProfiles.ts:61`). Pure assembly in
+    `web/src/lib/history.ts` — `pastFosters(journeys, dogs, applications, published)` → cards.
+  - **One card per journey, not per dog** (auto-id exists because a dog can be fostered twice).
+    Dog via `normalizeDog`; a missing dog document renders *This dog's listing is no longer on
+    file* with the journal intact — never a guessed name. Outcome only from the application:
+    `completed` → *Fostered* with `pickup.date` → `completedAt`, `withdrawn` → *You withdrew*,
+    `declined` → *{shelterName} declined*; **no application → no outcome line** (guest journeys,
+    legacy records). Never infer one from `readyForAdoption`.
+  - **Detail, `/history/:journeyId`** (in `App.tsx` beside `post-foster`, inside the gate):
+    the archived journal oldest first, read-only, and weigh-ins/vet visits from `careLog` matched
+    with **strict `entry.dogId === journey.dogId`** — *not* `belongsToDog`, which deliberately
+    counts an untagged entry as the *current* journey's. If a page is published for that dog:
+    copy-link to `/adoption/{dogId}` and **Take it down** (`unpublishAdoptionProfile(dogId, uid)`,
+    confirm first). Nothing archived is editable — that is a separate decision, not this item's.
+  - **Entry points:** a Hub card *Past fosters (n)* when n > 0, and a line under Saved's
+    Applications tab linking to it. Reuse existing `card`/`Unrecorded` classes; no new palette.
+  - **Verify:** `history.test.ts` per branch (missing dog, two journeys one dog, each status, no
+    application, strict care-log match vs. an untagged entry, published vs. not); vitest, tsc,
+    build, lint at `main`'s count. Then in `LOCAL_MODE` (no `web/.env`) via the dev preview: apply
+    for a dog, write a journal entry, withdraw, apply for another — expect the Hub card, the first
+    dog on `/history`, and the entry on its detail. Signed-in half is **PH-37b**, parked below.
+
 - [x] **PH-36 `[large]` — shipped 2026-10-11 (PR #126).** Design answer: *a journey's records belong
   to the dog they were written about, and the moment the pointer moves is the moment they are
   filed.* `leaveJourney()` (`web/src/lib/journey.ts`) archives to `fosters/{uid}/journeys` and
   returns the reset, at all four pointer moves; care-log entries carry `dogId` and every reader
   filters on it. Spec verbatim in
   [`archive/production-hardening-ph36-2026-10-11.md`](archive/production-hardening-ph36-2026-10-11.md);
-  the Ledger row is what shipped and where it differs. **Lead for plan:** a *Past fosters* screen
-  reading `journeys` (the archive is export-only today). Signed-in half is PH-36b, parked below.
+  the Ledger row is what shipped and where it differs. Its lead (a *Past fosters* screen) is
+  **PH-37** above, as of 2026-10-13. Signed-in half is PH-36b, parked below.
 
 - [x] **PH-32 `[large]` (PR #122) and PH-35 (PR #124, RS-22's rider) — shipped; compressed
   2026-10-11.** Design answers: *a shared page shows what its foster published, visible exactly as
@@ -260,6 +300,11 @@ RS-14b (12): with that test foster's journey `completed`, apply for a second dog
 to open with an empty journal and no pickup, the Hub to show no pickup date, and
 `fosters/{uid}/journeys` in the console to hold the first dog's journal. Then open the first dog's
 shared link and expect its published notes unchanged. **Write down what happened.**
+
+**PH-37b — PARKED at queue time (2026-10-13); the signed-in half of PH-37.** Same sitting, same
+foster: expect `/history` to list the first dog with *Fostered* and its dates, and the published
+page's link. Press **Take it down**; expect the signed-out link to show only the shelter's record.
+From a second account, `getDocs` on the first foster's `journeys` and expect `permission-denied`.
 
 Per the README's "nobody uses this app yet", the length of that list is not debt. Do not queue
 them, and do not add to it without reading the archived preamble first.
