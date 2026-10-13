@@ -135,18 +135,10 @@ truthfulness, not because production-hardening has been re-ranked.
   decimal: `formatAge()` + `ageMonths()` in `web/src/lib/dog.ts`, the one-month floor now shared
   with Care Plan's `DogProfile.ageMonths` (PH-22's lead). The Ledger row is what shipped.
 
-- [ ] **PH-33 — confirmed by plan 2026-10-08: the demo intro promises controls the hosted app never
-  shows.** Re-read: `phases/auth/DemoIntroView.tsx:23` titles *You're in demo mode* before the
-  visitor chooses, `:27` promises shelter approval *"overridable with demo controls"*, and
-  `MatchView.tsx:363-365` (moved by RS-21; re-read 2026-10-11) renders `DemoShelterPanel` only as
-  `DEMO_MODE && !application` — which a signed-in
-  foster always has (PH-31). **Design answer: the smallest honest version, not a demo shelter.** A
-  visitor signing in as staff of a demo shelter needs a uid in `staffUids`, which is hand-written by
-  design (`firestore.rules:114-115`, *no self-serve signup*); the first self-serve staff path does
-  not belong behind a demo. So: a neutral title (*Before you start*), and copy that says what this
-  build does — real dogs from the SF SPCA, an application a shelter answers, Care Plan's day
-  controls once a pickup is confirmed. Verify with a `DemoIntroView` render test asserting neither
-  *overridable* nor *demo controls* appears.
+- [x] **PH-33 — shipped 2026-10-13 (PR #__).** The intro no longer promises controls the hosted
+  app never shows: titled *Before you start*, it says the dogs are the SF SPCA's, that the shelter
+  answers an application, and that the one opt-in is Care Plan's day controls. The Ledger row is
+  what shipped.
 
 ### PH-28 `[large]` + PH-29 + PH-30 — shipped 2026-09-26; the Ledger row is the full account
 
@@ -349,3 +341,10 @@ reaching the end of what it can give on this doc.)*
   *11 yrs 1 mo* and `2.99` rolls to *3 yrs*. Rounding the total once rather than `age % 1` keeps
   float noise out. `CarePlanView.toDogProfile` uses the same `ageMonths()`, so the floor lives in one
   place. Verified: vitest 314 (4 new), build, lint at `main`'s 8.
+- 2026-10-13 — PH-33 — PR #__ — `DemoIntroView` rewritten to the design answer's smallest honest
+  version: neutral title, three sentences (real SF SPCA dogs; the shelter approves and confirms
+  pickup, nothing skips that; the opt-in is Care Plan's day controls), buttons *Show Care Plan's day
+  controls* / *Continue without them*. Storage keys and `choose()` unchanged, so a returning
+  visitor's choice still holds. The spec's test bans *demo controls* as well as *overridable*, so the
+  copy names the controls by what they do rather than by the mode. `DemoIntroView.test.tsx` renders
+  via `renderToStaticMarkup`. Verified: vitest 316 (2 new), build, lint at `main`'s 8.
