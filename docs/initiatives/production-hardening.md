@@ -131,13 +131,9 @@ truthfulness, not because production-hardening has been re-ranked.
   Specs verbatim in [PH-32's](archive/production-hardening-ph32-2026-10-09.md) and
   [PH-35's](archive/production-hardening-ph35-2026-10-10.md) archives; Ledger rows are what shipped.
 
-- [ ] **PH-34 — confirmed by plan 2026-10-08: ages render as decimal years.** Kept here (it
-  touches `lib/dog.ts`, which this doc already owns via PH-22/PH-28). `ageLabel`
-  (`web/src/lib/dog.ts:105-110`) prints `${d.age_years} yrs` raw, so `11.08` reads *11.08 yrs*.
-  Render *11 yrs 1 mo* (months from `Math.round((age % 1) * 12)`, dropped when 0, a 12 rolling into
-  the year), keep `age_years` as stored, and while there take PH-22's standing lead — the
-  one-month floor duplicated in `DogProfile.ageMonths`. A `dog.test.ts` case per branch. Small; a
-  rider on any run with room (PH-32 shipped without it; citations re-read 2026-10-11).
+- [x] **PH-34 — shipped 2026-10-13 (PR #__).** Ages render as *11 yrs 1 mo*, never the stored
+  decimal: `formatAge()` + `ageMonths()` in `web/src/lib/dog.ts`, the one-month floor now shared
+  with Care Plan's `DogProfile.ageMonths` (PH-22's lead). The Ledger row is what shipped.
 
 - [ ] **PH-33 — confirmed by plan 2026-10-08: the demo intro promises controls the hosted app never
   shows.** Re-read: `phases/auth/DemoIntroView.tsx:23` titles *You're in demo mode* before the
@@ -348,3 +344,8 @@ reaching the end of what it can give on this doc.)*
   Verified: vitest 310 (15 new), pytest 87 (4 new; the fake gained auto-id `document()`), build, lint at
   `main`'s 8, `firebase deploy --only firestore:rules --dry-run` compiled. Not verified signed in —
   PH-36b.
+- 2026-10-13 — PH-34 — PR #__ — `ageLabel` goes through `formatAge()`: whole months from
+  `ageMonths()` (rounded, floored at 1), then years plus a remainder dropped at 0, so `11.08` reads
+  *11 yrs 1 mo* and `2.99` rolls to *3 yrs*. Rounding the total once rather than `age % 1` keeps
+  float noise out. `CarePlanView.toDogProfile` uses the same `ageMonths()`, so the floor lives in one
+  place. Verified: vitest 314 (4 new), build, lint at `main`'s 8.

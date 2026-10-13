@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Dog } from "../types";
-import { isListable, normalizeDog, recordedStay } from "./dog";
+import { ageMonths, formatAge, isListable, normalizeDog, recordedStay } from "./dog";
 
 /**
  * PH-22. `normalizeDog()` fills three holes so a card can lay itself out, and the question
@@ -93,5 +93,30 @@ describe("a dog at an org we can't name is unlisted, not re-homed (PH-28)", () =
       expect(isListable(bare({ shelter_id: "sfspca-mission", status }))).toBe(false);
     }
     expect(isListable(bare({ status: "available" }))).toBe(false);
+  });
+});
+
+describe("formatAge (PH-34)", () => {
+  it("never prints the stored decimal", () => {
+    expect(formatAge(11.08)).toBe("11 yrs 1 mo");
+    expect(bare({ age_years: 11.08 }).ageLabel).toBe("11 yrs 1 mo");
+  });
+
+  it("drops the months when there are none", () => {
+    expect(formatAge(3)).toBe("3 yrs");
+    expect(formatAge(1)).toBe("1 yr");
+    expect(formatAge(1.5)).toBe("1 yr 6 mo");
+  });
+
+  it("rolls twelve months into the year", () => {
+    expect(formatAge(2.99)).toBe("3 yrs");
+    expect(formatAge(0.99)).toBe("1 yr");
+  });
+
+  it("counts a puppy in months, with a one-month floor", () => {
+    expect(formatAge(0.33)).toBe("4 mo");
+    expect(formatAge(0)).toBe("1 mo");
+    expect(ageMonths(0)).toBe(1);
+    expect(ageMonths(11.08)).toBe(133);
   });
 });

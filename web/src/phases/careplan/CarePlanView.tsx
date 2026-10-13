@@ -4,7 +4,7 @@ import { DemoCarePanel } from "../../components/DemoCarePanel";
 import { useDogs } from "../../hooks/useDogs";
 import { useFoster } from "../../hooks/useFoster";
 import { useCareSchedule, useJournal } from "../../hooks/useJournal";
-import { normalizeDog, dogPhotoOrNull } from "../../lib/dog";
+import { ageMonths, normalizeDog, dogPhotoOrNull } from "../../lib/dog";
 import { DEMO_MODE } from "../../lib/demoMode";
 import { LOCAL_MODE } from "../../lib/localMode";
 import type { Dog } from "../../types";
@@ -41,7 +41,7 @@ function toDogProfile(dog: Dog, pickupDate: string): DogProfile {
     id: d.id,
     name: d.name,
     breed: d.breed,
-    ageMonths: Math.max(1, Math.round(d.age_years * 12)),
+    ageMonths: ageMonths(d.age_years),
     // Nullable all the way through. The old `?? 0` was justified in a comment as reading
     // "unknown" in the Care Plan header — no header renders it; the two readers are the
     // emergency screen and the agent brief, and both printed the zero as a fact.
