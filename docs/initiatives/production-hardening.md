@@ -136,6 +136,10 @@ truthfulness, not because production-hardening has been re-ranked.
     `fosterId == auth.uid` branch admits it; `auth.ts` already runs the query), latest per `dogId`;
     published pages from `publishedByFoster(uid)` (`adoptionProfiles.ts:61`). Pure assembly in
     `web/src/lib/history.ts` — `pastFosters(journeys, dogs, applications, published)` → cards.
+    *(2026-10-13, second pass)* **Both Firestore reads run only when `fosterDocId()` is non-null**;
+    otherwise pass `[]`. In `LOCAL_MODE` `firestore` is `null` (`firebase.ts:16`) and
+    `publishedByFoster` has no guard of its own, so an unguarded call throws on the very path the
+    verify step drives. `useApplication.ts:31` is the pattern; degrade a refused read to `[]`.
   - **One card per journey, not per dog** (auto-id exists because a dog can be fostered twice).
     Dog via `normalizeDog`; a missing dog document renders *This dog's listing is no longer on
     file* with the journal intact — never a guessed name. Outcome only from the application:
@@ -147,7 +151,11 @@ truthfulness, not because production-hardening has been re-ranked.
     with **strict `entry.dogId === journey.dogId`** — *not* `belongsToDog`, which deliberately
     counts an untagged entry as the *current* journey's. If a page is published for that dog:
     copy-link to `/adoption/{dogId}` and **Take it down** (`unpublishAdoptionProfile(dogId, uid)`,
-    confirm first). Nothing archived is editable — that is a separate decision, not this item's.
+    confirm first). **Nothing archived is editable, and there is no re-publish from history
+    (decided 2026-10-13):** a journey is what was written while the dog was there, and a page is a
+    snapshot taken at **Publish**, so editing one never changes the other. Take-down is the one
+    control an author needs to stay safe; correcting a page after the pointer moved waits for a
+    real foster to ask.
   - **Entry points:** a Hub card *Past fosters (n)* when n > 0, and a line under Saved's
     Applications tab linking to it. Reuse existing `card`/`Unrecorded` classes; no new palette.
   - **Verify:** `history.test.ts` per branch (missing dog, two journeys one dog, each status, no
@@ -171,14 +179,8 @@ truthfulness, not because production-hardening has been re-ranked.
   Specs verbatim in [PH-32's](archive/production-hardening-ph32-2026-10-09.md) and
   [PH-35's](archive/production-hardening-ph35-2026-10-10.md) archives; Ledger rows are what shipped.
 
-- [x] **PH-34 — shipped 2026-10-13 (PR #__).** Ages render as *11 yrs 1 mo*, never the stored
-  decimal: `formatAge()` + `ageMonths()` in `web/src/lib/dog.ts`, the one-month floor now shared
-  with Care Plan's `DogProfile.ageMonths` (PH-22's lead). The Ledger row is what shipped.
-
-- [x] **PH-33 — shipped 2026-10-13 (PR #__).** The intro no longer promises controls the hosted
-  app never shows: titled *Before you start*, it says the dogs are the SF SPCA's, that the shelter
-  answers an application, and that the one opt-in is Care Plan's day controls. The Ledger row is
-  what shipped.
+- [x] **PH-34 (PR #127) and PH-33 (PR #129) — shipped 2026-10-13.** Ages render as *11 yrs 1 mo*;
+  the intro stops promising controls the hosted app never shows. Ledger rows are what shipped.
 
 ### PH-28 `[large]` + PH-29 + PH-30 — shipped 2026-09-26; the Ledger row is the full account
 
@@ -381,12 +383,12 @@ reaching the end of what it can give on this doc.)*
   Verified: vitest 310 (15 new), pytest 87 (4 new; the fake gained auto-id `document()`), build, lint at
   `main`'s 8, `firebase deploy --only firestore:rules --dry-run` compiled. Not verified signed in —
   PH-36b.
-- 2026-10-13 — PH-34 — PR #__ — `ageLabel` goes through `formatAge()`: whole months from
+- 2026-10-13 — PH-34 — PR #127 — `ageLabel` goes through `formatAge()`: whole months from
   `ageMonths()` (rounded, floored at 1), then years plus a remainder dropped at 0, so `11.08` reads
   *11 yrs 1 mo* and `2.99` rolls to *3 yrs*. Rounding the total once rather than `age % 1` keeps
   float noise out. `CarePlanView.toDogProfile` uses the same `ageMonths()`, so the floor lives in one
   place. Verified: vitest 314 (4 new), build, lint at `main`'s 8.
-- 2026-10-13 — PH-33 — PR #__ — `DemoIntroView` rewritten to the design answer's smallest honest
+- 2026-10-13 — PH-33 — PR #129 — `DemoIntroView` rewritten to the design answer's smallest honest
   version: neutral title, three sentences (real SF SPCA dogs; the shelter approves and confirms
   pickup, nothing skips that; the opt-in is Care Plan's day controls), buttons *Show Care Plan's day
   controls* / *Continue without them*. Storage keys and `choose()` unchanged, so a returning
