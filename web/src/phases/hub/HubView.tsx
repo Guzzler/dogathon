@@ -4,6 +4,7 @@ import { patchFoster, useFoster } from "../../hooks/useFoster";
 import { leaveJourney } from "../../lib/journey";
 import { useDogs } from "../../hooks/useDogs";
 import { useApplication } from "../../hooks/useApplication";
+import { usePastFosterCount } from "../../hooks/useJourneys";
 import { agreedPickup } from "../../lib/applicationView";
 import { ENERGY_WORD } from "../../lib/dog";
 import { prefs } from "../../lib/matching";
@@ -48,6 +49,7 @@ const PHASE_COPY: Record<FosterPhase, { title: string; body: string; cta: string
 export function HubView() {
   const { foster, loading } = useFoster();
   const { dogs } = useDogs();
+  const pastCount = usePastFosterCount();
 
   if (loading) return <p className="pw-loading">Loading your hub…</p>;
   if (!foster) return <p className="pw-loading">No foster profile found yet.</p>;
@@ -73,6 +75,15 @@ export function HubView() {
 
       {matchedDog && (
         <MatchedDogCard dog={matchedDog} pickup={foster.pickup} />
+      )}
+
+      {/* PH-37: every filed journey, and any page still published about a dog no longer theirs. */}
+      {pastCount > 0 && (
+        <Link className="hub-card" to="/history" style={{ display: "block", color: "inherit", textDecoration: "none" }}>
+          <p className="hub-card__eyebrow">Your history</p>
+          <h2>Past fosters ({pastCount})</h2>
+          <p className="pw-muted" style={{ margin: 0 }}>Your journals from earlier fosters, and any adoption page you published.</p>
+        </Link>
       )}
 
       <div className="hub-steps">

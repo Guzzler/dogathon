@@ -15,6 +15,7 @@ import { createApplication, setApplicationStatus } from "../../lib/applications"
 import { unpublishAdoptionProfile } from "../../lib/adoptionProfiles";
 import { fosterDocId } from "../../lib/session";
 import { Unrecorded } from "../../components/Unrecorded";
+import { usePastFosterCount } from "../../hooks/useJourneys";
 
 
 export function SavedView() {
@@ -26,6 +27,7 @@ export function SavedView() {
   // The shelter's verdict on the dog they're already matched to -- the one thing that can
   // release the one-foster-at-a-time block without the foster going anywhere.
   const { application: activeApp } = useApplication(foster?.matchedDogId);
+  const pastCount = usePastFosterCount();
 
   if (loading || dogsLoading) return <p className="pw-loading">Loading…</p>;
 
@@ -72,6 +74,14 @@ export function SavedView() {
                   body="When you apply to foster a dog, you'll track the shelter's response here."
                   cta={{ label: "See saved dogs", to: "/saved" }} />
               : <AppliedCard d={matched} onOpenMatch={() => navigate("/match")} />
+          )}
+          {/* PH-37: this tab shows only the current application; earlier ones are filed. */}
+          {tab === "applied" && pastCount > 0 && (
+            <p className="muted" style={{ marginTop: 16, textAlign: "center" }}>
+              <button className="btn ghost sm" style={{ margin: "0 auto" }} onClick={() => navigate("/history")}>
+                Past fosters ({pastCount}) →
+              </button>
+            </p>
           )}
         </motion.div>
       </div>

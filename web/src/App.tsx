@@ -11,6 +11,7 @@ import { MatchChatView } from "./phases/match/MatchChatView";
 import { CarePlanView } from "./phases/careplan/CarePlanView";
 import { PostFosterView } from "./phases/postfoster/PostFosterView";
 import { PublicAdoptionView } from "./phases/postfoster/PublicAdoptionView";
+import { PastFosterDetailView, PastFostersView } from "./phases/history/PastFostersView";
 import { SignInView } from "./phases/auth/SignInView";
 import { DemoIntroView, demoIntroSeen } from "./phases/auth/DemoIntroView";
 import { ShelterLayout } from "./phases/shelter/ShelterLayout";
@@ -98,6 +99,8 @@ export default function App() {
           {/* Journal & Emergency are routes, not local state, so the app tab bar can carry them. */}
           <Route path="care-plan/:tab" element={<CarePlanView />} />
           <Route path="post-foster" element={<PostFosterView />} />
+          <Route path="history" element={<PastFostersView />} />
+          <Route path="history/:journeyId" element={<PastFosterDetailView />} />
         </Route>
       </Route>
       {/* A sibling of the foster Layout, not nested inside it: Layout *is* the 430px phone

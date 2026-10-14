@@ -257,8 +257,8 @@ export interface CareLogEntry {
 /**
  * One finished (or abandoned) foster period, filed at `fosters/{uid}/journeys/{auto-id}` the
  * moment `matchedDogId` moved off its dog (PH-36). Auto-id rather than the dog's id because a
- * dog can be fostered twice. Nothing reads these yet beyond the data export; they exist so that
- * starting a second journey loses nothing of the first.
+ * dog can be fostered twice. They exist so that starting a second journey loses nothing of the
+ * first, and Past fosters (`/history`, PH-37) is where the foster reads them back.
  */
 export interface JourneyArchive {
   dogId: string;

@@ -116,53 +116,12 @@ truthfulness, not because production-hardening has been re-ranked.
   The census of dangerous tools is complete. PH-28 `[large]` shipped 2026-09-26 and PH-31
   on 2026-09-27 (both below); nothing here is open.
 
-- [ ] **PH-37 `[large]` — queued 2026-10-13: Past fosters, and the page its author can no longer
-  reach.** The repo's `[large]` slot (routing note in `real-data-and-shelters.md`). Ship **RS-23**
-  in the same PR as its rider: without it this screen names dogs the next import deletes.
-  **Grounding, re-read against `main` at `9d153f6`:** `fosters/{uid}/journeys` has no reader but
-  account export and deletion (`auth.ts:198`, `:231`; `types.ts:258` says *"Nothing reads these
-  yet"*). Worse, the one write that outlives a journey has no surface either: `PostFosterView`
-  resolves everything off `foster.matchedDogId` (`:27`-`:47`), Saved's Applications tab counts
-  `matched ? 1 : 0` (`SavedView.tsx:48`), and the only `unpublishAdoptionProfile` caller is
-  Saved's **Withdraw** on the *live* application (`:236`) — which RS-22 replaced with **Browse other
-  dogs** once `completed`. So a foster who published dog A's page and applies for dog B has a
-  public page about A, still authorized by A's `completed` application (`publishAuthorized()`),
-  that they can neither find nor take down. **Design answer: *a foster's records outlive the
-  pointer, and so does their authorship* — every filed journey is readable by its foster, and
-  every page they published is reachable by the one person who can take it down.**
-  - **Data:** `web/src/hooks/useJourneys.ts` — signed in, `onSnapshot` on `fosters/{uid}/journeys`
-    (uid from `fosterDocId()`), newest `archivedAt` first; guest/`LOCAL_MODE`, `readLocalJourneys()`.
-    Outcome from the foster's own applications (`where("fosterId", "==", uid)` — the rules'
-    `fosterId == auth.uid` branch admits it; `auth.ts` already runs the query), latest per `dogId`;
-    published pages from `publishedByFoster(uid)` (`adoptionProfiles.ts:61`). Pure assembly in
-    `web/src/lib/history.ts` — `pastFosters(journeys, dogs, applications, published)` → cards.
-    *(2026-10-13, second pass)* **Both Firestore reads run only when `fosterDocId()` is non-null**;
-    otherwise pass `[]`. In `LOCAL_MODE` `firestore` is `null` (`firebase.ts:16`) and
-    `publishedByFoster` has no guard of its own, so an unguarded call throws on the very path the
-    verify step drives. `useApplication.ts:31` is the pattern; degrade a refused read to `[]`.
-  - **One card per journey, not per dog** (auto-id exists because a dog can be fostered twice).
-    Dog via `normalizeDog`; a missing dog document renders *This dog's listing is no longer on
-    file* with the journal intact — never a guessed name. Outcome only from the application:
-    `completed` → *Fostered* with `pickup.date` → `completedAt`, `withdrawn` → *You withdrew*,
-    `declined` → *{shelterName} declined*; **no application → no outcome line** (guest journeys,
-    legacy records). Never infer one from `readyForAdoption`.
-  - **Detail, `/history/:journeyId`** (in `App.tsx` beside `post-foster`, inside the gate):
-    the archived journal oldest first, read-only, and weigh-ins/vet visits from `careLog` matched
-    with **strict `entry.dogId === journey.dogId`** — *not* `belongsToDog`, which deliberately
-    counts an untagged entry as the *current* journey's. If a page is published for that dog:
-    copy-link to `/adoption/{dogId}` and **Take it down** (`unpublishAdoptionProfile(dogId, uid)`,
-    confirm first). **Nothing archived is editable, and there is no re-publish from history
-    (decided 2026-10-13):** a journey is what was written while the dog was there, and a page is a
-    snapshot taken at **Publish**, so editing one never changes the other. Take-down is the one
-    control an author needs to stay safe; correcting a page after the pointer moved waits for a
-    real foster to ask.
-  - **Entry points:** a Hub card *Past fosters (n)* when n > 0, and a line under Saved's
-    Applications tab linking to it. Reuse existing `card`/`Unrecorded` classes; no new palette.
-  - **Verify:** `history.test.ts` per branch (missing dog, two journeys one dog, each status, no
-    application, strict care-log match vs. an untagged entry, published vs. not); vitest, tsc,
-    build, lint at `main`'s count. Then in `LOCAL_MODE` (no `web/.env`) via the dev preview: apply
-    for a dog, write a journal entry, withdraw, apply for another — expect the Hub card, the first
-    dog on `/history`, and the entry on its detail. Signed-in half is **PH-37b**, parked below.
+- [x] **PH-37 `[large]` + RS-23 — shipped 2026-10-13 in one PR.** Design answer: *a foster's records
+  outlive the pointer, and so does their authorship.* `/history` lists every filed journey and
+  `/history/:journeyId` reads one back, with **Take it down** for a page still published about a dog
+  no longer theirs. Spec verbatim in
+  [`archive/production-hardening-ph37-2026-10-13.md`](archive/production-hardening-ph37-2026-10-13.md);
+  the Ledger row is what shipped and where it differs. Signed-in half is PH-37b, parked below.
 
 - [x] **PH-36 `[large]` — shipped 2026-10-11 (PR #126).** Design answer: *a journey's records belong
   to the dog they were written about, and the moment the pointer moves is the moment they are
@@ -277,6 +236,8 @@ matched to a foster" line with a `(delisted: [...])` suffix, and the write sets 
 prints `keep 2 stale but matched to a foster: ['d-026', 'sfspca-61200213'] (delisted: [...])` — so
 **some `fosters/*` document still has `matchedDogId: "d-026"`**, and the rule above says leave it.
 Whose is the half still needing the console; the plan line never names a foster, by design.
+*(2026-10-13, RS-23: the line now reads `keep N stale but referenced in Pawthway: [...]` — it also
+counts applications, published pages and filed journeys — and keeps the `(delisted: [...])` suffix.)*
 
 **PH-32b — PARKED at queue time (2026-10-08); the signed-in half of PH-32 (shipped 2026-10-09).** Its
 spec's last sentence is the whole check: publish as the confirmed test foster, attempt the same
@@ -395,3 +356,18 @@ reaching the end of what it can give on this doc.)*
   visitor's choice still holds. The spec's test bans *demo controls* as well as *overridable*, so the
   copy names the controls by what they do rather than by the mode. `DemoIntroView.test.tsx` renders
   via `renderToStaticMarkup`. Verified: vitest 316 (2 new), build, lint at `main`'s 8.
+- 2026-10-13 — PH-37 `[large]` — PR #__ — Past fosters. `lib/history.ts` (`pastFosters`,
+  `outcomeOf`, strict `journeyCareLog`) assembles one card per journey, newest filed first; outcome
+  only from the foster's latest application per dog (*Fostered {pickup} → {completedAt}*, *You
+  withdrew*, *{shelter} declined*, otherwise no line); a missing dog reads *This dog's listing is no
+  longer on file*. `hooks/useJourneys.ts` runs its three Firestore listeners only with a uid, else
+  `readLocalJourneys()` with `local-<n>` ids. Routes `/history` and `/history/:journeyId` inside the
+  gate; Hub card *Past fosters (n)* and a link under Saved's Applications tab. **Beyond the spec:**
+  published pages are a live `onSnapshot` on the same owner query `publishedByFoster` runs, not that
+  function, so **Take it down** clears its own section; `useCareLog` split into `useAllCareLog` +
+  the filtered hook; the archived `adoptionNote` renders read-only on the detail. **Known edge:** two
+  journeys on one dog share that dog's latest application and its strict care-log entries — the data
+  carries no per-journey key to split them. **Not verified in a browser:** the dev preview needs a
+  human click on an unattended run and was declined, so the spec's LOCAL_MODE walk became
+  `PastFostersView.test.tsx`, which drives the real `leaveJourney` → localStorage → view path with
+  `firestore` null. vitest 326 (10 new), tsc, build, lint at `main`'s 8. Signed-in half: PH-37b.

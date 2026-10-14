@@ -139,6 +139,23 @@ def _unreachable(detail: str) -> NoReturn:
     raise SystemExit(EXIT_UNREACHABLE)
 
 
+def _referenced_dog_ids(client) -> set[str]:
+    """Every dog id something in Pawthway was written about (RS-23).
+
+    A foster mid-journey (`fosters/*.matchedDogId`) -- Match, Care Plan and Post Foster resolve
+    the dog by it. An application in any status -- the shelter's inbox shows its subject, and a
+    `completed` one is the record that a foster happened. A published adoption page
+    (`adoptionProfiles/{dogId}`) -- the shared link renders from the dog document. And a filed
+    journey (`fosters/*/journeys`) -- a foster's Past fosters screen names the dog from it.
+    """
+    ids = {(snap.to_dict() or {}).get("matchedDogId") for snap in client.collection("fosters").stream()}
+    ids |= {(snap.to_dict() or {}).get("dogId") for snap in client.collection("applications").stream()}
+    ids |= {snap.id for snap in client.collection("adoptionProfiles").stream()}
+    ids |= {(snap.to_dict() or {}).get("dogId") for snap in client.collection_group("journeys").stream()}
+    ids.discard(None)
+    return ids
+
+
 def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
     """Replace the `dogs` collection with this roster.
 
@@ -172,16 +189,14 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
     hand_entered = {i for i in stale_ids if existing[i].get("source") == MANUAL_SOURCE}
     stale_ids -= hand_entered
 
-    # Never delete a dog someone is partway through fostering. Match, Care Plan and Post
-    # Foster all resolve the dog by `matchedDogId`, so removing it drops that foster onto a
-    # "no foster yet" screen with no route back. A dog adopted off the shelter's site falls
-    # out of the scrape, so this is reachable in normal use, not just in theory.
-    matched = {
-        (snap.to_dict() or {}).get("matchedDogId")
-        for snap in client.collection("fosters").stream()
-    }
-    matched.discard(None)
-    spoken_for = stale_ids & matched
+    # Never delete a dog Pawthway still has records about (RS-23). This used to be only the dogs
+    # some foster's `matchedDogId` names -- complete while that pointer never moved, but RS-22
+    # and PH-36 made it move: a foster who applies for a second dog leaves the first, and a dog
+    # adopted after its foster is exactly the one that falls off sfspca.org. Deleting it then
+    # strands a `completed` application in the shelter's inbox, the page `/adoption/{dogId}`
+    # renders, and the name on the foster's filed journey. So: *a scraped dog is the importer's
+    # to delete only while nothing in Pawthway has been written about it.*
+    spoken_for = stale_ids & _referenced_dog_ids(client)
     stale_ids -= spoken_for
     # Kept for the foster is not the same as still listed (PH-28). A dog that fell out of the
     # scrape has left the shelter's own listings, so an `available` one would stay in Discovery
@@ -205,7 +220,7 @@ def _push_to_firestore(dogs: list[dict], plan_only: bool) -> None:
         print(f"  keep    {len(hand_entered)} entered by a shelter, not by this import: {sorted(hand_entered)}")
     if spoken_for:
         print(
-            f"  keep    {len(spoken_for)} stale but matched to a foster: {sorted(spoken_for)}"
+            f"  keep    {len(spoken_for)} stale but referenced in Pawthway: {sorted(spoken_for)}"
             + (f" (delisted: {delist})" if delist else "")
         )
     if kept_status:

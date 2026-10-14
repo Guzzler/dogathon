@@ -155,12 +155,28 @@ class _Batch:
 class _Client:
     """Just enough of the Admin SDK for `_push_to_firestore()`: stream, batch, and a write log."""
 
-    def __init__(self, dogs: dict[str, dict], fosters: dict[str, dict]):
-        self.cols = {"dogs": _Collection("dogs", dogs), "fosters": _Collection("fosters", fosters)}
+    def __init__(
+        self,
+        dogs: dict[str, dict],
+        fosters: dict[str, dict],
+        applications: dict[str, dict] | None = None,
+        adoption_profiles: dict[str, dict] | None = None,
+        journeys: dict[str, dict] | None = None,
+    ):
+        self.cols = {
+            "dogs": _Collection("dogs", dogs),
+            "fosters": _Collection("fosters", fosters),
+            "applications": _Collection("applications", applications or {}),
+            "adoptionProfiles": _Collection("adoptionProfiles", adoption_profiles or {}),
+        }
+        self.groups = {"journeys": _Collection("journeys", journeys or {})}
         self.log: list = []
 
     def collection(self, name: str):
         return self.cols[name]
+
+    def collection_group(self, name: str):
+        return self.groups[name]
 
     def batch(self):
         return _Batch(self.log)
@@ -204,6 +220,50 @@ def test_plan_only_reports_the_delisting_and_writes_nothing(monkeypatch, capsys)
     log = _push(monkeypatch, _live(), [{"id": "fresh", "status": "available"}], plan_only=True)
     assert log == []
     assert "(delisted: ['d-026'])" in capsys.readouterr().out
+
+
+# --- RS-23: a dog Pawthway has records about is not the importer's to delete ----------------
+
+
+def _referenced(**sources) -> _Client:
+    """One stale dog, `d-old`, gone from the scrape, referenced only by what `sources` holds."""
+    return _Client(
+        dogs={"fresh": {"status": "available"}, "d-old": {"status": "adopted"}},
+        fosters={"a": {"matchedDogId": None}},
+        **sources,
+    )
+
+
+@pytest.mark.parametrize("sources", [
+    {"applications": {"app1": {"dogId": "d-old", "status": "completed"}}},
+    {"applications": {"app1": {"dogId": "d-old", "status": "withdrawn"}}},
+    {"adoption_profiles": {"d-old": {"fosterId": "a", "dogId": "d-old"}}},
+    {"journeys": {"j1": {"dogId": "d-old"}}},
+], ids=["completed-application", "withdrawn-application", "published-page", "filed-journey"])
+def test_a_stale_dog_with_pawthway_records_is_kept(monkeypatch, capsys, sources):
+    log = _push(monkeypatch, _referenced(**sources), [{"id": "fresh", "status": "available"}], plan_only=False)
+    assert not any(op[1] == "d-old" for op in log)   # not deleted, and `adopted` is left alone
+    assert "stale but referenced in Pawthway: ['d-old']" in capsys.readouterr().out
+
+
+def test_a_stale_dog_with_no_pawthway_records_is_still_deleted(monkeypatch):
+    client = _referenced(
+        applications={"app1": {"dogId": "other", "status": "completed"}},
+        journeys={"j1": {"dogId": "other"}},
+    )
+    log = _push(monkeypatch, client, [{"id": "fresh", "status": "available"}], plan_only=False)
+    assert ("delete", "d-old", None) in log
+
+
+def test_a_stale_available_dog_kept_for_an_application_is_delisted(monkeypatch, capsys):
+    client = _Client(
+        dogs={"fresh": {"status": "available"}, "d-old": {"status": "available"}},
+        fosters={},
+        applications={"app1": {"dogId": "d-old", "status": "withdrawn"}},
+    )
+    log = _push(monkeypatch, client, [{"id": "fresh", "status": "available"}], plan_only=False)
+    assert ("update", "d-old", {"status": "retired"}) in log
+    assert "(delisted: ['d-old'])" in capsys.readouterr().out
 
 
 # --- RS-16: the import writes the shelter's listing, not the shelter's decisions --------------
