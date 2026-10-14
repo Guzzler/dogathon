@@ -13,6 +13,15 @@ import { belongsToDog } from "../lib/journey";
  * current journey's until `leaveJourney` files them (PH-36). A dog fostered before is not this one.
  */
 export function useCareLog(dogId: string | null | undefined) {
+  const { entries, loading } = useAllCareLog();
+  return { entries: entries.filter((e) => belongsToDog(e, dogId)), loading };
+}
+
+/**
+ * Every entry, about any dog -- for Past fosters (PH-37), which filters strictly by a filed
+ * journey's dog rather than through `belongsToDog`. Screens about the current dog want `useCareLog`.
+ */
+export function useAllCareLog() {
   const [entries, setEntries] = useState<CareLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [docId, setDocId] = useState<string | null>(fosterDocId);
@@ -40,7 +49,7 @@ export function useCareLog(dogId: string | null | undefined) {
     );
   }, [docId]);
 
-  return { entries: entries.filter((e) => belongsToDog(e, dogId)), loading };
+  return { entries, loading };
 }
 
 /** `dogId` is the foster's current dog, so the entry is filed under the animal it is about. */
